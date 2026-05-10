@@ -1,0 +1,13 @@
+analysis_variant,market_regime,n,mean_10d_net_pct,outcome,share_pct
+tradable_filter,bear,62,-3.754,failure,11.38
+tradable_filter,bear,191,6.562,success,35.05
+tradable_filter,bull,73,-5.625,failure,13.39
+tradable_filter,bull,47,6.865,success,8.62
+tradable_filter,range,98,-5.773,failure,17.98
+tradable_filter,range,74,7.524,success,13.58
+tradable_next_close_confirm,bear,39,-3.185,failure,9.11
+tradable_next_close_confirm,bear,180,6.882,success,42.06
+tradable_next_close_confirm,bull,47,-5.331,failure,10.98
+tradable_next_close_confirm,bull,23,7.232,success,5.37
+tradable_next_close_confirm,range,79,-5.665,failure,18.46
+tradable_next_close_confirm,range,60,7.69,success,14.02

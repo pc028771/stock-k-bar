@@ -1,0 +1,1 @@
+scan_date,ticker,market_regime,signal_close,key_level,confirm_price,confirm_status,close_pos,ret_5d_past_pct,volume_ratio,reclaim_pct,scanner_score,stop_price_atr14,stop_price_box20,stop_price_simple

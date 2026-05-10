@@ -1,0 +1,5 @@
+signal,n,strong_attack_rate,failure_rate,below_open_after_1130_rate,mean_intraday_return_pct,mean_close_pos
+breakout_next_low_open,10,90.0,10.0,20.0,7.072,0.891
+breakout_next_not_low_open,10,90.0,10.0,10.0,4.675,0.879
+false_breakdown_reclaim,10,20.0,0.0,80.0,-1.769,0.421
+upper_shadow_new_high,10,10.0,70.0,80.0,0.336,0.584

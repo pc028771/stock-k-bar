@@ -1,0 +1,5 @@
+analysis_variant,outcome,n,close_pos_mean,ret_5d_past_mean,volume_ratio_mean,reclaim_pct_mean,range_pct_mean,atr14_pct_mean,close_vs_ma20_pct_mean
+tradable_filter,failure,233,59.475,-12.424,128.49,2.004,4.68,5.807,-12.135
+tradable_filter,success,312,65.301,-15.049,132.825,3.6,6.213,6.426,-15.557
+tradable_next_close_confirm,failure,165,61.782,-12.652,140.495,1.842,4.728,6.281,-12.8
+tradable_next_close_confirm,success,263,71.262,-16.034,133.45,4.601,6.936,6.406,-16.14

@@ -1,0 +1,7 @@
+group,market_regime,n,mean_close_basis_10d_pct,mean_10d_net_pct,win_10d_net_pct
+next_low_open,bear,57,-1.636,-0.54,38.6
+next_low_open,bull,678,-0.235,1.096,44.4
+next_low_open,range,276,3.398,4.439,53.26
+next_not_low_open,bear,123,2.891,-0.475,41.46
+next_not_low_open,bull,1957,3.638,0.447,42.21
+next_not_low_open,range,699,5.605,2.781,47.21

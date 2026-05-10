@@ -1,0 +1,7 @@
+group,market_regime,n
+next_low_open,bear,33
+next_low_open,bull,34
+next_low_open,range,33
+next_not_low_open,bear,33
+next_not_low_open,bull,34
+next_not_low_open,range,33

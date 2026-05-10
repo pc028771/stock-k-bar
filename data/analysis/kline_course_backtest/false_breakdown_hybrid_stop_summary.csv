@@ -1,0 +1,11 @@
+analysis_variant,policy,n,mean_10d_stop_net_pct,win_rate_10d_stop_net_pct,stop_hit_10d_pct,mean_20d_stop_net_pct,win_rate_20d_stop_net_pct,simple_usage_pct
+tradable_filter,atr14_only,545,1.482,54.5,21.65,5.262,56.7,0.0
+tradable_filter,simple_if_non_bull_high_close_and_reclaim,545,1.376,53.76,25.32,4.796,54.13,35.23
+tradable_filter,simple_if_non_bull_high_close_and_panic,545,1.365,53.94,24.4,4.915,54.68,33.03
+tradable_filter,simple_if_non_bull_and_reclaim_ge_1pct,545,1.344,53.03,27.52,4.772,53.03,43.49
+tradable_filter,simple_if_bear_regime_only,545,1.177,51.01,28.62,4.733,52.48,46.42
+tradable_next_close_confirm,atr14_only,428,2.334,60.98,14.49,5.907,61.92,0.0
+tradable_next_close_confirm,simple_if_non_bull_high_close_and_reclaim,428,2.065,59.35,18.93,5.228,58.88,43.93
+tradable_next_close_confirm,simple_if_non_bull_and_reclaim_ge_1pct,428,2.061,58.41,20.79,5.185,57.71,52.34
+tradable_next_close_confirm,simple_if_non_bull_high_close_and_panic,428,2.026,59.58,17.99,5.383,59.81,41.12
+tradable_next_close_confirm,simple_if_bear_regime_only,428,1.89,57.48,19.86,5.16,57.71,51.17
