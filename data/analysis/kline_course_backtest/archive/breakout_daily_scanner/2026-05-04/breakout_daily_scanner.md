@@ -2,6 +2,8 @@
 
 資料庫：`/Users/howard/.four_seasons/data.sqlite`
 
+回放日期：2026-05-04
+
 樣本：2025-04-25 至 2026-05-04
 
 最新交易日：2026-05-04
@@ -23,37 +25,37 @@ FinMind 營建類股排除筆數：90
 
 | bucket | n | mean_10d_net_pct | win_rate_10d_pct | mean_20d_net_pct | win_rate_20d_pct |
 | --- | --- | --- | --- | --- | --- |
-| all | 1664 | 1.168 | 44.05 | 4.901 | 49.34 |
-| top5 | 875 | 1.812 | 45.49 | 6.066 | 49.94 |
-| top10 | 1332 | 1.344 | 44.14 | 4.831 | 48.8 |
-| top20 | 1633 | 1.094 | 44.09 | 4.895 | 49.36 |
+| all | 1709 | 1.595 | 45.11 | 5.444 | 50.44 |
+| top5 | 895 | 2.222 | 46.48 | 6.543 | 50.73 |
+| top10 | 1364 | 1.778 | 45.23 | 5.396 | 49.78 |
+| top20 | 1678 | 1.531 | 45.17 | 5.448 | 50.48 |
 
 ## 最新交易日候選
 
 | rank_in_date | ticker | scanner_score | market_regime | breakout_next_not_low_open | intraday_strong_attack | below_open_after_1130 | close_pos | volume_ratio |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2486 | 89.0 | bull | False | True | False | 1.0 | 1.5738698296707367 |
-| 2 | 2855 | 89.0 | bull | False | True | False | 0.9743589743589722 | 1.663165265814838 |
-| 3 | 2395 | 89.0 | bull | False | True | False | 1.0 | 3.0110221740738505 |
-| 4 | 3498 | 89.0 | bull | False | True | False | 1.0 | 1.8717725846556088 |
-| 5 | 2465 | 89.0 | bull | False | True | False | 1.0 | 3.3911281424903543 |
-| 6 | 6166 | 89.0 | bull | False | True | False | 0.9629629629629625 | 2.7164632858368827 |
-| 7 | 3580 | 89.0 | bull | False | True | False | 1.0 | 1.9415609072723643 |
-| 8 | 6414 | 89.0 | bull | False | True | False | 0.9565217391304348 | 1.5009875956981948 |
+| 1 | 2486 | 99.0 | bull | True | True | False | 1.0 | 1.5738698296707367 |
+| 2 | 2855 | 99.0 | bull | True | True | False | 0.9743589743589722 | 1.663165265814838 |
+| 3 | 3498 | 99.0 | bull | True | True | False | 1.0 | 1.8717725846556088 |
+| 4 | 2465 | 99.0 | bull | True | True | False | 1.0 | 3.3911281424903543 |
+| 5 | 3580 | 99.0 | bull | True | True | False | 1.0 | 1.9415609072723643 |
+| 6 | 6414 | 99.0 | bull | True | True | False | 0.9565217391304348 | 1.5009875956981948 |
+| 7 | 2395 | 89.0 | bull | False | True | False | 1.0 | 3.0110221740738505 |
+| 8 | 6166 | 89.0 | bull | False | True | False | 0.9629629629629625 | 2.7164632858368827 |
 | 9 | 3526 | 89.0 | bull | False | True | False | 1.0 | 2.2631013426627544 |
 
 ## 近 20 交易日候選
 
 | trade_date | rank_in_date | ticker | scanner_score | market_regime | breakout_next_not_low_open | intraday_strong_attack | below_open_after_1130 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-05-04 | 1 | 2486 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 2 | 2855 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 3 | 2395 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 4 | 3498 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 5 | 2465 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 6 | 6166 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 7 | 3580 | 89.0 | bull | False | True | False |
-| 2026-05-04 | 8 | 6414 | 89.0 | bull | False | True | False |
+| 2026-05-04 | 1 | 2486 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 2 | 2855 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 3 | 3498 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 4 | 2465 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 5 | 3580 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 6 | 6414 | 99.0 | bull | True | True | False |
+| 2026-05-04 | 7 | 2395 | 89.0 | bull | False | True | False |
+| 2026-05-04 | 8 | 6166 | 89.0 | bull | False | True | False |
 | 2026-05-04 | 9 | 3526 | 89.0 | bull | False | True | False |
 | 2026-04-30 | 1 | 6207 | 99.0 | bull | True | True | False |
 | 2026-04-30 | 2 | 4576 | 99.0 | bull | True | True | False |

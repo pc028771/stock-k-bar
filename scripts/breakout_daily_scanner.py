@@ -352,6 +352,7 @@ def write_report(
     topn_summary: pd.DataFrame,
     max_intraday_per_date: int,
     strict_filter_profile: str,
+    as_of_date: str | None,
     excluded_ticker_count: int,
     listed_otc_count: int,
     construction_count: int,
@@ -368,6 +369,7 @@ def write_report(
     sample_start = str(pd.to_datetime(scanner["trade_date"]).min().date())
     sample_end = str(pd.to_datetime(scanner["trade_date"]).max().date())
     latest_trade_date = str(pd.to_datetime(scanner["trade_date"]).max().date())
+    scan_date = as_of_date or latest_trade_date
     intraday_coverage = float((scanner["intraday_rows"].fillna(0) > 0).mean() * 100)
 
     latest_preview = (
@@ -410,6 +412,8 @@ def write_report(
     md = f"""# Breakout Daily Scanner
 
 資料庫：`/Users/howard/.four_seasons/data.sqlite`
+
+回放日期：{scan_date}
 
 樣本：{sample_start} 至 {sample_end}
 
@@ -523,6 +527,7 @@ def main() -> None:
         topn_summary,
         max_intraday_per_date=args.max_intraday_per_date,
         strict_filter_profile=args.strict_filter_profile,
+        as_of_date=args.as_of_date,
         excluded_ticker_count=len(excluded_tickers),
         listed_otc_count=len(listed_otc_tickers),
         construction_count=len(construction_tickers),
