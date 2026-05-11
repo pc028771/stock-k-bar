@@ -184,6 +184,14 @@ def add_pre_rank_score(rows: pd.DataFrame) -> pd.DataFrame:
     rows["pre_rank_score"] += np.where(rows["close_pos"] >= 0.85, 8, 0)
     rows["pre_rank_score"] += np.where(rows["volume_ratio"] >= 1.5, 8, 0)
     rows["pre_rank_score"] += np.where(rows["breakout_strength_pct"] >= 1.5, 6, 0)
+    # Task 13：overhead_supply_layer 評分
+    # 依據 supply_zone_spec_report.md §3.1：layer ≤ 1 時 10 日 close-basis +3.83%（vs 基準 +2.90%）
+    #           layer ≥ 4 時 10 日 close-basis +1.31%，明顯弱於基準
+    # 設計：layer ≤ 1 → 加 8 分；layer ≥ 4 → 扣 8 分；其餘不調整
+    if "overhead_supply_layer" in rows.columns:
+        layer = pd.to_numeric(rows["overhead_supply_layer"], errors="coerce")
+        rows["pre_rank_score"] += np.where(layer.fillna(np.nan).le(1), 8, 0)
+        rows["pre_rank_score"] -= np.where(layer.fillna(np.nan).ge(4), 8, 0)
     return rows
 
 
@@ -273,6 +281,8 @@ def build_scanner(
         df = df[pd.to_datetime(df["trade_date"]) <= cutoff].copy()
     mask = tradable_breakout_mask(df, excluded_tickers, listed_otc_tickers, construction_tickers)
     rows = df[mask].copy()
+    # Task 13：加入 overhead_supply_layer（若欄位存在）
+    optional_cols = [c for c in ["overhead_supply_layer"] if c in df.columns]
     rows = rows[
         [
             "ticker",
@@ -291,7 +301,7 @@ def build_scanner(
             "breakout_next_low_open",
             "ret_10d_net",
             "ret_20d_net",
-        ]
+        ] + optional_cols
     ]
     rows["trade_date"] = pd.to_datetime(rows["trade_date"]).dt.strftime("%Y-%m-%d")
     rows = add_pre_rank_score(rows)
@@ -370,22 +380,25 @@ def write_report(
     scan_date = as_of_date or latest_trade_date
     intraday_coverage = float((scanner["intraday_rows"].fillna(0) > 0).mean() * 100)
 
+    _latest_cols_base = [
+        "rank_in_date",
+        "ticker",
+        "scanner_score",
+        "market_regime",
+        "overhead_supply_layer",
+        "breakout_next_not_low_open",
+        "intraday_strong_attack",
+        "below_open_after_1130",
+        "close_pos",
+        "volume_ratio",
+    ]
+    _latest_cols = [c for c in _latest_cols_base if c in latest_rows.columns]
     latest_preview = (
         "_當日無候選，請改看近 20 交易日清單。_"
         if latest_rows.empty
         else markdown_table(
             latest_rows.head(15),
-            [
-                "rank_in_date",
-                "ticker",
-                "scanner_score",
-                "market_regime",
-                "breakout_next_not_low_open",
-                "intraday_strong_attack",
-                "below_open_after_1130",
-                "close_pos",
-                "volume_ratio",
-            ],
+            _latest_cols,
         )
     )
 
@@ -428,6 +441,7 @@ FinMind 營建類股排除筆數：{construction_count}
 
 - 基礎分數：可交易 breakout 候選（排除注意/處置、低量、低價）
 - 加分：`range regime`、`breakout_next_not_low_open`、`close_pos` 高、`volume_ratio` 高、突破幅度高
+- Task 13 加分：`overhead_supply_layer ≤ 1` → +8 分（上方套牢壓力少）；`layer ≥ 4` → -8 分（層層套牢）
 - 分K加權：`intraday_strong_attack` 加分；`below_open_after_1130` 和 `intraday_attack_failure` 扣分
 
 ## Top-N 歷史命中摘要

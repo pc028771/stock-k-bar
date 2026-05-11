@@ -6,10 +6,10 @@
 
 | analysis_variant | outcome | n | close_pos_mean | ret_5d_past_mean | volume_ratio_mean | reclaim_pct_mean | range_pct_mean | atr14_pct_mean | close_vs_ma20_pct_mean |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| tradable_filter | failure | 233 | 59.475 | -12.424 | 128.49 | 2.004 | 4.68 | 5.807 | -12.135 |
-| tradable_filter | success | 312 | 65.301 | -15.049 | 132.825 | 3.6 | 6.213 | 6.426 | -15.557 |
+| tradable_filter | failure | 234 | 59.357 | -12.407 | 128.262 | 1.996 | 4.685 | 5.806 | -12.128 |
+| tradable_filter | success | 315 | 65.554 | -15.082 | 134.957 | 3.604 | 6.261 | 6.425 | -15.569 |
 | tradable_next_close_confirm | failure | 165 | 61.782 | -12.652 | 140.495 | 1.842 | 4.728 | 6.281 | -12.8 |
-| tradable_next_close_confirm | success | 263 | 71.262 | -16.034 | 133.45 | 4.601 | 6.936 | 6.406 | -16.14 |
+| tradable_next_close_confirm | success | 264 | 71.371 | -16.006 | 133.416 | 4.586 | 6.919 | 6.398 | -16.114 |
 
 欄位說明：
 
@@ -22,39 +22,39 @@
 
 | analysis_variant | market_regime | outcome | n | share_pct | mean_10d_net_pct |
 | --- | --- | --- | --- | --- | --- |
-| tradable_filter | bear | failure | 62 | 11.38 | -3.754 |
-| tradable_filter | bear | success | 191 | 35.05 | 6.562 |
-| tradable_filter | bull | failure | 73 | 13.39 | -5.625 |
-| tradable_filter | bull | success | 47 | 8.62 | 6.865 |
-| tradable_filter | range | failure | 98 | 17.98 | -5.773 |
-| tradable_filter | range | success | 74 | 13.58 | 7.524 |
-| tradable_next_close_confirm | bear | failure | 39 | 9.11 | -3.185 |
-| tradable_next_close_confirm | bear | success | 180 | 42.06 | 6.882 |
-| tradable_next_close_confirm | bull | failure | 47 | 10.98 | -5.331 |
-| tradable_next_close_confirm | bull | success | 23 | 5.37 | 7.232 |
-| tradable_next_close_confirm | range | failure | 79 | 18.46 | -5.665 |
-| tradable_next_close_confirm | range | success | 60 | 14.02 | 7.69 |
+| tradable_filter | bear | failure | 62 | 11.29 | -3.754 |
+| tradable_filter | bear | success | 191 | 34.79 | 6.562 |
+| tradable_filter | bull | failure | 74 | 13.48 | -5.612 |
+| tradable_filter | bull | success | 49 | 8.93 | 7.403 |
+| tradable_filter | range | failure | 98 | 17.85 | -5.773 |
+| tradable_filter | range | success | 75 | 13.66 | 7.604 |
+| tradable_next_close_confirm | bear | failure | 39 | 9.09 | -3.185 |
+| tradable_next_close_confirm | bear | success | 180 | 41.96 | 6.882 |
+| tradable_next_close_confirm | bull | failure | 47 | 10.96 | -5.331 |
+| tradable_next_close_confirm | bull | success | 23 | 5.36 | 7.232 |
+| tradable_next_close_confirm | range | failure | 79 | 18.41 | -5.665 |
+| tradable_next_close_confirm | range | success | 61 | 14.22 | 7.944 |
 
 ## 候選排除條件效果
 
 | analysis_variant | candidate_filter | n | keep_rate_pct | mean_10d_net_pct | win_rate_10d_net_pct | failure_rate_10d_pct | failures_removed_pct | winners_kept_pct |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| tradable_filter | bear_regime_only | 253 | 46.42 | 4.034 | 75.49 | 24.51 | 73.39 | 61.22 |
-| tradable_filter | exclude_bull_and_panic_drop_ge_10pct | 272 | 49.91 | 3.526 | 70.96 | 29.04 | 66.09 | 61.86 |
-| tradable_filter | panic_drop_ge_10pct | 326 | 59.82 | 3.128 | 67.79 | 32.21 | 54.94 | 70.83 |
-| tradable_filter | exclude_bull_and_close_pos_ge_0_7 | 222 | 40.73 | 2.916 | 67.57 | 32.43 | 69.1 | 48.08 |
-| tradable_filter | reclaim_pct_ge_1pct | 276 | 50.64 | 2.798 | 63.41 | 36.59 | 56.65 | 56.09 |
-| tradable_filter | exclude_bull_regime | 425 | 77.98 | 2.38 | 62.35 | 37.65 | 31.33 | 84.94 |
-| tradable_filter | close_pos_ge_0_7 | 252 | 46.24 | 2.338 | 63.49 | 36.51 | 60.52 | 51.28 |
-| tradable_filter | volume_ratio_ge_1_2 | 199 | 36.51 | 2.302 | 63.32 | 36.68 | 68.67 | 40.38 |
-| tradable_next_close_confirm | bear_regime_only | 219 | 51.17 | 5.09 | 82.19 | 17.81 | 76.36 | 68.44 |
-| tradable_next_close_confirm | exclude_bull_and_panic_drop_ge_10pct | 243 | 56.78 | 4.44 | 76.95 | 23.05 | 66.06 | 71.1 |
-| tradable_next_close_confirm | panic_drop_ge_10pct | 275 | 64.25 | 3.932 | 73.45 | 26.55 | 55.76 | 76.81 |
-| tradable_next_close_confirm | exclude_bull_and_close_pos_ge_0_7 | 212 | 49.53 | 3.665 | 71.7 | 28.3 | 63.64 | 57.79 |
-| tradable_next_close_confirm | reclaim_pct_ge_1pct | 254 | 59.35 | 3.281 | 68.11 | 31.89 | 50.91 | 65.78 |
-| tradable_next_close_confirm | exclude_bull_regime | 358 | 83.64 | 3.152 | 67.04 | 32.96 | 28.48 | 91.25 |
-| tradable_next_close_confirm | close_pos_ge_0_7 | 234 | 54.67 | 3.097 | 68.38 | 31.62 | 55.15 | 60.84 |
-| tradable_next_close_confirm | volume_ratio_ge_1_2 | 168 | 39.25 | 2.656 | 70.24 | 29.76 | 69.7 | 44.87 |
+| tradable_filter | bear_regime_only | 253 | 46.08 | 4.034 | 75.49 | 24.51 | 73.5 | 60.63 |
+| tradable_filter | exclude_bull_and_panic_drop_ge_10pct | 272 | 49.54 | 3.526 | 70.96 | 29.04 | 66.24 | 61.27 |
+| tradable_filter | panic_drop_ge_10pct | 328 | 59.74 | 3.231 | 67.99 | 32.01 | 55.13 | 70.79 |
+| tradable_filter | exclude_bull_and_close_pos_ge_0_7 | 223 | 40.62 | 2.964 | 67.71 | 32.29 | 69.23 | 47.94 |
+| tradable_filter | reclaim_pct_ge_1pct | 278 | 50.64 | 2.922 | 63.67 | 36.33 | 56.84 | 56.19 |
+| tradable_filter | volume_ratio_ge_1_2 | 202 | 36.79 | 2.533 | 63.86 | 36.14 | 68.8 | 40.95 |
+| tradable_filter | close_pos_ge_0_7 | 255 | 46.45 | 2.52 | 63.92 | 36.08 | 60.68 | 51.75 |
+| tradable_filter | exclude_bull_regime | 426 | 77.6 | 2.406 | 62.44 | 37.56 | 31.62 | 84.44 |
+| tradable_next_close_confirm | bear_regime_only | 219 | 51.05 | 5.09 | 82.19 | 17.81 | 76.36 | 68.18 |
+| tradable_next_close_confirm | exclude_bull_and_panic_drop_ge_10pct | 243 | 56.64 | 4.44 | 76.95 | 23.05 | 66.06 | 70.83 |
+| tradable_next_close_confirm | panic_drop_ge_10pct | 275 | 64.1 | 3.932 | 73.45 | 26.55 | 55.76 | 76.52 |
+| tradable_next_close_confirm | exclude_bull_and_close_pos_ge_0_7 | 213 | 49.65 | 3.757 | 71.83 | 28.17 | 63.64 | 57.95 |
+| tradable_next_close_confirm | reclaim_pct_ge_1pct | 254 | 59.21 | 3.281 | 68.11 | 31.89 | 50.91 | 65.53 |
+| tradable_next_close_confirm | exclude_bull_regime | 359 | 83.68 | 3.208 | 67.13 | 32.87 | 28.48 | 91.29 |
+| tradable_next_close_confirm | close_pos_ge_0_7 | 235 | 54.78 | 3.183 | 68.51 | 31.49 | 55.15 | 60.98 |
+| tradable_next_close_confirm | volume_ratio_ge_1_2 | 169 | 39.39 | 2.777 | 70.41 | 29.59 | 69.7 | 45.08 |
 
 ## 初步判讀
 

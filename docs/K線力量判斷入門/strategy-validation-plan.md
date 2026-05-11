@@ -1,6 +1,6 @@
 # K線力量判斷入門：後續驗證任務計畫
 
-狀態日期：2026-05-10
+狀態日期：2026-05-11
 
 目的：把後續策略研究拆成可執行 task，並標註每個 task 建議使用的模型，避免後續工作偏離「先做可驗證、可交易的策略原型」這條主線。
 
@@ -59,10 +59,10 @@ Phase 2 完成標準：
 
 | Task | 狀態 | 建議模型 | 目標 | 產出物 |
 | --- | --- | --- | --- | --- |
-| 13. overhead_supply_layer 加入 breakout_daily_scanner 評分 | 待做 | `haiku` | layer ≤ 1 加分、layer ≥ 4 扣分，改善掃描器排序品質。 | `scripts/breakout_daily_scanner.py` 更新 |
-| 14. supply_zone_absorbed 可交易版本 | 待做 | `sonnet` | 改為 breakout 後 t+5 確認守住、t+6 進場，回測與原版比較。 | 回測報告 |
-| 15. supply_vacuum_zone 移植到 false_breakdown 場景 | 待做 | `sonnet` | 驗證假跌破收回時，上方賣壓中空是否改善後續報酬。 | 回測報告 |
-| 16. real_breakdown_after_range 做空方向 regime 分組驗證 | 待做 | `sonnet` | 確認新版是否適合作「多方迴避訊號」或 bear regime 下的做空訊號。 | 驗證報告 |
+| 13. overhead_supply_layer 加入 breakout_daily_scanner 評分 | 已完成 | `haiku` | layer ≤ 1 加分、layer ≥ 4 扣分，改善掃描器排序品質。 | `scripts/breakout_daily_scanner.py` 更新 |
+| 14. supply_zone_absorbed 可交易版本 | 已完成 | `sonnet` | 改為 breakout 後 t+5 確認守住、t+6 進場，回測與原版比較。 | `backtests/supply_zone_absorbed_tradable_report.md` |
+| 15. supply_vacuum_zone 移植到 false_breakdown 場景 | 已完成 | `sonnet` | 驗證假跌破收回時，上方賣壓中空是否改善後續報酬。 | `backtests/supply_vacuum_false_breakdown_report.md` |
+| 16. real_breakdown_after_range 做空方向 regime 分組驗證 | 已完成 | `sonnet` | 確認新版是否適合作「多方迴避訊號」或 bear regime 下的做空訊號。 | `backtests/real_breakdown_regime_report.md` |
 
 Phase 4 完成標準：
 
@@ -76,11 +76,11 @@ Phase 4 完成標準：
 
 | Task | 狀態 | 建議模型 | 目標 | 產出物 |
 | --- | --- | --- | --- | --- |
-| 17. 課程放空教學萃取與量化代理設計 | 待做 | `opus` | 讀取課程第 50 篇「放空與回補」、第 7 篇「高檔區域長黑K」、相關跌破圖片，將「弱勢、跌破、反彈遇壓、買盤不繼」與回補條件轉為可量化的 OHLCV 代理。每個代理需引用圖片或課程文字出處。 | `backtests/short_strategy_spec.md` |
-| 18. 放空進場與回補訊號實作 | 待做 | `haiku` | 依據 Task 17 規格，在 `kline_course_backtest.py` 的 `add_signals` 函式中實作 `short_entry`、`cover_signal` 訊號欄位。 | `scripts/kline_course_backtest.py` 更新 |
-| 19. 放空策略回測（含 regime 分組） | 待做 | `haiku` | 隔日開盤放空進場，遇到 cover_signal 開盤回補，計算反向報酬。分 bull/range/bear regime 比較，確認哪些環境適合放空。 | `backtests/short_strategy_check.md` |
-| 20. 台股放空可交易性處理 | 待做 | `sonnet` | 處理券源限制、強制回補日、漲跌停無法平倉等實務限制。檢查 FinMind 是否提供融券、借券資料，產出可交易標的篩選邏輯。**明確標註此部分為「課程未涵蓋」。** | `backtests/short_tradability_spec.md` |
-| 21. 放空每日掃描清單 | 待做 | `haiku` | 依據 Task 18-20，產出每日放空候選清單（進場價、回補價、結構失效條件、可交易性過濾）。 | `backtests/short_daily_scanner.md`、`short_daily_scanner.csv` |
+| 17. 課程放空教學萃取與量化代理設計 | 已完成 | `opus` | 讀取課程第 50 篇「放空與回補」、第 7 篇「高檔區域長黑K」、相關跌破圖片，將「弱勢、跌破、反彈遇壓、買盤不繼」與回補條件轉為可量化的 OHLCV 代理。每個代理需引用圖片或課程文字出處。 | `backtests/short_strategy_spec.md` |
+| 18. 放空進場與回補訊號實作 | 已完成 | `haiku` | 依據 Task 17 規格，在 `kline_course_backtest.py` 的 `add_signals` 函式中實作 `short_entry`、`cover_signal` 訊號欄位。 | `scripts/kline_course_backtest.py` 更新 |
+| 19. 放空策略回測（含 regime 分組） | 已完成 | `haiku` | 隔日開盤放空進場，遇到 cover_signal 開盤回補，計算反向報酬。分 bull/range/bear regime 比較，確認哪些環境適合放空。 | `backtests/short_strategy_check.md` |
+| 20. 台股放空可交易性處理 | 已完成 | `sonnet` | 處理券源限制、強制回補日、漲跌停無法平倉等實務限制。檢查 FinMind 是否提供融券、借券資料，產出可交易標的篩選邏輯。**明確標註此部分為「課程未涵蓋」。** | `backtests/short_tradability_spec.md` |
+| 21. 放空每日掃描清單 | 已完成 | `haiku` | 依據 Task 18-20，產出每日放空候選清單（進場價、回補價、結構失效條件、可交易性過濾）。 | `backtests/short_daily_scanner.md`、`short_daily_scanner.csv` |
 
 Phase 5 完成標準：
 

@@ -265,6 +265,39 @@ def add_signals(df: pd.DataFrame) -> pd.DataFrame:
         & ma60_down                        # 季線下彎
     )
 
+    # ------------------------------------------------------------------
+    # Task 18：放空進場與回補訊號
+    #
+    # 課程依據（strategy-indicators.md §8 放空與回補）：
+    #   「放空邏輯與多方攻擊不是簡單鏡像，需確認弱勢、跌破、反彈遇壓、買盤不繼。」
+    #   「回補可用趨勢改變、跌勢攻擊消失、假跌破收回或關鍵K線確認。」
+    #
+    # short_entry 設計：
+    #   核心：real_breakdown_after_range（整理後長黑跌破頸線 + 隔日確認 + 箱型 + 季線下彎）
+    #   額外：close < ma60（弱勢背景，收盤在季線下方）
+    #   代理對應：
+    #     「弱勢」→ close < ma60
+    #     「跌破」→ real_breakdown_after_range 內的 close < neckline_proxy
+    #     「反彈遇壓」→ 無法精確量化（課程未說明盤中確認時機），此處用 ma60_down 作背景代理
+    #     「買盤不繼」→ 無法精確量化，用 black_k（收黑K，close < open）作代理
+    #
+    # cover_signal 設計（任一觸發即回補）：
+    #   1. false_breakdown_reclaim（假跌破收回 ─ 課程明確）
+    #   2. close > ma60（站回季線 ─ 趨勢改變代理）
+    #   3. close > prior_high_20（突破近期高點 ─ 跌勢攻擊消失代理）
+    # ------------------------------------------------------------------
+    df["short_entry"] = (
+        df["real_breakdown_after_range"].fillna(False)
+        & df["ma60"].notna()
+        & (df["close"] < df["ma60"])
+    )
+
+    df["cover_signal"] = (
+        df["false_breakdown_reclaim"].fillna(False)
+        | (df["ma60"].notna() & (df["close"] > df["ma60"]))
+        | (df["prior_high_20"].notna() & (df["close"] > df["prior_high_20"]))
+    )
+
     return df
 
 
@@ -385,6 +418,8 @@ def main() -> None:
         "breakout_vacuum_above",
         "breakout_dense_above",
         "supply_zone_absorbed",
+        "short_entry",
+        "cover_signal",
     ]
     summary = pd.DataFrame([summarize_signal(df, s) for s in signals])
     summary.to_csv(OUT_DIR / "signal_summary.csv", index=False)

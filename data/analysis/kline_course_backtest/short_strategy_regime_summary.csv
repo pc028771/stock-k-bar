@@ -1,0 +1,5 @@
+regime,n,mean_5d_pct,median_5d_pct,win_rate_5d_pct,mean_close_basis_5d_pct,win_rate_close_basis_5d_pct,mean_10d_pct,median_10d_pct,win_rate_10d_pct,mean_close_basis_10d_pct,win_rate_close_basis_10d_pct,mean_20d_pct,median_20d_pct,win_rate_20d_pct,mean_close_basis_20d_pct,win_rate_close_basis_20d_pct
+all,2757,0.412,0.408,54.19,0.311,51.29,0.299,0.332,52.05,0.198,50.89,0.704,1.044,56.51,0.602,55.2
+bull,913,0.676,0.649,56.52,0.66,54.98,0.268,0.483,54.11,0.249,53.56,1.334,1.37,59.47,1.317,58.16
+range,1412,0.133,0.227,51.56,0.044,48.3,0.562,0.437,52.76,0.477,51.77,0.684,1.071,56.59,0.595,55.45
+bear,432,0.763,0.668,57.87,0.443,53.24,-0.5,-0.272,45.37,-0.821,42.36,-0.56,0.094,50.0,-0.886,48.15
