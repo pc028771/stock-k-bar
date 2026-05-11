@@ -6,19 +6,19 @@
 
 模型選擇原則：
 
-- `gpt-5.3-codex`：明確的 Python、SQLite、CSV、回測、掃描器與報告產出。
-- `gpt-5.4`：需要一些研究判斷與工程實作並重，例如失敗樣本歸因、策略參數整理、資料結構設計。
-- `gpt-5.5`：需要高度策略語意理解、主觀圖形規則轉量化、研究方向取捨或跨文件整合。
+- `haiku`（claude-haiku-4-5）：明確的 Python、SQLite、CSV、回測、掃描器與報告產出。
+- `sonnet`（claude-sonnet-4-6）：需要一些研究判斷與工程實作並重，例如失敗樣本歸因、策略參數整理、資料結構設計。
+- `opus`（claude-opus-4-7）：需要高度策略語意理解、主觀圖形規則轉量化、研究方向取捨或跨文件整合。
 
 ## Phase 1：假跌破收回策略補強
 
 | Task | 狀態 | 建議模型 | 目標 | 產出物 |
 | --- | --- | --- | --- | --- |
-| 1. 交易成本、流動性、注意/處置排除、隔日確認、簡單停損 | 已完成 | `gpt-5.3-codex` | 確認 `false_breakdown_reclaim` 在基本可交易限制下是否仍有邊際。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_summary.csv` |
-| 2. 加入市場環境 regime | 已完成 | `gpt-5.3-codex` | 分開檢查大盤月線/季線上方、下方、盤整時的策略表現。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_regime_summary.csv` |
-| 3. 改良停損 | 已完成（第一輪） | `gpt-5.3-codex` | 測 ATR 停損、箱型低點停損、跌破後隔日不站回停損。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_stop_model_summary.csv` |
-| 4. 失敗樣本分析 | 已完成 | `gpt-5.4` | 找出假跌破後 10 日仍下跌的共同特徵，形成排除條件。 | `backtests/false_breakdown_failure_analysis.md`、`false_breakdown_failure_filter_candidates.csv` |
-| 5. 每日掃描輸出 | 已完成（第一輪） | `gpt-5.3-codex` | 產生可每日使用的 watchlist：候選股、關鍵價、確認狀態、停損價、分數。 | `backtests/false_breakdown_daily_scanner.md`、`false_breakdown_daily_scanner.csv`、`false_breakdown_daily_scanner_recent20d.csv` |
+| 1. 交易成本、流動性、注意/處置排除、隔日確認、簡單停損 | 已完成 | `haiku` | 確認 `false_breakdown_reclaim` 在基本可交易限制下是否仍有邊際。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_summary.csv` |
+| 2. 加入市場環境 regime | 已完成 | `haiku` | 分開檢查大盤月線/季線上方、下方、盤整時的策略表現。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_regime_summary.csv` |
+| 3. 改良停損 | 已完成（第一輪） | `haiku` | 測 ATR 停損、箱型低點停損、跌破後隔日不站回停損。 | `backtests/false_breakdown_strategy_check.md`、`false_breakdown_strategy_stop_model_summary.csv` |
+| 4. 失敗樣本分析 | 已完成 | `sonnet` | 找出假跌破後 10 日仍下跌的共同特徵，形成排除條件。 | `backtests/false_breakdown_failure_analysis.md`、`false_breakdown_failure_filter_candidates.csv` |
+| 5. 每日掃描輸出 | 已完成（第一輪） | `haiku` | 產生可每日使用的 watchlist：候選股、關鍵價、確認狀態、停損價、分數。 | `backtests/false_breakdown_daily_scanner.md`、`false_breakdown_daily_scanner.csv`、`false_breakdown_daily_scanner_recent20d.csv` |
 
 Phase 1 完成標準：
 
@@ -30,10 +30,10 @@ Phase 1 完成標準：
 
 | Task | 狀態 | 建議模型 | 目標 | 產出物 |
 | --- | --- | --- | --- | --- |
-| 6. 驗證 `breakout_attack` 可交易版本 | 已完成 | `gpt-5.3-codex` | 加入交易成本、流動性、注意/處置排除，確認創高突破是否仍有邊際。 | `backtests/breakout_attack_strategy_check.md`、`breakout_attack_strategy_summary.csv` |
-| 7. 驗證 `breakout_next_not_low_open` | 已完成 | `gpt-5.3-codex` | 確認「突破後隔日不開低」能否作為攻擊品質濾網。結果顯示它改善 close-basis 走勢品質，但沒有改善實際隔日開盤進場報酬。 | `backtests/breakout_next_open_quality_check.md`、`breakout_next_open_quality_summary.csv` |
-| 8. 加入分K攻擊品質 | 已完成（第一輪） | `gpt-5.4` | 用 FinMind 分K檢查午盤後是否跌破開盤、收盤是否接近日高。結果顯示 `next_not_low_open` 在近期分層樣本中具有更強攻擊品質與較佳 10 日報酬，但仍不足以推翻全樣本日K結果。 | `backtests/breakout_intraday_quality_check.md`、`breakout_intraday_quality_summary.csv` |
-| 9. 建立強勢股觀察清單 | 已完成（第一輪） | `gpt-5.3-codex` | 把突破攻擊訊號做成每日強勢股 watchlist，並加入 `breakout_next_not_low_open`、`intraday_strong_attack`、`below_open_after_1130` 排序加權。 | `backtests/breakout_daily_scanner.md`、`breakout_daily_scanner.csv`、`breakout_daily_scanner_recent20d.csv` |
+| 6. 驗證 `breakout_attack` 可交易版本 | 已完成 | `haiku` | 加入交易成本、流動性、注意/處置排除，確認創高突破是否仍有邊際。 | `backtests/breakout_attack_strategy_check.md`、`breakout_attack_strategy_summary.csv` |
+| 7. 驗證 `breakout_next_not_low_open` | 已完成 | `haiku` | 確認「突破後隔日不開低」能否作為攻擊品質濾網。結果顯示它改善 close-basis 走勢品質，但沒有改善實際隔日開盤進場報酬。 | `backtests/breakout_next_open_quality_check.md`、`breakout_next_open_quality_summary.csv` |
+| 8. 加入分K攻擊品質 | 已完成（第一輪） | `sonnet` | 用 FinMind 分K檢查午盤後是否跌破開盤、收盤是否接近日高。結果顯示 `next_not_low_open` 在近期分層樣本中具有更強攻擊品質與較佳 10 日報酬，但仍不足以推翻全樣本日K結果。 | `backtests/breakout_intraday_quality_check.md`、`breakout_intraday_quality_summary.csv` |
+| 9. 建立強勢股觀察清單 | 已完成（第一輪） | `haiku` | 把突破攻擊訊號做成每日強勢股 watchlist，並加入 `breakout_next_not_low_open`、`intraday_strong_attack`、`below_open_after_1130` 排序加權。 | `backtests/breakout_daily_scanner.md`、`breakout_daily_scanner.csv`、`breakout_daily_scanner_recent20d.csv` |
 
 Task 9 第二輪補強（已完成）：
 
@@ -51,15 +51,15 @@ Phase 2 完成標準：
 
 | Task | 狀態 | 建議模型 | 目標 | 產出物 |
 | --- | --- | --- | --- | --- |
-| 10. 建立箱型、頸線、頭部、底部標註格式 | 待做 | `gpt-5.5` | 把課程圖形語意轉成可標註欄位與資料格式。 | pattern labeling spec |
-| 11. 驗證真正跌破與假跌破差異 | 待做 | `gpt-5.4` | 用標註後的箱型/頸線資料重新檢查 `real_breakdown_after_range`。 | breakdown comparison report |
-| 12. 驗證壓力區、套牢區、賣壓中空 | 待做 | `gpt-5.5` | 設計 volume profile 或成交密集區代理，驗證壓力是否影響續航。 | supply-zone validation spec/report |
+| 10. 建立箱型、頸線、頭部、底部標註格式 | 已完成 | `opus` | 把課程圖形語意轉成可標註欄位與資料格式。 | `backtests/pattern_labeling_spec.md` |
+| 11. 驗證真正跌破與假跌破差異 | 已完成 | `sonnet` | 用標註後的箱型/頸線資料重新檢查 `real_breakdown_after_range`。新版加入箱型整理、季線下彎、隔日確認，做多勝率降至 45.64%（10日），做空中位數報酬轉正。 | `backtests/breakdown_comparison_report.md` |
+| 12. 驗證壓力區、套牢區、賣壓中空 | 已完成 | `opus` | 設計 volume profile 或成交密集區代理，驗證壓力是否影響續航。 | `backtests/supply_zone_spec_report.md` |
 
 Phase 3 完成標準：
 
 - 圖形型態不能只靠口語描述，要有明確標註欄位。
 - 壓力區、套牢區、賣壓中空要先定義資料代理，才進入回測。
-- 這一階段需要較多策略語意判斷，優先用 `gpt-5.5` 做規則設計，再用 `gpt-5.3-codex` 實作回測。
+- 這一階段需要較多策略語意判斷，優先用 `opus` 做規則設計，再用 `haiku` 實作回測。
 
 ## 建議執行順序
 
@@ -70,6 +70,6 @@ Phase 3 完成標準：
 
 | 模型 | 最適合任務 | 本計畫中主要負責 |
 | --- | --- | --- |
-| `gpt-5.3-codex` | 實作、回測、資料處理、掃描器、報告輸出 | Task 1、2、3、5、6、7、9 |
-| `gpt-5.4` | 研究判斷與工程並重，尤其是失敗樣本、分K品質、規則調整 | Task 4、8、11 |
-| `gpt-5.5` | 高層策略理解、課程語意轉量化、圖形與壓力區規則設計 | Task 10、12，以及 Phase 3 規劃 |
+| `haiku` | 實作、回測、資料處理、掃描器、報告輸出 | Task 1、2、3、5、6、7、9 |
+| `sonnet` | 研究判斷與工程並重，尤其是失敗樣本、分K品質、規則調整 | Task 4、8、11 |
+| `opus` | 高層策略理解、課程語意轉量化、圖形與壓力區規則設計 | Task 10、12，以及 Phase 3 規劃 |
