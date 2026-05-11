@@ -211,8 +211,7 @@ def apply_strict_profile(rows: pd.DataFrame, profile: str) -> pd.DataFrame:
         return rows
     if profile == "balanced":
         return rows[
-            rows["market_regime"].isin(["bull", "range"])
-            & (rows["breakout_strength_pct"] >= 1.0)
+            (rows["breakout_strength_pct"] >= 1.0)
             & (rows["close_pos"] >= 0.85)
             & (rows["volume_ratio"] >= 1.5)
             & (rows["avg_volume_20"] >= 800_000)
@@ -220,8 +219,7 @@ def apply_strict_profile(rows: pd.DataFrame, profile: str) -> pd.DataFrame:
         ].copy()
     if profile == "aggressive":
         return rows[
-            rows["market_regime"].isin(["bull", "range"])
-            & (rows["breakout_strength_pct"] >= 1.5)
+            (rows["breakout_strength_pct"] >= 1.5)
             & (rows["close_pos"] >= 0.9)
             & (rows["volume_ratio"] >= 2.0)
             & (rows["avg_volume_20"] >= 1_200_000)
