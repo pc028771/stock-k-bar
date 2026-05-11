@@ -29,6 +29,10 @@ htmlcov/
 
 # Logs
 *.log
+log/
+
+# Claude session memory (user-specific, not for VCS)
+memory/
 
 # Local env files
 .env
