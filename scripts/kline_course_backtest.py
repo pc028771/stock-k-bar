@@ -176,6 +176,13 @@ def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     if layer is not None:
         df["breakout_low_overhead"] = df["breakout_attack"] & (layer.fillna(0) <= 1)
         df["breakout_high_overhead"] = df["breakout_attack"] & (layer.fillna(0) >= 4)
+        clean_overhead = layer.fillna(0) == 0
+        low_vol = df["volume_ratio"] < 4.5
+        df["breakout_vol_capped"] = df["breakout_attack"] & clean_overhead & low_vol
+        df["breakout_quality_filtered"] = df["breakout_next_not_low_open"] & clean_overhead & low_vol
+        # 開低撐住（shakeout）+ 突破強度過濾
+        strong_breakout = (df["close"] - df["prior_high_60"]) / df["prior_high_60"].replace(0, np.nan) * 100 >= 5
+        df["breakout_shakeout_strong"] = df["breakout_next_low_open"] & clean_overhead & low_vol & strong_breakout
     vacuum = df.get("supply_vacuum_zone")
     if vacuum is not None:
         df["breakout_vacuum_above"] = df["breakout_attack"] & (vacuum == 1)
@@ -415,6 +422,9 @@ def main() -> None:
         "real_breakdown_after_range",
         "breakout_low_overhead",
         "breakout_high_overhead",
+        "breakout_vol_capped",
+        "breakout_quality_filtered",
+        "breakout_shakeout_strong",
         "breakout_vacuum_above",
         "breakout_dense_above",
         "supply_zone_absorbed",
