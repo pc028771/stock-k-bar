@@ -138,8 +138,6 @@ def tradable_breakout_mask(
         & listed_otc_like
         & not_construction
         & not_excluded
-        & (attention == 0)
-        & (disposition == 0)
         & (df["avg_volume_20"] >= MIN_AVG_VOLUME_20)
         & (df["close"] >= MIN_CLOSE)
     )
@@ -302,7 +300,8 @@ def build_scanner(
     )
 
     optional_cols = [
-        c for c in ["overhead_supply_layer", "breakout_vol_capped", "shakeout_strong"]
+        c for c in ["overhead_supply_layer", "breakout_vol_capped", "shakeout_strong",
+                    "is_attention_stock", "is_disposition_stock"]
         if c in df.columns
     ]
     rows = df[mask].copy()
@@ -417,6 +416,9 @@ def write_report(
         "below_open_after_1130",
         "close_pos",
         "volume_ratio",
+        "breakout_strength_pct",
+        "is_attention_stock",
+        "is_disposition_stock",
     ]
     _latest_cols = [c for c in _latest_cols_base if c in latest_rows.columns]
     latest_preview = (
@@ -433,7 +435,8 @@ def write_report(
             [c for c in ["trade_date", "rank_in_date", "ticker", "scanner_score",
                          "breakout_vol_capped", "shakeout_strong", "market_regime",
                          "breakout_next_low_open", "intraday_strong_attack",
-                         "below_open_after_1130"] if c in recent_rows.columns],
+                         "below_open_after_1130", "breakout_strength_pct",
+                         "is_attention_stock", "is_disposition_stock"] if c in recent_rows.columns],
         )
     )
 
