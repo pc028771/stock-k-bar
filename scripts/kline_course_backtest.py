@@ -43,7 +43,7 @@ def load_bars() -> pd.DataFrame:
           and close > 0
         order by ticker, trade_date
     """
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(DB_PATH, timeout=15) as conn:
         df = pd.read_sql_query(query, conn, parse_dates=["trade_date"])
     return df
 

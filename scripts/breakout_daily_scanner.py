@@ -26,7 +26,10 @@ STOCK_INFO_CACHE_PATH = OUT_DIR / "finmind_stock_info_cache.csv"
 
 
 def load_exclusion_tickers_from_db(db_path: str = DB_PATH) -> set[str]:
-    conn = sqlite3.connect(db_path)
+    try:
+        conn = sqlite3.connect(db_path, timeout=10)
+    except Exception:
+        return set()
     try:
         base_exclusion = pd.read_sql_query(
             """
@@ -56,6 +59,8 @@ def load_exclusion_tickers_from_db(db_path: str = DB_PATH) -> set[str]:
             """,
             conn,
         )
+    except Exception:
+        return set()
     finally:
         conn.close()
 
@@ -365,6 +370,59 @@ def build_scanner(
     return rows
 
 
+def enrich_shakeout_institutional(df: pd.DataFrame, token: str) -> pd.DataFrame:
+    """對 shakeout_strong 訊號列取投信/外資當日淨買超（張）。
+
+    透過 stock-analysis-system finmind_client.get_institutional（含 rate limit）。
+    新增欄位：sitc_lots（投信張數）、foreign_lots（外資萬股）。
+    """
+    if df.empty or not token:
+        df["sitc_lots"] = float("nan")
+        df["foreign_lots"] = float("nan")
+        return df
+
+    try:
+        import sys as _sys
+        _sas = Path(__file__).parent.parent.parent / "stock-analysis-system"
+        if str(_sas.resolve()) not in _sys.path:
+            _sys.path.insert(0, str(_sas.resolve()))
+        os.environ.setdefault("FINMIND_API_TOKEN", token)
+        from clients import finmind_client as _fm
+    except Exception:
+        df["sitc_lots"] = float("nan")
+        df["foreign_lots"] = float("nan")
+        return df
+
+    cache: dict[tuple, dict] = {}
+
+    def _fetch(ticker: str, date: str) -> dict:
+        key = (ticker, date)
+        if key in cache:
+            return cache[key]
+        result = {"sitc_lots": float("nan"), "foreign_lots": float("nan")}
+        try:
+            inst = _fm.get_institutional(ticker, date, date)
+            day = inst[inst["date"] == date] if not inst.empty else pd.DataFrame()
+            if not day.empty:
+                result["sitc_lots"]    = round(float(day["sitc_net"].iloc[0]) / 1000)
+                result["foreign_lots"] = round(float(day["foreign_net"].iloc[0]) / 10000)
+        except Exception:
+            pass
+        cache[key] = result
+        return result
+
+    records = df[["ticker", "trade_date"]].drop_duplicates()
+    enriched = {
+        (str(r["ticker"]), str(r["trade_date"])): _fetch(str(r["ticker"]), str(r["trade_date"]))
+        for _, r in records.iterrows()
+    }
+
+    df = df.copy()
+    df["sitc_lots"]    = df.apply(lambda r: enriched.get((str(r["ticker"]), str(r["trade_date"])), {}).get("sitc_lots",    float("nan")), axis=1)
+    df["foreign_lots"] = df.apply(lambda r: enriched.get((str(r["ticker"]), str(r["trade_date"])), {}).get("foreign_lots", float("nan")), axis=1)
+    return df
+
+
 def markdown_table(rows: pd.DataFrame, cols: list[str]) -> str:
     out = rows[cols].copy()
     header = "| " + " | ".join(cols) + " |"
@@ -443,9 +501,12 @@ def write_report(
     # Shakeout strong 區塊（default enabled）
     shakeout_section = ""
     if shakeout_filter:
-        # 歷史已確認的 shakeout_strong 候選（近 20 交易日）
+        # 歷史已確認的 shakeout_strong 候選（近 20 交易日），附投信資料
         if "shakeout_strong" in recent_rows.columns:
             confirmed = recent_rows[recent_rows["shakeout_strong"].fillna(False)].copy()
+            inst_token = os.environ.get("FINMIND_TOKEN", "")
+            if not confirmed.empty and inst_token:
+                confirmed = enrich_shakeout_institutional(confirmed, inst_token)
         else:
             confirmed = pd.DataFrame()
 
@@ -464,8 +525,9 @@ def write_report(
             "_近期無已確認的 shakeout_strong 訊號。_"
             if confirmed.empty
             else markdown_table(confirmed.head(10),
-                [c for c in ["trade_date", "ticker", "scanner_score", "overhead_supply_layer",
-                             "volume_ratio", "breakout_strength_pct"] if c in confirmed.columns])
+                [c for c in ["trade_date", "ticker", "scanner_score", "breakout_strength_pct",
+                             "sitc_lots", "foreign_lots",
+                             "overhead_supply_layer", "volume_ratio"] if c in confirmed.columns])
         )
         pending_preview = (
             "_今日無等待確認的 shakeout 候選（需 score≥85 + breakout_vol_capped + strength≥5%）。_"
