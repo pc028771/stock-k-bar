@@ -1,0 +1,28 @@
+[project]
+name = "stock-k-bar"
+version = "0.1.0"
+description = "K線策略研究與回測工具"
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=3.0",
+    "numpy>=2.0",
+    "requests>=2.32",
+    "matplotlib>=3.10",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

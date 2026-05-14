@@ -177,6 +177,23 @@ def enrich_intraday(rows: pd.DataFrame, sleep_seconds: float) -> pd.DataFrame:
     return pd.DataFrame(enriched)
 
 
+def add_rolloff_pressure(df: pd.DataFrame, period: int = 20) -> pd.DataFrame:
+    """Per-ticker MA rolloff pressure (easing / rising / neutral).
+
+    easing: 低價扣抵 → MA 有向上動能 → 有利進場
+    rising: 高價扣抵 → MA 面臨阻力 → 風險較高
+    """
+    df = df.copy().sort_values(["ticker", "trade_date"]).reset_index(drop=True)
+    g = df.groupby("ticker")["close"]
+    baseline = g.transform(lambda x: x.rolling(period).mean())
+    rolloff = g.transform(lambda x: x.shift(period - 1))
+    rolloff_a = g.transform(lambda x: x.shift(period - 2))
+    easing = (rolloff < baseline) & (rolloff_a < baseline)
+    rising = (rolloff > baseline) & (rolloff_a > baseline)
+    df["rolloff_pressure"] = np.where(easing, "easing", np.where(rising, "rising", "neutral"))
+    return df
+
+
 def add_pre_rank_score(rows: pd.DataFrame) -> pd.DataFrame:
     rows = rows.copy()
     rows["breakout_strength_pct"] = (rows["close"] / rows["prior_high_60"] - 1) * 100
@@ -199,6 +216,10 @@ def add_pre_rank_score(rows: pd.DataFrame) -> pd.DataFrame:
         layer = pd.to_numeric(rows["overhead_supply_layer"], errors="coerce")
         rows["pre_rank_score"] += np.where(layer.fillna(np.nan).le(1), 8, 0)
         rows["pre_rank_score"] -= np.where(layer.fillna(np.nan).ge(4), 8, 0)
+    # MA rolloff 壓力：easing（低價扣抵，均線有上升動能）+5；rising（高價扣抵）-5
+    if "rolloff_pressure" in rows.columns:
+        rows["pre_rank_score"] += np.where(rows["rolloff_pressure"] == "easing", 5, 0)
+        rows["pre_rank_score"] -= np.where(rows["rolloff_pressure"] == "rising", 5, 0)
     return rows
 
 
@@ -306,7 +327,7 @@ def build_scanner(
 
     optional_cols = [
         c for c in ["overhead_supply_layer", "breakout_vol_capped", "shakeout_strong",
-                    "is_attention_stock", "is_disposition_stock"]
+                    "is_attention_stock", "is_disposition_stock", "rolloff_pressure"]
         if c in df.columns
     ]
     rows = df[mask].copy()
@@ -644,7 +665,7 @@ def main() -> None:
     excluded_tickers = load_exclusion_tickers_from_db()
     finmind_info = load_finmind_stock_info()
     listed_otc_tickers, construction_tickers = prepare_finmind_filters(finmind_info)
-    df = add_market_regime(add_trade_fields(add_signals(add_features(load_bars()))))
+    df = add_rolloff_pressure(add_market_regime(add_trade_fields(add_signals(add_features(load_bars())))))
     scanner = build_scanner(
         df,
         sleep_seconds=args.sleep_seconds,
