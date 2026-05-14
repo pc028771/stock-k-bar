@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import shutil
 import sqlite3
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -43,7 +45,15 @@ def load_bars() -> pd.DataFrame:
           and close > 0
         order by ticker, trade_date
     """
-    with sqlite3.connect(DB_PATH, timeout=15) as conn:
+    # Copy DB to /tmp to avoid iCloud disk I/O errors during sync
+    tmp = Path(tempfile.gettempdir()) / "scanner_kbar_snapshot.sqlite"
+    try:
+        shutil.copy2(DB_PATH, tmp)
+        conn_path = str(tmp)
+    except Exception:
+        conn_path = str(DB_PATH)
+
+    with sqlite3.connect(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(query, conn, parse_dates=["trade_date"])
     return df
 
