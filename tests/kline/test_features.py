@@ -63,3 +63,70 @@ def test_doji_detected_when_body_tiny_and_range_large():
     df = add_features(make_bars(rows))
     # body_pct = 0.3/100 = 0.003 (<= 0.006), range_pct = 4/100 = 0.04 (>= 0.015)
     assert df.loc[0, "is_doji"]
+
+
+def test_prior_low_20_uses_shifted_window():
+    # 25 bars with ascending lows (low[i] = i).  At row 24, prior_low_20 is
+    # min(low[4:24]) = low[4] = 4.0 — today (row 24) must NOT be included.
+    rows = [
+        {
+            "open": float(i + 1), "high": float(i + 2),
+            "low": float(i), "close": float(i + 0.5), "volume": 1000.0,
+        }
+        for i in range(25)
+    ]
+    df = add_features(make_bars(rows))
+    # row 19: shift(1) covers rows 0-18 (19 values) → below min_periods=20
+    assert pd.isna(df.loc[19, "prior_low_20"])
+    assert df.loc[24, "prior_low_20"] == 4.0
+
+
+def test_avg_volume_20_excludes_today():
+    # 21 bars: first 20 bars volume=1000, bar 21 volume=2000.
+    # avg_volume_20[20] = mean(volume[0:20]) = 1000  →  volume_ratio = 2.0
+    base = {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1000.0}
+    rows = [base.copy() for _ in range(20)]
+    rows.append({**base, "volume": 2000.0})
+    df = add_features(make_bars(rows))
+    assert pd.isna(df.loc[19, "avg_volume_20"])  # needs 20 prior bars, row 19 has only 19
+    assert df.loc[20, "avg_volume_20"] == 1000.0
+    assert abs(df.loc[20, "volume_ratio"] - 2.0) < 1e-9
+
+
+def test_shadow_metrics_on_red_and_black_k():
+    rows = [
+        # Red K: close > open
+        {"open": 100.0, "high": 108.0, "low": 98.0, "close": 105.0, "volume": 1000.0},
+        # Black K: close < open
+        {"open": 105.0, "high": 108.0, "low": 97.0, "close": 100.0, "volume": 1000.0},
+    ]
+    df = add_features(make_bars(rows))
+
+    # Red K (row 0): body=5, upper_shadow=108-105=3, lower_shadow=100-98=2
+    assert df.loc[0, "upper_shadow"] == 3.0
+    assert df.loc[0, "lower_shadow"] == 2.0
+    assert abs(df.loc[0, "upper_shadow_ratio"] - 3.0 / 5.0) < 1e-9
+    assert abs(df.loc[0, "lower_shadow_ratio"] - 2.0 / 5.0) < 1e-9
+
+    # Black K (row 1): body=5, upper_shadow=108-105=3, lower_shadow=100-97=3
+    assert df.loc[1, "upper_shadow"] == 3.0
+    assert df.loc[1, "lower_shadow"] == 3.0
+    assert abs(df.loc[1, "upper_shadow_ratio"] - 3.0 / 5.0) < 1e-9
+    assert abs(df.loc[1, "lower_shadow_ratio"] - 3.0 / 5.0) < 1e-9
+
+
+def test_ma60_slope_and_rolling_off():
+    # 65 bars; ma60 defaults to close (i+1 for i in 0..64).
+    # At row 64: slope_5d = ma60[64]/ma60[59] - 1 = 65/60 - 1 ≈ 0.08333...
+    # At row 64: ma60_rolling_off_close = close[4] = 5.0
+    rows = [
+        {
+            "open": float(i + 1), "high": float(i + 2),
+            "low": float(i), "close": float(i + 1), "volume": 1000.0,
+        }
+        for i in range(65)
+    ]
+    df = add_features(make_bars(rows))
+    expected_slope = 65.0 / 60.0 - 1.0
+    assert abs(df.loc[64, "ma60_slope_5d"] - expected_slope) < 1e-9
+    assert df.loc[64, "ma60_rolling_off_close"] == 5.0
