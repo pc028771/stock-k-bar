@@ -6,9 +6,8 @@ Trigger: (stock_gap - market_gap) >= 2% AND close < prev_close.
 """
 from __future__ import annotations
 
-import pandas as pd
-
 from kline.exit.gap_fill import mark
+
 from tests.conftest import make_bars
 
 
