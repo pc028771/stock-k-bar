@@ -16,4 +16,17 @@ ENTRY_REGISTRY = {
     "sunrise_attack": sunrise.detect,
 }
 
-__all__ = ["ENTRY_REGISTRY", "breakout", "sunrise", "trend_reversal"]
+# Convenience aliases so callers can do: from kline.entry import breakout_attack
+breakout_attack = breakout.detect
+trend_reversal_entry = trend_reversal.detect
+sunrise_attack = sunrise.detect
+
+__all__ = [
+    "ENTRY_REGISTRY",
+    "breakout",
+    "sunrise",
+    "trend_reversal",
+    "breakout_attack",
+    "trend_reversal_entry",
+    "sunrise_attack",
+]
