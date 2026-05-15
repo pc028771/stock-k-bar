@@ -163,6 +163,38 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         & (fwd_min_close >= df["prior_high_60"] * 0.98)
     )
 
+    # --- 攻擊品質特徵（只用突破當下已知資料，不看未來）---
+
+    # higher_low_count：突破前 10 日內，low > 前一日 low 的天數
+    def _higher_low_count(s: pd.Series) -> pd.Series:
+        is_hl = (s > s.shift(1)).astype(float)
+        return is_hl.shift(1).rolling(10, min_periods=1).sum()
+
+    df["higher_low_count"] = (
+        df.groupby("ticker", group_keys=False)["low"]
+        .transform(_higher_low_count)
+    )
+
+    # gap_open：突破日開盤跳空（開盤 > 前收）
+    df["gap_open"] = (df["open"] > df["prev_close"]).astype(int)
+
+    # pre_breakout_trend_days：突破前連續收盤在 ma60 上方的天數（最多 20 天）
+    def _consec_above_ma60(g: pd.DataFrame) -> pd.Series:
+        above = (g["close"] > g["ma60"]).fillna(False).astype(int)
+        above_shifted = above.shift(1).fillna(0)
+        result = []
+        count = 0
+        for v in above_shifted:
+            count = (count + 1) * int(v)
+            result.append(min(count, 20))
+        return pd.Series(result, index=g.index)
+
+    df["pre_breakout_trend_days"] = (
+        df.groupby("ticker", group_keys=False)
+        .apply(_consec_above_ma60)
+        .reset_index(level=0, drop=True)
+    )
+
     return df
 
 
