@@ -1,8 +1,0 @@
-variant,n,avg_volume_20_median,mean_5d_net_pct,win_rate_5d_net_pct,mean_5d_stop_breakout_net_pct,mean_5d_stop_atr14_net_pct,stop_hit_breakout_5d_pct,stop_hit_atr14_5d_pct,mean_10d_net_pct,win_rate_10d_net_pct,mean_10d_stop_breakout_net_pct,mean_10d_stop_atr14_net_pct,stop_hit_breakout_10d_pct,stop_hit_atr14_10d_pct,mean_20d_net_pct,win_rate_20d_net_pct,mean_20d_stop_breakout_net_pct,mean_20d_stop_atr14_net_pct,stop_hit_breakout_20d_pct,stop_hit_atr14_20d_pct
-breakout_attack_base,5655,1050237,-0.508,39.95,-0.475,-0.563,34.71,16.48,0.889,42.44,0.428,0.684,47.34,28.06,3.276,44.9,2.096,2.669,58.99,41.41
-breakout_attack_tradable,3515,2982580,-0.944,39.35,-0.899,-1.024,37.04,16.81,0.775,43.24,0.034,0.408,49.33,27.85,4.127,47.65,2.173,3.046,60.83,41.54
-breakout_next_not_low_open,2547,3144745,-1.183,38.67,-1.141,-1.259,32.23,13.78,0.412,42.17,-0.103,0.18,44.6,24.26,3.344,46.53,1.944,2.731,57.09,38.08
-breakout_next_low_open,968,2750069,-0.315,41.12,-0.261,-0.407,49.69,24.79,1.729,46.07,0.395,1.006,61.78,37.29,6.188,50.62,2.776,3.875,70.66,50.62
-breakout_high_close,2675,3069873,-0.936,39.59,-0.894,-1.035,34.69,16.07,0.904,43.07,0.165,0.519,46.84,26.21,4.346,48.41,2.375,3.186,58.47,39.59
-breakout_volume_strong,3130,2893025,-0.939,39.23,-0.918,-1.027,36.26,16.17,0.836,42.94,0.087,0.496,48.47,27.0,4.086,47.06,2.292,3.113,60.22,40.83
-breakout_non_bull,1134,3124601,0.168,44.44,-0.006,0.019,31.13,13.76,2.179,46.74,1.171,1.801,43.3,24.25,6.027,51.59,4.062,5.187,56.79,36.95

@@ -1,6 +1,0 @@
-exit_reason,n,mean_return_pct,win_rate_pct,mean_hold_days,median_hold_days
-open,265,7.034,68.3,17.1,5
-gap_fill,4277,4.197,45.45,7.8,4
-reversal_black_k,310,0.712,34.19,10.6,6
-neckline_break,40,-3.922,32.5,47.3,38
-breakout_low_break,1726,-6.884,2.26,6.4,4

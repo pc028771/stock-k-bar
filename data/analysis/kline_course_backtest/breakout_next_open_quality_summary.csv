@@ -1,4 +1,0 @@
-group,n,mean_gap_pct,mean_close_basis_10d_pct,win_close_basis_10d_pct,mean_10d_net_pct,win_10d_net_pct,mean_10d_atr_stop_net_pct,mean_20d_net_pct,win_20d_net_pct,mean_20d_atr_stop_net_pct
-all_breakout_tradable,3515,1.25,2.618,49.1,0.775,43.24,0.408,4.127,47.65,3.046
-next_not_low_open,2547,2.396,3.424,51.71,0.412,42.17,0.18,3.344,46.53,2.731
-next_low_open,968,-1.768,0.495,42.25,1.729,46.07,1.006,6.188,50.62,3.875
