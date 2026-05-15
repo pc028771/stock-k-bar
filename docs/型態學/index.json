@@ -1,0 +1,32 @@
+{
+  "course": "型態學",
+  "source": "https://www.pressplay.cc/project/55DE90EBFBB634BE864F75703AB654DE/",
+  "total_articles": 18,
+  "captured_at": "2026-05-16",
+  "sections": {
+    "基礎篇": [
+      {"order": 1, "title": "前言與底部型態", "url_id": "B3E1989D8FEA95A046C35B3917FC0332"},
+      {"order": 2, "title": "頭部型態", "url_id": "A6048329C5E8034323FA190C0AAEDBE4", "priority": "HIGH"},
+      {"order": 3, "title": "箱型整理型態", "url_id": "D4776F1A5EA1D9FDD9D1ED593B524863", "priority": "HIGH"},
+      {"order": 4, "title": "楔形型態", "url_id": "54154D9F4AE39E5A01DEBE3804BA8584"},
+      {"order": 5, "title": "三角收斂型態", "url_id": "5A072FF448114DA37DE350F18C933B7D"},
+      {"order": 6, "title": "中樞型態", "url_id": "35B0B869C0065349469DA4648D2D1D24"}
+    ],
+    "延伸篇": [
+      {"order": 7, "title": "反轉型態", "url_id": "F02E2B43551858598670C4D898C1FDF7"},
+      {"order": 8, "title": "騙線型態", "url_id": "3E77B5BE84A19C37C1237361D48A071A"},
+      {"order": 9, "title": "背離型態", "url_id": "17B097F25400F9CBC978C02F8FD315D7"},
+      {"order": 10, "title": "缺口壓力型態", "url_id": "6402BC048CE980754314B6C0C71D06D7"},
+      {"order": 11, "title": "缺口支撐型態", "url_id": "9F6A0299D3AC0E9132CF77BAEB683027"}
+    ],
+    "應用篇": [
+      {"order": 12, "title": "攻擊型態一：日出攻擊型態", "url_id": "A396A7461801D73DC0709C171065BB60"},
+      {"order": 13, "title": "攻擊型態二：跳空攻擊型態", "url_id": "488C6FB0AE3E44BB34A1C473A604BB88"},
+      {"order": 14, "title": "攻擊型態三：推升攻擊型態", "url_id": "8D2D9CB1AFE9A74A8EB716A53F34E115"},
+      {"order": 15, "title": "攻擊型態四：波動前進型態", "url_id": "88714535BD9DD8ADCC1DD611D54471AC", "priority": "HIGH"},
+      {"order": 16, "title": "破底型態", "url_id": "0826E9DC6EB686F82A357296EE3C45FA"},
+      {"order": 17, "title": "上下肩缺口的理論學習", "url_id": "EA1B1D69DA62F8C0F58607E3C54DCC1C"},
+      {"order": 18, "title": "鑷頂與鑷底的理論學習", "url_id": "FDC5EE6DE682F971A06D510562C6B6B8"}
+    ]
+  }
+}
