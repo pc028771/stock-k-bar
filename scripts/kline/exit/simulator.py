@@ -36,11 +36,22 @@ def simulate(
     if exit_registry is None:
         exit_registry = EXIT_REGISTRY
 
+    if len(entries) != len(df):
+        raise ValueError(
+            f"entries length {len(entries)} != df length {len(df)}"
+        )
+
     # Compute every exit condition column once.
     exit_cols: dict[str, pd.Series] = {}
     for name in exit_priority:
         fn = exit_registry[name]
-        exit_cols[name] = fn(df, entries).astype(bool).reset_index(drop=True)
+        exit_cols[name] = (
+            fn(df, entries)
+            .reindex(df.index)
+            .fillna(False)
+            .astype(bool)
+            .reset_index(drop=True)
+        )
 
     work = df.reset_index(drop=True).copy()
     work["_entries"] = entries.reset_index(drop=True).values
@@ -73,6 +84,7 @@ def simulate(
                 if len(trigger_positions) == 0:
                     continue
                 first = trigger_positions[0]
+                # Priority order wins on ties: strict < keeps higher-priority condition.
                 if best_pos is None or first < best_pos:
                     best_pos = int(first)
                     best_reason = name
@@ -81,6 +93,8 @@ def simulate(
                 exit_signal_pos = best_pos
                 exit_execute_pos = exit_signal_pos + 1
                 if exit_execute_pos > ticker_last:
+                    # Exit signal fires on last available bar — no next-open available.
+                    # exit_open = close of signal bar; hold_days counts this day inclusively.
                     exit_open = float(work.loc[exit_signal_pos, "close"])
                     exit_date = work.loc[exit_signal_pos, "trade_date"]
                     hold_days = exit_signal_pos - next_pos + 1
