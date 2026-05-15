@@ -86,9 +86,10 @@ def _check_exits(
         if row["close"] < row["prior_low_20"]:
             neckline_pending = True
 
-    # 無出場訊號：持有至末日，用末日收盤計算
+    # 無出場訊號：持有至末日，用末日開盤價（上班族只能在開盤執行）
     last = bars.iloc[-1]
-    return "open", pd.Timestamp(last.name), float(last["close"]), len(bars)
+    last_price = float(last["open"]) if last["open"] > 0 else float(last["close"])
+    return "open", pd.Timestamp(last.name), last_price, len(bars)
 
 
 def _next_open(bars: pd.DataFrame, idx: int) -> tuple[float, pd.Timestamp]:
