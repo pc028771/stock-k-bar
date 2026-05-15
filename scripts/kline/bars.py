@@ -10,6 +10,7 @@ Output schema (sorted by ticker, trade_date asc):
 """
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
 import tempfile
@@ -43,7 +44,7 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH) -> pd.DataFrame:
         order by ticker, trade_date
     """
     try:
-        tmp = Path(tempfile.gettempdir()) / "kline_bars_snapshot.sqlite"
+        tmp = Path(tempfile.gettempdir()) / f"kline_bars_snapshot_{os.getpid()}.sqlite"
         shutil.copy2(db_path, tmp)
         conn_path = str(tmp)
     except Exception:
