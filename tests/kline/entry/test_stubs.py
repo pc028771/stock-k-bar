@@ -1,7 +1,7 @@
 """Verify stub entry conditions return all-False and follow STUB convention."""
 from __future__ import annotations
 
-from kline.entry import ENTRY_REGISTRY, sunrise, trend_reversal
+from kline.entry import ENTRY_REGISTRY, trend_reversal
 from kline.features import add_features
 
 from tests.conftest import make_bars
@@ -20,14 +20,6 @@ def test_trend_reversal_stub_returns_all_false():
     assert len(out) == len(df)
 
 
-def test_sunrise_stub_returns_all_false():
-    df = _sample_df()
-    out = sunrise.detect(df)
-    assert out.dtype == bool
-    assert not out.any()
-    assert len(out) == len(df)
-
-
 def test_registry_includes_all_entry_conditions():
     assert "breakout_attack" in ENTRY_REGISTRY
     assert "trend_reversal" in ENTRY_REGISTRY
@@ -36,4 +28,3 @@ def test_registry_includes_all_entry_conditions():
 
 def test_stub_docstring_starts_with_stub_marker():
     assert trend_reversal.__doc__.startswith("STUB:")
-    assert sunrise.__doc__.startswith("STUB:")

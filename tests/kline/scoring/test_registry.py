@@ -15,9 +15,14 @@ def test_registry_has_expected_factors():
     }
 
 
-def test_shadow_position_stub_returns_zero():
+def test_shadow_position_returns_zero_for_neutral_bars():
     rows = [{"open": 100, "high": 101, "low": 99, "close": 100} for _ in range(3)]
     df = make_bars(rows)
+    df["prior_high_60"] = [100.0, 100.0, 100.0]
+    df["upper_shadow_ratio"] = [0.0, 0.0, 0.0]
+    df["overhead_supply_layer"] = [0.0, 0.0, 0.0]
+    df["is_red"] = [False, False, False]
     out = shadow_position.score(df)
     assert (out == 0.0).all()
-    assert shadow_position.__doc__.startswith("STUB:")
+    # No longer a STUB
+    assert not shadow_position.__doc__.lstrip().startswith("STUB:")
