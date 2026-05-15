@@ -252,28 +252,50 @@ def add_pre_rank_score(rows: pd.DataFrame) -> pd.DataFrame:
     rows = rows.copy()
     rows["breakout_strength_pct"] = (rows["close"] / rows["prior_high_60"] - 1) * 100
     rows["pre_rank_score"] = 50.0
+
+    # --- 大盤背景 ---
     rows["pre_rank_score"] += np.where(rows["market_regime"] == "range", 10, 0)
     rows["pre_rank_score"] += np.where(rows["market_regime"] == "bull", 3, 0)
-    # 回測驗證：不開低為反訊號，移除加分；開低（shakeout）為正訊號，但需次日才確認，不列入當日計分
-    rows["pre_rank_score"] += np.where(rows["close_pos"] >= 0.85, 8, 0)
-    rows["pre_rank_score"] += np.where(rows["volume_ratio"] >= 1.5, 8, 0)
-    # 突破強度門檻對齊回測驗證基準（>=5% 對應 shakeout_strong signal）
+
+    # --- 突破前趨勢結構（Spearman r=+0.062，整合自 attack_quality_analysis）---
+    # 突破前連續站上季線天數 ≥ 17，表示趨勢背景扎實
+    if "pre_breakout_trend_days" in rows.columns:
+        rows["pre_rank_score"] += np.where(
+            rows["pre_breakout_trend_days"].fillna(0) >= 17, 15, 0
+        )
+
+    # --- 突破當日K棒品質（回測發現高 close_pos / 大實體反而差）---
+    # close_pos >= 0.85 舊版加分，已由回測推翻（Spearman r=-0.051），改為扣分
+    rows["pre_rank_score"] -= np.where(rows["close_pos"].fillna(0) >= 0.85, 10, 0)
+    # body_pct >= 0.04（大實體K）回測負相關（r=-0.062），大實體追高風險高
+    if "body_pct" in rows.columns:
+        rows["pre_rank_score"] -= np.where(rows["body_pct"].fillna(0) >= 0.04, 10, 0)
+
+    # --- 成交量（非線性：適量加分，爆量扣分）---
+    # 量比 1.5–3.2：攻擊有量能支撐，正面訊號
+    rows["pre_rank_score"] += np.where(
+        (rows["volume_ratio"] >= 1.5) & (rows["volume_ratio"] < 3.2), 8, 0
+    )
+    # 量比 ≥ 3.2：爆量追高，Spearman r=-0.080，明顯負面
+    rows["pre_rank_score"] -= np.where(rows["volume_ratio"].fillna(0) >= 3.2, 15, 0)
+
+    # --- 突破強度（課程：突破幅度反映攻擊意圖）---
     rows["pre_rank_score"] += np.where(rows["breakout_strength_pct"] >= 5.0, 8, 0)
     rows["pre_rank_score"] += np.where(
         (rows["breakout_strength_pct"] >= 2.0) & (rows["breakout_strength_pct"] < 5.0), 3, 0
     )
-    # Task 13：overhead_supply_layer 評分
-    # 依據 supply_zone_spec_report.md §3.1：layer ≤ 1 時 10 日 close-basis +3.83%（vs 基準 +2.90%）
-    #           layer ≥ 4 時 10 日 close-basis +1.31%，明顯弱於基準
-    # 設計：layer ≤ 1 → 加 8 分；layer ≥ 4 → 扣 8 分；其餘不調整
+
+    # --- 上方套牢壓力（課程：層層套牢 / 賣壓中空）---
     if "overhead_supply_layer" in rows.columns:
         layer = pd.to_numeric(rows["overhead_supply_layer"], errors="coerce")
         rows["pre_rank_score"] += np.where(layer.fillna(np.nan).le(1), 8, 0)
         rows["pre_rank_score"] -= np.where(layer.fillna(np.nan).ge(4), 8, 0)
-    # MA rolloff 壓力：easing（低價扣抵，均線有上升動能）+5；rising（高價扣抵）-5
+
+    # --- MA rolloff 壓力 ---
     if "rolloff_pressure" in rows.columns:
         rows["pre_rank_score"] += np.where(rows["rolloff_pressure"] == "easing", 5, 0)
         rows["pre_rank_score"] -= np.where(rows["rolloff_pressure"] == "rising", 5, 0)
+
     return rows
 
 
