@@ -25,6 +25,7 @@ def test_sunrise_stub_returns_all_false():
     out = sunrise.detect(df)
     assert out.dtype == bool
     assert not out.any()
+    assert len(out) == len(df)
 
 
 def test_registry_includes_all_entry_conditions():
@@ -34,5 +35,5 @@ def test_registry_includes_all_entry_conditions():
 
 
 def test_stub_docstring_starts_with_stub_marker():
-    assert trend_reversal.__doc__.lstrip().startswith("STUB:")
-    assert sunrise.__doc__.lstrip().startswith("STUB:")
+    assert trend_reversal.__doc__.startswith("STUB:")
+    assert sunrise.__doc__.startswith("STUB:")
