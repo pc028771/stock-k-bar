@@ -23,7 +23,6 @@ import numpy as np
 import pandas as pd
 
 OVERHEAD_MONTHS_DAYS = 60      # 3 months in trading days
-OVERHEAD_BAND_PCT = 0.25       # look for peaks within +25% above swing low
 
 
 def _detect_swing_lows(low_series: pd.Series) -> pd.Series:
@@ -58,13 +57,14 @@ def _has_overhead_supply(
     """Check if swing low at candidate_pos has >= 60 days of overhead supply.
 
     Condition: at least one swing-high peak above candidate_price occurring
-    more than OVERHEAD_MONTHS_DAYS bars before the MA60 downturn, and within
-    the OVERHEAD_BAND_PCT zone above the candidate.
+    more than OVERHEAD_MONTHS_DAYS bars before the MA60 downturn, and also
+    before the swing low itself (套牢 = trapped buyers above the low).
 
-    The overhead window is: bars 0 .. (downturn_pos - OVERHEAD_MONTHS_DAYS).
-    This ensures the trapped buyers have been waiting >= 3 months.
+    The overhead window is: bars 0 .. min(candidate_pos, downturn_pos - OVERHEAD_MONTHS_DAYS).
+    This ensures peaks occurred BEFORE the swing low and the trapped buyers
+    have been waiting >= 3 months.
     """
-    overhead_cutoff = downturn_pos - OVERHEAD_MONTHS_DAYS
+    overhead_cutoff = min(candidate_pos, downturn_pos - OVERHEAD_MONTHS_DAYS)
     if overhead_cutoff <= 0:
         return False
 
@@ -72,14 +72,7 @@ def _has_overhead_supply(
     window_swing_highs = swing_highs.iloc[:overhead_cutoff]
     window_highs = high_series.iloc[:overhead_cutoff]
 
-    upper_bound = candidate_price * (1 + OVERHEAD_BAND_PCT)
-
-    qualifying = (
-        window_swing_highs
-        & (window_highs > candidate_price)
-        & (window_highs <= upper_bound)
-    )
-    return bool(qualifying.any())
+    return bool((window_swing_highs & (window_highs > candidate_price)).any())
 
 
 def _find_neckline_for_downturn(
@@ -92,18 +85,20 @@ def _find_neckline_for_downturn(
     """Given a MA60 downturn position, find the neckline price.
 
     Algorithm:
-      1. Look back from downturn_pos for swing lows in reverse order.
-      2. For each candidate swing low, verify it has >= 60 trading days of
-         overhead supply (a swing high above its price, > OVERHEAD_MONTHS_DAYS
-         bars before the downturn).
+      1. Collect all swing low positions before downturn_pos.
+      2. For each candidate swing low (most recent first), verify it has
+         >= 60 trading days of overhead supply (a swing high above its price,
+         occurring before the swing low AND > OVERHEAD_MONTHS_DAYS bars before
+         the downturn).
       3. Return the first qualifying swing low's price, or NaN if none.
     """
-    # Iterate swing lows from downturn_pos backward (most recent first)
-    for i in range(downturn_pos, -1, -1):
-        if not swing_lows.iloc[i]:
-            continue
-        candidate_price = low_series.iloc[i]
-        if _has_overhead_supply(candidate_price, i, high_series, swing_highs, downturn_pos):
+    swing_low_positions = np.where(swing_lows.values)[0]
+    # Filter to those strictly before downturn_pos
+    candidates = swing_low_positions[swing_low_positions < downturn_pos]
+    # Iterate from most recent to oldest
+    for i in reversed(candidates):
+        candidate_price = low_series.iloc[int(i)]
+        if _has_overhead_supply(candidate_price, int(i), high_series, swing_highs, downturn_pos):
             return candidate_price
 
     return float("nan")
@@ -131,7 +126,7 @@ def mark(df: pd.DataFrame, entries: pd.Series | None = None) -> pd.Series:
 
         # Detect MA60 downturn moments: slope transitions from >= 0 to < 0
         prev_slope = slope.shift(1).fillna(0)
-        is_downturn = (prev_slope >= 0) & (slope < 0)
+        is_downturn = (prev_slope >= 0) & (slope < 0) & slope.notna()
         downturn_positions = np.where(is_downturn)[0]
 
         if len(downturn_positions) == 0:
@@ -150,6 +145,8 @@ def mark(df: pd.DataFrame, entries: pd.Series | None = None) -> pd.Series:
             # Apply this neckline from downturn_pos onward, until next downturn
             next_positions = downturn_positions[downturn_positions > downturn_pos]
             end_pos = int(next_positions[0]) if len(next_positions) > 0 else len(grp)
+            # Invariant: downturn_positions is monotonically increasing from np.where,
+            # so windows [downturn_pos:end_pos] are disjoint — writes don't clobber prior necklines.
             neckline_series.iloc[downturn_pos:end_pos] = neckline_price
 
         # Mark exit where close < active neckline

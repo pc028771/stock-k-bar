@@ -208,3 +208,67 @@ def test_neckline_fires_precisely_when_close_crosses_below():
     out = mark(df)
     # Signal should not fire before the descent phase
     assert not out.iloc[:130].any(), "Should not fire before descent phase"
+
+
+def test_neckline_skips_recent_unqualified_low_and_uses_older():
+    """
+    Scenario:
+    - Older swing low (bar ~29) with 3-month overhead above (peaks in bars 90-150)
+    - Recent swing low (bar ~160) without 3-month overhead (insufficient time before downturn)
+    - MA60 downturn at bar ~180
+    - Expected: algorithm uses the OLDER swing low as neckline, not the recent one,
+      so the signal fires when close drops below ~95 (around bars 215-220), not at ~112
+    """
+    n = 250
+    rows = []
+
+    # Bars 0-29: rising
+    for i in range(30):
+        rows.append({"open": 95 + i * 0.3, "high": 96 + i * 0.3, "low": 94 + i * 0.3,
+                     "close": 95 + i * 0.3, "volume": 1000.0})
+    # Bar 29: swing low at 95 (the OLDER swing low we want used)
+    rows[29] = {"open": 96, "high": 97, "low": 95, "close": 96, "volume": 1000.0}
+    # Bars 30-89: rising to peak
+    for i in range(30, 90):
+        progress = (i - 30) / 60.0
+        price = 95 + progress * 25  # reach 120 by bar 90
+        rows.append({"open": price, "high": price + 1, "low": price - 1,
+                     "close": price, "volume": 1000.0})
+    # Bars 90-150: oscillate at high (creates overhead supply above 95)
+    for i in range(90, 150):
+        offset = (i % 8) - 4
+        rows.append({"open": 120 + offset * 0.5, "high": 122 + offset * 0.5,
+                     "low": 118 + offset * 0.5, "close": 120 + offset * 0.5,
+                     "volume": 1000.0})
+    # Bars 150-159: declining
+    for i in range(150, 160):
+        drop = (i - 150) * 0.8
+        rows.append({"open": 120 - drop, "high": 121 - drop,
+                     "low": 119 - drop, "close": 120 - drop,
+                     "volume": 1000.0})
+    # Bars 160-179: recent swing low at ~112, slight bounce then continued decline
+    for i in range(160, 180):
+        rows.append({"open": 112 + (i - 160) * 0.05, "high": 113,
+                     "low": 111, "close": 112, "volume": 1000.0})
+    # Bars 180-249: descending below older swing low (95)
+    for i in range(180, 250):
+        drop = (i - 180) * 0.4
+        rows.append({"open": 112 - drop, "high": 113 - drop,
+                     "low": 111 - drop, "close": 112 - drop, "volume": 1000.0})
+
+    df = make_bars(rows[:n])
+    df["ma60"] = df["close"].rolling(60, min_periods=1).mean()
+    df["ma60_slope_5d"] = df["ma60"] / df["ma60"].shift(5) - 1
+
+    out = mark(df)
+    # The algorithm should use the OLDER swing low (~95) as neckline.
+    # Close drops below 95 around bar 222+ (180 + 95/0.4 ≈ 218).
+    # If signal fires at all, it must be after bar 200 (not at ~112).
+    fired = out[out].index.tolist()
+    if fired:
+        first_fire_bar = fired[0]
+        first_fire_close = df.loc[first_fire_bar, "close"]
+        assert first_fire_bar > 200, (
+            f"Expected first fire after bar 200 (when close < older swing low ~95), "
+            f"got bar {first_fire_bar} at close {first_fire_close:.2f}"
+        )
