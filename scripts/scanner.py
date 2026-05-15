@@ -28,25 +28,6 @@ def run(
     bars = load_bars(db_path=db_path)
     feats = add_features(bars)
 
-    # Scoring factors need features not in add_features:
-    if "pre_breakout_trend_days" not in feats.columns:
-        above = (feats["close"] > feats["ma60"]).fillna(False).astype(int)
-        # Shift(1) excludes today; rolling 20-day sum counts prior trend days.
-        # Uses the same groupby+shift pattern as features.py (pandas 3.x safe).
-        feats["pre_breakout_trend_days"] = (
-            above.groupby(feats["ticker"])
-            .shift(1)
-            .fillna(0)
-            .groupby(feats["ticker"])
-            .rolling(20, min_periods=1)
-            .sum()
-            .reset_index(level=0, drop=True)
-            .astype(int)
-        )
-
-    if "overhead_supply_layer" not in feats.columns:
-        feats["overhead_supply_layer"] = 0.0  # placeholder; precise version pending VP
-
     entries = breakout_attack(feats)
     candidates = feats[entries].copy()
 

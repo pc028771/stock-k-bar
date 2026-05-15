@@ -58,6 +58,10 @@ result = gap_fill_exit(df)
 
 The file `gap_fill.py` only imports pandas + numpy.
 
+**Exception:** `simulator.py` is the one intentional exception to the
+self-contained-file rule — it depends on `EXIT_REGISTRY` to iterate all exit
+conditions. All other files remain standalone (pandas/numpy only).
+
 ## Running
 
 ```bash

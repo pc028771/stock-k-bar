@@ -1,12 +1,22 @@
-"""Attack quality score.
+"""Attack quality score — empirically calibrated, NON-course factor.
 
-Course source: Calibrated via Spearman correlation against trade_return_net
-              over course-defined exit simulation (n≈6,618). Factors map to
-              attack-authenticity course concepts:
-                - pre_breakout_trend_days: trend-following 真攻擊
-                - volume_ratio: extreme volume often = retail FOMO peak
-                - body_pct: oversized red K often = exhaustion
-                - close_pos: pinned-to-high often = unable to absorb selling
+Per project rules (CLAUDE.md), backtest-derived thresholds are forbidden for
+individual stock OPERATION decisions (entry/exit/stop). This factor is used
+ONLY for scanner ranking of candidates — i.e., relative ordering, not
+absolute trade decisions.
+
+Calibration source: Spearman correlation against trade_return_net over the
+course-defined exit simulation (n≈6,618). Thresholds picked by inflection
+points in correlation curve.
+
+Factor concepts roughly map to course intuitions:
+  - pre_breakout_trend_days: trend-following 真攻擊 (course-aligned direction)
+  - volume_ratio: extreme volume often = retail FOMO peak (penalty)
+  - body_pct: oversized red K often = exhaustion (penalty)
+  - close_pos: pinned-to-high often = unable to absorb selling (penalty)
+
+But the thresholds themselves (17, 3.2, 0.04, 0.85) are statistical, not
+course-stated. Use with that caveat.
 
 Base 50 + factor deltas, clipped to [0, 100].
 """

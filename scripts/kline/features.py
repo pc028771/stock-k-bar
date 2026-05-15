@@ -58,6 +58,41 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["ma60_slope_5d"] = df["ma60"] / g["ma60"].shift(5) - 1
     df["ma60_rolling_off_close"] = g["close"].shift(60)
 
+    # Scoring input: consecutive days closing above MA60 prior to today, capped at 20.
+    above_ma60 = (df["close"] > df["ma60"]).fillna(False).astype(int)
+    df["pre_breakout_trend_days"] = (
+        above_ma60.groupby(df["ticker"])
+        .shift(1)
+        .fillna(0)
+        .groupby(df["ticker"])
+        .rolling(20, min_periods=1)
+        .sum()
+        .reset_index(level=0, drop=True)
+        .astype(int)
+    )
+
+    # Scoring input: count of swing-high peaks above current close in trailing 240 days.
+    # A peak at bar k is defined as high[k] == max(high[k-4:k+1]) (5-bar local max).
+    # We iterate over lags 1..240 (shifted window, excludes today) and accumulate.
+    LOOKBACK = 240
+    n = len(df)
+    peak_count = np.zeros(n, dtype=float)
+    close_today = df["close"].to_numpy()
+    for lag in range(1, LOOKBACK + 1):
+        past_high = g["high"].shift(lag).to_numpy()
+        past_max5 = (
+            g["high"]
+            .shift(lag)
+            .rolling(5, min_periods=5)
+            .max()
+            .reset_index(level=0, drop=True)
+            .to_numpy()
+        )
+        is_peak = (past_high == past_max5) & ~np.isnan(past_max5)
+        peak_count += ((past_high > close_today) & is_peak).astype(float)
+    has_history = g.cumcount().to_numpy() >= 20
+    df["overhead_supply_layer"] = np.where(has_history, peak_count, np.nan)
+
     # K-line color
     df["is_red"] = df["close"] > df["open"]
     df["is_black"] = df["close"] < df["open"]

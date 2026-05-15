@@ -130,3 +130,79 @@ def test_ma60_slope_and_rolling_off():
     expected_slope = 65.0 / 60.0 - 1.0
     assert abs(df.loc[64, "ma60_slope_5d"] - expected_slope) < 1e-9
     assert df.loc[64, "ma60_rolling_off_close"] == 5.0
+
+
+def test_pre_breakout_trend_days_counts_prior_above_ma60():
+    # 5 bars: close always above ma60. Today (row 4) should count 4 prior days
+    # (bars 0-3 shifted by 1, rolling sum of 4 days capped at 20).
+    rows = [
+        {"open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 1000.0}
+        for _ in range(5)
+    ]
+    # ma60 defaults to close in make_bars, so close > ma60 is False (equal).
+    # Override: set ma60 below close so all bars qualify.
+    df = make_bars(rows)
+    df["ma60"] = 90.0
+    from kline.features import add_features as _add
+    out = _add(df)
+    # row 0: shift(1) gives NaN → 0 prior days above
+    assert out.loc[0, "pre_breakout_trend_days"] == 0
+    # row 4: 4 prior days (rows 0-3) all above ma60
+    assert out.loc[4, "pre_breakout_trend_days"] == 4
+
+
+def test_pre_breakout_trend_days_does_not_leak_across_tickers():
+    # Ticker A: 5 bars all above ma60. Ticker B: 5 bars all below ma60.
+    # B's pre_breakout_trend_days should remain 0 regardless of A's values.
+    rows_a = [
+        {"open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 1000.0}
+        for _ in range(5)
+    ]
+    rows_b = [
+        {"open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 1000.0}
+        for _ in range(5)
+    ]
+    df_a = make_bars(rows_a, ticker="A")
+    df_a["ma60"] = 90.0  # close > ma60
+
+    df_b = make_bars(rows_b, ticker="B")
+    df_b["ma60"] = 110.0  # close < ma60
+
+    combined = pd.concat([df_a, df_b]).reset_index(drop=True)
+    from kline.features import add_features as _add
+    out = _add(combined)
+
+    b_rows = out[out["ticker"] == "B"]
+    assert (b_rows["pre_breakout_trend_days"] == 0).all()
+
+
+def test_overhead_supply_layer_nan_before_history():
+    # With fewer than 20 bars, overhead_supply_layer should be NaN.
+    rows = [
+        {"open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 1000.0}
+        for _ in range(10)
+    ]
+    df = add_features(make_bars(rows))
+    # All rows have cumcount < 20, so all should be NaN.
+    assert df["overhead_supply_layer"].isna().all()
+
+
+def test_overhead_supply_layer_counts_peaks_above_close():
+    # Build a bar series with a clear swing high well above later closes.
+    # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),
+    # then 20 bars with low close ~102. The 5-bar-local-max peak detection should
+    # mark the high-bars as peaks; overhead_supply_layer at the end should be > 0.
+    high_rows = [
+        {"open": 190.0, "high": 200.0, "low": 188.0, "close": 195.0, "volume": 1000.0}
+        for _ in range(10)
+    ]
+    low_rows = [
+        {"open": 100.0, "high": 105.0, "low": 99.0, "close": 102.0, "volume": 1000.0}
+        for _ in range(20)
+    ]
+    df = add_features(make_bars(high_rows + low_rows))
+    # Last row: 20th bar in the low section (index 29), cumcount >= 20.
+    last = df.iloc[-1]
+    assert not pd.isna(last["overhead_supply_layer"])
+    # There must be at least some peaks from the high section above close=102.
+    assert last["overhead_supply_layer"] > 0
