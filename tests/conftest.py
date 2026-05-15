@@ -1,9 +1,7 @@
 """Shared test fixtures for kline conditions."""
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
-import pytest
 
 
 def make_bars(rows: list[dict], ticker: str = "T0001") -> pd.DataFrame:
@@ -34,8 +32,3 @@ def make_bars(rows: list[dict], ticker: str = "T0001") -> pd.DataFrame:
     for col in ("open", "high", "low", "close", "volume", "ma60", "ma20", "ma240"):
         df[col] = df[col].astype(float)
     return df.reset_index(drop=True)
-
-
-@pytest.fixture
-def make_bars_fn():
-    return make_bars
