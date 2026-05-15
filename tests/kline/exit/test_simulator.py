@@ -2,9 +2,19 @@
 from __future__ import annotations
 
 import pandas as pd
+from kline.exit import breakout_low_break, gap_fill
 from kline.exit.simulator import simulate
 
 from tests.conftest import make_bars
+
+# Minimal exit registry / priority for simulator-logic tests.
+# Only include the two conditions exercised in the tests so that future real
+# pattern implementations don't inadvertently fire on the synthetic bar data.
+_TEST_REGISTRY = {
+    "gap_fill":           gap_fill.mark,
+    "breakout_low_break": breakout_low_break.mark,
+}
+_TEST_PRIORITY = ["gap_fill", "breakout_low_break"]
 
 
 def _prepare_df(rows):
@@ -26,7 +36,7 @@ def test_single_trade_exits_on_breakout_low_break():
     ]
     df = _prepare_df(rows)
     entries = pd.Series([False, True, False, False])
-    trades = simulate(df, entries)
+    trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 1
     t = trades.iloc[0]
     # Entry at bar 1 signal → execute bar 2 open (109)
@@ -44,7 +54,7 @@ def test_no_exit_uses_last_bar_open():
     ]
     df = _prepare_df(rows)
     entries = pd.Series([False, True, False])
-    trades = simulate(df, entries)
+    trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 1
     assert trades.iloc[0]["exit_reason"] == "open"
 
@@ -65,7 +75,7 @@ def test_priority_tie_breaking_uses_higher_priority_reason():
     ]
     df = _prepare_df(rows)
     entries = pd.Series([False, True, False, False])
-    trades = simulate(df, entries)
+    trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 1
     # gap_fill priority is HIGHER (comes before breakout_low_break in EXIT_PRIORITY)
     assert trades.iloc[0]["exit_reason"] == "gap_fill"
@@ -92,7 +102,7 @@ def test_per_ticker_isolation_in_simulator():
     combined["ma60_slope_5d"] = 0.01
     combined["market_open_ret"] = 0.0
     entries = pd.Series([False, True, False, False, False, True, False, False])
-    trades = simulate(combined, entries)
+    trades = simulate(combined, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 2
     a_trade = trades[trades["ticker"] == "A"].iloc[0]
     b_trade = trades[trades["ticker"] == "B"].iloc[0]
@@ -107,7 +117,7 @@ def test_entry_on_last_bar_is_skipped():
     ]
     df = _prepare_df(rows)
     entries = pd.Series([False, True])
-    trades = simulate(df, entries)
+    trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 0
 
 
@@ -116,7 +126,7 @@ def test_alignment_mismatch_raises():
     df = _prepare_df(rows)
     entries = pd.Series([False, True])  # wrong length
     try:
-        simulate(df, entries)
+        simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
         raise AssertionError("expected ValueError")
     except ValueError as e:
         assert "length" in str(e).lower()
