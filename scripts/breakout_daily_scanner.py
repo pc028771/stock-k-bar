@@ -16,6 +16,54 @@ from finmind_intraday_kline_check import fetch_kbar, intraday_features
 from kline_course_backtest import add_features, add_signals, load_bars
 
 
+def _fetch_vp_finmind(
+    ticker: str,
+    trade_date: str,
+    token: str,
+    sleep_seconds: float,
+) -> "pd.DataFrame":
+    """FinMind TaiwanStockKBar → 分價量表 [price, volume]。"""
+    try:
+        from finmind_intraday_kline_check import fetch_kbar
+        import sys as _sys
+        _vp_dir = str(__file__).replace("breakout_daily_scanner.py", "")
+        if _vp_dir not in _sys.path:
+            _sys.path.insert(0, _vp_dir)
+        from volume_profile import build_vp_from_kbar
+        kbar = fetch_kbar(ticker, trade_date, token, sleep_seconds)
+        if kbar.empty:
+            return pd.DataFrame(columns=["price", "volume"])
+        df = kbar.copy()
+        for col in ["open", "high", "low", "close", "volume"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        df = df.dropna(subset=["high", "low", "volume"])
+        return build_vp_from_kbar(df)
+    except Exception:
+        return pd.DataFrame(columns=["price", "volume"])
+
+
+def _compute_vp_features_safe(
+    vp: "pd.DataFrame",
+    current_close: float,
+) -> dict:
+    """compute_vp_features with fallback to NaN dict on any error."""
+    try:
+        import sys as _sys
+        import os as _os
+        _vp_dir = _os.path.dirname(_os.path.abspath(__file__))
+        if _vp_dir not in _sys.path:
+            _sys.path.insert(0, _vp_dir)
+        from volume_profile import compute_vp_features
+        return compute_vp_features(vp, current_close)
+    except Exception:
+        return {
+            "vp_overhead_pct": float("nan"),
+            "vp_dense_above": False,
+            "vp_supply_vacuum": False,
+            "vp_nearest_resistance_pct": float("nan"),
+        }
+
+
 OUT_DIR = Path("data/analysis/kline_course_backtest")
 REPORT_PATH = Path("docs/K線力量判斷入門/backtests/breakout_daily_scanner.md")
 TOPN_SUMMARY_PATH = OUT_DIR / "breakout_daily_scanner_topn_summary.csv"
@@ -156,6 +204,10 @@ def _init_intraday_cols(rows: pd.DataFrame) -> pd.DataFrame:
     rows["intraday_attack_failure"] = np.nan
     rows["intraday_close_pos"] = np.nan
     rows["intraday_return_pct"] = np.nan
+    rows["vp_overhead_pct"] = np.nan
+    rows["vp_dense_above"] = np.nan
+    rows["vp_supply_vacuum"] = np.nan
+    rows["vp_nearest_resistance_pct"] = np.nan
     return rows
 
 
@@ -172,6 +224,8 @@ def enrich_intraday(rows: pd.DataFrame, sleep_seconds: float) -> pd.DataFrame:
         kbar = fetch_kbar(str(row.ticker), trade_date, token, sleep_seconds)
         rec = row._asdict()
         rec.update(intraday_features(kbar))
+        vp = _fetch_vp_finmind(str(row.ticker), trade_date, token, sleep_seconds)
+        rec.update(_compute_vp_features_safe(vp, float(row.close)))
         rec["trade_date"] = trade_date
         enriched.append(rec)
     return pd.DataFrame(enriched)
@@ -236,6 +290,11 @@ def score_rows(rows: pd.DataFrame) -> pd.DataFrame:
     rows["scanner_score"] += np.where(has_intraday & below_open_noon, -10, 0)
     rows["scanner_score"] += np.where(has_intraday & attack_failure, -10, 0)
     rows["scanner_score"] += np.where(has_intraday & (rows["intraday_close_pos"] >= 0.9), 4, 0)
+    has_vp = rows["vp_overhead_pct"].notna()
+    rows["scanner_score"] += np.where(has_vp & rows["vp_supply_vacuum"].eq(True), 10, 0)
+    rows["scanner_score"] += np.where(has_vp & rows["vp_dense_above"].eq(True), -10, 0)
+    rows["scanner_score"] += np.where(has_vp & (rows["vp_overhead_pct"].fillna(1) < 0.15), 5, 0)
+    rows["scanner_score"] += np.where(has_vp & (rows["vp_overhead_pct"].fillna(0) > 0.40), -5, 0)
     rows["scanner_score"] = rows["scanner_score"].clip(lower=0, upper=100).round(2)
 
     return rows
@@ -375,6 +434,10 @@ def build_scanner(
             "intraday_attack_failure",
             "intraday_close_pos",
             "intraday_return_pct",
+            "vp_overhead_pct",
+            "vp_dense_above",
+            "vp_supply_vacuum",
+            "vp_nearest_resistance_pct",
         ]
         rows = rows.merge(
             enriched_recent[merge_cols + intraday_cols],
@@ -498,6 +561,10 @@ def write_report(
         "breakout_strength_pct",
         "is_attention_stock",
         "is_disposition_stock",
+        "vp_supply_vacuum",
+        "vp_dense_above",
+        "vp_overhead_pct",
+        "vp_nearest_resistance_pct",
     ]
     _latest_cols = [c for c in _latest_cols_base if c in latest_rows.columns]
     latest_preview = (
