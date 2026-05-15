@@ -13,20 +13,19 @@ def build_vp_from_kbar(kbar: pd.DataFrame, tick_size: float = 0.01) -> pd.DataFr
         return pd.DataFrame(columns=["price", "volume"])
 
     buckets: dict[float, float] = {}
-    for _, row in kbar.iterrows():
-        lo = _snap(float(row["low"]), tick_size)
-        hi = _snap(float(row["high"]), tick_size)
-        vol = float(row["volume"])
+    for row in kbar.itertuples(index=False):
+        lo = _snap(float(row.low), tick_size)
+        hi = _snap(float(row.high), tick_size)
+        vol = float(row.volume)
         if lo >= hi:
             buckets[lo] = buckets.get(lo, 0.0) + vol
         else:
             ticks = round((hi - lo) / tick_size) + 1
             vol_per = vol / ticks
-            p = lo
-            for _ in range(ticks):
+            for i in range(ticks):
+                p = lo + i * tick_size
                 rp = _snap(p, tick_size)
                 buckets[rp] = buckets.get(rp, 0.0) + vol_per
-                p += tick_size
 
     return pd.DataFrame(sorted(buckets.items()), columns=["price", "volume"])
 
