@@ -1,7 +1,7 @@
 """Verify exit stubs return all-False."""
 from __future__ import annotations
 
-from kline.exit import ma60_neckline, supply_zone_reach
+from kline.exit import supply_zone_reach
 
 from tests.conftest import make_bars
 
@@ -17,13 +17,5 @@ def test_supply_zone_reach_stub():
     assert len(out) == 3
 
 
-def test_ma60_neckline_stub():
-    out = ma60_neckline.mark(_sample())
-    assert out.dtype == bool
-    assert not out.any()
-    assert len(out) == 3
-
-
 def test_stubs_have_stub_marker_in_docstring():
     assert supply_zone_reach.__doc__.startswith("STUB:")
-    assert ma60_neckline.__doc__.startswith("STUB:")

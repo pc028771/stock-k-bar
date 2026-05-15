@@ -1,15 +1,159 @@
-"""STUB: K線行進ing — 精確頸線 via 關鍵K線 × MA60.
+"""MA60 neckline break exit signal — course-precise version.
 
-Course source: K線行進ing 關鍵K線延伸篇 — 關鍵K線與移動平均線的連結判斷.
+Course source:
+  - 型態學 頭部型態 (complete neckline definition with 3-month overhead supply)
+  - K線行進ing 關鍵K線×移動平均線 (季線下彎判定)
+  - K線行進ing 事件七 中期持有 (3-month overhead requirement)
 
-Replaces the prior_low_20 proxy used in neckline_break.py with a course-
-precise neckline: "prior high after MA60 turns up" / "prior low after MA60
-turns down". Pending read of 行進ing subcategory.
+Neckline definition (空方):
+  1. 季線下彎 (ma60_slope_5d turns from >= 0 to < 0)
+  2. The most recent confirmed swing low BEFORE the MA60 downturn
+  3. The swing low's price level must have >= 60 trading days of overhead
+     pressure (at least one swing-high peak above it in that window)
+
+Exit triggers when close < neckline_price.
+
+This replaces the crude `prior_low_20` proxy used in `neckline_break.py`.
+
+Required df columns: ticker, close, low, high, ma60_slope_5d.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+
+OVERHEAD_MONTHS_DAYS = 60      # 3 months in trading days
+OVERHEAD_BAND_PCT = 0.25       # look for peaks within +25% above swing low
+
+
+def _detect_swing_lows(low_series: pd.Series) -> pd.Series:
+    """Returns bool Series marking 5-bar local minima within a single ticker."""
+    is_local_min = (
+        (low_series < low_series.shift(1))
+        & (low_series < low_series.shift(2))
+        & (low_series < low_series.shift(-1))
+        & (low_series < low_series.shift(-2))
+    )
+    return is_local_min.fillna(False)
+
+
+def _detect_swing_highs(high_series: pd.Series) -> pd.Series:
+    """Returns bool Series marking 5-bar local maxima within a single ticker."""
+    is_local_max = (
+        (high_series > high_series.shift(1))
+        & (high_series > high_series.shift(2))
+        & (high_series > high_series.shift(-1))
+        & (high_series > high_series.shift(-2))
+    )
+    return is_local_max.fillna(False)
+
+
+def _has_overhead_supply(
+    candidate_price: float,
+    candidate_pos: int,
+    high_series: pd.Series,
+    swing_highs: pd.Series,
+    downturn_pos: int,
+) -> bool:
+    """Check if swing low at candidate_pos has >= 60 days of overhead supply.
+
+    Condition: at least one swing-high peak above candidate_price occurring
+    more than OVERHEAD_MONTHS_DAYS bars before the MA60 downturn, and within
+    the OVERHEAD_BAND_PCT zone above the candidate.
+
+    The overhead window is: bars 0 .. (downturn_pos - OVERHEAD_MONTHS_DAYS).
+    This ensures the trapped buyers have been waiting >= 3 months.
+    """
+    overhead_cutoff = downturn_pos - OVERHEAD_MONTHS_DAYS
+    if overhead_cutoff <= 0:
+        return False
+
+    # Search all swing highs before the overhead_cutoff
+    window_swing_highs = swing_highs.iloc[:overhead_cutoff]
+    window_highs = high_series.iloc[:overhead_cutoff]
+
+    upper_bound = candidate_price * (1 + OVERHEAD_BAND_PCT)
+
+    qualifying = (
+        window_swing_highs
+        & (window_highs > candidate_price)
+        & (window_highs <= upper_bound)
+    )
+    return bool(qualifying.any())
+
+
+def _find_neckline_for_downturn(
+    low_series: pd.Series,
+    high_series: pd.Series,
+    swing_lows: pd.Series,
+    swing_highs: pd.Series,
+    downturn_pos: int,
+) -> float:
+    """Given a MA60 downturn position, find the neckline price.
+
+    Algorithm:
+      1. Look back from downturn_pos for swing lows in reverse order.
+      2. For each candidate swing low, verify it has >= 60 trading days of
+         overhead supply (a swing high above its price, > OVERHEAD_MONTHS_DAYS
+         bars before the downturn).
+      3. Return the first qualifying swing low's price, or NaN if none.
+    """
+    # Iterate swing lows from downturn_pos backward (most recent first)
+    for i in range(downturn_pos, -1, -1):
+        if not swing_lows.iloc[i]:
+            continue
+        candidate_price = low_series.iloc[i]
+        if _has_overhead_supply(candidate_price, i, high_series, swing_highs, downturn_pos):
+            return candidate_price
+
+    return float("nan")
 
 
 def mark(df: pd.DataFrame, entries: pd.Series | None = None) -> pd.Series:
-    return pd.Series(False, index=df.index, dtype=bool)
+    """Returns bool Series. True = neckline broken on that bar.
+
+    Implementation note: this is a per-ticker iterative algorithm wrapping
+    a vectorized core. It is O(n_swing_lows x n_bars) in the worst case,
+    but typical case is much faster because most days have no MA60 downturn.
+    """
+    result = pd.Series(False, index=df.index, dtype=bool)
+
+    for _ticker, grp in df.groupby("ticker", group_keys=False):
+        idx = grp.index
+        low_s = grp["low"].reset_index(drop=True)
+        high_s = grp["high"].reset_index(drop=True)
+        close_s = grp["close"].reset_index(drop=True)
+        slope = grp["ma60_slope_5d"].reset_index(drop=True)
+
+        # Detect swing points
+        swing_lows = _detect_swing_lows(low_s)
+        swing_highs = _detect_swing_highs(high_s)
+
+        # Detect MA60 downturn moments: slope transitions from >= 0 to < 0
+        prev_slope = slope.shift(1).fillna(0)
+        is_downturn = (prev_slope >= 0) & (slope < 0)
+        downturn_positions = np.where(is_downturn)[0]
+
+        if len(downturn_positions) == 0:
+            continue
+
+        # Build neckline_series: for each bar, what is the active neckline price?
+        neckline_series = pd.Series(float("nan"), index=range(len(grp)))
+
+        for downturn_pos in downturn_positions:
+            neckline_price = _find_neckline_for_downturn(
+                low_s, high_s, swing_lows, swing_highs, int(downturn_pos)
+            )
+            if np.isnan(neckline_price):
+                continue
+
+            # Apply this neckline from downturn_pos onward, until next downturn
+            next_positions = downturn_positions[downturn_positions > downturn_pos]
+            end_pos = int(next_positions[0]) if len(next_positions) > 0 else len(grp)
+            neckline_series.iloc[downturn_pos:end_pos] = neckline_price
+
+        # Mark exit where close < active neckline
+        ticker_result = (close_s < neckline_series).fillna(False)
+        result.loc[idx] = ticker_result.values
+
+    return result
