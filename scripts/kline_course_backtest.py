@@ -348,19 +348,19 @@ def add_signals(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     # --- attack_quality_score (weights derived from attack_quality_analysis.py) ---
-    # Spearman correlations vs ret_10d on breakout_attack samples (n=6,296):
-    #   pre_breakout_trend_days: r=+0.0556, p<0.001  → +30 pts if >= median (17)
-    #   higher_low_count:        r=+0.0275, p=0.029  → +20 pts if >= median (6)
-    #   volume_ratio:            r=-0.0499, p<0.001  → -30 pts if >= median (3.2)
-    #   gap_open:                r=-0.0210, p=0.096  → -20 pts if gap_open == 1
-    #   body_pct:  |r|=0.0046 < 0.02 → omitted
-    #   close_pos: |r|=0.0137 < 0.02 → omitted
-    # Base score 50 so clip [0,100] is symmetric.
+    # Spearman correlations vs trade_return_net (course exit simulation, n=6,618):
+    #   pre_breakout_trend_days: r=+0.0622, p<0.001  → +25 pts if >= 17
+    #   volume_ratio:            r=-0.0805, p<0.001  → -30 pts if >= 3.2
+    #   body_pct:                r=-0.0617, p<0.001  → -25 pts if >= 0.04
+    #   close_pos:               r=-0.0507, p<0.001  → -20 pts if >= 0.85
+    #   higher_low_count:        |r|=0.0016 → omitted (not significant)
+    #   gap_open:                |r|=0.0082 → omitted (not significant)
+    # Weights proportional to |r|. Base 50, clip [0, 100].
     aq = pd.Series(50.0, index=df.index)
-    aq += np.where(df["pre_breakout_trend_days"].fillna(0) >= 17, 30, 0)
-    aq += np.where(df["higher_low_count"].fillna(0) >= 6, 20, 0)
+    aq += np.where(df["pre_breakout_trend_days"].fillna(0) >= 17, 25, 0)
     aq -= np.where(df["volume_ratio"].fillna(0) >= 3.2, 30, 0)
-    aq -= np.where(df["gap_open"].fillna(0) == 1, 20, 0)
+    aq -= np.where(df["body_pct"].fillna(0) >= 0.04, 25, 0)
+    aq -= np.where(df["close_pos"].fillna(0) >= 0.85, 20, 0)
     df["attack_quality_score"] = aq.clip(0, 100)
 
     return df

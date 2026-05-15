@@ -1,7 +1,7 @@
 feature,n,spearman_r,p_value
-pre_breakout_trend_days,6296,0.0556,0.0
-higher_low_count,6296,0.0275,0.029
-body_pct,6296,0.0046,0.7163
-close_pos,6296,-0.0137,0.2772
-gap_open,6296,-0.021,0.096
-volume_ratio,6296,-0.0499,0.0001
+pre_breakout_trend_days,6618,0.0622,0.0
+higher_low_count,6618,0.0016,0.8954
+gap_open,6618,-0.0082,0.5062
+close_pos,6618,-0.0507,0.0
+body_pct,6618,-0.0617,0.0
+volume_ratio,6618,-0.0805,0.0
