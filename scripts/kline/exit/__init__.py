@@ -11,10 +11,14 @@ from __future__ import annotations
 
 from . import (
     breakout_low_break,
+    breakout_price_break,
+    gap_attack_filled,
     gap_fill,
+    high_long_black,
     ma60_neckline,
     neckline_break,
     prev_day_low_break,
+    sunrise_attack_end,
     supply_zone_reach,
     trailing_stop,
     trend_change,
@@ -22,31 +26,44 @@ from . import (
 from .reversal_k import REVERSAL_K_REGISTRY
 
 EXIT_REGISTRY = {
-    "gap_fill":            gap_fill.mark,
-    "breakout_low_break":  breakout_low_break.mark,
-    "neckline_break":      neckline_break.mark,
-    "trailing_stop":       trailing_stop.mark,
-    "trend_change":        trend_change.mark,
-    "prev_day_low_break":  prev_day_low_break.mark,
-    "supply_zone_reach":   supply_zone_reach.mark,
-    "ma60_neckline":       ma60_neckline.mark,
+    "gap_fill":             gap_fill.mark,
+    "breakout_price_break": breakout_price_break.mark,
+    "breakout_low_break":   breakout_low_break.mark,
+    "neckline_break":       neckline_break.mark,
+    "trailing_stop":        trailing_stop.mark,
+    "trend_change":         trend_change.mark,
+    "prev_day_low_break":   prev_day_low_break.mark,
+    "gap_attack_filled":    gap_attack_filled.mark,
+    "sunrise_attack_end":   sunrise_attack_end.mark,
+    "high_long_black":      high_long_black.mark,
+    "supply_zone_reach":    supply_zone_reach.mark,
+    "ma60_neckline":        ma60_neckline.mark,
     **{f"reversal_k.{k}": v for k, v in REVERSAL_K_REGISTRY.items()},
 }
 
 # Spec §5.1 — highest priority first
 EXIT_PRIORITY = [
+    # Reversal-K patterns (highest priority — clearest reversal signals)
     "reversal_k.dark_double_star",
     "reversal_k.bearish_engulfing",
     "reversal_k.enemy_at_gate",
     "reversal_k.evening_star",
     "reversal_k.two_crows",
     "reversal_k.gap_reversal",
+    # High-zone long black (獲利了結賣壓)
+    "high_long_black",
+    # Attack-failure signals
     "gap_fill",
+    "gap_attack_filled",
+    "breakout_price_break",
     "breakout_low_break",
+    # Trailing & continuation breakdowns
+    "sunrise_attack_end",
     "neckline_break",
     "prev_day_low_break",
     "trailing_stop",
     "trend_change",
+    # STUBs (always False)
     "supply_zone_reach",
     "ma60_neckline",
 ]

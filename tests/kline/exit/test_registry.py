@@ -7,11 +7,15 @@ from kline.exit import EXIT_PRIORITY, EXIT_REGISTRY
 def test_registry_has_all_intro_conditions():
     expected = {
         "gap_fill",
+        "breakout_price_break",
         "breakout_low_break",
         "neckline_break",
         "trailing_stop",
         "trend_change",
         "prev_day_low_break",
+        "gap_attack_filled",
+        "sunrise_attack_end",
+        "high_long_black",
         "supply_zone_reach",
         "ma60_neckline",
         "reversal_k.dark_double_star",
