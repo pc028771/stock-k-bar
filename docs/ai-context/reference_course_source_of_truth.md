@@ -11,7 +11,11 @@ Project ID: `55DE90EBFBB634BE864F75703AB654DE`
 **Subcategories covered:**
 - ✅ **K-Line Power Judgment Intro** (58 articles) — `docs/K線力量判斷入門/course_principles.md`
 - ✅ **K線行進ing** (39 articles) — `docs/K線行進ing/course_principles.md` (read 2026-05-15)
+- ✅ **型態學** (18 articles) — `docs/型態學/course_principles.md` (read 2026-05-16)
 - ⬜ **多空轉折組合K線** (26 articles) — pending
+- ⬜ **明日K線**（46 articles）— pending (highest value: neckline, swing-low, attack-end)
+- ⬜ **平面財經教學專欄II**（83 articles）— pending (has direct article "頸線的定義")
+- ⬜ **金融市場的認知與邏輯**（47 articles）— pending
 
 ## When to Use
 **After ANY of these actions, review against this document:**
@@ -862,7 +866,145 @@ Everything between requires nuanced 行進判斷.
 
 
 
-# Part 7: Past Mistakes (Documented for Memory)
+# Part 6.8: Findings from 型態學 Subcategory (18 articles, read 2026-05-16)
+
+## Complete Neckline Definition (頸線完整定義)
+
+Source: 型態學 頭部型態 + 中期持有的挑戰 (行進ing 事件七) + 與移動平均線的連結判斷 (行進ing)
+
+> **Neckline = 季線下彎之後，波動狀態下的前一個低點，且該低點上方有 ≥ 3 個月的套牢區。**
+
+Three necessary conditions:
+1. **MA60 downturn (季線下彎)** — `ma60_slope_5d < 0` and just flipped
+2. **Swing low after the downturn** — not any low; must be a波動 low
+3. **At least 3 months of supply above** — overhead supply must exist for ≥ 60 trading days at higher prices
+
+**Two variants in practice:**
+- Short-period steep drop → 前低 above < 3 months. Solution: search further back for an older swing low.
+- 3-month range ambiguous → judgment call.
+
+**Bull-side mirror:** 季線上揚後的前一個高點 + 下方有 3 個月堆積.
+
+## Pattern Types Hierarchy
+
+Source: 型態學 全套
+
+### Base Patterns (基礎篇)
+| Pattern | Operational Meaning |
+|---|---|
+| 底部型態 | **NO MEANING** — bottoms only confirmed retrospectively, after-rise reasoning |
+| 頭部型態 | = full overhead supply region; only **neckline break** is tradable |
+| 箱型整理 | ≥ 3 months + range stable; box position determines distribution-vs-accumulation |
+| 楔形型態 | Largely useless; rising-wedge only for **add-on point**; falling-wedge totally useless |
+| 三角收斂 | "Pieced together" from pressure + short trendline; **"do-not" logic only** |
+| 中樞型態 | Middle continuation; **NOT for trade entry/exit**; just "stay calm during consolidation" |
+
+### Extended Patterns (延伸篇)
+| Pattern | Operational Meaning |
+|---|---|
+| 反轉型態 | = transition combinations; **EXIT use only**, not entry |
+| 騙線型態 | Three traps: above-pressure break, looks-like-attack reverse, pretend breakdown (TAIEX only) |
+| 背離型態 | **Phenomenon NOT signal**; index divergence forbidden as signal |
+| 缺口壓力 | Unfilled gap-down = type pressure; "until nearest gap is reclaimed, no bullish stance" |
+| 缺口支撐 | **NO SUPPORT MEANING on K-lines**; only attack-gap "not filled" is meaningful |
+
+### Application Patterns (應用篇) — Attack Types
+| Strength | Pattern | Detection |
+|---|---|---|
+| 🔴 Strongest | **日出攻擊** | `high > prev_high AND low > prev_low` consecutively |
+| 🟠 Strong | **跳空攻擊** | Breakout-red K → next day gap up → close does NOT fill |
+| 🟡 Medium | **推升攻擊** | Continuous **low recovery** (higher lows) |
+| 🟢 Weakest | **波動前進** | Continuous **high recovery** (higher highs) + bodies overlap |
+
+> "推升攻擊 is the MOST IMPORTANT" — most common, hardest to recognize, but where most opportunities live.
+
+## "K-line has NO support" (絕對鐵則)
+
+Source: 缺口支撐 + 鑷頂與鑷底 + 底部型態
+
+> 「K 線圖上**只有壓力、沒有支撐**……壓力是確實的存在，但是支撐卻是一種一廂情願的看法。」
+
+- 五日線、季線、月線、年線 **都不是**支撐
+- Only the **10-year line** has confirmed buyers (国安基金)
+- Old-hand maxim: 「壓力是用來被突破的、**支撐是用來被跌破的**」
+- The phrase "support" should be PURGED from system naming
+
+## Pattern Breakout vs Mere Prior-High Break (重新確認)
+
+Source: 型態學 箱型整理 + 行進ing 事件(十)
+
+- **Pattern breakout** (型態突破) = 3-month integration + breakout = **operation starting point**
+- **Mere prior-high break** = continuation (中繼), NOT a starting point
+- 系統 ranking 應有不同加分權重
+
+## "Distribution Box" Warning (出貨箱型)
+
+Source: 型態學 箱型整理
+
+If past 240 days had a strong rally and the stock then went into 3-month box:
+- The box is likely **distribution (主力出貨)**
+- Box-top breakout may be a TRAP
+- Watch for "突破又快速回到箱底" = confirmed distribution
+- Even sudden EPS news cannot rescue this unless materially改變.
+
+## "No Downside Attack" Rule (沒有向下攻擊)
+
+Source: 型態學 上下肩缺口 + 多處
+
+> 「K 線理論不存在著向下攻擊……向上需要資金願意更高價拉抬，**向下沒有這個必要的殺盤要素，沒人買就能跌了**。」
+
+System implication:
+- **DO NOT mirror long-side signals into short signals**
+- Bullish engulfing alone ≠ buy point (already in行進ing); same for any reversal-K
+- Black-K patterns ALONE are weaker than red-K patterns of equal "structure complexity"
+
+## Shoulder Gap Up = The ONLY Course-Approved Pullback Entry
+
+Source: 型態學 上下肩缺口
+
+3-bar structure:
+- K-2: First-time pattern breakout red K
+- K-1: Gap-up red K (open > K-2.high, red)
+- K0: Sundown black K (high < K-1.high, low < K-1.low, black) BUT gap unfilled
+
+Entry: K0 next day open
+Stop: gap lower bound (K-2.close)
+Background: **non-bullish overall environment** (induces誘空/洗盤 dynamic)
+
+## Tweezer Top with Confirmed Breakout = Valid Entry
+
+Source: 型態學 鑷頂與鑷底
+
+3+-bar tweezer:
+- Multiple K-line highs at similar price (= compression / accumulation)
+- Lows either rising (strong) or falling (weak)
+- Entry trigger: breakout above the "tweezer top" price
+
+Bottom version (鑷底): **NO operational meaning** per course.
+
+## Breakdown Pattern Auto-Exclude
+
+Source: 型態學 破底型態
+
+Stocks in 破底型態 should be **automatically excluded** from scanner:
+- Definition: 過去 N 天 ≥ 2 次 new low + MA60 down
+- Reason: layered supply + no way to clear without absent reason or trend change
+- 「離最近壓力越過、或空方趨勢結束之前，都不能有摸底的想法」
+
+## Chaotic Stock Type (股性混亂) Should Be Filtered
+
+Source: 型態學 波動前進
+
+Symptoms:
+- High frequency of trend reversals (>= 5 new highs AND >= 5 new lows in 60d)
+- MA60 direction flips > 2 times in 60d
+- "型態學無法判斷"
+
+→ Scanner exclude these stocks.
+
+---
+
+
 
 1. **Mistakenly judged E4 as custom-added** — Course "紅色誤解：連續紅K的判斷要點" explicitly teaches "breakout K low break = stop"
 2. **Used ret_10d as backtest metric** — Course requires actual exit conditions, not fixed N days
@@ -885,6 +1027,19 @@ Everything between requires nuanced 行進判斷.
 16. **Volume_ratio direction inversion for limit-up-one-line** — Course (紅K篇四) says low volume = strong (chips concentrated). General volume_ratio penalty is OK for breakout day, but for limit-up-one-line **reverse the direction**.
 17. **No anti-rebound logic on space-based exits** — Course (黑K篇五) says "空中掉下來的刀子不要接". Currently the system has no constraint preventing "buy back on rebound" after a `breakout_low_break` exit.
 18. **No forbidden-pattern enforcement** — Course explicitly bans 17 patterns (N字戰法, 多空循環, 價穩量縮, 打第N隻腳, 缺口理論計數, etc.). The system has no compile-time check against accidentally introducing them.
+
+**Added after reading 型態學 (2026-05-16):**
+
+19. **`is_pattern_breakout` is missing entirely** — Course (型態學 箱型整理 + 事件十) requires distinguishing "pattern breakout" (3-month box + breakout, = operation start) from "mere prior-high break" (continuation). Currently the system treats ALL `close > prior_high_60` equally. Expected impact: pattern breakouts have substantially higher win rate.
+20. **No "distribution box" warning** — Course (型態學 箱型整理) says past-rally + 3-month box = likely distribution trap. The system has no detection of this.
+21. **No "breakdown pattern" exclusion** — Course (型態學 破底型態) says stocks in 破底型態 should be excluded entirely from candidacy. The system currently allows them.
+22. **No "chaotic stock" (股性混亂) detection** — Course (型態學 波動前進) says 「型態學無法判斷」chaotic stocks must be filtered. The system has no such filter.
+23. **No "unfilled gap-down resistance" as overhead** — Course (型態學 缺口壓力) says unfilled gap-down constitutes type pressure even without actual trapped supply. Currently only `overhead_supply_layer` (swing-high peaks) is counted.
+24. **No "shoulder gap up" entry signal** — Course (型態學 上下肩缺口) calls this the UNIQUE pullback-entry attack pattern. Not implemented.
+25. **No "tweezer top breakout" entry signal** — Course (型態學 鑷頂) defines this clearly. Not implemented.
+26. **No "high-zone narrow consolidation" bonus** — Course (型態學 推升攻擊 + 中樞型態) says high-zone narrow consolidation is part of 推升攻擊 and is bullish. Currently neutral.
+27. **`breakout_attack` is too loose** — Course says only "pattern breakout" (with proper integration history) is true attack start. Our current `close > prior_high_60 AND close > ma60` admits too many false signals.
+28. **Backtest shows the implication clearly** — After T32, win rate is 37%, mean return 0%. Most exits fire on losing trades (breakdown_price_break, gap_attack_filled at ~26% win rate). This is the cost of NOT filtering at entry.
 
 ---
 
@@ -912,6 +1067,16 @@ Patterns the course **explicitly forbids**. Code review must reject these:
 | 缺口理論計數 (counting gaps as breakout/runaway/exhaustion) | 跳空篇(一) |
 | 摸頭、摸底 (top/bottom fishing) | 多處 |
 | 攤平 (averaging-down) | 黑K篇(五)(七) |
+| 底部型態作為買進判斷 (using bottom pattern shapes as entry) | 型態學 前言與底部型態 |
+| 「一字底」(spurious "I-bottom" labeling) | 型態學 前言與底部型態 |
+| W底、頭肩底等型態名稱套用 (named bottom shapes) | 型態學 前言與底部型態 |
+| 均線「支撐」（5日、月線、季線等）(MA as support) | 型態學 缺口支撐 + 多處 |
+| 楔形突破買進（特別下降楔形）(wedge breakout buy especially falling) | 型態學 楔形 |
+| 鑷底作為支撐 (tweezer bottom as support) | 型態學 鑷頂與鑷底 |
+| 「向下攻擊」鏡像放空邏輯 (mirrored downside attack short signals) | 型態學 上下肩缺口 |
+| 比較效應低就買 (low-due-to-prior-high = buy) | 型態學 破底型態 |
+| 過去操作過所以低接 (past-trade-history bias) | 型態學 破底型態 + 行進ing 黑K篇(五) |
+| 任何「指標背離」作為訊號 (any indicator divergence as signal) | 型態學 背離型態 |
 
 ---
 
@@ -920,9 +1085,13 @@ Patterns the course **explicitly forbids**. Code review must reject these:
 **Status:**
 - ✅ **K-Line Power Judgment Intro** (58 articles) — read; mirror at `docs/K線力量判斷入門/course_principles.md`
 - ✅ **K線行進ing** (39 articles, read 2026-05-15) — see Part 6.7 + `docs/K線行進ing/course_principles.md`
+- ✅ **型態學** (18 articles, read 2026-05-16) — see Part 6.8 + `docs/型態學/course_principles.md`
 - ⬜ **多空轉折組合K線進階教學** (26 articles) — pending
+- ⬜ **明日K線**（46 articles）— pending（highest value for ranking refinement）
+- ⬜ **平面財經教學專欄II**（83 articles）— pending（has direct article「頸線的定義」）
+- ⬜ **金融市場的認知與邏輯**（47 articles）— pending
 
-The intro is the foundation. The 行進ing subcategory has been read and findings are integrated above. Only 多空轉折 remains.
+The intro + 行進ing + 型態學 give complete coverage for entry/exit/scoring. The remaining subcategories provide refinements and ranking enhancements but are not blocking implementation.
 
 ## 多空轉折組合K線進階教學 (26 articles)
 
