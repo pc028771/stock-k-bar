@@ -5,10 +5,13 @@ type: reference
 originSessionId: d7e91495-e51b-49b5-ad3a-99d9db94b659
 ---
 ## Source
-PressPlay course "Lin Jia-yang | K-Line Power" → "K-Line Power Judgment Intro" subcategory (58 articles)
+PressPlay course "Lin Jia-yang | K-Line Power"
 Project ID: `55DE90EBFBB634BE864F75703AB654DE`
 
-Human-readable Chinese mirror: `docs/K線力量判斷入門/course_principles.md`
+**Subcategories covered:**
+- ✅ **K-Line Power Judgment Intro** (58 articles) — `docs/K線力量判斷入門/course_principles.md`
+- ✅ **K線行進ing** (39 articles) — `docs/K線行進ing/course_principles.md` (read 2026-05-15)
+- ⬜ **多空轉折組合K線** (26 articles) — pending
 
 ## When to Use
 **After ANY of these actions, review against this document:**
@@ -17,6 +20,7 @@ Human-readable Chinese mirror: `docs/K線力量判斷入門/course_principles.md
 - Add/modify ranking scores
 - Add/modify backtest logic
 - Add new extension toggle (`extras`)
+- Implement / replace any STUB file in `scripts/kline/`
 
 ---
 
@@ -46,12 +50,16 @@ Strict neckline definition:
 
 | Name (CN) | Course Definition | Code Name | Status |
 |---|---|---|---|
-| 空頭吞噬 (Bearish Engulfing) | Red K at new high, followed on the **next day** by long black K that fully engulfs | `bearish_engulfing` | ✗ |
-| 暗夜雙星 (Dark Double Star) | Long black K breaks below two parallel K bars (even when it doesn't make new high and opens below prior low — that variant is also valid) | `dark_double_star` | ✓ E2 |
-| 大敵當前 (Enemy at Gate) | ⚠ **No structural definition in K-line judgment intro**. Only mentioned by name + 藍天 example. Detailed definition likely in separate "多空轉折組合K線" (26 articles) subcategory. Course-precise implementation not possible without that source. | `enemy_at_gate` | ✗ Cannot implement precisely |
-| 雙鴉躍空 (Two Crows) | "前波壓力區域，紅K後接兩根短黑K，然後向下跳空" (from 提前部署文章) | `two_crows` | ✗ |
-| 夜星棄嬰 (Abandoned Evening Star) | ⚠ **No structural definition in K-line judgment intro**. Definition likely in 多空轉折組合K線 subcategory. | `evening_star_abandoned` | ✗ Cannot implement precisely |
-| 跳空反轉 (Gap Reversal) | "紅K後接黑K再向下跳空" (from 進出場決策序篇 hint) | `gap_reversal` | ✗ |
+| 空頭吞噬 (Bearish Engulfing) | Red K → Black K **fully engulfs** prior red K's body (events §9 gives "獲利了結賣壓" framing) | `bearish_engulfing` | ✗ Implementable (行進ing 事件九) |
+| 暗夜雙星 (Dark Double Star) | **Long black K breaks below two parallel SIMILAR K bars** (行進ing §關鍵K線×轉折 adds "two parallel SIMILAR K bars" prereq vs intro's loose definition) | `dark_double_star` | ⚠ E2 needs structural correction (missing "two similar parallel reds" prereq) |
+| 大敵當前 (Enemy at Gate) | **Three consecutive small red Ks fail to widen + 4th day long black breaks below K1's MIDPOINT** ((K1.open + K1.close) / 2) | `enemy_at_gate` | ✗ Implementable (行進ing 紅K篇一 + 紅K篇七) |
+| 雙鴉躍空 (Two Crows) | **K1: at overhead pressure zone, gap-up open then black close. K2: small black K. K3: gap-down at open** | `two_crows` | ✗ Implementable (行進ing 跳空篇四) |
+| 夜星棄嬰 (Abandoned Evening Star) | **K1: red K at pressure zone. K2: doji. K3: long black breaks below K1's midpoint AND fills the gap** | `evening_star_abandoned` | ✗ Implementable (行進ing 關鍵K線×轉折) |
+| 跳空反轉 (Gap Reversal) | **K1: long red OR new high. K2: black K with close < K1 close. K3: gap-down open (open < K2 low)** | `gap_reversal` | ✗ Implementable (行進ing 跳空篇四) |
+| 多頭吞噬 (Bullish Engulfing) | **Black K making new low + next red K fully engulfs its body** — bear-side exhaustion / short cover only, NOT a long entry | `bullish_engulfing` | ✗ Implementable (行進ing 紅K篇八) |
+| 母子晨星 (Morning Star Harami) | Break-down black K → small K → **red K crossing back above black K's midpoint** (the red K is the confirmation) | `morning_star_harami` | ✗ Implementable (行進ing 紅K篇八 + 黑K篇五) |
+| 黑K吞噬 (Black-K Engulf at top) | At high zone: red K → black K **fully engulfs red K's body** = 獲利了結賣壓 | `black_k_engulf_top` | ✗ Implementable (行進ing 事件九) |
+| 島狀反轉 (Island Reversal) | Gap-up + arbitrary middle bars + gap-down that **fills the original gap-up force** | `island_reversal` | ✗ Implementable (行進ing 跳空篇四) |
 
 **(B) Trend Change** (when no reversal K appears):
 
@@ -715,6 +723,145 @@ After full read, the immutable core boils down to:
 
 ---
 
+# Part 6.7: Findings from K線行進ing Subcategory (39 articles, read 2026-05-15)
+
+## Sunrise Attack (日出攻擊) — Precise Definition
+
+Source: 紅K篇(七) 日出攻擊
+
+> **日出 = K 線的高點與低點都比前一日高 (high > prev_high AND low > prev_low)**
+> 連續日出 + 突破新高 = 日出攻擊
+
+**Two variants:**
+- 漂亮的日出攻擊: each K's body widens (true power)
+- 醜陋的日出攻擊: each K's body shrinks → can devolve into 大敵當前
+
+**Order of process:** 突破 → 日出 → 日出攻擊 → 力量辨別 → 力竭
+
+## Attack Gap (攻擊跳空) — Precise Lower Bound
+
+Source: 跳空篇(三)
+
+**Definition:**
+> 股價突破之後出現的跳空，且**該價位過去沒有成交過**
+
+**Critical:** the attack gap region is NOT the full `(prev_high, today_open)` gap — it is only the **previously-unseen price segment** within that gap.
+
+**Two forms:**
+- **突破跳空** (Breakout-then-gap): preferred (gap appears day after breakout)
+- **跳空突破** (Gap-as-breakout): single-day gap+breakout — **weak** (gives游離籌碼 false confidence)
+
+**Exit trigger:** attack gap lower bound broken (close < attack_gap_lower) → exit.
+
+## Attack Gap Killed (攻擊跳空被消除)
+
+Source: 跳空篇(二)
+
+If a prior attack gap exists and a subsequent **gap-down消除了 the attack gap's force** → "this time no intention to attack" → exit.
+
+## Bull-Bear K-line Asymmetry (黑K vs 紅K)
+
+Source: 黑K篇(一)
+
+**Fundamental rule:**
+- Red K requires追高 buying force
+- Black K can form from **mere absence of buyers** (no force, just void)
+
+**Implication:** **NEVER mirror-apply** rules for one direction to the other. E.g., don't make "black K engulf at high = short entry" by analogy to "red K break = long entry".
+
+## "Pretend Breakdown" Limited to Index Level
+
+Source: 黑K篇(四) 假性跌破
+
+> 「只有假性跌破，沒有假性突破。」
+> 「假性跌破只有出現在大盤，個股並不適用。」
+
+**System implication:** `false_breakdown_reclaim` may apply to TAIEX level analysis, but **for individual stocks, neckline breakdown is always real**.
+
+## "N-Strategy" (N字戰法) Forbidden
+
+Source: 紅K篇(三) 上升三法
+
+> N-strategy = "if pullback breaks integration low, wait for re-entry above" → 課程明確反對
+
+Reasons:
+1. Just widens the stop loss
+2. Misapplied in non-attack contexts
+3. Pure事後論
+
+**System implication:** Once 整理低 breaks → exit. Do not buy back during retracement.
+
+## "Lower Shadow = Support" Forbidden
+
+Source: 下影線 + 黑K篇(四)
+
+> 下影線**根本沒有支撐意義**。「打第二/三/四隻腳」是話術。
+
+**Comparison upper vs lower shadow** (this is the KEY insight):
+
+| Shadow | At close, the rally force was: | Predictability |
+|---|---|---|
+| Upper | **trapped (套牢)** | force MUST self-rescue → predictable |
+| Lower | **profitable (賺錢)** | force may sell or hold → unpredictable |
+
+**System implication:**
+- Upper shadow at new high = attack signal (positive scoring)
+- Lower shadow = ignore completely (no positive or negative)
+
+## Neckline Definition Fully Strengthened
+
+Sources: 關鍵K線×MA60 + 黑K篇(三) + 事件(七)
+
+**Complete definition:**
+> Neckline = 季線下彎後的前一個低點 **AND** 此低點上方有 ≥ 3 個月的套牢
+
+Both conditions required. Pure swing-low without MA60-down + supply duration is not a neckline.
+
+## Pattern Breakout vs Mere Prior-High Break
+
+Source: 事件(十) 操作的開始與結束
+
+> **型態突破 = 突破新高當天，前面有 2.5–3 個月的整理區間**
+
+If less than 3 months but with rising lows → **中繼 (continuation)**, NOT 起點 (starting point).
+
+**System implication:**
+- `is_pattern_breakout`: high score (true starting point)
+- `is_simple_break_prior_high`: lower score (already mid-attack)
+
+## "Bottom-Fishing" Multi-Tier Prohibition
+
+Sources: 黑K篇(五)(七), 紅K篇(八), 事件(六)
+
+- Bullish engulfing alone is NOT a buy point — only space for value/yield investing
+- Multi-headed engulfing patterns occur at "人去樓空" (former winners turned losers) → unrecoverable
+- Even confirmed end-of-bear-trend ≠ start of bull
+- "來回操作" (re-trade based on past gains) = trap
+
+## Volume Real Insights
+
+Source: 紅K篇(四) + 事件(六)
+
+**Limit-up one-line: SMALL volume = STRONG** (chips already concentrated). Counter-intuitive but course-explicit.
+
+**「價穩量縮」**: explicitly forbidden. 量縮 + 股價持續創高 = warning (主力 trapped).
+
+## "Operation Start vs End" Framework
+
+Source: 事件(十)
+
+The simplest decision framework:
+- **Start**: 型態突破 (3-month integration broken)
+- **End**: 日出攻擊結束 (most decisive form)
+
+Everything between requires nuanced 行進判斷.
+
+> **「不要看新聞，不要等反彈賣」** — when end signal triggers, exit at execution, not at "hoped for" prices.
+
+---
+
+
+
 # Part 7: Past Mistakes (Documented for Memory)
 
 1. **Mistakenly judged E4 as custom-added** — Course "紅色誤解：連續紅K的判斷要點" explicitly teaches "breakout K low break = stop"
@@ -723,11 +870,59 @@ After full read, the immutable core boils down to:
 4. **Over-trusted Spearman results** — close_pos is positive in course (buying strength), but negative in backtest. This means "our exit mechanism is too sensitive", not "course is wrong"
 5. **Only implemented 1 of many reversal K patterns** — Course lists 5+ (空頭吞噬, 大敵當前, 雙鴉躍空, 夜星棄嬰, 暗夜雙星, 跳空反轉), we only did 暗夜雙星
 
+**Added after reading K線行進ing (2026-05-15):**
+
+6. **`dark_double_star` missing "two parallel SIMILAR K bars" prerequisite** — Current impl only checks "black K + open<prev_low + body≥4%". Course (行進ing 關鍵K線×轉折) requires the long black K to break below **two prior K bars of similar shape**.
+7. **`gap_fill` excess-gap ≥ 2% is a crude proxy** — Course (行進ing 跳空篇三) defines attack gap as "突破之後 + 該價位過去沒有成交過". Exit trigger price should be the **lower bound of the previously-unseen segment**.
+8. **`neckline_break` lacks 3-month supply prerequisite** — Course (事件七) requires neckline to be (a) 季線下彎後前低 AND (b) 該低點上方有 3 個月套牢. `prior_low_20` ignores both.
+9. **`prev_day_low_break` applied without gate** — Course (紅K篇二) requires the prior bar to have "攻擊意義" (red K creating new high / new-high upper shadow / red K's doji follow-up). Currently applied to every bar.
+10. **Never implemented `breakout_price_break`** — Course (紅K篇五) says when red K is followed by a black K breaking the **breakout price (prior_high_60)**, exit immediately. Don't wait for breakout K low break (which fires much later).
+11. **Never implemented attack gap killed exit** — When a prior attack gap is消除d by a gap-down (跳空篇二), exit.
+12. **Never implemented sunrise attack end** — Once a sunrise sequence breaks (today fails high > prev_high AND low > prev_low), the attack is done (紅K篇七 + 事件十).
+13. **`shadow_position` was STUB; course has full logic** — Upper shadow at new high = attack (positive); upper shadow at overhead = pressure (negative); lower shadow = ignore (上影線(一)(二)).
+14. **`trend_reversal` STUB unsafe for default use** — Course (黑K篇七 + 紅K篇八) explicitly says low-area bullish engulfing is for value/yield investing ONLY, not short-term trading. Need a toggle, not a default-on.
+15. **Didn't区分 "pattern breakout" vs "mere prior-high break"** — Only pattern breakout (3-month integration) is operation start. Mere prior-high break is mid-attack continuation (事件十).
+16. **Volume_ratio direction inversion for limit-up-one-line** — Course (紅K篇四) says low volume = strong (chips concentrated). General volume_ratio penalty is OK for breakout day, but for limit-up-one-line **reverse the direction**.
+17. **No anti-rebound logic on space-based exits** — Course (黑K篇五) says "空中掉下來的刀子不要接". Currently the system has no constraint preventing "buy back on rebound" after a `breakout_low_break` exit.
+18. **No forbidden-pattern enforcement** — Course explicitly bans 17 patterns (N字戰法, 多空循環, 價穩量縮, 打第N隻腳, 缺口理論計數, etc.). The system has no compile-time check against accidentally introducing them.
+
+---
+
+# Part 7.5: Course-Forbidden Patterns (Enforce in Code Review)
+
+Patterns the course **explicitly forbids**. Code review must reject these:
+
+| Forbidden | Source Article |
+|---|---|
+| N字戰法 (re-entry after pullback below integration low) | 紅K篇(三) 上升三法 |
+| 打第二/三/四隻腳 (consecutive lower shadows as bottom) | 黑K篇(四) + 下影線 |
+| 裸K戰法 (made-up name) | 認知篇 |
+| RSI / KD / MACD / 乖離 / 黃金交叉 / 死亡交叉 | 認知篇 |
+| 箱底買進、箱頂賣出 (range arbitrage) | 前言篇 |
+| 假性突破 (no such concept exists per course) | 黑K篇(四) |
+| 下影線 = 支撐 (lower shadow = support) | 下影線 + 黑K篇(四) |
+| 個股假性跌破 (only TAIEX, not individual stocks) | 黑K篇(四) |
+| 拉回布局、逢低承接 (pullback accumulation outside attack) | 紅K篇(五) + 事件(六) + 事件(八) |
+| 美股下跌 = 台股利空 (US equity drop as TW indicator) | 事件(一) |
+| 多空循環 (bull-bear cyclicality) | 事件(二) |
+| 價穩量縮 (price-stable volume-shrinking framework) | 事件(六) |
+| 多頭吞噬作為純多方買點 (bullish engulfing alone as long entry) | 紅K篇(八) + 黑K篇(七) |
+| 來回操作 (re-trade based on past gains in same stock) | 黑K篇(五) |
+| 公告注意股 = 飆股 (regulatory watch list as high-fly proxy) | 事件(八) |
+| 缺口理論計數 (counting gaps as breakout/runaway/exhaustion) | 跳空篇(一) |
+| 摸頭、摸底 (top/bottom fishing) | 多處 |
+| 攤平 (averaging-down) | 黑K篇(五)(七) |
+
 ---
 
 # Part 8: Future Implementation Roadmap (Other Subcategories)
 
-The K-line judgment intro (58 articles) is the foundation. Two other subcategories provide critical detail needed for full implementation. Reading priority is established here for future sessions.
+**Status:**
+- ✅ **K-Line Power Judgment Intro** (58 articles) — read; mirror at `docs/K線力量判斷入門/course_principles.md`
+- ✅ **K線行進ing** (39 articles, read 2026-05-15) — see Part 6.7 + `docs/K線行進ing/course_principles.md`
+- ⬜ **多空轉折組合K線進階教學** (26 articles) — pending
+
+The intro is the foundation. The 行進ing subcategory has been read and findings are integrated above. Only 多空轉折 remains.
 
 ## 多空轉折組合K線進階教學 (26 articles)
 
@@ -774,7 +969,13 @@ Continuation patterns (mostly not directly used in our breakout strategy):
 
 ---
 
-## K線行進ing (40 articles)
+## K線行進ing (39 articles) — ✅ READ 2026-05-15
+
+**Findings integrated into Part 6.7 above.**
+
+Per-article notes: `docs/K線行進ing/01-39` (39 files)
+Synthesis: `docs/K線行進ing/course_principles.md`
+Article index: `docs/K線行進ing/index.json`
 
 **Purpose:** Sequential K-line behavior — how K-lines combine over multiple days to express attack/failure. Bridges 入門 (single K) and 多空轉折 (pattern combinations).
 
