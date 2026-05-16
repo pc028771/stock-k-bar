@@ -62,6 +62,8 @@ def run(
 
 
 def main():
+    from kline.entry import ENTRY_REGISTRY
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
@@ -69,7 +71,7 @@ def main():
     parser.add_argument(
         "--entry",
         default="breakout_attack",
-        choices=["breakout_attack", "pattern_breakout_only"],
+        choices=list(ENTRY_REGISTRY.keys()),
         help="Entry signal to use",
     )
     args = parser.parse_args()

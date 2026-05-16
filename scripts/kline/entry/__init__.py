@@ -31,7 +31,6 @@ __all__ = [
     "sunrise",
     "trend_reversal",
     "breakout_attack",
-    "pattern_breakout_only",
     "trend_reversal_entry",
     "sunrise_attack",
 ]
