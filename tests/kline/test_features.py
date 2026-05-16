@@ -496,6 +496,112 @@ def test_is_pattern_breakout_does_not_fire_with_overhead_supply():
         "is_pattern_breakout must be False when overhead supply exists (騙線型態)"
 
 
+def test_unfilled_gap_down_count_detects_gap():
+    """Build a clear gap-down scenario and verify count > 0.
+
+    Course source: 型態學 10-缺口壓力型態
+    「向下跳空的缺口表示這個價位區間沒有任何人成交……
+     這個價位卻沒有任何買單願意承接股價，於是就形成了缺口壓力的明顯壓力狀態。」
+    """
+    rows = []
+    # Bars 0-9: flat at 100 (prev_low will be 98 on bar 10)
+    for _i in range(10):
+        rows.append({"open": 100, "high": 102, "low": 98, "close": 100, "volume": 1000.0})
+    # Bar 10: GAP DOWN — high (95) < prev_low (98); gap_top = 98
+    rows.append({"open": 92, "high": 95, "low": 90, "close": 93, "volume": 1000.0})
+    # Bars 11-29: stay below the gap top (98), so gap remains unfilled overhead
+    for i in range(19):
+        rows.append({
+            "open": 92 + i * 0.05, "high": 94 + i * 0.05,
+            "low": 90 + i * 0.05, "close": 92 + i * 0.05,
+            "volume": 1000.0,
+        })
+    df = add_features(make_bars(rows))
+    # By the end, close (~93.9) < gap_top (98): the gap is unfilled and still overhead.
+    # history cutoff = 20 bars cumcount; bar 20+ should show count > 0.
+    last_count = df["unfilled_gap_down_count_240d"].iloc[-1]
+    assert not pd.isna(last_count) and last_count > 0, (
+        f"Expected unfilled gap count > 0, got {last_count}"
+    )
+
+
+def test_unfilled_gap_down_count_zero_when_gap_crossed():
+    """Gap-down followed by recovery above gap_top → count drops to 0.
+
+    Course: 「離現在最近的一個缺口壓力還沒有越過之前，都不宜對股價樂觀」
+    Implication: once the gap_top is crossed (close > gap_top), the gap is
+    no longer overhead supply and should not be counted.
+    """
+    rows = []
+    # Bars 0-9: flat at 100 (prev_low = 98 on bar 10)
+    for _i in range(10):
+        rows.append({"open": 100, "high": 102, "low": 98, "close": 100, "volume": 1000.0})
+    # Bar 10: GAP DOWN — high (95) < prev_low (98); gap_top = 98
+    rows.append({"open": 92, "high": 95, "low": 90, "close": 93, "volume": 1000.0})
+    # Bars 11-20: recover well above gap top (98) — close crosses 98
+    for i in range(10):
+        rows.append({
+            "open": 95 + i, "high": 100 + i, "low": 94 + i,
+            "close": 100 + i, "volume": 1000.0,
+        })
+    # Bars 21-29: stay clearly above gap top
+    for _i in range(9):
+        rows.append({"open": 110, "high": 112, "low": 108, "close": 110, "volume": 1000.0})
+    df = add_features(make_bars(rows))
+    # By the end, close (110) > gap_top (98) → gap is no longer overhead
+    last_count = df["unfilled_gap_down_count_240d"].iloc[-1]
+    assert not pd.isna(last_count) and last_count == 0, (
+        f"Expected unfilled gap count 0 (gap crossed), got {last_count}"
+    )
+
+
+def test_is_pattern_breakout_blocked_by_unfilled_gap():
+    """Even with valid rising-lows + stable ceiling + breakout, unfilled gap blocks entry.
+
+    Course: 型態學 10-缺口壓力型態 — 「型態上的壓力」; combined with
+    型態學 08-騙線型態 — 「上有壓力的突破 = 最常見的陷阱」.
+    An unfilled gap-down above the breakout price is a form of overhead pressure
+    that prevents the breakout from qualifying as a genuine 起點.
+    """
+    rows = []
+    # Bars 0-19: high zone, sets up the gap-down situation
+    # (These bars have low=128, so bar 20 gap_top = 128)
+    for _i in range(20):
+        rows.append({
+            "open": 130, "high": 132, "low": 128, "close": 130,
+            "volume": 1000.0, "ma60": 100.0,
+        })
+    # Bar 20: GAP DOWN — high (120) < prev_low (128); gap_top = 128
+    rows.append({
+        "open": 117, "high": 120, "low": 115, "close": 118,
+        "volume": 1000.0, "ma60": 100.0,
+    })
+    # Bars 21-79: rising-lows phase (stay below gap_top=128)
+    for i in range(59):
+        low = 95 + i * 0.2  # rising lows
+        rows.append({
+            "open": 100, "high": 105, "low": low,
+            "close": 100, "volume": 1000.0, "ma60": 90.0,
+        })
+    # Bar 80: breakout above local ceiling — but gap_top (128) still overhead
+    rows.append({
+        "open": 100, "high": 110, "low": 99, "close": 109,
+        "volume": 1000.0, "ma60": 90.0,
+    })
+    df = add_features(make_bars(rows))
+
+    last = df.iloc[-1]
+    # Confirm the unfilled gap is detected and is overhead
+    gap_count = last["unfilled_gap_down_count_240d"]
+    assert not pd.isna(gap_count) and gap_count > 0, (
+        f"Expected unfilled gap count > 0, got {gap_count}"
+    )
+    # Pattern breakout must be blocked
+    assert not last["is_pattern_breakout"], (
+        "is_pattern_breakout must be False due to unfilled gap-down overhead (型態壓力)"
+    )
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),

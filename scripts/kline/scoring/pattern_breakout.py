@@ -11,7 +11,8 @@ Course source:
 A "true" pattern breakout is defined course-directly as (5 conditions, ALL AND):
   A. 低點漸漸墊高 (rising lows, >= 30 of 60 days)
   B. 上緣穩定 (stable upper boundary / ceiling, spread <= 5%)
-  C. 上方無套牢 (clean overhead: overhead_supply_layer == 0)
+  C. 上方無套牢 (clean overhead: overhead_supply_layer == 0 AND
+       unfilled_gap_down_count_240d == 0; covers both 套牢型 and 型態型 overhead)
   D. 突破上緣 (close > prior 60-day high)
   E. 站上 MA60 (multi background confirmation)
 

@@ -93,6 +93,47 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     has_history = g.cumcount().to_numpy() >= 20
     df["overhead_supply_layer"] = np.where(has_history, peak_count, np.nan)
 
+    # === Unfilled gap-down overhead resistance ===
+    # Course source: 型態學 10-缺口壓力型態.
+    # 向下跳空缺口未回補 = 型態壓力 (separate from swing-high overhead).
+    #
+    # Course quote: 「向下跳空的缺口表示這個價位區間沒有任何人成交……
+    #   這個價位卻沒有任何買單願意承接股價，於是就形成了缺口壓力的明顯壓力狀態。」
+    # Quote: 「雖然不是實質套牢，但卻是一種型態上的壓力」
+    # Quote: 「離現在最近的一個缺口壓力還沒有越過之前，都不宜對股價樂觀」
+    #
+    # Detection (vectorized lag-accumulation, matches overhead_supply_layer pattern):
+    #   1. Gap-down day: today's high < prev_low
+    #      (the price range [high, prev_low] had ZERO trades — a true K-line gap)
+    #   2. Gap still overhead: gap_top (= prev_low on that day) is above today's close.
+    #      Proxy: "today's close still below gap_top" means the gap hasn't been crossed.
+    #      If today's close > gap_top the gap is no longer overhead supply.
+    #   3. Count how many such unfilled gaps exist ABOVE current price in past 240 days.
+    #
+    # Proxy limitation: this counts a gap as "unfilled" if today's close is below gap_top.
+    # It does NOT verify that every bar between then and now stayed below gap_top.
+    # A gap that was temporarily crossed and then dropped back would still show 0 if
+    # the current close is above gap_top. This is a known simplification; the practical
+    # effect is minimal because such round-trip cases are rare and the course focuses on
+    # the current overhead state, not the path taken.
+
+    GAP_RESISTANCE_LOOKBACK = 240
+
+    unfilled_gap_count = np.zeros(n, dtype=float)
+    for lag in range(1, GAP_RESISTANCE_LOOKBACK + 1):
+        past_high_l = g["high"].shift(lag).to_numpy()
+        past_prev_low_l = g["prev_low"].shift(lag).to_numpy()
+        # Was that historical bar a gap-down day? (strict K-line gap: high < prev_low)
+        was_gap_down = past_high_l < past_prev_low_l
+        # Gap top = the prev_low on that day (upper bound of the empty zone)
+        gap_top = past_prev_low_l
+        # Gap is still overhead: gap_top is above today's close (not yet crossed)
+        above_today = gap_top > close_today
+        unfilled = was_gap_down & above_today & ~np.isnan(gap_top)
+        unfilled_gap_count += unfilled.astype(float)
+
+    df["unfilled_gap_down_count_240d"] = np.where(has_history, unfilled_gap_count, np.nan)
+
     # K-line color
     df["is_red"] = df["close"] > df["open"]
     df["is_black"] = df["close"] < df["open"]
@@ -191,9 +232,16 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # === C. is_pattern_breakout (course-faithful, 5 conditions ALL AND) ===
     # Course condition C: 上方無套牢 (clean overhead)
     # Source: 型態學 08-騙線型態 + 行進ing 24-跳空篇三 + 入門 賣壓化解
+    #         + 型態學 10-缺口壓力型態 (向下跳空缺口未回補 = 型態上的壓力)
     # "上有壓力的突破 = 最常見的陷阱"
     # Overhead supply must be cleared BEFORE breakout to qualify as genuine 起點.
-    is_clean_overhead = df["overhead_supply_layer"].fillna(0) <= 0
+    # "clean overhead" now covers BOTH forms of course-defined overhead pressure:
+    #   (1) swing-high peaks (overhead_supply_layer) — 套牢型壓力
+    #   (2) unfilled gap-down zones (unfilled_gap_down_count_240d) — 型態型壓力
+    is_clean_overhead = (
+        (df["overhead_supply_layer"].fillna(0) <= 0)
+        & (df["unfilled_gap_down_count_240d"].fillna(0) <= 0)
+    )
 
     df["is_pattern_breakout"] = (
         (df["higher_low_count_60d"] >= RISING_LOWS_MIN)         # A. 低點墊高

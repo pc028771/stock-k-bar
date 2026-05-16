@@ -10,8 +10,10 @@ Course source: 型態學 03-箱型整理 + 05-三角收斂 + 08-騙線型態 + 1
 Pattern detection is course-faithful (NOT a range-proxy), 5 conditions ALL AND:
   A. 低點漸漸墊高 (rising lows): >= 30 of 60 prior days had higher_low
   B. 上緣穩定 (stable ceiling): prior_high_60 vs prior_high_30 spread <= 5%
-  C. 上方無套牢 (clean overhead): overhead_supply_layer == 0
+  C. 上方無套牢 (clean overhead): overhead_supply_layer == 0 AND
+       unfilled_gap_down_count_240d == 0
        「上有壓力的突破 = 最常見的陷阱」 — 型態學 08-騙線型態
+       「缺口壓力 = 型態上的壓力」 — 型態學 10-缺口壓力型態
   D. 突破上緣: close > prior_high_60
   E. 站上 MA60 (多頭背景)
 
