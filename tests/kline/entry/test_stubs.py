@@ -28,6 +28,7 @@ def test_registry_includes_all_entry_conditions():
     assert "shoulder_gap_up_pullback" in ENTRY_REGISTRY  # 型態學 17 唯一拉回承接
     assert "trend_reversal" in ENTRY_REGISTRY
     assert "sunrise_attack" in ENTRY_REGISTRY
+    assert "combined_pattern_or_tweezer" in ENTRY_REGISTRY  # union of pattern + tweezer
 
 
 def test_stub_docstring_starts_with_stub_marker():
