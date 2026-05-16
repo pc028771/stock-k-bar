@@ -12,6 +12,7 @@ def test_registry_has_expected_factors():
         "overhead_supply",
         "ma60_rolloff",
         "shadow_position",
+        "pattern_breakout",
     }
 
 

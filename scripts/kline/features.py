@@ -98,4 +98,34 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_black"] = df["close"] < df["open"]
     df["is_doji"] = (df["body_pct"] <= 0.006) & (df["range_pct"] >= 0.015)
 
+    # Pattern breakout detection
+    # Course source: 型態學 03-箱型整理 + 事件十 操作的開始與結束
+    # = 突破前高 + 過去 60 天屬於箱型整理（高低點區間穩定）
+    INTEGRATION_DAYS = 60  # ~3 months
+    INTEGRATION_RANGE_MAX = 0.15  # box range tolerance (15%)
+
+    # Compute box range over past 60 trading days (excluding today)
+    prior_max_high = (
+        g["high"].shift(1).rolling(INTEGRATION_DAYS, min_periods=INTEGRATION_DAYS).max()
+        .reset_index(level=0, drop=True)
+    )
+    prior_min_low = (
+        g["low"].shift(1).rolling(INTEGRATION_DAYS, min_periods=INTEGRATION_DAYS).min()
+        .reset_index(level=0, drop=True)
+    )
+
+    # Range = (max - min) / min  (relative range)
+    prior_range_pct = (prior_max_high - prior_min_low) / prior_min_low.replace(0, np.nan)
+
+    # Box if range <= 15%
+    df["is_in_60day_box"] = (prior_range_pct <= INTEGRATION_RANGE_MAX).fillna(False)
+
+    # Pattern breakout: past 60 days formed a box + today's close > prior_high_60 + above ma60
+    df["is_pattern_breakout"] = (
+        df["is_in_60day_box"]
+        & (df["close"] > df["prior_high_60"])
+        & df["ma60"].notna()
+        & (df["close"] > df["ma60"])
+    ).fillna(False)
+
     return df

@@ -187,6 +187,59 @@ def test_overhead_supply_layer_nan_before_history():
     assert df["overhead_supply_layer"].isna().all()
 
 
+def test_is_pattern_breakout_fires_after_box_consolidation():
+    """
+    60+ bars of tight range (within 15%), then breakout day.
+    """
+    # 60 bars at 100±2 (range = 4/96 = ~4%, within 15%)
+    rows = [{"open": 100 + (i % 5 - 2), "high": 102, "low": 98,
+             "close": 100 + (i % 5 - 2), "volume": 1000.0,
+             "ma60": 100.0} for i in range(60)]
+    # Breakout day
+    rows.append({"open": 100, "high": 110, "low": 99, "close": 109,
+                 "volume": 1000.0, "ma60": 100.0})
+
+    df = add_features(make_bars(rows))
+    assert df.loc[60, "is_pattern_breakout"]
+
+
+def test_is_pattern_breakout_does_not_fire_after_wide_range():
+    """
+    60 bars with wide range (>15%), then breakout — NOT pattern breakout.
+    """
+    # 60 bars with prices 80-120 (range = 40/80 = 50%, way over 15%)
+    rows = []
+    for i in range(60):
+        # Oscillate big
+        if i % 2 == 0:
+            rows.append({"open": 110, "high": 120, "low": 105, "close": 115,
+                         "volume": 1000.0, "ma60": 100.0})
+        else:
+            rows.append({"open": 90, "high": 95, "low": 80, "close": 85,
+                         "volume": 1000.0, "ma60": 100.0})
+    # Breakout day
+    rows.append({"open": 115, "high": 125, "low": 110, "close": 124,
+                 "volume": 1000.0, "ma60": 100.0})
+
+    df = add_features(make_bars(rows))
+    assert not df.loc[60, "is_in_60day_box"]
+    assert not df.loc[60, "is_pattern_breakout"]  # Not a pattern breakout (no box)
+
+
+def test_is_pattern_breakout_requires_above_ma60():
+    """
+    Box + breakout but close < ma60 → not pattern breakout.
+    """
+    rows = [{"open": 100, "high": 102, "low": 98, "close": 100,
+             "volume": 1000.0, "ma60": 120.0} for _ in range(60)]
+    # Breakout but below ma60
+    rows.append({"open": 100, "high": 105, "low": 99, "close": 104,
+                 "volume": 1000.0, "ma60": 120.0})
+
+    df = add_features(make_bars(rows))
+    assert not df.loc[60, "is_pattern_breakout"]
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),
