@@ -9,24 +9,29 @@ External repos can also import individual conditions directly:
 from __future__ import annotations
 
 from . import breakout, sunrise, trend_reversal
+from . import pattern_breakout_only as _pbo_module
 
 ENTRY_REGISTRY = {
     "breakout_attack": breakout.detect,
+    "pattern_breakout_only": _pbo_module.detect,
     "trend_reversal": trend_reversal.detect,
     "sunrise_attack": sunrise.detect,
 }
 
 # Convenience aliases so callers can do: from kline.entry import breakout_attack
 breakout_attack = breakout.detect
+pattern_breakout_only = _pbo_module.detect
 trend_reversal_entry = trend_reversal.detect
 sunrise_attack = sunrise.detect
 
 __all__ = [
     "ENTRY_REGISTRY",
     "breakout",
+    "pattern_breakout_only",
     "sunrise",
     "trend_reversal",
     "breakout_attack",
+    "pattern_breakout_only",
     "trend_reversal_entry",
     "sunrise_attack",
 ]

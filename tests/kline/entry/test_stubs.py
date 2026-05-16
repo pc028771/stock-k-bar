@@ -22,6 +22,7 @@ def test_trend_reversal_stub_returns_all_false():
 
 def test_registry_includes_all_entry_conditions():
     assert "breakout_attack" in ENTRY_REGISTRY
+    assert "pattern_breakout_only" in ENTRY_REGISTRY
     assert "trend_reversal" in ENTRY_REGISTRY
     assert "sunrise_attack" in ENTRY_REGISTRY
 
