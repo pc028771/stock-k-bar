@@ -39,6 +39,23 @@ def test_breakout_does_not_require_red_k():
     assert signal.iloc[60]  # Triggers — course says color irrelevant
 
 
+def test_breakout_excluded_if_in_breakdown_pattern():
+    """
+    Even if close > prior_high_60 AND > ma60, 破底型態 stocks must be excluded.
+    """
+    rows = [{"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
+             "volume": 1000.0, "ma60": 100.0} for _ in range(65)]
+    rows[60]["close"] = 110.0
+    rows[60]["high"] = 111.0
+    df = add_features(make_bars(rows))
+
+    # Force the breakdown flag on for the target bar
+    df.loc[60, "is_in_breakdown_pattern"] = True
+
+    signal = detect(df)
+    assert not signal.iloc[60], "Breakdown-pattern stock must be excluded from breakout entry"
+
+
 def test_breakout_blocked_when_below_ma60():
     rows = [{"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
              "volume": 1000.0, "ma60": 120.0} for _ in range(65)]

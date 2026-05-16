@@ -20,10 +20,18 @@ import pandas as pd
 def detect(df: pd.DataFrame) -> pd.Series:
     """Returns bool Series. True = breakout attack entry signal on that bar.
 
-    Required df columns: close, prior_high_60, ma60.
+    Updated 2026-05-16 to exclude stocks in 破底型態 (型態學 16).
+
+    Required df columns: close, prior_high_60, ma60, is_in_breakdown_pattern.
     """
-    return (
+    base = (
         (df["close"] > df["prior_high_60"])
         & df["ma60"].notna()
         & (df["close"] > df["ma60"])
     ).fillna(False)
+
+    # Course exclusion: 破底型態 — layered supply, no legitimate entry until
+    # overhead cleared or bearish trend ends.
+    not_in_breakdown = ~df["is_in_breakdown_pattern"].fillna(False)
+
+    return base & not_in_breakdown

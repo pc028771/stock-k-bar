@@ -98,6 +98,37 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_black"] = df["close"] < df["open"]
     df["is_doji"] = (df["body_pct"] <= 0.006) & (df["range_pct"] >= 0.015)
 
+    # 破底型態 detection
+    # Course source: 型態學 16-破底型態
+    # Definition: >= 2 new-low events in the past 60 days AND MA60 down
+    #
+    # Course rule: automatically exclude from scanner candidacy.
+    # Reason: layered supply + no way to clear without absent reason or trend change.
+    # Course quote: 「離最近壓力越過、或空方趨勢結束之前，都不能有摸底的想法」
+    #
+    # A "new-low event" = today's low broke the 20-day prior swing low.
+    # BREAKDOWN_THRESHOLD = 2 implements 「不只一次」(more than once → ≥ 2).
+
+    BREAKDOWN_WINDOW = 60          # ~3 months lookback
+    BREAKDOWN_THRESHOLD = 2        # course says "不只一次" = more than once ≥ 2
+
+    new_low_event = df["low"] < df["prior_low_20"]
+    new_low_count_60d = (
+        new_low_event
+        .groupby(df["ticker"])
+        .rolling(BREAKDOWN_WINDOW, min_periods=BREAKDOWN_WINDOW)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    df["new_low_count_60d"] = new_low_count_60d
+
+    is_ma60_down = df["ma60_slope_5d"].fillna(0) < 0
+
+    df["is_in_breakdown_pattern"] = (
+        (new_low_count_60d >= BREAKDOWN_THRESHOLD)
+        & is_ma60_down
+    ).fillna(False)
+
     # Pattern breakout detection
     # Course source: 型態學 03-箱型整理 + 行進ing 事件十 操作的開始與結束
     # Course requires: 「2.5–3 個月之久的整理區間，波動並未呈現越來越高或者越來越低」

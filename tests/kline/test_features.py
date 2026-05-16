@@ -240,6 +240,51 @@ def test_is_pattern_breakout_requires_above_ma60():
     assert not df.loc[60, "is_pattern_breakout"]
 
 
+def test_is_in_breakdown_pattern_fires_after_multiple_new_lows():
+    """
+    Stock with >= 2 new-low events in 60 days + MA60 down → in breakdown pattern.
+    """
+    n = 120
+    rows = []
+    # Start at 100, then progressively break lower with 4 new-low events
+    for i in range(n):
+        offset = i * 0.5
+        # Every 20 bars after bar 30: force a new-low event (low << prior_low_20)
+        if i % 20 == 0 and i > 30:
+            rows.append({
+                "open": 95 - offset, "high": 96 - offset,
+                "low": 88 - offset, "close": 90 - offset,
+                "volume": 1000.0,
+            })
+        else:
+            rows.append({
+                "open": 95 - offset, "high": 96 - offset,
+                "low": 92 - offset, "close": 94 - offset,
+                "volume": 1000.0,
+            })
+
+    df = add_features(make_bars(rows))
+    # By bar 80+, should have accumulated >= 2 new-low events and MA60 declining
+    later_bars = df.iloc[80:]
+    assert later_bars["is_in_breakdown_pattern"].any(), (
+        "Expected breakdown pattern detection in late bars"
+    )
+
+
+def test_is_in_breakdown_pattern_does_not_fire_in_bull_trend():
+    """
+    Pure bull trend → no new lows → not in breakdown pattern.
+    """
+    rows = [
+        {"open": 100 + i * 0.3, "high": 102 + i * 0.3,
+         "low": 98 + i * 0.3, "close": 101 + i * 0.3, "volume": 1000.0}
+        for i in range(120)
+    ]
+    df = add_features(make_bars(rows))
+    # In a continuously rising trend, low never undercuts prior_low_20
+    assert not df["is_in_breakdown_pattern"].any()
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),
