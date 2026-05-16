@@ -20,14 +20,15 @@ def run(
     db_path: Path = DEFAULT_DB_PATH,
     out_path: Path = DEFAULT_OUT,
     as_of: pd.Timestamp | None = None,
-    entry_name: str = "breakout_attack",
+    entry_name: str = "tweezer_top_breakout",
 ) -> pd.DataFrame:
     """Run the scanner. Returns ranked candidates DataFrame.
 
     Args:
-        entry_name: Which entry signal to use (default: breakout_attack).
-                    Options: "breakout_attack" (course basic, admits continuations),
-                            "pattern_breakout_only" (course strict, starting points only).
+        entry_name: Which entry signal to use (default: tweezer_top_breakout).
+                    Options: "tweezer_top_breakout" (best single strategy per analysis),
+                            "pattern_breakout_only" (course strict, starting points only),
+                            "breakout_attack" (course basic, admits continuations).
     """
     from kline.entry import ENTRY_REGISTRY
 
@@ -70,7 +71,7 @@ def main():
     parser.add_argument("--as-of", type=str, default=None, help="YYYY-MM-DD")
     parser.add_argument(
         "--entry",
-        default="breakout_attack",
+        default="tweezer_top_breakout",
         choices=list(ENTRY_REGISTRY.keys()),
         help="Entry signal to use",
     )
