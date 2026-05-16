@@ -99,10 +99,16 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_doji"] = (df["body_pct"] <= 0.006) & (df["range_pct"] >= 0.015)
 
     # Pattern breakout detection
-    # Course source: 型態學 03-箱型整理 + 事件十 操作的開始與結束
-    # = 突破前高 + 過去 60 天屬於箱型整理（高低點區間穩定）
-    INTEGRATION_DAYS = 60  # ~3 months
-    INTEGRATION_RANGE_MAX = 0.15  # box range tolerance (15%)
+    # Course source: 型態學 03-箱型整理 + 行進ing 事件十 操作的開始與結束
+    # Course requires: 「2.5–3 個月之久的整理區間，波動並未呈現越來越高或者越來越低」
+    #
+    # Implementation note (NOT course-stated):
+    #   INTEGRATION_RANGE_MAX = 0.15 is a proxy threshold. The course describes
+    #   "箱型" by shape (no rising/falling tendency) but doesn't specify exact %.
+    #   15% is a pragmatic value; a future course-shape test (linear slope ≈ 0)
+    #   would be more course-faithful.
+    INTEGRATION_DAYS = 60  # ~3 months (course-stated)
+    INTEGRATION_RANGE_MAX = 0.15  # IMPLEMENTATION PROXY — NOT course-stated
 
     # Compute box range over past 60 trading days (excluding today)
     prior_max_high = (

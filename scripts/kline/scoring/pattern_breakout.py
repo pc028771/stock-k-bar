@@ -1,4 +1,4 @@
-"""Pattern breakout bonus — course-authenticated scoring factor.
+"""Pattern breakout bonus — course-aligned starting-point detection.
 
 Course source:
   - 型態學 03-箱型整理 (3-month box + breakout = pattern breakout)
@@ -11,6 +11,13 @@ is merely a continuation/mid-attack signal.
 Score:
   +20 if is_pattern_breakout = True
   0 otherwise
+
+Magnitude rationale: 起點 must participate per course ("起點是一定要參與的"),
+so a strong bonus (10% of the 200-point clip cap) is justified.
+
+Implementation caveat: the underlying `is_in_60day_box` uses a 15% range
+proxy that is NOT course-stated. The course describes box shape qualitatively;
+the 15% threshold is a pragmatic implementation choice (see features.py).
 
 Required df columns: is_pattern_breakout.
 """
