@@ -252,4 +252,73 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         & (df["close"] > df["ma60"])
     ).fillna(False)
 
+    # === Attack intensity level (型態學 攻擊型態 four-pattern ranking) ===
+    # Course source: 型態學 12 (日出) + 13 (跳空) + 14 (推升) + 15 (波動前進).
+    #
+    # Levels:
+    #   4 = 日出攻擊 (sunrise: high>prev_high AND low>prev_low for past 3 days,
+    #                 plus close > prior_high_60)
+    #   3 = 跳空攻擊 (gap attack: open > prev_high AND low > prev_high, today is breakout day,
+    #                 prev day was a breakout-red K)
+    #   2 = 推升攻擊 (push attack: rising lows over past 5 days + close > prior_high_60)
+    #   1 = 波動前進 (wave forward: higher highs over past 5 days + bodies overlap heavily)
+    #   0 = none
+    #
+    # Detection order: 4 > 3 > 2 > 1 > 0 (higher levels override lower).
+
+    above_prior_high_60 = df["close"] > df["prior_high_60"]
+
+    # Level 4: 日出攻擊 — 3 consecutive sunrise bars + above prior_high_60
+    is_sunrise_bar = (df["high"] > df["prev_high"]) & (df["low"] > df["prev_low"])
+    sunrise_3day = (
+        is_sunrise_bar
+        .groupby(df["ticker"])
+        .rolling(3, min_periods=3)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    is_sunrise_attack = (sunrise_3day >= 3) & above_prior_high_60
+
+    # Level 3: 跳空攻擊 — prev was breakout-red K, today is gap up + unfilled
+    prev_close_gap = g["close"].shift(1)
+    prev_open_gap = g["open"].shift(1)
+    prev_high_prev = g["prior_high_60"].shift(1)
+    prev_was_breakout_red = (prev_close_gap > prev_high_prev) & (prev_close_gap > prev_open_gap)
+    today_gap_up = df["open"] > df["prev_high"]
+    today_no_fill = df["low"] > df["prev_high"]
+    is_gap_attack = prev_was_breakout_red & today_gap_up & today_no_fill
+
+    # Level 2: 推升攻擊 — rising lows 5-day + breakout
+    is_higher_low = df["low"] > df["prev_low"]
+    higher_low_5day = (
+        is_higher_low
+        .groupby(df["ticker"])
+        .rolling(5, min_periods=5)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    is_push_attack = (higher_low_5day >= 4) & above_prior_high_60  # at least 4/5 days
+
+    # Level 1: 波動前進 — higher highs 5-day + bodies overlap
+    is_higher_high = df["high"] > df["prev_high"]
+    higher_high_5day = (
+        is_higher_high
+        .groupby(df["ticker"])
+        .rolling(5, min_periods=5)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    # Body overlap = body abs is small relative to range
+    body_overlap_proxy = df["body_pct"].fillna(0) < df["range_pct"].fillna(1) * 0.3
+    is_wave_forward = (higher_high_5day >= 4) & body_overlap_proxy & above_prior_high_60
+
+    # Combine: higher levels override lower
+    attack_intensity = pd.Series(0, index=df.index)
+    attack_intensity = attack_intensity.mask(is_wave_forward.fillna(False), 1)
+    attack_intensity = attack_intensity.mask(is_push_attack.fillna(False), 2)
+    attack_intensity = attack_intensity.mask(is_gap_attack.fillna(False), 3)
+    attack_intensity = attack_intensity.mask(is_sunrise_attack.fillna(False), 4)
+
+    df["attack_intensity"] = attack_intensity.astype(int)
+
     return df

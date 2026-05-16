@@ -602,6 +602,35 @@ def test_is_pattern_breakout_blocked_by_unfilled_gap():
     )
 
 
+def test_attack_intensity_detects_sunrise():
+    """Continuous sunrise + breakout → level 4."""
+    rows = []
+    # Build 60 priming + 3 sunrise after breakout
+    for _i in range(60):
+        rows.append({"open": 100, "high": 101, "low": 99, "close": 100,
+                     "volume": 1000.0, "ma60": 100.0})
+    rows.append({"open": 100, "high": 111, "low": 99, "close": 110,
+                 "volume": 1000.0, "ma60": 100.0})
+    # 3 sunrise bars: each high > prev_high AND low > prev_low
+    rows.append({"open": 110, "high": 113, "low": 100, "close": 112,
+                 "volume": 1000.0, "ma60": 100.0})
+    rows.append({"open": 112, "high": 115, "low": 102, "close": 114,
+                 "volume": 1000.0, "ma60": 100.0})
+    rows.append({"open": 114, "high": 117, "low": 104, "close": 116,
+                 "volume": 1000.0, "ma60": 100.0})
+    df = add_features(make_bars(rows))
+    # Bar 63 should be level 4
+    assert df["attack_intensity"].iloc[63] == 4
+
+
+def test_attack_intensity_zero_in_flat_trend():
+    """Flat trend → no attack → 0."""
+    rows = [{"open": 100, "high": 101, "low": 99, "close": 100,
+             "volume": 1000.0, "ma60": 100.0} for _ in range(60)]
+    df = add_features(make_bars(rows))
+    assert (df["attack_intensity"] == 0).all()
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),

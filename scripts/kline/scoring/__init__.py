@@ -8,7 +8,14 @@ External repos can also import individual factors directly:
 """
 from __future__ import annotations
 
-from . import attack_quality, ma60_rolloff, overhead_supply, pattern_breakout, shadow_position
+from . import (
+    attack_intensity,
+    attack_quality,
+    ma60_rolloff,
+    overhead_supply,
+    pattern_breakout,
+    shadow_position,
+)
 
 SCORING_REGISTRY = {
     "attack_quality":    attack_quality.score,
@@ -16,9 +23,11 @@ SCORING_REGISTRY = {
     "ma60_rolloff":      ma60_rolloff.score,
     "shadow_position":   shadow_position.score,
     "pattern_breakout":  pattern_breakout.score,
+    "attack_intensity":  attack_intensity.score,   # NEW
 }
 
 __all__ = [
     "SCORING_REGISTRY",
-    "attack_quality", "ma60_rolloff", "overhead_supply", "pattern_breakout", "shadow_position",
+    "attack_intensity", "attack_quality", "ma60_rolloff", "overhead_supply",
+    "pattern_breakout", "shadow_position",
 ]

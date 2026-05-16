@@ -13,6 +13,7 @@ def test_registry_has_expected_factors():
         "ma60_rolloff",
         "shadow_position",
         "pattern_breakout",
+        "attack_intensity",
     }
 
 
