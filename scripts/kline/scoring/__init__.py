@@ -11,6 +11,7 @@ from __future__ import annotations
 from . import (
     attack_intensity,
     attack_quality,
+    high_zone_narrow_consolidation,
     ma60_rolloff,
     overhead_supply,
     pattern_breakout,
@@ -18,16 +19,17 @@ from . import (
 )
 
 SCORING_REGISTRY = {
-    "attack_quality":    attack_quality.score,
-    "overhead_supply":   overhead_supply.score,
-    "ma60_rolloff":      ma60_rolloff.score,
-    "shadow_position":   shadow_position.score,
-    "pattern_breakout":  pattern_breakout.score,
-    "attack_intensity":  attack_intensity.score,   # NEW
+    "attack_quality":                   attack_quality.score,
+    "overhead_supply":                  overhead_supply.score,
+    "ma60_rolloff":                     ma60_rolloff.score,
+    "shadow_position":                  shadow_position.score,
+    "pattern_breakout":                 pattern_breakout.score,
+    "attack_intensity":                 attack_intensity.score,
+    "high_zone_narrow_consolidation":   high_zone_narrow_consolidation.score,
 }
 
 __all__ = [
     "SCORING_REGISTRY",
-    "attack_intensity", "attack_quality", "ma60_rolloff", "overhead_supply",
-    "pattern_breakout", "shadow_position",
+    "attack_intensity", "attack_quality", "high_zone_narrow_consolidation",
+    "ma60_rolloff", "overhead_supply", "pattern_breakout", "shadow_position",
 ]

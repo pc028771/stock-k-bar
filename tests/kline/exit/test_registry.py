@@ -18,6 +18,7 @@ def test_registry_has_all_intro_conditions():
         "high_long_black",
         "supply_zone_reach",
         "ma60_neckline",
+        "consolidation_breakdown",
         "reversal_k.dark_double_star",
         "reversal_k.bearish_engulfing",
         "reversal_k.enemy_at_gate",
