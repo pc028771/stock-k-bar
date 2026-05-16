@@ -1,7 +1,7 @@
 """EXIT_REGISTRY: all conditions named correctly and registered."""
 from __future__ import annotations
 
-from kline.exit import EXIT_PRIORITY, EXIT_REGISTRY
+from kline.exit import EXIT_GROUPS, EXIT_REGISTRY
 
 
 def test_registry_has_all_intro_conditions():
@@ -29,14 +29,37 @@ def test_registry_has_all_intro_conditions():
     assert expected.issubset(EXIT_REGISTRY.keys())
 
 
-def test_priority_lists_all_registered_conditions():
-    assert set(EXIT_PRIORITY) == set(EXIT_REGISTRY.keys())
+def test_all_group_exits_are_in_registry():
+    """Every exit name referenced in EXIT_GROUPS must exist in EXIT_REGISTRY."""
+    for group_name, exits in EXIT_GROUPS.items():
+        for exit_name in exits:
+            assert exit_name in EXIT_REGISTRY, (
+                f"Group '{group_name}' references '{exit_name}' "
+                f"which is not in EXIT_REGISTRY"
+            )
 
 
-def test_reversal_k_comes_first_in_priority():
-    reversal_keys = [n for n in EXIT_PRIORITY if n.startswith("reversal_k.")]
-    non_reversal_keys = [n for n in EXIT_PRIORITY if not n.startswith("reversal_k.")]
-    # All reversal_k entries should appear before any non-reversal_k entry
-    first_non_reversal_idx = EXIT_PRIORITY.index(non_reversal_keys[0])
-    last_reversal_idx = max(EXIT_PRIORITY.index(k) for k in reversal_keys)
-    assert last_reversal_idx < first_non_reversal_idx
+def test_strong_attack_group_has_expected_keys():
+    group = EXIT_GROUPS["strong_attack"]
+    assert "reversal_k.dark_double_star" in group
+    assert "high_long_black" in group
+    assert "gap_fill" in group
+    assert "breakout_low_break" in group
+
+
+def test_trend_change_group_separated_from_strong_attack():
+    strong = set(EXIT_GROUPS["strong_attack"])
+    trend = set(EXIT_GROUPS["trend_change"])
+    # trend_change and ma60_neckline should only be in trend_change group
+    assert "trend_change" in trend
+    assert "trend_change" not in strong
+    assert "ma60_neckline" in trend
+    assert "ma60_neckline" not in strong
+
+
+def test_slow_push_group_has_trailing_stop():
+    assert EXIT_GROUPS["slow_push"] == ["trailing_stop"]
+
+
+def test_short_term_group_has_prev_day_low_break():
+    assert EXIT_GROUPS["short_term"] == ["prev_day_low_break"]

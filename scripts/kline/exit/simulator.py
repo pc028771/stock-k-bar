@@ -5,7 +5,7 @@ For each entry signal, compute exit by:
   2. For each trade (entry occurrence per ticker), look at bars from the
      day AFTER entry signal (entry executes at next-day open).
   3. Walk forward; on the first bar where ANY condition is True, exit at
-     the bar's NEXT-day open. The exit_reason is determined by EXIT_PRIORITY.
+     the bar's NEXT-day open. The exit_reason is determined by exit priority.
   4. If no condition fires, exit at the last available bar's open.
 
 Output: trades DataFrame matching spec §3.4.
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import EXIT_PRIORITY, EXIT_REGISTRY
+from . import EXIT_REGISTRY
 
 ROUND_TRIP_COST = 0.00585  # tax + brokerage
 
@@ -22,6 +22,7 @@ ROUND_TRIP_COST = 0.00585  # tax + brokerage
 def simulate(
     df: pd.DataFrame,
     entries: pd.Series,
+    entry_name: str | None = None,
     exit_priority: list[str] | None = None,
     exit_registry: dict | None = None,
     cost: float = ROUND_TRIP_COST,
@@ -30,9 +31,22 @@ def simulate(
 
     df must be sorted by (ticker, trade_date).
     entries: bool Series aligned with df.
+
+    Args:
+        entry_name: If provided, looks up the course-correct exit priority
+                    via kline.exit.groups.get_exit_priority(entry_name).
+                    Required unless exit_priority is explicitly provided.
+        exit_priority: Override the per-entry priority. If neither
+                       entry_name nor exit_priority is provided, raises.
     """
     if exit_priority is None:
-        exit_priority = EXIT_PRIORITY
+        if entry_name is None:
+            raise ValueError(
+                "Either entry_name or exit_priority must be provided. "
+                "Course requires rally-type-specific exits (see kline.exit.groups)."
+            )
+        from .groups import get_exit_priority
+        exit_priority = get_exit_priority(entry_name)
     if exit_registry is None:
         exit_registry = EXIT_REGISTRY
 

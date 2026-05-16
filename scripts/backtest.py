@@ -47,7 +47,7 @@ def run(
             f"Available: {list(ENTRY_REGISTRY.keys())}"
         )
     entries = entry_fn(feats)
-    trades = simulate(feats, entries)
+    trades = simulate(feats, entries, entry_name=entry_name)
     trades.to_csv(out_path, index=False)
     return trades
 

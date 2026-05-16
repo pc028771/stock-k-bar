@@ -1,11 +1,11 @@
 """Exit conditions for K-line course system.
 
 Public API:
-    EXIT_REGISTRY: dict mapping condition name to mark(df, entries) function.
-    EXIT_PRIORITY: list of condition names, highest priority first.
+    EXIT_REGISTRY: dict mapping condition name → mark(df, entries) function.
 
-External repos can also import individual conditions directly:
-    from kline.exit.gap_fill import mark
+Exit priority is determined per entry signal via:
+    from kline.exit.groups import get_exit_priority
+    priority = get_exit_priority(entry_name)
 """
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from . import (
     trailing_stop,
     trend_change,
 )
+from .groups import ENTRY_EXIT_GROUPS, EXIT_GROUPS, get_exit_priority
 from .reversal_k import REVERSAL_K_REGISTRY
 
 EXIT_REGISTRY = {
@@ -43,32 +44,4 @@ EXIT_REGISTRY = {
     **{f"reversal_k.{k}": v for k, v in REVERSAL_K_REGISTRY.items()},
 }
 
-# Spec §5.1 — highest priority first
-EXIT_PRIORITY = [
-    # Reversal-K patterns (highest priority — clearest reversal signals)
-    "reversal_k.dark_double_star",
-    "reversal_k.bearish_engulfing",
-    "reversal_k.enemy_at_gate",
-    "reversal_k.evening_star",
-    "reversal_k.two_crows",
-    "reversal_k.gap_reversal",
-    # High-zone long black (獲利了結賣壓)
-    "high_long_black",
-    # Attack-failure signals
-    "gap_fill",
-    "gap_attack_filled",
-    "breakout_price_break",
-    "breakout_low_break",
-    # Trailing & continuation breakdowns
-    "sunrise_attack_end",
-    "neckline_break",
-    "ma60_neckline",
-    "consolidation_breakdown",
-    "prev_day_low_break",
-    "trailing_stop",
-    "trend_change",
-    # STUBs (always False)
-    "supply_zone_reach",
-]
-
-__all__ = ["EXIT_REGISTRY", "EXIT_PRIORITY"]
+__all__ = ["EXIT_REGISTRY", "EXIT_GROUPS", "ENTRY_EXIT_GROUPS", "get_exit_priority"]
