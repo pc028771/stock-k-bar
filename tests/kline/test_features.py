@@ -285,6 +285,64 @@ def test_is_in_breakdown_pattern_does_not_fire_in_bull_trend():
     assert not df["is_in_breakdown_pattern"].any()
 
 
+def test_is_in_breakdown_pattern_requires_two_new_lows():
+    """Single new-low event in 60 days + MA60 down → NOT in breakdown.
+
+    After the single spike low at bar 90, prices recover and then stabilise
+    above the bar-90 low (93.5) so no further new-low events occur within
+    the rolling 60-day window.
+    """
+    rows = []
+    # Bars 0-89: stable price
+    for _i in range(90):
+        rows.append({"open": 100.0, "high": 102.0, "low": 98.0,
+                     "close": 100.0, "volume": 1000.0})
+    # Bar 90: SINGLE new low (low=92, well below prior_low_20 of 98)
+    rows.append({"open": 99, "high": 100, "low": 92, "close": 95,
+                 "volume": 1000.0})
+    # Bars 91-129: flat at ~96/97 — lows stay at 94.5, above the bar-90 low of 92.
+    # This prevents any further new-low events because prior_low_20 will drop to 92
+    # (bar 90's low) and our lows (94.5) stay above it.
+    for _i in range(91, 130):
+        rows.append({"open": 96.0, "high": 97.0, "low": 94.5, "close": 96.0,
+                     "volume": 1000.0})
+    df = add_features(make_bars(rows))
+    # With only 1 new-low event, even if MA60 is down, should NOT fire
+    assert not df["is_in_breakdown_pattern"].iloc[90:].any(), \
+        "Single new-low event should not trigger breakdown pattern"
+
+
+def test_is_in_breakdown_pattern_requires_ma60_down():
+    """2+ new lows in 60d but MA60 flat/up → NOT in breakdown."""
+    rows = []
+    # Bars 0-89: stable price ~ 100
+    for _i in range(90):
+        rows.append({"open": 100.0, "high": 102.0, "low": 98.0,
+                     "close": 100.0, "volume": 1000.0})
+    # Bar 90: new low
+    rows.append({"open": 99, "high": 100, "low": 92, "close": 95,
+                 "volume": 1000.0})
+    # Bars 91-109: strong recovery back to ~105+ (so MA60 stays roughly flat)
+    for i in range(91, 110):
+        rows.append({"open": 100.0 + (i - 91) * 0.5, "high": 102.0 + (i - 91) * 0.5,
+                     "low": 99.0 + (i - 91) * 0.5, "close": 101.0 + (i - 91) * 0.5,
+                     "volume": 1000.0})
+    # Bar 110: another new low (below prior_low_20 of the recovery window)
+    rows.append({"open": 99, "high": 100, "low": 87, "close": 90,
+                 "volume": 1000.0})
+    # Bars 111-129: strong recovery again → MA60 trend is NOT clearly negative
+    for i in range(111, 130):
+        rows.append({"open": 100.0 + (i - 111) * 0.8, "high": 102.0 + (i - 111) * 0.8,
+                     "low": 99.0 + (i - 111) * 0.8, "close": 101.0 + (i - 111) * 0.8,
+                     "volume": 1000.0})
+    df = add_features(make_bars(rows))
+    # After strong recovery, MA60 slope should be positive → breakdown should NOT fire
+    # Check bars 125-129 where MA60 is clearly rising (5d slope > 0)
+    tail = df.iloc[125:]
+    assert not tail["is_in_breakdown_pattern"].any(), \
+        "With MA60 rising (positive slope), breakdown pattern should not fire"
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),

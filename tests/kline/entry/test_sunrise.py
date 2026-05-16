@@ -22,6 +22,23 @@ def test_sunrise_after_breakout_triggers():
     assert not signal.iloc[61]
 
 
+def test_sunrise_excluded_if_in_breakdown_pattern():
+    """Sunrise attack should not fire if stock is in breakdown pattern."""
+    rows = [{"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
+             "volume": 1000.0, "ma60": 100.0} for _ in range(60)]
+    rows.append({"open": 105.0, "high": 111.0, "low": 99.0, "close": 110.0,
+                 "volume": 1000.0, "ma60": 100.0})
+    rows.append({"open": 110.0, "high": 112.0, "low": 100.0, "close": 111.0,
+                 "volume": 1000.0, "ma60": 100.0})
+    rows.append({"open": 111.0, "high": 113.0, "low": 101.0, "close": 112.0,
+                 "volume": 1000.0, "ma60": 100.0})
+    df = add_features(make_bars(rows))
+    # Force breakdown flag on the signal bar
+    df.loc[62, "is_in_breakdown_pattern"] = True
+    signal = detect(df)
+    assert not signal.iloc[62], "Sunrise should be excluded under breakdown pattern"
+
+
 def test_no_sunrise_when_streak_broken():
     rows = [{"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
              "volume": 1000.0, "ma60": 100.0} for _ in range(60)]

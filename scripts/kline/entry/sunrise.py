@@ -29,7 +29,9 @@ def detect(df: pd.DataFrame) -> pd.Series:
     """Returns bool Series. True = sunrise attack confirmed on that bar.
 
     Required df columns: ticker, high, low, close, prev_high, prev_low,
-                          prior_high_60, ma60.
+                          prior_high_60, ma60, is_in_breakdown_pattern.
+
+    Course exclusion: stocks in 破底型態 are excluded (型態學 16).
     """
     g = df.groupby("ticker")
 
@@ -53,4 +55,9 @@ def detect(df: pd.DataFrame) -> pd.Series:
         & (g["close"].shift(SUNRISE_BARS_REQUIRED) > g["ma60"].shift(SUNRISE_BARS_REQUIRED))
     )
 
-    return ((sunrise_streak >= SUNRISE_BARS_REQUIRED) & breakout_was).fillna(False)
+    # Course exclusion: 破底型態 (型態學 16)
+    not_in_breakdown = ~df["is_in_breakdown_pattern"].fillna(False)
+
+    return (
+        (sunrise_streak >= SUNRISE_BARS_REQUIRED) & breakout_was & not_in_breakdown
+    ).fillna(False)

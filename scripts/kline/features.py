@@ -99,8 +99,16 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_doji"] = (df["body_pct"] <= 0.006) & (df["range_pct"] >= 0.015)
 
     # 破底型態 detection
-    # Course source: 型態學 16-破底型態
-    # Definition: >= 2 new-low events in the past 60 days AND MA60 down
+    # Course source: 型態學 16-破底型態 (pseudocode at end of the article)
+    #
+    # Implementation note (proxy):
+    #   The course's own pseudocode uses `low < prior_low_20` as the "new-low"
+    #   event signal. This is a coarse proxy for "破前低 / swing low":
+    #   strictly speaking, "前低" means the previous swing low (local minimum),
+    #   but the course defines this computationally as breaking the rolling 20-day
+    #   prior min. We follow the course's exact pseudocode.
+    #
+    # Definition: >= 2 new-low events in past 60 days AND MA60 declining.
     #
     # Course rule: automatically exclude from scanner candidacy.
     # Reason: layered supply + no way to clear without absent reason or trend change.
