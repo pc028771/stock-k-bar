@@ -20,9 +20,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-CONSOLIDATION_DAYS = 6
-NARROW_RANGE_MAX = 0.05
-HIGH_ZONE_BONUS = 8.0
+from ..course_proxy_constants import (
+    HIGH_ZONE_BONUS,
+    HIGH_ZONE_CONSOLIDATION_DAYS as CONSOLIDATION_DAYS,
+    HIGH_ZONE_NARROW_RANGE_MAX as NARROW_RANGE_MAX,
+)
+
+# Proxy: course says 「突破紅K 後 N 天狹幅 + 低點不破突破點 = 推升攻擊的醞釀」.
+# Course gives no number for N or for "狹幅". We operationalize with a 6-bar
+# window and a 5% range cap. See course_proxy_constants.I6.
 
 
 def score(df: pd.DataFrame) -> pd.Series:

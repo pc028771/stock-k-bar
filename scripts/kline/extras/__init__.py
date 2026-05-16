@@ -23,7 +23,7 @@ callable.
 from __future__ import annotations
 
 from . import (
-    attack_quality_penalty,
+    attack_quality_anti_course_penalties,
     consolidation_breakdown,
     gap_fill_excess_market_adjusted,
     hold_days_cap,
@@ -56,7 +56,10 @@ EXIT_REGISTRY = {
 
 SCORING_REGISTRY: dict = {
     # Moved from scripts/kline/scoring/attack_quality.py (audit C4).
-    "attack_quality_penalty": attack_quality_penalty.make_score,
+    # Split (audit option B): the course-aligned +25 trend_days contribution
+    # is now scoring/trend_continuation.py (default ON). This module retains
+    # only the three anti-course penalties (volume_ratio, body_pct, close_pos).
+    "attack_quality_anti_course_penalties": attack_quality_anti_course_penalties.make_score,
 }
 
 

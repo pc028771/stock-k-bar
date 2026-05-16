@@ -14,6 +14,7 @@ def test_registry_has_expected_factors():
         "pattern_breakout",
         "attack_intensity",
         "high_zone_narrow_consolidation",
+        "trend_continuation",
     }
 
 

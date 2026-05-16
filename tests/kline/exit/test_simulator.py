@@ -32,20 +32,23 @@ def _prepare_df(rows):
 
 
 def test_single_trade_exits_on_breakout_low_break():
+    """Audit I8: breakout_low_break arms only after the 2-bar price-break window."""
     rows = [
         {"open": 100, "high": 105, "low": 99,  "close": 104},   # bar 0
         {"open": 105, "high": 110, "low": 104, "close": 109},   # bar 1: ENTRY signal
-        {"open": 109, "high": 110, "low": 102, "close": 103},   # bar 2: close < entry_low 104
-        {"open": 103, "high": 104, "low": 100, "close": 101},   # bar 3: exit price = 103
+        {"open": 109, "high": 110, "low": 105, "close": 108},   # bar 2: bars_since=1
+        {"open": 108, "high": 109, "low": 105, "close": 106},   # bar 3: bars_since=2
+        {"open": 106, "high": 107, "low": 102, "close": 103},   # bar 4: bars_since=3 → fires
+        {"open": 103, "high": 104, "low": 100, "close": 101},   # bar 5: exit execute
     ]
     df = _prepare_df(rows)
-    entries = pd.Series([False, True, False, False])
+    entries = pd.Series([False, True, False, False, False, False])
     trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 1
     t = trades.iloc[0]
     # Entry at bar 1 signal → execute bar 2 open (109)
     assert t["entry_open"] == 109
-    # Exit triggered bar 2 → execute bar 3 open (103)
+    # Exit triggered bar 4 → execute bar 5 open (103)
     assert t["exit_open"] == 103
     assert t["exit_reason"] == "breakout_low_break"
 
@@ -65,20 +68,20 @@ def test_no_exit_uses_last_bar_open():
 
 def test_priority_tie_breaking_uses_higher_priority_reason():
     """Same-day trigger for multiple conditions → EXIT_PRIORITY decides."""
-    # Bar 2: gaps up >2% over market (open 112 vs prev_close 109 = +2.75%,
-    # market_open_ret=0 → excess_gap=2.75% >= 2%) AND close 103 < prev_close 109
-    # → gap_fill fires.
-    # Bar 2: close 103 < entry_low 104 → breakout_low_break fires.
-    # Both fire on bar 2; gap_fill comes before breakout_low_break in EXIT_PRIORITY
-    # → gap_fill wins.
+    # Audit I8: breakout_low_break only fires bars_since > 2, so we move the
+    # combined trigger out to bar 4. Bar 4 gaps up >2% over market AND closes
+    # below entry-bar low → both gap_fill and breakout_low_break fire; priority
+    # ordering selects gap_fill.
     rows = [
         {"open": 100, "high": 102, "low": 99,  "close": 100},
         {"open": 105, "high": 110, "low": 104, "close": 109},  # ENTRY, low=104
-        {"open": 112, "high": 113, "low": 100, "close": 103},  # gap_fill + breakout_low_break fire
+        {"open": 109, "high": 110, "low": 106, "close": 108},  # bar 2, bars_since=1
+        {"open": 108, "high": 110, "low": 105, "close": 107},  # bar 3, bars_since=2
+        {"open": 112, "high": 113, "low": 100, "close": 103},  # bar 4: gap_fill + low_break fire
         {"open": 103, "high": 104, "low": 100, "close": 101},  # exit price bar
     ]
     df = _prepare_df(rows)
-    entries = pd.Series([False, True, False, False])
+    entries = pd.Series([False, True, False, False, False, False])
     trades = simulate(df, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 1
     # gap_fill priority is HIGHER (comes before breakout_low_break in EXIT_PRIORITY)
@@ -90,14 +93,18 @@ def test_per_ticker_isolation_in_simulator():
     df_a = make_bars([
         {"open": 100, "high": 105, "low": 99,  "close": 104},
         {"open": 105, "high": 110, "low": 104, "close": 109},  # ENTRY A
-        {"open": 109, "high": 110, "low": 102, "close": 103},  # close < 104 → exit A
+        {"open": 109, "high": 110, "low": 106, "close": 108},  # bars_since=1
+        {"open": 108, "high": 110, "low": 105, "close": 107},  # bars_since=2
+        {"open": 107, "high": 108, "low": 102, "close": 103},  # bars_since=3 → low_break
         {"open": 103, "high": 104, "low": 100, "close": 101},  # exit A price
     ], ticker="A")
     df_b = make_bars([
         {"open": 50,  "high": 52,  "low": 48,  "close": 51},
         {"open": 51,  "high": 53,  "low": 50,  "close": 52},  # ENTRY B
         {"open": 52,  "high": 54,  "low": 51,  "close": 53},  # no exit
-        {"open": 53,  "high": 55,  "low": 52,  "close": 54},  # no exit, last bar
+        {"open": 53,  "high": 55,  "low": 52,  "close": 54},  # no exit
+        {"open": 54,  "high": 56,  "low": 53,  "close": 55},  # no exit
+        {"open": 55,  "high": 57,  "low": 54,  "close": 56},  # no exit, last bar
     ], ticker="B")
     combined = pd.concat([df_a, df_b]).reset_index(drop=True)
     combined["prev_low"] = combined.groupby("ticker")["low"].shift(1)
@@ -105,7 +112,8 @@ def test_per_ticker_isolation_in_simulator():
     combined["prior_low_20"] = float("nan")
     combined["ma60_slope_5d"] = 0.01
     combined["market_open_ret"] = 0.0
-    entries = pd.Series([False, True, False, False, False, True, False, False])
+    entries = pd.Series([False, True, False, False, False, False,
+                          False, True, False, False, False, False])
     trades = simulate(combined, entries, exit_priority=_TEST_PRIORITY, exit_registry=_TEST_REGISTRY)
     assert len(trades) == 2
     a_trade = trades[trades["ticker"] == "A"].iloc[0]

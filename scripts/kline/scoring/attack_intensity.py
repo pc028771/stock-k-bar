@@ -2,6 +2,13 @@
 
 Course source: 型態學 攻擊型態 four-pattern ranking.
 
+Proxy disclosure (I1): the four-level ranking comes from course directly.
+The COUNTING THRESHOLDS that drive the levels (≥ 4 of 5 higher-low for
+推升, ≥ 4 of 5 higher-high for 波動) are operationalizations of qualitative
+course descriptions, not course-stated numbers. See
+`course_proxy_constants.py` (ATTACK_HIGHER_LOW_MIN_5DAY etc.) and the
+relevant feature-pipeline code in `features.py`.
+
 Score:
   +20 if attack_intensity == 4 (日出攻擊)
   +15 if attack_intensity == 3 (跳空攻擊)

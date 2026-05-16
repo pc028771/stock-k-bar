@@ -15,6 +15,7 @@ from . import (
     overhead_supply,
     pattern_breakout,
     shadow_position,
+    trend_continuation,
 )
 
 SCORING_REGISTRY = {
@@ -24,10 +25,13 @@ SCORING_REGISTRY = {
     "pattern_breakout":                 pattern_breakout.score,
     "attack_intensity":                 attack_intensity.score,
     "high_zone_narrow_consolidation":   high_zone_narrow_consolidation.score,
+    # Course-aligned half of legacy attack_quality (audit C4 split, option B).
+    "trend_continuation":               trend_continuation.score,
 }
 
 __all__ = [
     "SCORING_REGISTRY",
     "attack_intensity", "high_zone_narrow_consolidation",
     "ma60_rolloff", "overhead_supply", "pattern_breakout", "shadow_position",
+    "trend_continuation",
 ]

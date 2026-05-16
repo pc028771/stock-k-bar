@@ -10,6 +10,18 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .course_proxy_constants import (
+    ATTACK_HIGHER_HIGH_MIN_5DAY,
+    ATTACK_HIGHER_LOW_MIN_5DAY,
+    ATTACK_WINDOW_DAYS,
+    DOJI_MAX_BODY_PCT,
+    DOJI_MIN_RANGE_PCT,
+    FIRST_BREAKOUT_LOOKBACK,
+    INTEGRATION_DAYS as _INTEGRATION_DAYS,
+    RISING_LOWS_MIN_FRAC,
+    STABLE_UPPER_MAX_SPREAD as _STABLE_UPPER_MAX_SPREAD,
+)
+
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add all derived features. Pure function — returns new DataFrame."""
@@ -137,7 +149,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # K-line color
     df["is_red"] = df["close"] > df["open"]
     df["is_black"] = df["close"] < df["open"]
-    df["is_doji"] = (df["body_pct"] <= 0.006) & (df["range_pct"] >= 0.015)
+    # Proxy: course says doji = 「近乎沒有實體」 (qualitative). We operationalize
+    # via body_pct ≤ 0.6% (近乎沒有實體) AND range_pct ≥ 1.5% (meaningful range).
+    # See course_proxy_constants.I7 for full rationale; no course-stated number.
+    df["is_doji"] = (df["body_pct"] <= DOJI_MAX_BODY_PCT) & (df["range_pct"] >= DOJI_MIN_RANGE_PCT)
 
     # 破底型態 detection
     # Course source: 型態學 16-破底型態 (pseudocode at end of the article)
@@ -196,7 +211,8 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # NOT: a "sleeping" flat-range stock (no rising lows = no 主力收貨 signal).
     # NOT: a breakout into overhead supply (= 騙線型態).
 
-    INTEGRATION_DAYS = 60  # ~3 months (course-stated)
+    # Course-stated: integration window ≈ 3 months (型態學 03).
+    INTEGRATION_DAYS = _INTEGRATION_DAYS  # 60 trading days ~ 3 months
 
     # === A. Rising lows count ===
     # How many days in past 60 had higher_low (low > prev_low)?
@@ -209,7 +225,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         .sum()
         .reset_index(level=0, drop=True)
     )
-    RISING_LOWS_MIN = INTEGRATION_DAYS // 2  # 30 of 60 days
+    # Proxy: course says 「低點漸漸墊高」 (qualitative). We require at least
+    # half the integration bars to have higher-low (30 of 60). Course-not-stated;
+    # see course_proxy_constants.I3.
+    RISING_LOWS_MIN = int(INTEGRATION_DAYS * RISING_LOWS_MIN_FRAC)  # 30 of 60
 
     # === B. Stable upper boundary ===
     # The 60-day ceiling should not have risen from the first half to the second half.
@@ -227,7 +246,10 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         (df["prior_high_60"] - prior_high_30_early) / df["prior_high_60"].replace(0, np.nan)
     )
     df["upper_band_spread_60d"] = upper_band_spread.fillna(1.0)
-    STABLE_UPPER_MAX_SPREAD = 0.05  # Within 5% — upper boundary is stable
+    # Proxy: course says 「上緣穩定」 / 「壓力線是平的」 (qualitative).
+    # We operationalize as early-half max ≤ 5% below full-window max.
+    # No course-stated number; see course_proxy_constants.I2.
+    STABLE_UPPER_MAX_SPREAD = _STABLE_UPPER_MAX_SPREAD  # 0.05
 
     # === C. is_pattern_breakout (course-faithful, 5 conditions ALL AND) ===
     # Course condition C: 上方無套牢 (clean overhead)
@@ -293,24 +315,30 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     higher_low_5day = (
         is_higher_low
         .groupby(df["ticker"])
-        .rolling(5, min_periods=5)
+        .rolling(ATTACK_WINDOW_DAYS, min_periods=ATTACK_WINDOW_DAYS)
         .sum()
         .reset_index(level=0, drop=True)
     )
-    is_push_attack = (higher_low_5day >= 4) & above_prior_high_60  # at least 4/5 days
+    # Proxy: course says 推升攻擊 = 「連續低點不斷墊高」 (qualitative, no count).
+    # We require ≥ 4 of 5 days had higher-low. Course-not-stated; see
+    # course_proxy_constants.I1.
+    is_push_attack = (higher_low_5day >= ATTACK_HIGHER_LOW_MIN_5DAY) & above_prior_high_60
 
     # Level 1: 波動前進 — higher highs 5-day + bodies overlap
     is_higher_high = df["high"] > df["prev_high"]
     higher_high_5day = (
         is_higher_high
         .groupby(df["ticker"])
-        .rolling(5, min_periods=5)
+        .rolling(ATTACK_WINDOW_DAYS, min_periods=ATTACK_WINDOW_DAYS)
         .sum()
         .reset_index(level=0, drop=True)
     )
     # Body overlap = body abs is small relative to range
     body_overlap_proxy = df["body_pct"].fillna(0) < df["range_pct"].fillna(1) * 0.3
-    is_wave_forward = (higher_high_5day >= 4) & body_overlap_proxy & above_prior_high_60
+    # Proxy: course says 波動前進 = 「高點不斷墊高」 (qualitative, no count).
+    # We require ≥ 4 of 5 days had higher-high. Course-not-stated; see
+    # course_proxy_constants.I1.
+    is_wave_forward = (higher_high_5day >= ATTACK_HIGHER_HIGH_MIN_5DAY) & body_overlap_proxy & above_prior_high_60
 
     # Combine: higher levels override lower
     attack_intensity = pd.Series(0, index=df.index)
@@ -354,5 +382,46 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     cond_c = prev_is_doji & prev2_is_red & (prev2_close > prev2_prior_high_60)
 
     df["prev_bar_had_attack_meaning"] = (cond_a | cond_b | cond_c).fillna(False)
+
+    # === is_first_breakout_above_level ===
+    # Course source: 突破跌破 — 突破意義的釐清.
+    # Course quote: 「第一次突破，可以直接進攻；再次突破，需等隔日攻擊確認」
+    #
+    # A bar is the FIRST breakout if it is the first bar within the trailing
+    # FIRST_BREAKOUT_LOOKBACK window where close > prior_high_60. Subsequent
+    # close-above-prior_high_60 bars within the window are "re-breakouts".
+    #
+    # Implementation: count how many prior bars in the lookback window
+    # (excluding today) already had close > their prior_high_60. If zero,
+    # today is the FIRST breakout.
+    breakout_indicator = (df["close"] > df["prior_high_60"]).fillna(False).astype(int)
+    prior_breakout_count = (
+        breakout_indicator
+        .groupby(df["ticker"])
+        .shift(1)
+        .fillna(0)
+        .groupby(df["ticker"])
+        .rolling(FIRST_BREAKOUT_LOOKBACK, min_periods=1)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    df["is_first_breakout_above_level"] = (
+        (breakout_indicator == 1) & (prior_breakout_count == 0)
+    ).fillna(False)
+
+    # === is_attack_bar ===
+    # Used by re-breakout confirmation (I4). An "attack bar" continues the
+    # breakout: red K closing above prior bar's close, OR gap-up, OR new high.
+    # Course quote (突破跌破): 「攻擊確認 = 隔日續攻 / 跳空 / 創新高」
+    #
+    # Empirical note (2026-05-16): tightening to new-high-only (the strictest
+    # OR option) did NOT improve metrics — see docs/analysis/2026-05-16-i4-
+    # confirmation-strictness-test.md. The course states three OR options,
+    # broad form is the literal reading; we keep it.
+    df["is_attack_bar"] = (
+        (df["is_red"].fillna(False) & (df["close"] > df["prev_close"]))
+        | (df["open"] > df["prev_high"])
+        | (df["high"] > df["prior_high_60"])
+    ).fillna(False)
 
     return df
