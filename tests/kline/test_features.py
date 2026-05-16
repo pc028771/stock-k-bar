@@ -187,57 +187,155 @@ def test_overhead_supply_layer_nan_before_history():
     assert df["overhead_supply_layer"].isna().all()
 
 
-def test_is_pattern_breakout_fires_after_box_consolidation():
+def test_is_pattern_breakout_fires_after_rising_low_consolidation():
     """
-    60+ bars of tight range (within 15%), then breakout day.
-    """
-    # 60 bars at 100±2 (range = 4/96 = ~4%, within 15%)
-    rows = [{"open": 100 + (i % 5 - 2), "high": 102, "low": 98,
-             "close": 100 + (i % 5 - 2), "volume": 1000.0,
-             "ma60": 100.0} for i in range(60)]
-    # Breakout day
-    rows.append({"open": 100, "high": 110, "low": 99, "close": 109,
-                 "volume": 1000.0, "ma60": 100.0})
+    60+ bars where lows are rising (>= 30 of 60 days higher_low) and highs are
+    bounded (stable ceiling), then breakout → is_pattern_breakout = True.
 
-    df = add_features(make_bars(rows))
-    assert df.loc[60, "is_pattern_breakout"]
-
-
-def test_is_pattern_breakout_does_not_fire_after_wide_range():
+    Course source: 型態學 05-三角收斂 + 14-推升攻擊
+    低點漸漸墊高 + 上緣穩定 = 主力收貨三角收斂 → 突破上緣 = 起點
     """
-    60 bars with wide range (>15%), then breakout — NOT pattern breakout.
-    """
-    # 60 bars with prices 80-120 (range = 40/80 = 50%, way over 15%)
     rows = []
+    base_low = 95.0
+    for i in range(61):
+        # Lows climb steadily: every bar has a higher low → 60/60 days satisfy higher_low
+        low = base_low + i * 0.1
+        # Highs are stable / capped at 102 (the ceiling that will be broken)
+        rows.append({
+            "open": low + 2.0,
+            "high": 102.0,
+            "low": low,
+            "close": low + 1.5,
+            "volume": 1000.0,
+            "ma60": 90.0,
+        })
+    # Breakout day: close > prior_high_60 (102) and above ma60 (90)
+    rows.append({
+        "open": 103.0,
+        "high": 106.0,
+        "low": 102.5,
+        "close": 105.0,
+        "volume": 2000.0,
+        "ma60": 90.0,
+    })
+
+    df = add_features(make_bars(rows))
+    # higher_low_count_60d at row 61 should be 60 (all 60 days in window have higher_low)
+    assert df.loc[61, "higher_low_count_60d"] >= 30
+    # upper_band_spread should be near 0 (highs were flat at 102)
+    assert df.loc[61, "upper_band_spread_60d"] <= 0.05
+    assert df.loc[61, "is_pattern_breakout"]
+
+
+def test_is_pattern_breakout_does_not_fire_on_oscillating_stock():
+    """
+    60 bars with strongly oscillating lows (no rising trend) + breakout → False.
+
+    Uses a 3-step down cycle: lows cycle 105→80→60→105→... so only 1/3 of transitions
+    are higher_low (= 20 of 60 days), clearly below the 30-day threshold.
+    """
+    rows = []
+    cycle_lows = [105.0, 80.0, 60.0]
     for i in range(60):
-        # Oscillate big
-        if i % 2 == 0:
-            rows.append({"open": 110, "high": 120, "low": 105, "close": 115,
-                         "volume": 1000.0, "ma60": 100.0})
-        else:
-            rows.append({"open": 90, "high": 95, "low": 80, "close": 85,
-                         "volume": 1000.0, "ma60": 100.0})
-    # Breakout day
-    rows.append({"open": 115, "high": 125, "low": 110, "close": 124,
+        lo = cycle_lows[i % 3]
+        hi = lo + 40.0 if lo == 60.0 else lo + 15.0
+        rows.append({"open": lo + 5.0, "high": hi, "low": lo, "close": lo + 3.0,
+                     "volume": 1000.0, "ma60": 100.0})
+    # Breakout day: close > prior_high_60
+    rows.append({"open": 115.0, "high": 125.0, "low": 110.0, "close": 124.0,
                  "volume": 1000.0, "ma60": 100.0})
 
     df = add_features(make_bars(rows))
-    assert not df.loc[60, "is_in_60day_box"]
-    assert not df.loc[60, "is_pattern_breakout"]  # Not a pattern breakout (no box)
+    # Only 20 of 60 days have higher_low — well below RISING_LOWS_MIN=30
+    assert df.loc[60, "higher_low_count_60d"] < 30
+    assert not df.loc[60, "is_pattern_breakout"]
+
+
+def test_is_pattern_breakout_does_not_fire_on_sleeping_stock():
+    """
+    60+ bars of dead-flat price (low never moves) → higher_low_count_60d near 0 → False.
+
+    Course: 「sleeping stocks」 have no rising lows and are not 主力收貨 patterns.
+    The 60 consolidation bars all have the same low (98), so rising-lows count = 0.
+    The breakout bar itself may add 1 (its low 101.5 > prev 98) but that's well below 30.
+    """
+    rows = [{"open": 100.0, "high": 102.0, "low": 98.0, "close": 100.0,
+             "volume": 1000.0, "ma60": 90.0} for _ in range(60)]
+    # Breakout day above the flat 102 ceiling
+    rows.append({"open": 102.0, "high": 106.0, "low": 101.5, "close": 105.0,
+                 "volume": 2000.0, "ma60": 90.0})
+
+    df = add_features(make_bars(rows))
+    # Dead flat: 60 bars at same low → higher_low_count well below 30
+    assert df.loc[60, "higher_low_count_60d"] < 30
+    assert not df.loc[60, "is_pattern_breakout"]
+
+
+def test_is_pattern_breakout_does_not_fire_when_upper_band_unstable():
+    """
+    Lows rising BUT highs also rising significantly (ceiling not stable) → False.
+
+    Course: 上緣穩定 is required. If the upper boundary keeps climbing, it's a
+    trending stock, not a 三角收斂 accumulation pattern.
+    """
+    rows = []
+    for i in range(61):
+        # Both lows AND highs rise steeply — no stable ceiling
+        low = 80.0 + i * 0.5
+        high = 90.0 + i * 1.0  # highs rise faster — spread between 30d/60d max will be large
+        rows.append({
+            "open": low + 3.0,
+            "high": high,
+            "low": low,
+            "close": low + 4.0,
+            "volume": 1000.0,
+            "ma60": 70.0,
+        })
+    # Breakout day
+    last_high = 90.0 + 60 * 1.0  # = 150
+    rows.append({
+        "open": last_high + 1,
+        "high": last_high + 5,
+        "low": last_high,
+        "close": last_high + 4,
+        "volume": 2000.0,
+        "ma60": 70.0,
+    })
+
+    df = add_features(make_bars(rows))
+    # upper_band_spread_60d should be > 5% because prior_high_60 >> prior_high_30
+    assert df.loc[61, "upper_band_spread_60d"] > 0.05
+    assert not df.loc[61, "is_pattern_breakout"]
 
 
 def test_is_pattern_breakout_requires_above_ma60():
     """
-    Box + breakout but close < ma60 → not pattern breakout.
+    Rising lows + stable ceiling + breakout but close < ma60 → not pattern breakout.
     """
-    rows = [{"open": 100, "high": 102, "low": 98, "close": 100,
-             "volume": 1000.0, "ma60": 120.0} for _ in range(60)]
-    # Breakout but below ma60
-    rows.append({"open": 100, "high": 105, "low": 99, "close": 104,
-                 "volume": 1000.0, "ma60": 120.0})
+    rows = []
+    base_low = 95.0
+    for i in range(61):
+        low = base_low + i * 0.1
+        rows.append({
+            "open": low + 2.0,
+            "high": 102.0,
+            "low": low,
+            "close": low + 1.5,
+            "volume": 1000.0,
+            "ma60": 200.0,  # far above close → below ma60
+        })
+    # Breakout day — still below ma60 = 200
+    rows.append({
+        "open": 103.0,
+        "high": 106.0,
+        "low": 102.5,
+        "close": 105.0,
+        "volume": 2000.0,
+        "ma60": 200.0,
+    })
 
     df = add_features(make_bars(rows))
-    assert not df.loc[60, "is_pattern_breakout"]
+    assert not df.loc[61, "is_pattern_breakout"]
 
 
 def test_is_in_breakdown_pattern_fires_after_multiple_new_lows():

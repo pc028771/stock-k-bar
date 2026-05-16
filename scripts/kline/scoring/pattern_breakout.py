@@ -1,12 +1,18 @@
-"""Pattern breakout bonus — course-aligned starting-point detection.
+"""Pattern breakout bonus — course-faithful starting-point detection.
 
 Course source:
-  - 型態學 03-箱型整理 (3-month box + breakout = pattern breakout)
-  - K線行進ing 事件十 (operation starting point vs continuation)
+  - 型態學 05-三角收斂 (低點墊高 + 上緣穩定 = 主力收貨三角收斂)
+  - 型態學 14-推升攻擊 (低點推升型態 = 不給散戶低接機會)
+  - 型態學 03-箱型整理 + K線行進ing 事件十 (起點 vs 中繼)
 
-A "true" pattern breakout (with prior 3-month box integration) is the
-operation starting point per course. Without prior integration, the breakout
-is merely a continuation/mid-attack signal.
+A "true" pattern breakout is defined course-directly as:
+  - 低點漸漸墊高 (rising lows, >= 30 of 60 days)
+  - 上緣穩定 (stable upper boundary / ceiling, spread <= 5%)
+  - 突破上緣 (close > prior 60-day high)
+  - 站上 MA60 (multi background confirmation)
+
+This distinguishes true 主力收貨三角收斂 from "sleeping" flat stocks
+(which satisfy range constraints but have no rising lows — NOT course pattern).
 
 Score:
   +20 if is_pattern_breakout = True
@@ -14,10 +20,6 @@ Score:
 
 Magnitude rationale: 起點 must participate per course ("起點是一定要參與的"),
 so a strong bonus (10% of the 200-point clip cap) is justified.
-
-Implementation caveat: the underlying `is_in_60day_box` uses a 15% range
-proxy that is NOT course-stated. The course describes box shape qualitatively;
-the 15% threshold is a pragmatic implementation choice (see features.py).
 
 Required df columns: is_pattern_breakout.
 """

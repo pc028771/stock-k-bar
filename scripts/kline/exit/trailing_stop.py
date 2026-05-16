@@ -19,6 +19,12 @@ def mark(df: pd.DataFrame, entries: pd.Series) -> pd.Series:
     """Returns bool Series. True = close fell below the trailing reference."""
     trade_id = entries.groupby(df["ticker"]).cumsum()
     trade_id = trade_id.where(trade_id > 0)
+
+    # Guard: if no trade ever started, all trade_id values are NaN → groupby
+    # on an all-NaN column raises ValueError in pandas. Return all False.
+    if trade_id.isna().all():
+        return pd.Series(False, index=df.index)
+
     work = df.assign(_tid=trade_id)
     trailing_low = (
         work.groupby(["ticker", "_tid"])["prev_low"]

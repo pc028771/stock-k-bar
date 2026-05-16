@@ -137,37 +137,61 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         & is_ma60_down
     ).fillna(False)
 
-    # Pattern breakout detection
-    # Course source: 型態學 03-箱型整理 + 行進ing 事件十 操作的開始與結束
-    # Course requires: 「2.5–3 個月之久的整理區間，波動並未呈現越來越高或者越來越低」
+    # === Pattern breakout — course-faithful 起點 detection ===
+    # Course source: 型態學 03-箱型整理 + 14-推升攻擊 + 05-三角收斂 + 行進ing 事件十.
     #
-    # Implementation note (NOT course-stated):
-    #   INTEGRATION_RANGE_MAX = 0.15 is a proxy threshold. The course describes
-    #   "箱型" by shape (no rising/falling tendency) but doesn't specify exact %.
-    #   15% is a pragmatic value; a future course-shape test (linear slope ≈ 0)
-    #   would be more course-faithful.
+    # Definition (course-aligned):
+    #   主力收貨的整理型態 = 低點漸漸墊高 + 上緣穩定（壓力線）
+    #   Breakout above the stable upper boundary = TRUE pattern breakout = 起點
+    #
+    # NOT: a "sleeping" flat-range stock (those have no rising lows).
+    #
+    # Detection (60-day window):
+    #   A. 低點墊高 (Rising lows) — at least HALF of the 60-day window's lows
+    #      are higher than their predecessor (consistent accumulation direction).
+    #   B. 上緣穩定 (Stable upper boundary) — the spread of the 60-day rolling-max-of-highs
+    #      is constrained (i.e., the upper boundary doesn't trend up much — a "ceiling").
+    #   C. Today breaks above that ceiling (close > prior_high_60).
+    #   D. Above ma60 (multi background) — already required.
+
     INTEGRATION_DAYS = 60  # ~3 months (course-stated)
-    INTEGRATION_RANGE_MAX = 0.15  # IMPLEMENTATION PROXY — NOT course-stated
 
-    # Compute box range over past 60 trading days (excluding today)
-    prior_max_high = (
-        g["high"].shift(1).rolling(INTEGRATION_DAYS, min_periods=INTEGRATION_DAYS).max()
+    # === A. Rising lows count ===
+    # How many days in past 60 had higher_low (low > prev_low)?
+    # Course-aligned threshold: at least HALF the bars must be rising-low.
+    higher_low_indicator = (df["low"] > df["prev_low"]).astype(int)
+    df["higher_low_count_60d"] = (
+        higher_low_indicator
+        .groupby(df["ticker"])
+        .rolling(INTEGRATION_DAYS, min_periods=INTEGRATION_DAYS)
+        .sum()
         .reset_index(level=0, drop=True)
     )
-    prior_min_low = (
-        g["low"].shift(1).rolling(INTEGRATION_DAYS, min_periods=INTEGRATION_DAYS).min()
+    RISING_LOWS_MIN = INTEGRATION_DAYS // 2  # 30 of 60 days
+
+    # === B. Stable upper boundary ===
+    # The 60-day ceiling should not have risen from the first half to the second half.
+    # Measured by comparing:
+    #   - prior_high_60: the overall 60-day ceiling (rolling max of shift(1) over 60 bars)
+    #   - prior_high_30_early: rolling max of the FIRST half (shift(31) over 30 bars)
+    # Spread = (prior_high_60 - prior_high_30_early) / prior_high_60
+    #   - Triangle pattern: ceiling is the same throughout → spread ≈ 0
+    #   - Trending stock: early-half max << late-half max → spread is large
+    prior_high_30_early = (
+        g["high"].shift(31).rolling(30, min_periods=30).max()
         .reset_index(level=0, drop=True)
     )
+    upper_band_spread = (
+        (df["prior_high_60"] - prior_high_30_early) / df["prior_high_60"].replace(0, np.nan)
+    )
+    df["upper_band_spread_60d"] = upper_band_spread.fillna(1.0)
+    STABLE_UPPER_MAX_SPREAD = 0.05  # Within 5% — upper boundary is stable
 
-    # Range = (max - min) / min  (relative range)
-    prior_range_pct = (prior_max_high - prior_min_low) / prior_min_low.replace(0, np.nan)
-
-    # Box if range <= 15%
-    df["is_in_60day_box"] = (prior_range_pct <= INTEGRATION_RANGE_MAX).fillna(False)
-
-    # Pattern breakout: past 60 days formed a box + today's close > prior_high_60 + above ma60
+    # === C. is_pattern_breakout (course-faithful) ===
+    # Rising lows (A) + stable upper boundary (B) + breakout above ceiling (C) + above MA60 (D)
     df["is_pattern_breakout"] = (
-        df["is_in_60day_box"]
+        (df["higher_low_count_60d"] >= RISING_LOWS_MIN)
+        & (df["upper_band_spread_60d"] <= STABLE_UPPER_MAX_SPREAD)
         & (df["close"] > df["prior_high_60"])
         & df["ma60"].notna()
         & (df["close"] > df["ma60"])
