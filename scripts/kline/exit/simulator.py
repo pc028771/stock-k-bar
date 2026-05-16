@@ -25,6 +25,7 @@ def simulate(
     entry_name: str | None = None,
     exit_priority: list[str] | None = None,
     exit_registry: dict | None = None,
+    extra_exits: list[tuple[str, callable]] | None = None,
     cost: float = ROUND_TRIP_COST,
 ) -> pd.DataFrame:
     """Run vectorized exit simulation for every entry signal.
@@ -55,10 +56,18 @@ def simulate(
             f"entries length {len(entries)} != df length {len(df)}"
         )
 
+    # Course exits first; extras appended at end (lowest priority — safety net).
+    full_priority: list[str] = list(exit_priority)
+    extras_fns: dict[str, callable] = {}
+    if extra_exits:
+        for name, fn in extra_exits:
+            full_priority.append(name)
+            extras_fns[name] = fn
+
     # Compute every exit condition column once.
     exit_cols: dict[str, pd.Series] = {}
-    for name in exit_priority:
-        fn = exit_registry[name]
+    for name in full_priority:
+        fn = extras_fns.get(name) or exit_registry[name]
         exit_cols[name] = (
             fn(df, entries)
             .reindex(df.index)
@@ -92,7 +101,7 @@ def simulate(
 
             best_pos = None
             best_reason = None
-            for name in exit_priority:
+            for name in full_priority:
                 col = exit_cols[name]
                 trigger_positions = window_positions[col.iloc[window_positions].to_numpy()]
                 if len(trigger_positions) == 0:

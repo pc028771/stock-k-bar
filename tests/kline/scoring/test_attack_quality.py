@@ -1,7 +1,7 @@
 """attack_quality.score: base 50 +/- factor adjustments, clipped [0, 100]."""
 from __future__ import annotations
 
-from kline.scoring.attack_quality import score
+from kline.extras.attack_quality_penalty import score
 
 from tests.conftest import make_bars
 

@@ -1,7 +1,7 @@
 """consolidation_breakdown exit tests."""
 from __future__ import annotations
 
-from kline.exit.consolidation_breakdown import mark
+from kline.extras.consolidation_breakdown import mark
 
 from tests.conftest import make_bars
 

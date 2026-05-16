@@ -24,8 +24,10 @@ STRONG_ATTACK_EXITS = [
     "high_long_black",
     # 日出攻擊結束 — 紅K篇七 + 事件十 (sub-type of strong attack)
     "sunrise_attack_end",
-    # 攻擊失敗停損 (E1-E4) — 課程 attack failure exits
-    "gap_fill",                  # E1
+    # 攻擊失敗停損 — 課程 attack failure exits
+    # NOTE: former `gap_fill` (market-adjusted excess gap) was removed (audit C2);
+    # course-faithful version = gap_attack_filled (跳空篇二). To compare,
+    # enable via `--extras gap_fill_excess_market_adjusted`.
     "breakout_low_break",        # E4
     "breakout_price_break",      # 紅K篇五
     "gap_attack_filled",         # 跳空篇二
@@ -33,8 +35,10 @@ STRONG_ATTACK_EXITS = [
 
 TREND_CHANGE_EXITS = [
     # 季線下彎 / 末升低 / 趨勢線 — 出場點(一) (slow trend change)
+    # NOTE: former crude `neckline_break` (prior_low_20 proxy) was removed
+    # (audit C3); course-precise version = ma60_neckline (季線+套牢). To compare,
+    # enable via `--extras neckline_break_crude_proxy`.
     "trend_change",
-    "neckline_break",
     "ma60_neckline",
 ]
 
@@ -57,10 +61,9 @@ SUPPLY_ZONE_EXITS = [
     "supply_zone_reach",
 ]
 
-CONSOLIDATION_EXITS = [
-    # 中樞型態跌破 — 型態學 06 (applies broadly across rally types)
-    "consolidation_breakdown",
-]
+# NOTE: `consolidation` group removed (audit C7) — 型態學 06 中樞型態 is
+# explicitly NOT for trade entry/exit per course. Detector moved to
+# extras.consolidation_breakdown for backtest comparison only.
 
 
 # === Group registry ===
@@ -72,7 +75,6 @@ EXIT_GROUPS: dict[str, list[str]] = {
     "abnormal_character": ABNORMAL_CHARACTER_EXITS,
     "short_term": SHORT_TERM_EXITS,
     "supply_zone": SUPPLY_ZONE_EXITS,
-    "consolidation": CONSOLIDATION_EXITS,
 }
 
 
@@ -81,15 +83,16 @@ EXIT_GROUPS: dict[str, list[str]] = {
 # Per course "型態突破 = 起點" + "強勢攻擊型 = 轉折組合K線出場"
 
 ENTRY_EXIT_GROUPS: dict[str, list[str]] = {
-    # All breakout/attack-style entries map to strong_attack
-    # + supply_zone (standalone) + consolidation (rally-type general)
-    "breakout_attack": ["strong_attack", "supply_zone", "consolidation"],
-    "pattern_breakout_only": ["strong_attack", "supply_zone", "consolidation"],
-    "tweezer_top_breakout": ["strong_attack", "supply_zone", "consolidation"],
-    "tweezer_top_breakout_strict": ["strong_attack", "supply_zone", "consolidation"],
+    # All breakout/attack-style entries map to strong_attack + supply_zone.
+    # NOTE: `consolidation` group removed (audit C7) — 中樞型態 NOT for trade
+    # entry/exit per course.
+    "breakout_attack": ["strong_attack", "supply_zone"],
+    "pattern_breakout_only": ["strong_attack", "supply_zone"],
+    "tweezer_top_breakout": ["strong_attack", "supply_zone"],
+    "tweezer_top_breakout_strict": ["strong_attack", "supply_zone"],
     "shoulder_gap_up_pullback": ["strong_attack", "supply_zone"],
     "sunrise_attack": ["strong_attack", "supply_zone"],
-    "combined_pattern_or_tweezer": ["strong_attack", "supply_zone", "consolidation"],
+    "combined_pattern_or_tweezer": ["strong_attack", "supply_zone"],
     # trend_reversal (currently STUB; would map to trend_change when implemented)
     "trend_reversal": ["trend_change", "supply_zone"],
 }

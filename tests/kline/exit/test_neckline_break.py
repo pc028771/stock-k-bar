@@ -7,7 +7,7 @@ Trigger fires on the CONFIRMATION DAY (one day after first break).
 """
 from __future__ import annotations
 
-from kline.exit.neckline_break import mark
+from kline.extras.neckline_break_crude import mark
 
 from tests.conftest import make_bars
 

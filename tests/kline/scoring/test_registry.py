@@ -8,7 +8,6 @@ from tests.conftest import make_bars
 
 def test_registry_has_expected_factors():
     assert set(SCORING_REGISTRY.keys()) == {
-        "attack_quality",
         "overhead_supply",
         "ma60_rolloff",
         "shadow_position",

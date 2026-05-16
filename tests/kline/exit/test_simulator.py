@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 import pandas as pd
-from kline.exit import breakout_low_break, gap_fill
+from kline.exit import breakout_low_break
 from kline.exit.simulator import simulate
+from kline.extras import gap_fill_excess_market_adjusted as gap_fill
 
 from tests.conftest import make_bars
 
 # Minimal exit registry / priority for simulator-logic tests.
 # Only include the two conditions exercised in the tests so that future real
 # pattern implementations don't inadvertently fire on the synthetic bar data.
+# Note: `gap_fill` (the non-course excess-market-adjusted variant) was moved
+# to extras (audit C2). We import it here purely as a synthetic exit for the
+# simulator-logic tests; production no longer uses it by default.
 _TEST_REGISTRY = {
     "gap_fill":           gap_fill.mark,
     "breakout_low_break": breakout_low_break.mark,

@@ -321,4 +321,38 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df["attack_intensity"] = attack_intensity.astype(int)
 
+    # === prev_bar_had_attack_meaning ===
+    # Course source: 紅K篇(二) / 買點與攻擊研判.
+    # "前一日低點" only counts as an attack stop when the previous bar had
+    # 攻擊意義. Course defines 攻擊意義 as one of:
+    #   (a) red K creating new 60-day high (close > prior_high_60)
+    #   (b) upper-shadow K at new high (high > prior_high_60 with upper shadow)
+    #   (c) doji follow-up after a red attack K (yesterday's doji after a
+    #       red-K-at-new-high two bars ago)
+    #
+    # Proxy notes:
+    #   - "upper-shadow K at new high" — we use upper_shadow > body_abs as proxy
+    #     for the course's "上影線" definition; course gives qualitative description.
+    #   - "doji follow-up" — yesterday is a doji AND the bar before was a
+    #     red K at a new 60-day high.
+    prev_is_red = g["is_red"].shift(1).fillna(False)
+    prev_close_v = g["close"].shift(1)
+    prev_prior_high_60 = g["prior_high_60"].shift(1)
+    prev_high_v = g["high"].shift(1)
+    prev_upper_shadow = g["upper_shadow"].shift(1)
+    prev_body_abs = g["body_abs"].shift(1)
+    prev_is_doji = g["is_doji"].shift(1).fillna(False)
+
+    # (a) red K at new 60-day high
+    cond_a = prev_is_red & (prev_close_v > prev_prior_high_60)
+    # (b) upper-shadow K at new high (high broke prior_high_60 with sizeable upper shadow)
+    cond_b = (prev_high_v > prev_prior_high_60) & (prev_upper_shadow > prev_body_abs.replace(0, np.nan))
+    # (c) doji follow-up after a red K at new high
+    prev2_is_red = g["is_red"].shift(2).fillna(False)
+    prev2_close = g["close"].shift(2)
+    prev2_prior_high_60 = g["prior_high_60"].shift(2)
+    cond_c = prev_is_doji & prev2_is_red & (prev2_close > prev2_prior_high_60)
+
+    df["prev_bar_had_attack_meaning"] = (cond_a | cond_b | cond_c).fillna(False)
+
     return df

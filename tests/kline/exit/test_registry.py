@@ -6,10 +6,8 @@ from kline.exit import EXIT_GROUPS, EXIT_REGISTRY
 
 def test_registry_has_all_intro_conditions():
     expected = {
-        "gap_fill",
         "breakout_price_break",
         "breakout_low_break",
-        "neckline_break",
         "trailing_stop",
         "trend_change",
         "prev_day_low_break",
@@ -18,7 +16,6 @@ def test_registry_has_all_intro_conditions():
         "high_long_black",
         "supply_zone_reach",
         "ma60_neckline",
-        "consolidation_breakdown",
         "reversal_k.dark_double_star",
         "reversal_k.bearish_engulfing",
         "reversal_k.enemy_at_gate",
@@ -27,6 +24,13 @@ def test_registry_has_all_intro_conditions():
         "reversal_k.gap_reversal",
     }
     assert expected.issubset(EXIT_REGISTRY.keys())
+
+
+def test_non_course_exits_not_in_main_registry():
+    """Audit C2/C3/C7: these moved to extras and must not be in the main registry."""
+    assert "gap_fill" not in EXIT_REGISTRY
+    assert "neckline_break" not in EXIT_REGISTRY
+    assert "consolidation_breakdown" not in EXIT_REGISTRY
 
 
 def test_all_group_exits_are_in_registry():
@@ -43,18 +47,20 @@ def test_strong_attack_group_has_expected_keys():
     group = EXIT_GROUPS["strong_attack"]
     assert "reversal_k.dark_double_star" in group
     assert "high_long_black" in group
-    assert "gap_fill" in group
     assert "breakout_low_break" in group
+    # gap_fill removed (audit C2)
+    assert "gap_fill" not in group
 
 
 def test_trend_change_group_separated_from_strong_attack():
     strong = set(EXIT_GROUPS["strong_attack"])
     trend = set(EXIT_GROUPS["trend_change"])
-    # trend_change and ma60_neckline should only be in trend_change group
     assert "trend_change" in trend
     assert "trend_change" not in strong
     assert "ma60_neckline" in trend
     assert "ma60_neckline" not in strong
+    # neckline_break removed (audit C3)
+    assert "neckline_break" not in trend
 
 
 def test_slow_push_group_has_trailing_stop():
@@ -63,3 +69,8 @@ def test_slow_push_group_has_trailing_stop():
 
 def test_short_term_group_has_prev_day_low_break():
     assert EXIT_GROUPS["short_term"] == ["prev_day_low_break"]
+
+
+def test_consolidation_group_removed():
+    """Audit C7: 中樞型態 NOT for trade entry/exit per course."""
+    assert "consolidation" not in EXIT_GROUPS

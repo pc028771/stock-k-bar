@@ -43,10 +43,11 @@ def test_tweezer_uses_strong_attack_group():
     assert "trailing_stop" not in priority
 
 
-def test_tweezer_includes_supply_zone_and_consolidation():
+def test_tweezer_includes_supply_zone_only():
+    """Audit C7: consolidation group removed; only supply_zone remains as standalone."""
     priority = get_exit_priority("tweezer_top_breakout")
     assert "supply_zone_reach" in priority
-    assert "consolidation_breakdown" in priority
+    assert "consolidation_breakdown" not in priority
 
 
 def test_trend_reversal_uses_trend_change_group():
