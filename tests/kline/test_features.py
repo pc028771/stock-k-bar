@@ -441,6 +441,61 @@ def test_is_in_breakdown_pattern_requires_ma60_down():
         "With MA60 rising (positive slope), breakdown pattern should not fire"
 
 
+def test_is_pattern_breakout_does_not_fire_with_overhead_supply():
+    """Rising lows + stable ceiling + breakout BUT overhead supply present → False.
+
+    Course source: 型態學 08-騙線型態
+    「上有壓力的突破 = 最常見的陷阱」
+    「依照頸線的定義的確是有符合突破，可是股價的上方還有著明顯套牢區……
+     可以被視為騙線型態的一種」
+
+    Setup: first 20 bars spike to high=200 (creating overhead peaks at ~200),
+    then 41+ bars of rising-low consolidation at ~100-105, then a breakout
+    to 106. The overhead_supply_layer from the spike remains > 0, so
+    is_pattern_breakout must be False even though the other 4 conditions pass.
+    """
+    rows = []
+    # Bars 0–19: spike phase — creates overhead peaks at high=200 (5-bar local max)
+    for _ in range(20):
+        rows.append({
+            "open": 190.0, "high": 200.0, "low": 188.0, "close": 195.0,
+            "volume": 1000.0, "ma60": 90.0,
+        })
+    # Bars 20–80: rising-low consolidation at ~100, highs stable at 105
+    for i in range(61):
+        low = 95.0 + i * 0.1
+        rows.append({
+            "open": low + 2.0,
+            "high": 105.0,
+            "low": low,
+            "close": low + 1.5,
+            "volume": 1000.0,
+            "ma60": 90.0,
+        })
+    # Bar 81: breakout above 105 ceiling, but overhead from the 200-spike remains
+    rows.append({
+        "open": 106.0, "high": 108.0, "low": 105.5, "close": 107.0,
+        "volume": 2000.0, "ma60": 90.0,
+    })
+
+    df = add_features(make_bars(rows))
+    last_idx = len(df) - 1
+
+    # Confirm all other conditions pass (rising lows, stable ceiling, above MA60, breakout)
+    assert df.loc[last_idx, "higher_low_count_60d"] >= 30, "rising-low condition must pass"
+    assert df.loc[last_idx, "upper_band_spread_60d"] <= 0.05, "stable-ceiling must pass"
+    assert df.loc[last_idx, "close"] > df.loc[last_idx, "prior_high_60"], "breakout must pass"
+    assert df.loc[last_idx, "close"] > df.loc[last_idx, "ma60"], "above MA60 must pass"
+
+    # The overhead from the spike must be present
+    assert df.loc[last_idx, "overhead_supply_layer"] > 0, \
+        "overhead_supply_layer must be > 0 due to prior spike at 200"
+
+    # Clean overhead condition fails → pattern breakout must NOT fire
+    assert not df.loc[last_idx, "is_pattern_breakout"], \
+        "is_pattern_breakout must be False when overhead supply exists (騙線型態)"
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),

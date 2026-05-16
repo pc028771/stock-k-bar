@@ -2,17 +2,22 @@
 
 Course source:
   - 型態學 05-三角收斂 (低點墊高 + 上緣穩定 = 主力收貨三角收斂)
+  - 型態學 08-騙線型態 (上有壓力的突破 = 最常見的陷阱 → 須先化解套牢)
   - 型態學 14-推升攻擊 (低點推升型態 = 不給散戶低接機會)
   - 型態學 03-箱型整理 + K線行進ing 事件十 (起點 vs 中繼)
+  - 行進ing 24-跳空篇三 (攻擊跳空精確邊界 = 過去沒有成交過的價位)
+  - 入門 賣壓化解 (等越過了之後才能確定有攻擊意願)
 
-A "true" pattern breakout is defined course-directly as:
-  - 低點漸漸墊高 (rising lows, >= 30 of 60 days)
-  - 上緣穩定 (stable upper boundary / ceiling, spread <= 5%)
-  - 突破上緣 (close > prior 60-day high)
-  - 站上 MA60 (multi background confirmation)
+A "true" pattern breakout is defined course-directly as (5 conditions, ALL AND):
+  A. 低點漸漸墊高 (rising lows, >= 30 of 60 days)
+  B. 上緣穩定 (stable upper boundary / ceiling, spread <= 5%)
+  C. 上方無套牢 (clean overhead: overhead_supply_layer == 0)
+  D. 突破上緣 (close > prior 60-day high)
+  E. 站上 MA60 (multi background confirmation)
 
-This distinguishes true 主力收貨三角收斂 from "sleeping" flat stocks
-(which satisfy range constraints but have no rising lows — NOT course pattern).
+This distinguishes true 主力收貨三角收斂 from:
+  - "sleeping" flat stocks (no rising lows — NOT course pattern)
+  - 騙線型態 (breakout into overhead supply — most common trap per course)
 
 Score:
   +20 if is_pattern_breakout = True

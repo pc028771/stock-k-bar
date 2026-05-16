@@ -137,22 +137,23 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         & is_ma60_down
     ).fillna(False)
 
-    # === Pattern breakout — course-faithful 起點 detection ===
-    # Course source: 型態學 03-箱型整理 + 14-推升攻擊 + 05-三角收斂 + 行進ing 事件十.
+    # === Pattern breakout — course-faithful 起點 detection (5 conditions, ALL AND) ===
+    # Course sources (all conditions are AND-combined):
+    #   A. 低點墊高 — 型態學 03-箱型整理 + 14-推升攻擊 + 行進ing 推升攻擊
+    #   B. 上緣穩定 — 型態學 05-三角收斂 (上升三角 = 低點升 + 上緣平)
+    #   C. 上方無套牢 — 型態學 08-騙線型態 + 行進ing 24-跳空篇三 + 入門 賣壓化解
+    #      「上有壓力的突破 = 最常見的陷阱」
+    #      「攻擊跳空的精確邊界 = 過去沒有成交過的價位區段」
+    #      「等到越過了之後才能確定有攻擊意願」
+    #   D. 突破前高 — 入門 突破跌破
+    #   E. 季線多頭背景 — 入門 MA60 必要條件
     #
     # Definition (course-aligned):
-    #   主力收貨的整理型態 = 低點漸漸墊高 + 上緣穩定（壓力線）
-    #   Breakout above the stable upper boundary = TRUE pattern breakout = 起點
+    #   主力收貨的整理型態 = 低點漸漸墊高 + 上緣穩定（壓力線）+ 上方無套牢
+    #   Breakout above the stable upper boundary, with overhead cleared = TRUE 起點
     #
-    # NOT: a "sleeping" flat-range stock (those have no rising lows).
-    #
-    # Detection (60-day window):
-    #   A. 低點墊高 (Rising lows) — at least HALF of the 60-day window's lows
-    #      are higher than their predecessor (consistent accumulation direction).
-    #   B. 上緣穩定 (Stable upper boundary) — the spread of the 60-day rolling-max-of-highs
-    #      is constrained (i.e., the upper boundary doesn't trend up much — a "ceiling").
-    #   C. Today breaks above that ceiling (close > prior_high_60).
-    #   D. Above ma60 (multi background) — already required.
+    # NOT: a "sleeping" flat-range stock (no rising lows = no 主力收貨 signal).
+    # NOT: a breakout into overhead supply (= 騙線型態).
 
     INTEGRATION_DAYS = 60  # ~3 months (course-stated)
 
@@ -187,13 +188,19 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["upper_band_spread_60d"] = upper_band_spread.fillna(1.0)
     STABLE_UPPER_MAX_SPREAD = 0.05  # Within 5% — upper boundary is stable
 
-    # === C. is_pattern_breakout (course-faithful) ===
-    # Rising lows (A) + stable upper boundary (B) + breakout above ceiling (C) + above MA60 (D)
+    # === C. is_pattern_breakout (course-faithful, 5 conditions ALL AND) ===
+    # Course condition C: 上方無套牢 (clean overhead)
+    # Source: 型態學 08-騙線型態 + 行進ing 24-跳空篇三 + 入門 賣壓化解
+    # "上有壓力的突破 = 最常見的陷阱"
+    # Overhead supply must be cleared BEFORE breakout to qualify as genuine 起點.
+    is_clean_overhead = df["overhead_supply_layer"].fillna(0) <= 0
+
     df["is_pattern_breakout"] = (
-        (df["higher_low_count_60d"] >= RISING_LOWS_MIN)
-        & (df["upper_band_spread_60d"] <= STABLE_UPPER_MAX_SPREAD)
-        & (df["close"] > df["prior_high_60"])
-        & df["ma60"].notna()
+        (df["higher_low_count_60d"] >= RISING_LOWS_MIN)         # A. 低點墊高
+        & (df["upper_band_spread_60d"] <= STABLE_UPPER_MAX_SPREAD)  # B. 上緣穩定
+        & is_clean_overhead                                      # C. 上方無套牢
+        & (df["close"] > df["prior_high_60"])                   # D. 突破前高
+        & df["ma60"].notna()                                     # E. 季線多頭背景
         & (df["close"] > df["ma60"])
     ).fillna(False)
 
