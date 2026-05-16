@@ -2,20 +2,22 @@
 
 Course source: 型態學 18-鑷頂與鑷底的理論學習.
 
-Structure:
+Structure (course-aligned):
   - Past N consecutive K-lines have similar highs (within tolerance)
   - Today's close breaks above the common high
-  - Must be near new high zone (above prior_high_60 within reach)
-  - Must be above MA60
+  - Position: "剛/即將創新高" → enforced via clean_overhead requirement
+  - Above MA60 (multi background)
 
-Lows rising = strong tweezer (preferred); lows falling = weak (still acceptable
-once breakout confirms).
+Important: per analysis (docs/analysis/2026-05-16-tweezer-vs-pattern.md),
+adding clean_overhead enforces the course's implicit "剛創新高" position
+requirement that was missing in the v1 implementation.
 
-Important: "沒突破之前不能靠猜" — the signal ONLY fires on the breakout day.
+"沒突破之前不能靠猜" — the signal ONLY fires on the breakout day.
 Tweezer formation alone is not an entry.
 
-Required df columns: ticker, close, high, low, prior_high_60, ma60.
-Plus excludes 破底型態 (is_in_breakdown_pattern).
+Required df columns: ticker, close, high, low, prior_high_60, ma60,
+                      overhead_supply_layer, unfilled_gap_down_count_240d,
+                      is_in_breakdown_pattern.
 """
 from __future__ import annotations
 
@@ -33,6 +35,9 @@ def detect(df: pd.DataFrame) -> pd.Series:
     Per-ticker vectorized: for each bar, check if past TWEEZER_LOOKBACK bars
     contain >= TWEEZER_MIN_COUNT highs within tolerance of each other, then
     check if today's close breaks above that "tweezer high" price.
+
+    v2: adds clean_overhead requirement to enforce the course's implicit
+    "剛創新高" position (突破型態應在上方無套牢時才成立).
     """
     g = df.groupby("ticker", group_keys=False)
 
@@ -72,6 +77,17 @@ def detect(df: pd.DataFrame) -> pd.Series:
     # Multi background
     above_ma60 = df["ma60"].notna() & (df["close"] > df["ma60"])
 
+    # Clean overhead (course-aligned: "剛創新高" position requirement)
+    # Triple-sourced: 型態學 08-騙線型態 + 行進ing 24-跳空篇三 + 入門 賣壓化解
+    # (same definition used by pattern_breakout_only / is_pattern_breakout)
+    if "unfilled_gap_down_count_240d" in df.columns:
+        is_clean_overhead = (
+            (df["overhead_supply_layer"].fillna(0) <= 0)
+            & (df["unfilled_gap_down_count_240d"].fillna(0) <= 0)
+        )
+    else:
+        is_clean_overhead = df["overhead_supply_layer"].fillna(0) <= 0
+
     # Exclude breakdown
     if "is_in_breakdown_pattern" in df.columns:
         not_breakdown = ~df["is_in_breakdown_pattern"].fillna(False)
@@ -83,5 +99,6 @@ def detect(df: pd.DataFrame) -> pd.Series:
         & breaks_tweezer
         & near_new_high
         & above_ma60
+        & is_clean_overhead
         & not_breakdown
     ).fillna(False)

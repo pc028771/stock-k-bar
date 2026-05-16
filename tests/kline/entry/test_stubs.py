@@ -24,6 +24,7 @@ def test_registry_includes_all_entry_conditions():
     assert "breakout_attack" in ENTRY_REGISTRY
     assert "pattern_breakout_only" in ENTRY_REGISTRY
     assert "tweezer_top_breakout" in ENTRY_REGISTRY
+    assert "tweezer_top_breakout_strict" in ENTRY_REGISTRY
     assert "shoulder_gap_up_pullback" in ENTRY_REGISTRY  # 型態學 17 唯一拉回承接
     assert "trend_reversal" in ENTRY_REGISTRY
     assert "sunrise_attack" in ENTRY_REGISTRY

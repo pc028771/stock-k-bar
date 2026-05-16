@@ -12,11 +12,13 @@ from . import breakout, sunrise, trend_reversal
 from . import pattern_breakout_only as _pbo_module
 from . import shoulder_gap_up_pullback as _sgup_module
 from . import tweezer_top_breakout as _ttb_module
+from . import tweezer_top_breakout_strict as _ttbs_module
 
 ENTRY_REGISTRY = {
     "breakout_attack": breakout.detect,
     "pattern_breakout_only": _pbo_module.detect,
     "tweezer_top_breakout": _ttb_module.detect,
+    "tweezer_top_breakout_strict": _ttbs_module.detect,
     "shoulder_gap_up_pullback": _sgup_module.detect,
     "trend_reversal": trend_reversal.detect,
     "sunrise_attack": sunrise.detect,
@@ -26,6 +28,7 @@ ENTRY_REGISTRY = {
 breakout_attack = breakout.detect
 pattern_breakout_only = _pbo_module.detect
 tweezer_top_breakout = _ttb_module.detect
+tweezer_top_breakout_strict = _ttbs_module.detect
 shoulder_gap_up_pullback = _sgup_module.detect
 trend_reversal_entry = trend_reversal.detect
 sunrise_attack = sunrise.detect
@@ -35,6 +38,7 @@ __all__ = [
     "breakout",
     "pattern_breakout_only",
     "tweezer_top_breakout",
+    "tweezer_top_breakout_strict",
     "shoulder_gap_up_pullback",
     "sunrise",
     "trend_reversal",
