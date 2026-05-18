@@ -48,11 +48,3 @@ dist/
 
 # FinMind cached raw data
 data/raw/
-
-# Python cache
-__pycache__/
-
-# 個人對帳單（含敏感交易資料，禁止 commit）
-**/trade_history*.csv
-**/對帳單*.csv
-**/transactions*.csv
