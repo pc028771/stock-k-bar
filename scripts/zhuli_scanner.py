@@ -5,6 +5,7 @@ Supports:
   - H 窒息量（suffocation）
   - M 主力意圖收高開低/收低開高（open_signal_filter）
   - J 投信首買（institutional_firstbuy）
+  - A 大波段選股（swing_breakout）— 族群+籌碼+技術三面
 
 Usage:
     python scripts/zhuli_scanner.py --help
@@ -16,6 +17,8 @@ Usage:
     python scripts/zhuli_scanner.py --signal open_signal_filter --config-override prev_volume_multiplier=1.5
     python scripts/zhuli_scanner.py --signal institutional_firstbuy --date 2026-05-15
     python scripts/zhuli_scanner.py --signal institutional_firstbuy --config-override min_firstbuy_volume=50
+    python scripts/zhuli_scanner.py --signal swing_breakout --date 2026-05-15
+    python scripts/zhuli_scanner.py --signal swing_breakout --config-override enforce_dist_to_ma20=true
 
 Course: 主力大全方位操盤教戰守則 (林家洋)
 """
@@ -38,7 +41,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
-from zhuli.config import InstitutionalFirstBuyConfig, OpenSignalConfig, SuffocationConfig
+from zhuli.config import InstitutionalFirstBuyConfig, OpenSignalConfig, SuffocationConfig, SwingBreakoutConfig
 from zhuli.entry import ENTRY_REGISTRY
 from zhuli.features import add_zhuli_features
 
@@ -55,7 +58,14 @@ _SIGNAL_DEFAULTS: dict[str, tuple[type, Path]] = {
         InstitutionalFirstBuyConfig,
         Path("data/analysis/zhuli/institutional_firstbuy_scanner.csv"),
     ),
+    "swing_breakout": (
+        SwingBreakoutConfig,
+        Path("data/analysis/zhuli/swing_breakout_scanner.csv"),
+    ),
 }
+
+# swing_breakout 需要額外的資料表（法人全欄位 + stock_info）
+_SIGNALS_WITH_DB_DEPS = {"institutional_firstbuy", "swing_breakout"}
 
 
 def run(
@@ -101,8 +111,8 @@ def run(
     feats = add_features(bars)
     feats = add_zhuli_features(feats)
 
-    # institutional_firstbuy 需要額外的投信資料；其他 signal 只用 feats
-    if signal_name == "institutional_firstbuy":
+    # 部分 signal 需要額外的資料表（透過 db_path 傳入讓 detect() 自行讀取）
+    if signal_name in _SIGNALS_WITH_DB_DEPS:
         signals = detect_fn(feats, cfg=cfg, db_path=db_path)
     else:
         signals = detect_fn(feats, cfg=cfg)
@@ -281,6 +291,10 @@ Examples:
             "ideal_ma_align", "suffocation_vol_ratio", "breakout_bar_type",
             # institutional_firstbuy columns
             "sitc_net", "price_divergence", "close", "ma10",
+            # swing_breakout columns
+            "name", "industry", "foreign_net", "inst_net", "vol_ratio",
+            "ma20", "ma20_slope", "ma60_slope", "dist_to_ma20_pct",
+            "sector_density", "sector_peers", "score",
         ]
         summary_cols = [c for c in preferred_cols if c in df.columns]
         print(df[summary_cols].to_string(index=False))

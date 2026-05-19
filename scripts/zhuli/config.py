@@ -257,3 +257,85 @@ class InstitutionalFirstBuyConfig:
             else:
                 d[key] = raw_val
         return InstitutionalFirstBuyConfig.from_dict(d)
+
+
+@dataclass
+class SwingBreakoutConfig:
+    """Parameters for A 大波段選股策略 (zhuli_swing_breakout).
+
+    Source: strategy-indicators.md §A 大波段選股策略（Swing Breakout）
+            course_principles.md §7 大波段選股 SOP
+
+    Fields are grouped into:
+      - Hard rules: spec-defined constants from course, generally not tunable.
+      - Soft margins: calibratable via CLI or JSON override file.
+      - Liquidity filters: operational filters (course-neutral defaults).
+    """
+
+    # === 籌碼面（必要，擇一）===
+    # Source: strategy-indicators.md §A — 「外資（或投信）買超 ≥ 1/3 當日成交量，或 ≥ 兩萬張」
+    # User 拍板：3.0x volume ratio 即 1/3
+    institutional_volume_ratio: float = 1 / 3          # 法人買超 ≥ 1/3 當日成交量
+    institutional_volume_absolute: int = 20000          # 或 ≥ 兩萬張（課程明說）
+
+    # === 技術面（必要）===
+    # Source: strategy-indicators.md §A — 「20ma 與 60ma 皆呈現上彎」
+    require_ma20_slope_up: bool = True                  # 月線上彎（必要）
+    require_ma60_slope_up: bool = True                  # 季線上彎（必要）
+
+    # === 距月線理想條件 ===
+    # Source: strategy-indicators.md §A — 「理想：當前股價離 20MA 在 5% 以內」
+    # enforce_dist_to_ma20 = False → 理想條件（只加分，不過濾）
+    # enforce_dist_to_ma20 = True  → 必要條件（過濾掉不符合的）
+    max_dist_to_ma20_pct: float = 0.05                  # 距月線 ≤ 5%（理想門檻）
+    enforce_dist_to_ma20: bool = False                  # 預設理想條件不強制（CLI 可開）
+
+    # === 族群密度（必要）===
+    # Source: strategy-indicators.md §A — 「同產業 ≥ 3 檔出現在買超前列」
+    sector_density_min_count: int = 3                   # 同族群 ≥ 3 檔籌碼面成立
+    require_sector_density: bool = True                 # 族群面為必要條件
+
+    # === 流動性過濾（課程中立操作門檻）===
+    min_avg_volume_20: int = 200                        # 20日均量 ≥ 200 張
+    min_close: float = 10.0                             # 收盤 ≥ 10 元
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "SwingBreakoutConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "SwingBreakoutConfig":
+        """Load config overrides from a JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "SwingBreakoutConfig":
+        """Apply KEY=VALUE string overrides (from CLI --config-override).
+
+        Values are coerced to the correct Python type based on the field's
+        current default type (bool, int, float).
+
+        Example:
+            cfg.apply_overrides({"institutional_volume_ratio": "0.25"})
+        """
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown SwingBreakoutConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return SwingBreakoutConfig.from_dict(d)

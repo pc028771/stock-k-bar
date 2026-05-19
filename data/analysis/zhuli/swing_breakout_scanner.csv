@@ -1,0 +1,2 @@
+ticker,name,signal_date,industry,foreign_net,sitc_net,inst_net,vol_ratio,close,ma20,ma60,ma20_slope,ma60_slope,dist_to_ma20_pct,sector_density,sector_peers,gap_closed,stop_loss,score,entry_note
+2303,聯電,2026-05-15,半導體業,0.0,39167.313,39167.313,0.0946,110.0,85.59,68.99333333333334,0.13507061865924008,0.05309216718817589,0.2852,1,,False,85.59,4.0,籌碼大買日不立即進場。等次日技術面確認（月線附近、量縮後出量站上）再切入。停損：收盤跌破月線（MA20）或大量黑K 跌破前一根紅K 低點。
