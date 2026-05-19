@@ -45,3 +45,6 @@ dist/
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+
+# FinMind cached raw data
+data/raw/
