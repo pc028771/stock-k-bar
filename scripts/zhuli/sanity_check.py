@@ -168,7 +168,12 @@ def run_sanity_check(
                 nearest = any_signals.iloc[
                     (any_signals["signal_date"] - spec_date).abs().argsort().iloc[0]
                 ]
-                nearest_date = pd.Timestamp(nearest["signal_date"]).strftime("%Y-%m-%d")
+                nearest_ts = pd.Timestamp(nearest["signal_date"])
+                nearest_date = (
+                    nearest_ts.strftime("%Y-%m-%d")
+                    if nearest_ts is not pd.NaT and not pd.isnull(nearest_ts)
+                    else "unknown"
+                )
                 reason = (
                     f"No signal within ±{TOLERANCE_DAYS} trading days. "
                     f"Nearest signal: {nearest_date}"
