@@ -1,1 +1,2 @@
 ticker,signal_date,sitc_net,sitc_buy,sitc_sell,no_buy_window_days,price_divergence,close,ma10,ideal_ma_align,entry_note,stop_loss
+2495,2026-05-19,214.0,214.0,0.0,60,True,35.75,37.225,False,隔日依 5分K SOP 積極進場，或等回十日線附近出量站上（穩健）。停損：收盤跌破十日線（MA10）。,37.225

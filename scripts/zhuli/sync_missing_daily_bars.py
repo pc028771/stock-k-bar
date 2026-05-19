@@ -122,7 +122,7 @@ def upsert_bars(conn: sqlite3.Connection, df: pd.DataFrame) -> int:
 def fetch_institutional_for_ticker(client: FinMindClient, ticker: str, start: str, end: str) -> pd.DataFrame:
     """Returns aggregated DF: ticker, trade_date, sitc_*, foreign_*."""
     try:
-        raw = client.get_institutional_investors_buy_sell(ticker, start, end)
+        raw = client.get_institutional(ticker, start, end)  # FinMindClient v2 method name
     except Exception as e:
         print(f"    inst fetch FAIL: {e}")
         return pd.DataFrame()
