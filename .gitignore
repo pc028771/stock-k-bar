@@ -45,3 +45,6 @@ dist/
 
 # Notebook checkpoints
 .ipynb_checkpoints/
+
+# Claude Code local state (settings + worktrees)
+.claude/
