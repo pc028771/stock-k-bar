@@ -175,7 +175,75 @@ stock-analysis-system/docs/scripts/ 下既有的 .txt 講稿是這個格式（us
 
 **目的：** 抓投影片錯字當場手寫修正、紅筆圈點、K 圖手寫具體價位。
 
-### 核心障礙 — PressPlay anti-screenshot DRM
+### 三層截圖策略（依需求選）
+
+| 層 | 方法 | 解析度 | 適用情境 |
+|---|---|---|---|
+| **L1 — Sprite Thumbnail（首選）** | `media-v2.pressplay.cc` 預生成 11×11 grid sprite + `fetch credentials:'include'` 取得 | 427×240 native（縮放到 960×540）| 投影片文字、SOP 條列、純概念講解、手寫紅筆大字 — **DRM 完全繞過**、**最快**、適合 80% 章節 |
+| **L2 — Canvas drawImage（中等）** | 每張 per-shot navigate + `?fresh={ts}-{i}` + `video.play+seek+drawImage` | 1280×720 / 1920×1080（依 video 原解析度）| Sprite 之外的補充細節；K 圖中等複雜度 — 但**少數章節觸發 anti-screenshot DRM 會定格** |
+| **L3 — pimeo_content TS + ffmpeg（HD 需求）** | seek video 累積 `performance.getEntriesByType('resource')` 抓 segment URL → curl + ffmpeg 抽 frame | **1080p native（1920×1080）** | K 圖精細案例、講師手寫小字數字、需要 pixel-perfect 細節時 |
+
+### 決策樹
+
+```
+需要截圖？
+├─ 純投影片文字 / SOP / 心法 → L1 Sprite
+├─ K 線案例（中等細節）→ 試 L2，若 DRM 定格 → 退 L1 / 升 L3
+└─ K 圖精細數字 / 小蠟燭 / 手寫小字 → L3 ffmpeg
+```
+
+**節省原則：簡單的東西用 thumbnail，需要細節的才另外抓清晰版。**
+
+### L1 — Sprite Thumbnail（首選，DRM-immune）
+
+#### 取得 sprite 機制
+
+PressPlay 每影片預生成 120-frame thumbnail grid：
+- URL pattern: `https://media-v2.pressplay.cc/.../<videoId>/thumbnail/output.jpg?v=<version>`
+- 規格：4697×2640（每 frame 427×240、11×11 grid，總 120 frames，最後 1 個 cell 空）
+- frame 對應公式：`frame_idx = round(timestamp / (duration / 120))`
+- 取得：純 `<img>` 載入 / `fetch({credentials: 'include'})`，**不過 video element、不過 canvas readback**
+- 無 anti-screenshot DRM、無 EME 鎖、無 multi-download approval
+
+#### JS 取得 sprite + slice 個別 frame
+
+```js
+// 取得 sprite URL（從 video player 的 thumbnail config 找）
+const sprite_url = ...;  // 反查 player.tech_.vhs.options_.previewImages 或直接抓 master m3u8
+
+// fetch 整張 sprite
+const resp = await fetch(sprite_url, {credentials: 'include'});
+const blob = await resp.blob();
+const img = new Image();
+img.src = URL.createObjectURL(blob);
+await img.decode();
+
+// 切出 frame
+const FRAMES_PER_ROW = 11;
+const FRAME_W = img.naturalWidth / FRAMES_PER_ROW;
+const FRAME_H = img.naturalHeight / FRAMES_PER_ROW;
+const duration = videoDuration;  // 秒
+const interval = duration / 120;
+
+function spriteFrameAt(timestamp) {
+  const idx = Math.round(timestamp / interval);
+  const row = Math.floor(idx / FRAMES_PER_ROW);
+  const col = idx % FRAMES_PER_ROW;
+  const c = document.createElement('canvas');
+  c.width = FRAME_W; c.height = FRAME_H;
+  c.getContext('2d').drawImage(img, col*FRAME_W, row*FRAME_H, FRAME_W, FRAME_H, 0, 0, FRAME_W, FRAME_H);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+```
+
+把整張 sprite 存 `data/analysis/zhuli/video_screenshots/sprites/{ch}_sprite.jpg`（備份用），切出來的 frames 存 `{ch}/{ch}_{MM-SS}.jpg`。
+
+#### 限制
+
+- frame interval 是 `duration/120` — 14:23 影片每 7s 一張、72 分鐘影片每 36s 一張。timestamp 對應到「最近的 frame」，可能差 ±幾秒
+- 不過大多數投影片**停留時間 > frame interval**，所以實際畫面內容對得上
+
+### L2 — Canvas drawImage（中等，部分章節 DRM 卡）
 
 | 觸發機制 | 行為 | Workaround |
 |---|---|---|
@@ -245,6 +313,158 @@ stock-analysis-system/docs/scripts/ 下既有的 .txt 講稿是這個格式（us
 - 單一 Chrome session 可拍 ~120 張後仍順利（Batch A 122/122 成功）
 - 累積 ~150-200 張後可能觸發整 session DRM frame-lock，**需 Chrome 完全重啟**才解
 - ex1-1/ex1-2 / ch4-1 / ch5-2 等少數章節對 EME 較敏感，初次 fresh URL 可能失敗 → retry 不同 `?fresh=` value 通常解
+- ch6-1/ch5-2/ch4-1 等章節 canvas drawImage **回傳定格畫面**（avgRGB 看起來不同但內容是同一張）— 升 L3 或退 L1
+
+---
+
+### L3 — JWT m3u8 + iframe XHR + ffmpeg（HD 1080p native）
+
+當 L1/L2 都不夠細節（K 圖小蠟燭、講師手寫小字、數字辨識），走影片本身 segment。
+
+#### 關鍵發現
+
+- Master m3u8（`/vp/{videoId}.m3u8`）**無 EXT-X-KEY** → segments 未加密
+- variant playlist 有 4 個解析度（360/480/720/1080）→ 取最高 1080p
+- segment URL 是 JWT token（`media.pressplay.cc/jt/eyJ...`）
+- ⚠️ **JWT URL 只認 iframe context 的 XHR**：
+  - 直接 curl / parent page `XMLHttpRequest` → **403**
+  - iframe 內部 `iwin.XMLHttpRequest` + `withCredentials=true` → **200**
+  - 原因：JWT 綁定 iframe origin + session cookies
+- ~~pimeo_content 路徑（早期 POC）~~ — 在 production session 仍 403，不可用
+
+#### 操作流程（每章，已驗證可行 — 主力大 5 章 92 張全成功）
+
+**Step 1: 從 iframe XHR 抓 1080p variant m3u8**
+
+```js
+// 必須在 PressPlay article tab JS 跑
+(async () => {
+  const f = document.querySelector('iframe.vpPlayer');
+  const iwin = f.contentWindow;  // ⚠️ iframe context
+  const v = f.contentDocument.querySelector('video');
+  const player = iwin.videojs.getPlayer(v) || Object.values(iwin.videojs.getPlayers())[0];
+  const vhs = player.tech_.vhs;
+  const playlists = vhs.playlists.master.playlists;
+  // 找最高解（通常 4 個解析度：360/480/720/1080）
+  const p1080 = playlists.find(p => p.attributes.RESOLUTION?.height === 1080)
+              || playlists[playlists.length - 1];
+  const variantUrl = p1080.resolvedUri;
+  
+  // ⚠️ 必須用 iwin.XMLHttpRequest（iframe 的），不是 window.XMLHttpRequest
+  const text = await new Promise((res, rej) => {
+    const x = new iwin.XMLHttpRequest();
+    x.open('GET', variantUrl);
+    x.withCredentials = true;
+    x.onload = () => res(x.responseText);
+    x.onerror = rej;
+    x.send();
+  });
+  return text;  // m3u8 text
+})()
+```
+
+**Step 2: 解析 m3u8 找 target segments**
+
+```js
+const lines = m3u8.split('\n');
+const segs = [];
+let cumDur = 0;
+for (let i = 0; i < lines.length; i++) {
+  if (lines[i].startsWith('#EXTINF:')) {
+    const d = parseFloat(lines[i].slice(8).split(',')[0]);
+    const url = lines[i+1].trim();
+    segs.push({start: cumDur, dur: d, url});
+    cumDur += d;
+  }
+}
+// 對每個 target timestamp 找對應 segment + 段內 offset
+const targets = SHOT_TIMESTAMPS;
+const matched = targets.map(ts => {
+  const seg = segs.find(s => s.start <= ts && ts < s.start + s.dur);
+  return {ts, segUrl: seg.url, offsetInSeg: ts - seg.start};
+});
+```
+
+**Step 3: iframe XHR 下載 segment → POST 到本地 server**
+
+啟動本地 server（Node.js）：
+```bash
+cat > /tmp/save_server.js <<'NODESRV'
+const http = require('http'), fs = require('fs'), url = require('url'), path = require('path');
+http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.end();
+  const u = url.parse(req.url, true);
+  fs.mkdirSync(u.query.dir, {recursive: true});
+  const chunks = [];
+  req.on('data', c => chunks.push(c));
+  req.on('end', () => {
+    fs.writeFileSync(path.join(u.query.dir, u.query.name), Buffer.concat(chunks));
+    res.end('ok');
+  });
+}).listen(18765);
+NODESRV
+node /tmp/save_server.js &
+SERVER_PID=$!
+```
+
+JS 端（iframe context）：
+```js
+async function dlSeg(segUrl, segName) {
+  // ⚠️ 用 iwin.XMLHttpRequest
+  const buf = await new Promise((res, rej) => {
+    const x = new iwin.XMLHttpRequest();
+    x.open('GET', segUrl);
+    x.withCredentials = true;
+    x.responseType = 'arraybuffer';
+    x.onload = () => res(x.response);
+    x.send();
+  });
+  await fetch(`http://localhost:18765/?dir=/tmp/${CH}_ts&name=${segName}`, {
+    method: 'POST', body: buf
+  });
+}
+```
+
+**Step 4: ffmpeg per-segment extract（無需 concat）**
+
+```bash
+for line in $(cat /tmp/{ch}_targets.json | jq -r '.[] | "\(.ts)|\(.segName)|\(.offsetInSeg)"'); do
+  ts=$(echo $line | cut -d'|' -f1)
+  seg=$(echo $line | cut -d'|' -f2)
+  off=$(echo $line | cut -d'|' -f3)
+  mm=$((ts/60)); ss=$((ts%60))
+  fname=$(printf "{ch}_%02d-%02d.jpg" $mm $ss)
+  # ⚠️ -pix_fmt yuvj420p 不能少（mjpeg 需 full-range YUV）
+  ffmpeg -y -loglevel warning -i "/tmp/{ch}_ts/$seg" -ss $off -pix_fmt yuvj420p -q:v 2 -frames:v 1 -update 1 "/tmp/{ch}_jpg/$fname"
+done
+```
+
+**Step 5: cp 到 worktree + 清 tmp + 關 server**
+
+```bash
+WORKTREE_DIR="/Users/howard/Repository/stock-k-bar/.claude/worktrees/<worktree>/data/analysis/zhuli/video_screenshots/{ch}"
+cp /tmp/{ch}_jpg/*.jpg "$WORKTREE_DIR/"
+rm -rf /tmp/{ch}_ts /tmp/{ch}_jpg /tmp/{ch}_targets.json
+kill $SERVER_PID
+```
+
+#### 解析度 / 成本對比
+
+| 路線 | 解析度 | 每張時間 | 成功率 |
+|---|---|---|---|
+| L1 Sprite | 427×240 → upscale 960×540 | < 1 秒（一次 fetch 整 sprite，本地 slice） | 100%（無 DRM）|
+| L2 Canvas | 1280×720 ~ 1920×1080 | ~10 秒 | 80%（部分章節 DRM 定格）|
+| L3 ffmpeg | **1920×1080 native** | ~30 秒（含 segment 累積 + ffmpeg）| 100% |
+
+#### 注意
+
+- segment 累積要讓 video 真的 seek 過該範圍，4x 加速可加快
+- JS 取 segment URL **不能直接 return 一大個 list**（chrome MCP 截斷）→ 改成寫 `localStorage.setItem('segs', JSON.stringify(...))` 再 read 出來
+- token 長效但不保證跨日，建議當 session 內用完
+- 跑完一章節，segments 共 ~50-100MB（暫存 /tmp，跑完清掉）
 
 ---
 
