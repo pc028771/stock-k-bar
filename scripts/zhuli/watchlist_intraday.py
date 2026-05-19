@@ -1,0 +1,206 @@
+"""即時觀察 5 檔（明日進場 3 + 持股 2）量價指標。
+
+用法：
+    python scripts/zhuli/watchlist_intraday.py
+
+需要環境變數：FUBON_PID / FUBON_API_KEY / FUBON_CREDENTIAL_FILE / FUBON_CREDENTIAL_PWD
+（從 .env 自動載入，不要 curl Fubon API）
+
+顯示：
+  - 即時 OHLC + 漲跌幅
+  - 量能 vs vol_ma20 (即時 vol_ratio)
+  - ma20 / bias / slope
+  - 各檔課程框架觀察指標即時狀態
+"""
+from __future__ import annotations
+
+import sqlite3
+import sys
+from datetime import datetime
+from pathlib import Path
+
+# Path setup
+_WORKTREE = Path(__file__).parent.parent.parent
+_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
+for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from clients.fubon_client import FubonClient  # noqa: E402
+from kline.bars import DEFAULT_DB_PATH  # noqa: E402
+
+# 5 檔清單：(ticker, name, role, sector)
+WATCHLIST = [
+    ("2472", "立隆電", "觀察首選", "被動元件"),
+    ("6139", "亞翔", "觀察次選", "玻璃基板"),
+    ("3663", "鑫科", "觀察攻擊", "玻璃基板"),
+    ("8064", "東捷", "持股", "玻璃基板"),
+    ("8027", "鈦昇", "持股", "機器人"),
+]
+
+# 每檔課程框架觀察指標（觀察/持股 通用 checklist）
+CHECKS = {
+    "2472": [
+        ("守 ma20", lambda r: r["price"] > r["ma20"]),
+        ("bias < +25% 健康", lambda r: r["bias"] < 0.25),
+        ("ma20_slope 維持 >= +6%", lambda r: r["ma20_slope"] >= 0.06),
+        ("未跌破前波低 (~210)", lambda r: r["low"] > 210),  # 估算前波低
+    ],
+    "6139": [
+        ("守 ma20", lambda r: r["price"] > r["ma20"]),
+        ("bias < +15% 健康", lambda r: r["bias"] < 0.15),
+        ("量能放大 (vr >= 1.5)", lambda r: r["vol_ratio"] >= 1.5),
+        ("動能啟動 slope >= +3%", lambda r: r["ma20_slope"] >= 0.03),
+    ],
+    "3663": [
+        ("守 ma20", lambda r: r["price"] > r["ma20"]),
+        ("守攻擊 K 半段 ~79.8", lambda r: r["price"] >= 79.8),
+        ("ma20_slope 維持上彎 > 0", lambda r: r["ma20_slope"] > 0),
+        ("未量縮收黑 (收紅 or 量增)",
+         lambda r: r["price"] >= r["open"] or r["vol_ratio"] >= 1.0),
+    ],
+    "8064": [
+        ("守 ma20", lambda r: r["price"] > r["ma20"]),
+        ("守 5/15 低 117.5", lambda r: r["low"] > 117.5),
+        ("低點走高（今低 > 昨低 130.5）", lambda r: r["low"] >= 130.5),
+        ("未大黑K 包覆 (今 C >= 昨 O 130.5)",
+         lambda r: r["price"] >= 130.5),
+    ],
+    "8027": [
+        ("守 5/18 關鍵低 231.5", lambda r: r["price"] > 231.5),
+        ("守 5/15 關鍵低 242.5", lambda r: r["price"] > 242.5),
+        ("未進一步跌破 ma20", lambda r: r["price"] > r["ma20"]),
+        ("低點不再下降（今低 > 昨低 257）",
+         lambda r: r["low"] >= 257),
+    ],
+}
+
+
+def get_db_baseline(db_path: Path, tickers: list[str]) -> dict:
+    """取最後一筆 baseline: ma20 / ma60 / ma20_slope / vol_ma20."""
+    with sqlite3.connect(db_path) as conn:
+        cur = conn.cursor()
+        result = {}
+        for t in tickers:
+            cur.execute("""
+                SELECT trade_date, close, ma20, ma60, ma20_slope, vol_ma20
+                FROM standard_daily_bar
+                WHERE ticker=? ORDER BY trade_date DESC LIMIT 1
+            """, (t,))
+            row = cur.fetchone()
+            if row:
+                result[t] = {
+                    "baseline_date": row[0],
+                    "prev_close": row[1],
+                    "ma20": row[2] or 0,
+                    "ma60": row[3] or 0,
+                    "ma20_slope": row[4] or 0,
+                    "vol_ma20": row[5] or 0,
+                }
+        return result
+
+
+def fetch_intraday(client: FubonClient, ticker: str) -> dict | None:
+    snap = client.get_realtime_snapshot(ticker)
+    if snap is None:
+        return None
+    # FubonClient.get_realtime_snapshot 回傳: close/open/high/low/change_price/change_rate/total_volume/total_amount
+    return {
+        "price": snap.get("close"),
+        "open": snap.get("open"),
+        "high": snap.get("high"),
+        "low": snap.get("low"),
+        "change_pct": snap.get("change_rate"),
+        "volume": snap.get("total_volume", 0),  # 張
+        "amount": snap.get("total_amount", 0),
+    }
+
+
+def fmt_check(label: str, ok: bool) -> str:
+    icon = "✓" if ok else "✗"
+    color = "  " if ok else "⚠ "
+    return f"      {color}{icon} {label}"
+
+
+def main():
+    db_path = DEFAULT_DB_PATH
+    tickers = [t[0] for t in WATCHLIST]
+
+    # 1. 從 DB 拿昨日 baseline
+    baseline = get_db_baseline(db_path, tickers)
+
+    # 2. Fubon 即時
+    print(f"連線 Fubon API ...", end="", flush=True)
+    client = FubonClient()
+    print(" OK")
+
+    # 3. 大盤 0050
+    try:
+        mkt = client.get_realtime_snapshot("0050")
+        mkt_pct = mkt.get("change_rate", 0)
+        mkt_price = mkt.get("close", 0)
+    except Exception as e:
+        mkt_pct = None
+        mkt_price = None
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print()
+    print("=" * 78)
+    print(f"  即時觀察盤面 — {now}")
+    if mkt_pct is not None:
+        sign = "+" if mkt_pct >= 0 else ""
+        print(f"  大盤 0050: {mkt_price}  ({sign}{mkt_pct:.2f}%)")
+    print("=" * 78)
+
+    for ticker, name, role, sector in WATCHLIST:
+        b = baseline.get(ticker)
+        if not b:
+            print(f"\n[{role}] {ticker} {name} — 無 DB baseline")
+            continue
+        live = fetch_intraday(client, ticker)
+        if not live or live["price"] is None:
+            print(f"\n[{role}] {ticker} {name} — 即時資料失敗")
+            continue
+
+        # 計算衍生
+        price = live["price"]
+        bias = (price / b["ma20"] - 1) if b["ma20"] else 0
+        vol_ratio = (live["volume"] / b["vol_ma20"]) if b["vol_ma20"] else 0
+        vs_prev = (price / b["prev_close"] - 1) * 100 if b["prev_close"] else 0
+        rs = vs_prev - (mkt_pct or 0)  # vs 大盤 超額
+
+        row = {
+            "price": price, "open": live["open"], "high": live["high"], "low": live["low"],
+            "ma20": b["ma20"], "ma60": b["ma60"],
+            "ma20_slope": b["ma20_slope"],
+            "bias": bias, "vol_ratio": vol_ratio,
+        }
+
+        sign = "+" if vs_prev >= 0 else ""
+        print(f"\n[{role}] {ticker} {name} ({sector})")
+        print(f"  即時 {price:>7.2f}  ({sign}{vs_prev:.2f}% vs 昨收 {b['prev_close']:.2f})  "
+              f"超額 RS {rs:+.2f}%")
+        print(f"  OHL  O:{live['open']:.2f}  H:{live['high']:.2f}  L:{live['low']:.2f}")
+        print(f"  量能  {live['volume']:>10,} 張  (vr {vol_ratio:.2f} vs vol_ma20)")
+        print(f"  MA20  {b['ma20']:>7.2f}  bias {bias*100:+.1f}%  "
+              f"slope {b['ma20_slope']*100:+.1f}%")
+        print(f"  MA60  {b['ma60']:>7.2f}")
+        print(f"  觀察指標即時狀態：")
+        for label, fn in CHECKS.get(ticker, []):
+            try:
+                ok = fn(row)
+                print(fmt_check(label, ok))
+            except Exception as e:
+                print(f"      ? {label} (計算錯誤: {e})")
+
+    print()
+    print("=" * 78)
+    print(" 備註：")
+    print(" - ma20/slope/vol_ma20 取自昨日收盤 baseline (DB)")
+    print(" - bias = (現價/ma20)-1，vol_ratio = (即時量/昨日 vol_ma20)")
+    print(" - 課程紅線：判斷以收盤價為準，盤中震盪非依據")
+    print(" - 重跑：python scripts/zhuli/watchlist_intraday.py")
+
+
+if __name__ == "__main__":
+    main()
