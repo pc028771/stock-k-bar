@@ -1,9 +1,30 @@
 # 下次 Session 接手清單
 
-> **最後 session 結束：** 2026-05-18
-> **當前 worktree：** `.claude/worktrees/course-zhuli-integration`（基於 master）
+> **最後 session 結束：** 2026-05-19
+> **當前 worktree：** `.claude/worktrees/course-zhuli-on-main`（基於 main，K線力量最新模組化結構）
 >
-> ⚠️ **下次 session 繼續使用這個 worktree** — 別跑去 `course-zhuli-on-main` 開新工作。剩下的截圖補拍、Vision 比對都應在這個 worktree 完成。等到「課程內容全部補完」之後，才把 docs+data 整批搬到 `course-zhuli-on-main`（並廢棄這個）。
+> ✅ **課程內容已全部補完 + 搬到新 worktree**。25 章字幕、26 章 658 張 1080p 截圖、26 章 vision 比對、4 份主 spec + 整合報告。
+> ⚠️ 舊 worktree（`course-zhuli-integration`）保留作備份，不要動。Phase 1 scanner 開發在這個 worktree 進行。
+
+## ✅ 已完成
+
+| 項目 | 狀態 |
+|---|---|
+| 字幕 + triggers + shot_timestamps（25 章）| ✅ |
+| 26 章 658 張截圖（全 1920×1080）| ✅ |
+| 26 章 vision 比對 + handwritten_extracts.md | ✅ |
+| 主 spec（course_principles / strategy-indicators / strategy-readiness）含 HD 整合 | ✅ |
+| WORKFLOW（L1/L2/L3 + 解析度判別表）| ✅ `docs/COURSE_EXTRACTION_WORKFLOW.md` |
+| Phase 1 scanner 拍板建議 | ✅ `docs/主力大課程/phase1_scanner_proposal.md` |
+
+## 🎯 Phase 1 開發起點
+
+讀 `docs/主力大課程/phase1_scanner_proposal.md` — 4 個候選 scanner（H 窒息量 top pick）+ user 拍板 9 項決策。
+
+進 scanner 開發前需拍板:
+1. 先寫哪個 scanner（H 窒息量推薦）
+2. 並行 vs 順序
+3. 量化預設值（大量 N 倍 / 族群密度 / 投信首買「剛上榜」N 天）
 
 ---
 
