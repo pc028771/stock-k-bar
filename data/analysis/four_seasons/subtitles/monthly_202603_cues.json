@@ -1,0 +1,872 @@
+[
+  {
+    "startTime": 0.0,
+    "endTime": 0.9,
+    "text": "好 大家晚安"
+  },
+  {
+    "startTime": 0.9,
+    "endTime": 3.319,
+    "text": "今天來看一下這個目前是"
+  },
+  {
+    "startTime": 3.319,
+    "endTime": 6.54,
+    "text": "2026年3月30號的晚上11點"
+  },
+  {
+    "startTime": 6.54,
+    "endTime": 7.82,
+    "text": "所以我們現在來看一下"
+  },
+  {
+    "startTime": 7.82,
+    "endTime": 9.019,
+    "text": "3月底呢"
+  },
+  {
+    "startTime": 9.019,
+    "endTime": 10.839,
+    "text": "在我們的系統裡面"
+  },
+  {
+    "startTime": 10.839,
+    "endTime": 13.259,
+    "text": "找出春夏秋冬的股票哪些"
+  },
+  {
+    "startTime": 13.259,
+    "endTime": 14.779,
+    "text": "那首先我們來看一下"
+  },
+  {
+    "startTime": 14.779,
+    "endTime": 16.42,
+    "text": "春夏秋冬的篩選參數"
+  },
+  {
+    "startTime": 16.42,
+    "endTime": 18.92,
+    "text": "春天呢 我的月線斜率呢"
+  },
+  {
+    "startTime": 18.92,
+    "endTime": 20.079,
+    "text": "就有-1跟-1之間"
+  },
+  {
+    "startTime": 20.079,
+    "endTime": 21.379,
+    "text": "帶寬小於10"
+  },
+  {
+    "startTime": 21.379,
+    "endTime": 25.539,
+    "text": "然後主力5日 10日 20日呢"
+  },
+  {
+    "startTime": 25.539,
+    "endTime": 27.0,
+    "text": "全部都大於 0"
+  },
+  {
+    "startTime": 27.0,
+    "endTime": 29.8,
+    "text": "那這個實行的策略呢"
+  },
+  {
+    "startTime": 29.8,
+    "endTime": 30.839,
+    "text": "就有這幾檔"
+  },
+  {
+    "startTime": 30.839,
+    "endTime": 32.64,
+    "text": "那我們把殖利率把它拉一下"
+  },
+  {
+    "startTime": 33.159,
+    "endTime": 34.439,
+    "text": "殖利率可以拉來這邊看"
+  },
+  {
+    "startTime": 35.1,
+    "endTime": 36.64,
+    "text": "這殖利率"
+  },
+  {
+    "startTime": 36.64,
+    "endTime": 39.039,
+    "text": "最近很多都已經發表了那個"
+  },
+  {
+    "startTime": 39.659,
+    "endTime": 42.539,
+    "text": "殖利率 就是配多少"
+  },
+  {
+    "startTime": 42.539,
+    "endTime": 44.299,
+    "text": "現在最近有很多都有"
+  },
+  {
+    "startTime": 45.1,
+    "endTime": 47.359,
+    "text": "那有些呢是去年的配"
+  },
+  {
+    "startTime": 47.359,
+    "endTime": 50.0,
+    "text": "像天鈺啊愛山林今年都還沒出來"
+  },
+  {
+    "startTime": 50.24,
+    "endTime": 52.439,
+    "text": "所以這邊有些是去年的資料"
+  },
+  {
+    "startTime": 52.439,
+    "endTime": 53.399,
+    "text": "各位呢"
+  },
+  {
+    "startTime": 53.659,
+    "endTime": 56.7,
+    "text": "就先暫時作為參考啊 至少這些"
+  },
+  {
+    "startTime": 56.96,
+    "endTime": 59.359,
+    "text": "目前的籌碼都還不錯"
+  },
+  {
+    "startTime": 59.799,
+    "endTime": 60.759,
+    "text": "都還不錯"
+  },
+  {
+    "startTime": 60.759,
+    "endTime": 62.659,
+    "text": "那各位 可以從裡面去找"
+  },
+  {
+    "startTime": 62.659,
+    "endTime": 63.439,
+    "text": "你可以找說"
+  },
+  {
+    "startTime": 63.7,
+    "endTime": 65.239,
+    "text": "乖離年限比較多的"
+  },
+  {
+    "startTime": 65.239,
+    "endTime": 67.04,
+    "text": "因為至少說他是比較"
+  },
+  {
+    "startTime": 67.359,
+    "endTime": 68.56,
+    "text": "位階算低的"
+  },
+  {
+    "startTime": 69.04,
+    "endTime": 69.959,
+    "text": "位階低呢"
+  },
+  {
+    "startTime": 69.959,
+    "endTime": 71.599,
+    "text": "殖利率找還不錯的話"
+  },
+  {
+    "startTime": 71.599,
+    "endTime": 72.4,
+    "text": "那也可以"
+  },
+  {
+    "startTime": 72.659,
+    "endTime": 74.799,
+    "text": "那營建股呢 建議各位是避開啦"
+  },
+  {
+    "startTime": 74.799,
+    "endTime": 76.54,
+    "text": "因為營建股我覺得"
+  },
+  {
+    "startTime": 77.239,
+    "endTime": 78.799,
+    "text": "還是有滿多疑慮的"
+  },
+  {
+    "startTime": 78.799,
+    "endTime": 81.56,
+    "text": "好 那可以找位階低啊"
+  },
+  {
+    "startTime": 81.56,
+    "endTime": 82.439,
+    "text": "乖離年限"
+  },
+  {
+    "startTime": 82.439,
+    "endTime": 84.359,
+    "text": "乖離年限比較低的就是位階比較低"
+  },
+  {
+    "startTime": 84.799,
+    "endTime": 87.239,
+    "text": "像聯詠這屬於春天的股票"
+  },
+  {
+    "startTime": 87.439,
+    "endTime": 88.239,
+    "text": "那各位看一下"
+  },
+  {
+    "startTime": 88.239,
+    "endTime": 91.239,
+    "text": "春天就不知道有多長了"
+  },
+  {
+    "startTime": 91.239,
+    "endTime": 93.939,
+    "text": "所以這裡呢都是春天的股票"
+  },
+  {
+    "startTime": 93.939,
+    "endTime": 96.439,
+    "text": "好 接下來我們來看一下這個"
+  },
+  {
+    "startTime": 96.439,
+    "endTime": 108.813,
+    "text": "立夏的股票 那立夏股票呢 就是他至少是開布林的\n那我們來看一下立夏的參數啊 立夏參數那參數就是成交量大於500 漲跌幅大於4"
+  },
+  {
+    "startTime": 109.274,
+    "endTime": 111.873,
+    "text": "月線斜率小於 0.5 上軌斜率大於 1"
+  },
+  {
+    "startTime": 111.914,
+    "endTime": 113.153,
+    "text": "嗯也就是說他"
+  },
+  {
+    "startTime": 113.653,
+    "endTime": 115.674,
+    "text": "還沒有漲很久只是剛起漲而已"
+  },
+  {
+    "startTime": 115.674,
+    "endTime": 118.254,
+    "text": "他位階大於8 乖離年線小於30"
+  },
+  {
+    "startTime": 118.713,
+    "endTime": 120.013,
+    "text": "就至少不要漲很久"
+  },
+  {
+    "startTime": 120.013,
+    "endTime": 120.853,
+    "text": "看他漲很多"
+  },
+  {
+    "startTime": 121.153,
+    "endTime": 123.213,
+    "text": "主力1日 主力5日 主力10日 主力20日 都大於0"
+  },
+  {
+    "startTime": 123.213,
+    "endTime": 125.153,
+    "text": "好這是立夏的參數"
+  },
+  {
+    "startTime": 125.153,
+    "endTime": 126.513,
+    "text": "立夏參數呢"
+  },
+  {
+    "startTime": 126.513,
+    "endTime": 129.554,
+    "text": "今天幫我們找出來有第一個怡利電"
+  },
+  {
+    "startTime": 129.993,
+    "endTime": 131.114,
+    "text": "怡利電各位看一下"
+  },
+  {
+    "startTime": 131.253,
+    "endTime": 132.213,
+    "text": "這有點像哦"
+  },
+  {
+    "startTime": 132.213,
+    "endTime": 133.913,
+    "text": "這是盤整完的第一根"
+  },
+  {
+    "startTime": 134.394,
+    "endTime": 135.614,
+    "text": "第二個是愛地雅"
+  },
+  {
+    "startTime": 135.614,
+    "endTime": 136.854,
+    "text": "這也有點像"
+  },
+  {
+    "startTime": 136.913,
+    "endTime": 139.014,
+    "text": "好 這是立夏參數"
+  },
+  {
+    "startTime": 139.014,
+    "endTime": 143.493,
+    "text": "接下來我們來看一下這個夏天的參數"
+  },
+  {
+    "startTime": 143.993,
+    "endTime": 145.454,
+    "text": "那夏天的參數這樣子"
+  },
+  {
+    "startTime": 145.454,
+    "endTime": 147.454,
+    "text": "月線斜率大於 0.5"
+  },
+  {
+    "startTime": 147.454,
+    "endTime": 148.713,
+    "text": "上軌斜率大於 1"
+  },
+  {
+    "startTime": 149.493,
+    "endTime": 152.054,
+    "text": "主力5日 主力10日 主力20日 都大於 0"
+  },
+  {
+    "startTime": 152.514,
+    "endTime": 153.993,
+    "text": "這是夏天的股票"
+  },
+  {
+    "startTime": 153.993,
+    "endTime": 156.713,
+    "text": "夏天股票有的都漲很多了"
+  },
+  {
+    "startTime": 156.713,
+    "endTime": 158.873,
+    "text": "各位看一下像中探針漲很多"
+  },
+  {
+    "startTime": 159.313,
+    "endTime": 160.234,
+    "text": "純純夏天嘛"
+  },
+  {
+    "startTime": 160.234,
+    "endTime": 161.473,
+    "text": "因為月線都還沒完"
+  },
+  {
+    "startTime": 161.913,
+    "endTime": 162.794,
+    "text": "聯亞也是"
+  },
+  {
+    "startTime": 164.033,
+    "endTime": 167.274,
+    "text": "那聯亞這個會有20分鐘處置"
+  },
+  {
+    "startTime": 167.274,
+    "endTime": 168.074,
+    "text": "就比較會跌"
+  },
+  {
+    "startTime": 168.713,
+    "endTime": 170.074,
+    "text": "雍智科技也是"
+  },
+  {
+    "startTime": 171.074,
+    "endTime": 171.674,
+    "text": "達航"
+  },
+  {
+    "startTime": 173.753,
+    "endTime": 176.514,
+    "text": "這些都是屬於比較夏天的股票"
+  },
+  {
+    "startTime": 176.873,
+    "endTime": 179.114,
+    "text": "那夏天股票你要記得在處置前呢"
+  },
+  {
+    "startTime": 179.114,
+    "endTime": 180.234,
+    "text": "最好是出脫一下"
+  },
+  {
+    "startTime": 180.993,
+    "endTime": 184.394,
+    "text": "好 那你也可以找那個乖離年線比較小的"
+  },
+  {
+    "startTime": 184.794,
+    "endTime": 187.193,
+    "text": "他們也是剛夏天股票"
+  },
+  {
+    "startTime": 187.473,
+    "endTime": 188.274,
+    "text": "哎"
+  },
+  {
+    "startTime": 188.593,
+    "endTime": 190.473,
+    "text": "連展投控有點像哦"
+  },
+  {
+    "startTime": 191.473,
+    "endTime": 193.734,
+    "text": "千附精密開始了"
+  },
+  {
+    "startTime": 194.794,
+    "endTime": 195.593,
+    "text": "遠見"
+  },
+  {
+    "startTime": 196.794,
+    "endTime": 197.593,
+    "text": "也不錯"
+  },
+  {
+    "startTime": 198.234,
+    "endTime": 210.427,
+    "text": "中碳 哇 剛起來哦 這也是剛要走夏天的感覺\n聯嘉、邁科這幾個 這幾個假如有人有選擇困難症的話"
+  },
+  {
+    "startTime": 210.427,
+    "endTime": 212.268,
+    "text": "你就找乖離年限比較低的"
+  },
+  {
+    "startTime": 212.268,
+    "endTime": 213.427,
+    "text": "他籌碼比較好的"
+  },
+  {
+    "startTime": 213.987,
+    "endTime": 216.668,
+    "text": "就主5 主10呢 比較好一點的"
+  },
+  {
+    "startTime": 217.268,
+    "endTime": 218.768,
+    "text": "比較好一點的"
+  },
+  {
+    "startTime": 219.328,
+    "endTime": 220.867,
+    "text": "來 現在我們來看一下"
+  },
+  {
+    "startTime": 220.987,
+    "endTime": 222.987,
+    "text": "這個夏天的籌碼是怎樣"
+  },
+  {
+    "startTime": 223.068,
+    "endTime": 226.068,
+    "text": "夏天我們只篩選主力5日 主力10日 主力20日"
+  },
+  {
+    "startTime": 226.367,
+    "endTime": 227.288,
+    "text": "沒有篩主力1哦"
+  },
+  {
+    "startTime": 227.288,
+    "endTime": 229.348,
+    "text": "秋天的股票呢"
+  },
+  {
+    "startTime": 229.348,
+    "endTime": 231.228,
+    "text": "我們看一下秋天股票 "
+  },
+  {
+    "startTime": 231.228,
+    "endTime": 232.788,
+    "text": "月線斜率介於 -1 到 0 之間"
+  },
+  {
+    "startTime": 233.127,
+    "endTime": 234.487,
+    "text": "乖離年線大於 30%"
+  },
+  {
+    "startTime": 234.487,
+    "endTime": 236.388,
+    "text": "然後主力5日 主力10日 主力20日都小於 0"
+  },
+  {
+    "startTime": 236.927,
+    "endTime": 239.927,
+    "text": "來 來看一下這秋天股票"
+  },
+  {
+    "startTime": 240.288,
+    "endTime": 241.388,
+    "text": "那秋天股票呢"
+  },
+  {
+    "startTime": 242.927,
+    "endTime": 245.587,
+    "text": "我們來看一下我們把乖離年線放在上面"
+  },
+  {
+    "startTime": 246.187,
+    "endTime": 247.027,
+    "text": "昇達科"
+  },
+  {
+    "startTime": 249.228,
+    "endTime": 251.728,
+    "text": "哇 這有點秋天的 月線有點彎了"
+  },
+  {
+    "startTime": 252.027,
+    "endTime": 252.927,
+    "text": "聯合再生"
+  },
+  {
+    "startTime": 254.048,
+    "endTime": 255.987,
+    "text": "真的是秋了"
+  },
+  {
+    "startTime": 255.987,
+    "endTime": 256.987,
+    "text": "晶呈"
+  },
+  {
+    "startTime": 259.148,
+    "endTime": 260.028,
+    "text": "這也是哦"
+  },
+  {
+    "startTime": 260.588,
+    "endTime": 261.288,
+    "text": "光環"
+  },
+  {
+    "startTime": 263.927,
+    "endTime": 264.648,
+    "text": "元晶"
+  },
+  {
+    "startTime": 267.588,
+    "endTime": 268.327,
+    "text": "環科"
+  },
+  {
+    "startTime": 270.848,
+    "endTime": 271.728,
+    "text": "還有凱崴"
+  },
+  {
+    "startTime": 273.987,
+    "endTime": 274.728,
+    "text": "雙鍵"
+  },
+  {
+    "startTime": 276.487,
+    "endTime": 277.627,
+    "text": "哇 這幾個都是哦"
+  },
+  {
+    "startTime": 277.627,
+    "endTime": 279.987,
+    "text": "都是那個月線下彎主力賣"
+  },
+  {
+    "startTime": 280.088,
+    "endTime": 281.447,
+    "text": "那這種月線下彎主力賣呢"
+  },
+  {
+    "startTime": 281.447,
+    "endTime": 282.348,
+    "text": "各位記得在"
+  },
+  {
+    "startTime": 282.627,
+    "endTime": 284.288,
+    "text": "紅k超過 3% 的隔天啊"
+  },
+  {
+    "startTime": 284.288,
+    "endTime": 285.288,
+    "text": "但都是空點"
+  },
+  {
+    "startTime": 285.987,
+    "endTime": 290.228,
+    "text": "紅K超過 3% 有很多隔日沖隔天都是空點"
+  },
+  {
+    "startTime": 290.228,
+    "endTime": 292.887,
+    "text": "精測"
+  },
+  {
+    "startTime": 292.887,
+    "endTime": 293.487,
+    "text": "榮科"
+  },
+  {
+    "startTime": 293.487,
+    "endTime": 295.788,
+    "text": "榮科也是"
+  },
+  {
+    "startTime": 295.788,
+    "endTime": 298.588,
+    "text": "榮科看起來就滿秋天的"
+  },
+  {
+    "startTime": 298.588,
+    "endTime": 299.648,
+    "text": "群聯也是"
+  },
+  {
+    "startTime": 299.648,
+    "endTime": 300.687,
+    "text": "群聯這個記憶體"
+  },
+  {
+    "startTime": 300.687,
+    "endTime": 313.341,
+    "text": "記憶體很多都秋天的 記憶體很多都秋天 好 各位這幾個自己可以看一下 \n連台積電都秋天了 台積電也滿像秋天的"
+  },
+  {
+    "startTime": 313.341,
+    "endTime": 315.341,
+    "text": "接下來看這個冬天股票"
+  },
+  {
+    "startTime": 315.341,
+    "endTime": 316.341,
+    "text": "那冬天股票呢"
+  },
+  {
+    "startTime": 316.341,
+    "endTime": 318.341,
+    "text": "他是屬於比較"
+  },
+  {
+    "startTime": 318.341,
+    "endTime": 320.341,
+    "text": "各位我們先來看一下參數"
+  },
+  {
+    "startTime": 320.341,
+    "endTime": 321.341,
+    "text": "參數呢"
+  },
+  {
+    "startTime": 321.341,
+    "endTime": 324.341,
+    "text": "他是月線小於 "
+  },
+  {
+    "startTime": 324.341,
+    "endTime": 326.341,
+    "text": "小於 -0.5"
+  },
+  {
+    "startTime": 326.341,
+    "endTime": 327.341,
+    "text": "上軌斜率小於 -0.5"
+  },
+  {
+    "startTime": 327.341,
+    "endTime": 328.341,
+    "text": "下軌斜率小於 -0.5"
+  },
+  {
+    "startTime": 328.341,
+    "endTime": 330.341,
+    "text": "就三線下彎"
+  },
+  {
+    "startTime": 330.341,
+    "endTime": 332.581,
+    "text": "均量比小於 0.8 就是量縮"
+  },
+  {
+    "startTime": 332.581,
+    "endTime": 334.382,
+    "text": "主力5 主力10 主力20 都小於 0"
+  },
+  {
+    "startTime": 334.802,
+    "endTime": 337.401,
+    "text": "好 來看一下這冬天股票哪些"
+  },
+  {
+    "startTime": 338.101,
+    "endTime": 340.002,
+    "text": "這個凱崴"
+  },
+  {
+    "startTime": 340.601,
+    "endTime": 342.541,
+    "text": "沒錯 力積電"
+  },
+  {
+    "startTime": 342.901,
+    "endTime": 344.502,
+    "text": "也變冬天了"
+  },
+  {
+    "startTime": 345.081,
+    "endTime": 346.002,
+    "text": "華邦電"
+  },
+  {
+    "startTime": 346.581,
+    "endTime": 349.002,
+    "text": "秋天完現在變冬天了"
+  },
+  {
+    "startTime": 349.401,
+    "endTime": 350.201,
+    "text": "華東"
+  },
+  {
+    "startTime": 352.182,
+    "endTime": 352.982,
+    "text": "勝昱"
+  },
+  {
+    "startTime": 355.341,
+    "endTime": 356.041,
+    "text": "華容"
+  },
+  {
+    "startTime": 358.182,
+    "endTime": 358.982,
+    "text": "慶騰"
+  },
+  {
+    "startTime": 360.341,
+    "endTime": 362.942,
+    "text": "好 這邊有很多冬天的股票"
+  },
+  {
+    "startTime": 363.442,
+    "endTime": 364.041,
+    "text": "太極"
+  },
+  {
+    "startTime": 364.482,
+    "endTime": 366.601,
+    "text": "那這些股票呢 都有一樣的特色"
+  },
+  {
+    "startTime": 366.601,
+    "endTime": 369.841,
+    "text": "就是月線下彎、主力賣 然後量縮"
+  },
+  {
+    "startTime": 370.302,
+    "endTime": 371.682,
+    "text": "量縮就容易跌不停"
+  },
+  {
+    "startTime": 372.201,
+    "endTime": 373.601,
+    "text": "所以冬天股票各位"
+  },
+  {
+    "startTime": 374.401,
+    "endTime": 376.802,
+    "text": "這個持有的話 記得要避開啊"
+  },
+  {
+    "startTime": 377.201,
+    "endTime": 380.041,
+    "text": "有很多股票感覺都走冬天了"
+  },
+  {
+    "startTime": 380.541,
+    "endTime": 382.882,
+    "text": "所以假如冬天股票太多了各位也可以"
+  },
+  {
+    "startTime": 383.201,
+    "endTime": 385.201,
+    "text": "那個台子期避個險"
+  },
+  {
+    "startTime": 385.401,
+    "endTime": 386.802,
+    "text": "因為現在看到很多"
+  },
+  {
+    "startTime": 387.041,
+    "endTime": 389.302,
+    "text": "熱門族群呢都已經入冬"
+  },
+  {
+    "startTime": 389.302,
+    "endTime": 390.101,
+    "text": "入冬"
+  },
+  {
+    "startTime": 390.461,
+    "endTime": 393.141,
+    "text": "好 以上是這個這個月"
+  },
+  {
+    "startTime": 393.141,
+    "endTime": 396.101,
+    "text": "目前為止看到有些春夏秋冬股票"
+  },
+  {
+    "startTime": 396.442,
+    "endTime": 397.641,
+    "text": "各位有興趣的話"
+  },
+  {
+    "startTime": 397.641,
+    "endTime": 399.101,
+    "text": "可以下次再回顧一下"
+  },
+  {
+    "startTime": 399.101,
+    "endTime": 401.661,
+    "text": "看看哪些是真的一路走冬了"
+  },
+  {
+    "startTime": 401.661,
+    "endTime": 404.062,
+    "text": "哪些是從冬天又再上來的"
+  },
+  {
+    "startTime": 404.502,
+    "endTime": 406.062,
+    "text": "好 以上 謝謝各位 拜拜"
+  }
+]

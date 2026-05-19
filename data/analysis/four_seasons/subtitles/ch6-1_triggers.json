@@ -1,0 +1,538 @@
+[
+  {
+    "startTime": 16.9,
+    "endTime": 19.666,
+    "text": "它有可能用權證進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 19.666,
+    "endTime": 21.633,
+    "text": "也有可能用股票進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 32.4,
+    "endTime": 33.566,
+    "text": "那春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 33.566,
+    "endTime": 36.466,
+    "text": "主力就偷偷地吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 49.4,
+    "endTime": 50.366,
+    "text": "那夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 54.666,
+    "endTime": 56.266,
+    "text": "吸引市場的注意力",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 64.766,
+    "endTime": 66.766,
+    "text": "開始進場搶購",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 66.766,
+    "endTime": 67.766,
+    "text": "那秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 80.566,
+    "endTime": 83.6,
+    "text": "滿懷信心跟貪婪加碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "加碼"
+      }
+    ]
+  },
+  {
+    "startTime": 88.866,
+    "endTime": 92.066,
+    "text": "常常都是主力出貨的一個招數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "主力出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 92.066,
+    "endTime": 93.266,
+    "text": "冬天主力",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 112.766,
+    "endTime": 115.966,
+    "text": "我們看過很多這個冬天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 131.766,
+    "endTime": 133.1,
+    "text": "吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 134.266,
+    "endTime": 135.266,
+    "text": "出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 136.8,
+    "endTime": 137.766,
+    "text": "那春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 137.766,
+    "endTime": 139.266,
+    "text": "就吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 145.166,
+    "endTime": 146.466,
+    "text": "那夏天之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 149.666,
+    "endTime": 152.266,
+    "text": "帶量突破關鍵的壓力",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 156.666,
+    "endTime": 157.966,
+    "text": "那出貨的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 167.766,
+    "endTime": 169.566,
+    "text": "或是兩次跌破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 175.8,
+    "endTime": 176.566,
+    "text": "再反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 176.566,
+    "endTime": 178.466,
+    "text": "再跌破一次月線",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 178.966,
+    "endTime": 181.466,
+    "text": "就是一個很明顯的出貨訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 199.766,
+    "endTime": 200.833,
+    "text": "吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 201.966,
+    "endTime": 203.033,
+    "text": "出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 231.466,
+    "endTime": 233.266,
+    "text": "它從春天一路買",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 233.266,
+    "endTime": 236.466,
+    "text": "買到變成有點夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 249.666,
+    "endTime": 252.8,
+    "text": "之後反彈又開始打底",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 281.266,
+    "endTime": 283.0,
+    "text": "那這也是在春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 295.0,
+    "endTime": 298.866,
+    "text": "股價有慢慢地往夏天的感覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 341.433,
+    "endTime": 343.066,
+    "text": "春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 343.066,
+    "endTime": 345.233,
+    "text": "春天買庫藏股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 378.166,
+    "endTime": 380.6,
+    "text": "從這個冬天轉到春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 416.166,
+    "endTime": 417.8,
+    "text": "呈現春天的走勢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 441.666,
+    "endTime": 443.066,
+    "text": "那春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 443.066,
+    "endTime": 444.8,
+    "text": "持續性地加碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "加碼"
+      }
+    ]
+  },
+  {
+    "startTime": 452.466,
+    "endTime": 453.666,
+    "text": "然後又在春天加碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "加碼"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 470.666,
+    "endTime": 474.066,
+    "text": "或者是這個築底的春天區",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 474.066,
+    "endTime": 474.866,
+    "text": "那這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 480.866,
+    "endTime": 482.166,
+    "text": "春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 482.166,
+    "endTime": 483.866,
+    "text": "這邊算春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 483.866,
+    "endTime": 484.766,
+    "text": "春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 513.866,
+    "endTime": 515.9,
+    "text": "關鍵又買你可以考慮進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 519.766,
+    "endTime": 521.2,
+    "text": "要出場一下",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 525.466,
+    "endTime": 527.666,
+    "text": "低檔這個春天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 529.166,
+    "endTime": 530.166,
+    "text": "然後在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 542.266,
+    "endTime": 543.066,
+    "text": "在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 553.366,
+    "endTime": 555.266,
+    "text": "譁裕這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  }
+]

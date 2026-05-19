@@ -1,0 +1,380 @@
+[
+  {
+    "startTime": 18.866,
+    "endTime": 21.2,
+    "text": "月線它會跌破兩次",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 40.7,
+    "endTime": 45.1,
+    "text": "那這個就頻頻變成注意或者處置股",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 45.1,
+    "endTime": 48.0,
+    "text": "那這種只要變注意或處置",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 50.633,
+    "endTime": 53.666,
+    "text": "這個秋天快要來的訊息",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 63.0,
+    "endTime": 65.366,
+    "text": "我們都必須要看創高後",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 65.366,
+    "endTime": 66.8,
+    "text": "創高後這邊殺一次",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 66.8,
+    "endTime": 68.566,
+    "text": "然後反彈之後又再殺",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 75.066,
+    "endTime": 76.5,
+    "text": "接下來再看這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 78.766,
+    "endTime": 80.3,
+    "text": "這邊是最高點",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 82.866,
+    "endTime": 84.3,
+    "text": "反彈再殺一次",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 87.8,
+    "endTime": 90.4,
+    "text": "那很有可能就是秋天來了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 94.333,
+    "endTime": 96.0,
+    "text": "秋天就來臨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 125.4,
+    "endTime": 126.2,
+    "text": "像秋天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 162.8,
+    "endTime": 165.0,
+    "text": "它就頻繁地被注意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 166.366,
+    "endTime": 168.266,
+    "text": "我們把注意打勾起來",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 172.1,
+    "endTime": 173.7,
+    "text": "因為漲上來之後就開始注意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 173.7,
+    "endTime": 174.9,
+    "text": "這藍色都注意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 182.0,
+    "endTime": 184.2,
+    "text": "它就頻繁注意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 254.566,
+    "endTime": 258.733,
+    "text": "你要注意領頭羊有沒有一直被處置",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 274.0,
+    "endTime": 277.033,
+    "text": "設定絕對的停利或停損點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      }
+    ]
+  },
+  {
+    "startTime": 277.033,
+    "endTime": 279.833,
+    "text": "例如說跌破月線三天沒有站回",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 297.033,
+    "endTime": 299.466,
+    "text": "這秋天都要特別留意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 332.866,
+    "endTime": 334.933,
+    "text": "那長榮在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 334.933,
+    "endTime": 337.133,
+    "text": "在這個位置各位看一下",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 344.666,
+    "endTime": 350.566,
+    "text": "長榮在這邊歷經了一個大大的主升段",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 354.766,
+    "endTime": 357.433,
+    "text": "然後它在這邊瘋狂地被處置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 365.533,
+    "endTime": 368.8,
+    "text": "這邊有一個財務營收",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 368.8,
+    "endTime": 370.733,
+    "text": "它在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 370.733,
+    "endTime": 372.833,
+    "text": "在那個秋天的位置",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 372.833,
+    "endTime": 374.533,
+    "text": "後面轉冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 374.533,
+    "endTime": 375.166,
+    "text": "秋天的位置",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 391.533,
+    "endTime": 393.966,
+    "text": "這邊創高",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 396.233,
+    "endTime": 399.566,
+    "text": "那時候長榮剩 87 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('87', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 516.1,
+    "endTime": 517.966,
+    "text": "殺兩次跌破月線",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  }
+]

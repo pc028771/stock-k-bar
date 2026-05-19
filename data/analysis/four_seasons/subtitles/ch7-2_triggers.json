@@ -1,0 +1,409 @@
+[
+  {
+    "startTime": 7.066,
+    "endTime": 9.766,
+    "text": "我們來看秋季最大的陷阱",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 9.766,
+    "endTime": 13.233,
+    "text": "利多成為主力的出貨掩護",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 18.566,
+    "endTime": 21.866,
+    "text": "就是利多是用來出貨的掩護",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 65.0,
+    "endTime": 67.4,
+    "text": "它的秋天早已出現",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 67.4,
+    "endTime": 69.433,
+    "text": "已經邁入冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 69.433,
+    "endTime": 71.3,
+    "text": "冬天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 120.766,
+    "endTime": 123.766,
+    "text": "曾經到 8 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('8', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 123.766,
+    "endTime": 125.0,
+    "text": "然後 6 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('6', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 125.0,
+    "endTime": 127.5,
+    "text": "可是你看 EPS 到 8 塊 6 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('8', '塊'), ('6', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 135.666,
+    "endTime": 138.166,
+    "text": "1 塊 7 塊 8 塊 6 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('1', '塊'), ('7', '塊'), ('8', '塊'), ('6', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 140.5,
+    "endTime": 141.766,
+    "text": "賺了 21 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('21', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 149.633,
+    "endTime": 152.866,
+    "text": "這邊營收是創了新高",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 172.966,
+    "endTime": 175.966,
+    "text": "它的形態是不是一個秋天的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 186.4,
+    "endTime": 188.366,
+    "text": "它就是一個出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 188.366,
+    "endTime": 190.866,
+    "text": "高檔出貨的型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 190.866,
+    "endTime": 193.566,
+    "text": "高檔一旦開始出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 229.9,
+    "endTime": 232.5,
+    "text": "然後 EPS 在這邊也是很強",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 233.366,
+    "endTime": 236.566,
+    "text": "EPS 賺 3 塊 賺 7 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '塊'), ('7', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 236.566,
+    "endTime": 238.4,
+    "text": "太猛了 賺 7 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('7', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 315.266,
+    "endTime": 317.066,
+    "text": "是為了出貨用的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 317.066,
+    "endTime": 318.533,
+    "text": "出貨用的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 333.133,
+    "endTime": 335.066,
+    "text": "不是買點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "買點"
+      }
+    ]
+  },
+  {
+    "startTime": 346.966,
+    "endTime": 348.566,
+    "text": "那拉高出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 361.366,
+    "endTime": 363.633,
+    "text": "然後但是一直在出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 374.4,
+    "endTime": 377.0,
+    "text": "都要特別的留意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 386.266,
+    "endTime": 390.1,
+    "text": "但這種在秋季的時候便宜的本益比",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 417.033,
+    "endTime": 419.5,
+    "text": "主力出貨的黃金時期",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "主力出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 426.433,
+    "endTime": 428.266,
+    "text": "所以這邊是很危險的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 428.266,
+    "endTime": 430.533,
+    "text": "在秋天接股票是很危險的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 431.933,
+    "endTime": 434.2,
+    "text": "這個主力震盪出貨的線圖",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 434.2,
+    "endTime": 436.133,
+    "text": "你看在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 438.233,
+    "endTime": 441.066,
+    "text": "那主力怎麼利用震盪出貨的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 441.066,
+    "endTime": 443.333,
+    "text": "這邊你就會看到一紅一黑",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 453.0,
+    "endTime": 454.7,
+    "text": "這邊有沒有看到主力這條線",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 457.266,
+    "endTime": 461.0,
+    "text": "這就是一個典型的主力震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 461.0,
+    "endTime": 462.7,
+    "text": "那你看到主力震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 466.3,
+    "endTime": 469.933,
+    "text": "這是一個很典型的主力震盪出貨的線",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  }
+]

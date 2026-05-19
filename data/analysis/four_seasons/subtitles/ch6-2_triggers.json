@@ -1,0 +1,343 @@
+[
+  {
+    "startTime": 25.7,
+    "endTime": 28.9,
+    "text": "也就在夏天的時候佈局權證",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 52.0,
+    "endTime": 54.033,
+    "text": "代表應該是個高手",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 62.6,
+    "endTime": 64.433,
+    "text": "可以注意的一些分點",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 78.4,
+    "endTime": 80.2,
+    "text": "智邦這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 80.2,
+    "endTime": 82.633,
+    "text": "這個在春天的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 84.8,
+    "endTime": 86.0,
+    "text": "各位看這邊蠻多的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 87.7,
+    "endTime": 90.3,
+    "text": "然後開始走夏天形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 106.3,
+    "endTime": 107.6,
+    "text": "這邊是 1 億",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 121.866,
+    "endTime": 125.166,
+    "text": "它也是佈局在一個夏天的位階",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 125.166,
+    "endTime": 126.366,
+    "text": "夏天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 130.166,
+    "endTime": 133.066,
+    "text": "因為沒有遇到一個秋天的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 148.066,
+    "endTime": 149.766,
+    "text": "在這個位置佈局",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 149.766,
+    "endTime": 151.0,
+    "text": "然後到這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 160.366,
+    "endTime": 160.8,
+    "text": "在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 190.6,
+    "endTime": 193.8,
+    "text": "也是在一個主升段的時候進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 195.2,
+    "endTime": 196.7,
+    "text": "這個出場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 206.133,
+    "endTime": 207.733,
+    "text": "又開始出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 207.733,
+    "endTime": 209.8,
+    "text": "這邊一共賺了 1,400 萬",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 213.733,
+    "endTime": 214.5,
+    "text": "買賣點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "賣點"
+      }
+    ]
+  },
+  {
+    "startTime": 269.0,
+    "endTime": 270.333,
+    "text": "處置之前進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 273.4,
+    "endTime": 275.5,
+    "text": "這進場後面怎麼樣",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 311.0,
+    "endTime": 314.4,
+    "text": "在夏天的時候勇敢擁抱權證",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 328.133,
+    "endTime": 330.2,
+    "text": "這個買賣點都還蠻犀利的",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "賣點"
+      }
+    ]
+  },
+  {
+    "startTime": 342.5,
+    "endTime": 344.5,
+    "text": "它在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 344.5,
+    "endTime": 346.3,
+    "text": "在低檔這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 347.533,
+    "endTime": 349.8,
+    "text": "這個稍微回檔這邊大買",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 394.166,
+    "endTime": 396.833,
+    "text": "那個主升段的時候進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 396.833,
+    "endTime": 401.133,
+    "text": "所以主升段進場買權證",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 409.633,
+    "endTime": 412.433,
+    "text": "這個位置也買得蠻漂亮的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 439.766,
+    "endTime": 441.566,
+    "text": "這也是在夏天型態買",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 441.566,
+    "endTime": 442.566,
+    "text": "那在秋天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  }
+]

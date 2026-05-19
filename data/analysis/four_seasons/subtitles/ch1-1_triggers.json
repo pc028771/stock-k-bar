@@ -1,0 +1,600 @@
+[
+  {
+    "startTime": 58.833,
+    "endTime": 60.066,
+    "text": "我們這邊有個圖",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 60.066,
+    "endTime": 60.733,
+    "text": "那這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 126.533,
+    "endTime": 128.5,
+    "text": "它已經邁入了秋季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 128.5,
+    "endTime": 131.1,
+    "text": "秋季就是一個出貨的季節",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 131.1,
+    "endTime": 132.1,
+    "text": "那出貨季節",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 160.8,
+    "endTime": 162.433,
+    "text": "買到秋天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 162.433,
+    "endTime": 164.233,
+    "text": "或者買到冬天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 165.633,
+    "endTime": 169.633,
+    "text": "一賣就賣到這個剛夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 200.1,
+    "endTime": 203.633,
+    "text": "就是要開始做震盪出貨的感覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 218.3,
+    "endTime": 218.833,
+    "text": "春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 231.2,
+    "endTime": 234.6,
+    "text": "秋收常常會出現在高檔出貨的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 234.6,
+    "endTime": 235.8,
+    "text": "那高檔出貨完",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 238.8,
+    "endTime": 241.9,
+    "text": "不要在冬天播種",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 241.9,
+    "endTime": 244.2,
+    "text": "別在秋天貪婪",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 244.2,
+    "endTime": 245.5,
+    "text": "在冬天播種",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 247.033,
+    "endTime": 249.2,
+    "text": "在秋天去追高",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 251.3,
+    "endTime": 253.0,
+    "text": "為什麼因為秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 264.7,
+    "endTime": 265.5,
+    "text": "那春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 265.5,
+    "endTime": 267.233,
+    "text": "就是一個主力吃貨區",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "主力吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 275.6,
+    "endTime": 277.6,
+    "text": "這邊會有一個立夏點",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 278.3,
+    "endTime": 281.2,
+    "text": "這邊是一個夏天的形態",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 282.0,
+    "endTime": 284.8,
+    "text": "就是一個震盪出貨的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 284.8,
+    "endTime": 285.6,
+    "text": "那冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 304.8,
+    "endTime": 306.033,
+    "text": "第一個是吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 307.6,
+    "endTime": 308.7,
+    "text": "第三出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 326.6,
+    "endTime": 328.5,
+    "text": "春天就低檔吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 328.5,
+    "endTime": 330.233,
+    "text": "夏天拉抬",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 330.233,
+    "endTime": 331.0,
+    "text": "秋天出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 331.0,
+    "endTime": 332.166,
+    "text": "冬天退場",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 332.166,
+    "endTime": 333.833,
+    "text": "所以春天會怎麼樣",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 348.6,
+    "endTime": 349.7,
+    "text": "那夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 370.4,
+    "endTime": 372.5,
+    "text": "這個在夏季典型的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 376.233,
+    "endTime": 379.7,
+    "text": "那秋天是散戶最喜歡買股票的季節",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 379.7,
+    "endTime": 381.2,
+    "text": "為什麼因為秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 400.7,
+    "endTime": 403.0,
+    "text": "那重點是你可以看到籌碼",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "重點"
+      }
+    ]
+  },
+  {
+    "startTime": 406.8,
+    "endTime": 409.0,
+    "text": "那冬天就完全離場",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 430.833,
+    "endTime": 433.2,
+    "text": "例如說像這春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 435.3,
+    "endTime": 438.8,
+    "text": "夏天主升段動能爆發",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 438.8,
+    "endTime": 441.433,
+    "text": "秋天高檔震盪",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 445.3,
+    "endTime": 449.633,
+    "text": "那冬天是價值回歸休養生息",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 468.1,
+    "endTime": 469.4,
+    "text": "春天有春天的策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 469.4,
+    "endTime": 470.8,
+    "text": "夏天有夏天的策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 470.8,
+    "endTime": 471.9,
+    "text": "秋天有秋天策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 471.9,
+    "endTime": 473.7,
+    "text": "冬天有冬天的策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 506.1,
+    "endTime": 507.433,
+    "text": "因為春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 509.2,
+    "endTime": 512.6,
+    "text": "小哥有很多股票都是買春天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 513.1,
+    "endTime": 514.4,
+    "text": "為什麼我喜歡買春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 514.4,
+    "endTime": 515.7,
+    "text": "因為買春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 534.6,
+    "endTime": 536.0,
+    "text": "所以春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 536.0,
+    "endTime": 538.566,
+    "text": "其實是我大部分做投資",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "其實是"
+      }
+    ]
+  },
+  {
+    "startTime": 563.8,
+    "endTime": 564.5,
+    "text": "到了秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 575.7,
+    "endTime": 578.9,
+    "text": "而導致怎麼樣後面股票變成冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 578.9,
+    "endTime": 580.2,
+    "text": "那冬天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 586.3,
+    "endTime": 588.3,
+    "text": "其實冬天也蠻好玩的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  }
+]

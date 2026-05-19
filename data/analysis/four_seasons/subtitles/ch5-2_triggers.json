@@ -1,0 +1,311 @@
+[
+  {
+    "startTime": 7.066,
+    "endTime": 10.633,
+    "text": "我們來講冬天的選股參數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 11.766,
+    "endTime": 13.566,
+    "text": "我的冬天選股參數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 46.366,
+    "endTime": 48.766,
+    "text": "那來看一下冬天過往的案例",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 50.5,
+    "endTime": 52.5,
+    "text": "GIS 在這個位置找到的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 57.533,
+    "endTime": 59.6,
+    "text": "這一段就是冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 59.6,
+    "endTime": 60.533,
+    "text": "那冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 60.533,
+    "endTime": 63.533,
+    "text": "不再創低之後就變成春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 67.133,
+    "endTime": 68.933,
+    "text": "那這一段也是個冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 68.933,
+    "endTime": 72.166,
+    "text": "那後面才變成春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 75.366,
+    "endTime": 77.533,
+    "text": "然後反彈到月線之後",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 79.533,
+    "endTime": 82.966,
+    "text": "這個看起來冬天還沒結束",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 92.2,
+    "endTime": 94.4,
+    "text": "天方在這邊找到的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 101.933,
+    "endTime": 103.233,
+    "text": "這邊是秋天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 103.233,
+    "endTime": 104.966,
+    "text": "然後在這邊轉冬了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 116.066,
+    "endTime": 121.4,
+    "text": "之後這個持續性的冬天下跌",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 121.4,
+    "endTime": 124.033,
+    "text": "還有興能高在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 141.1,
+    "endTime": 143.9,
+    "text": "大樹其實走了一個很漫長的冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 143.9,
+    "endTime": 146.133,
+    "text": "一直到這裡為止還是個冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 153.1,
+    "endTime": 156.233,
+    "text": "然後這邊是繼續的冬天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 168.533,
+    "endTime": 171.3,
+    "text": "顯示主力資金重新的進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 182.0,
+    "endTime": 184.566,
+    "text": "低點只要一個月內不再跌破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 199.633,
+    "endTime": 201.8,
+    "text": "支撐了技術面的反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 204.533,
+    "endTime": 206.966,
+    "text": "在冬天還沒有結束之前",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 212.733,
+    "endTime": 215.333,
+    "text": "那有的冬天是這樣跌",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 215.333,
+    "endTime": 218.0,
+    "text": "跌完之後會有個 U 型的反轉",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反轉"
+      }
+    ]
+  },
+  {
+    "startTime": 221.8,
+    "endTime": 223.466,
+    "text": "那這邊有窒息量",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "窒息量"
+      }
+    ]
+  },
+  {
+    "startTime": 245.2,
+    "endTime": 249.133,
+    "text": "成交量慢慢地脫離窒息量",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "窒息量"
+      }
+    ]
+  }
+]

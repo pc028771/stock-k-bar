@@ -1,0 +1,773 @@
+[
+  {
+    "startTime": 11.3,
+    "endTime": 13.9,
+    "text": "春天是播種的季節",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 17.066,
+    "endTime": 18.566,
+    "text": "所以春天不是說你今天買",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 21.066,
+    "endTime": 23.066,
+    "text": "那是屬於比較夏天的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 23.066,
+    "endTime": 24.666,
+    "text": "春天是今天買",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 34.266,
+    "endTime": 36.066,
+    "text": "春天是播種的季節",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 42.766,
+    "endTime": 43.466,
+    "text": "那春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 43.466,
+    "endTime": 45.7,
+    "text": "我們操作必須具備耐心",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 48.066,
+    "endTime": 51.566,
+    "text": "那這個春季標的的三大特徵跟策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 51.566,
+    "endTime": 52.866,
+    "text": "第一個春季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 91.166,
+    "endTime": 95.166,
+    "text": "那春轉夏也就是說在春天的末段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 95.166,
+    "endTime": 96.766,
+    "text": "夏天的初段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 105.3,
+    "endTime": 106.9,
+    "text": "那我們來看春天股的案例",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 106.9,
+    "endTime": 108.066,
+    "text": "常見春天股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 119.666,
+    "endTime": 121.5,
+    "text": "這是春天的特徵",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 121.5,
+    "endTime": 123.766,
+    "text": "那春天的佈局情境",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 128.166,
+    "endTime": 129.866,
+    "text": "春天雖然是安全",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 129.866,
+    "endTime": 132.7,
+    "text": "但我們還是強調你要分批進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      },
+      {
+        "group": "強調",
+        "keyword": "強調"
+      }
+    ]
+  },
+  {
+    "startTime": 135.466,
+    "endTime": 137.166,
+    "text": "要分散佈局跟分批進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 145.666,
+    "endTime": 147.3,
+    "text": "逐步加碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "加碼"
+      }
+    ]
+  },
+  {
+    "startTime": 160.1,
+    "endTime": 163.166,
+    "text": "不會超過所有資金的10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 163.166,
+    "endTime": 164.766,
+    "text": "一檔股票不要超過 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 168.166,
+    "endTime": 169.866,
+    "text": "也不會超過 1%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('1', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 181.766,
+    "endTime": 183.1,
+    "text": "只有 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 183.1,
+    "endTime": 184.5,
+    "text": "10% 最多",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 184.5,
+    "endTime": 185.366,
+    "text": "10% 到了",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 186.966,
+    "endTime": 189.2,
+    "text": "這時候你可以準備迎接夏季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 223.766,
+    "endTime": 225.566,
+    "text": "突破關鍵壓力點",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 230.966,
+    "endTime": 234.7,
+    "text": "就是一個春天轉夏的前兆",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 243.666,
+    "endTime": 246.166,
+    "text": "第三很重要的技術面突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 246.166,
+    "endTime": 249.866,
+    "text": "大部分都是突破一個盤整期的新高",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 255.966,
+    "endTime": 257.466,
+    "text": "這個春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 257.466,
+    "endTime": 259.166,
+    "text": "是在這邊盤整",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 259.166,
+    "endTime": 260.366,
+    "text": "那夏天開始",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 261.7,
+    "endTime": 263.066,
+    "text": "那春季的播種",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 267.3,
+    "endTime": 268.666,
+    "text": "春天實在很無聊",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 285.766,
+    "endTime": 289.9,
+    "text": "春天其實是買可轉債很適合的時機",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "其實是"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 296.466,
+    "endTime": 300.666,
+    "text": "夏季的豐收取決於春季的播種",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 300.666,
+    "endTime": 303.9,
+    "text": "當你春天股票操作得好",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 307.666,
+    "endTime": 312.166,
+    "text": "小哥的當沖神器裡面春天的選股參數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 321.966,
+    "endTime": 325.1,
+    "text": "可以幫助我們找到一些春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 325.1,
+    "endTime": 326.366,
+    "text": "那春天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 331.466,
+    "endTime": 334.133,
+    "text": "它這邊會有一個春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 334.133,
+    "endTime": 334.966,
+    "text": "那這春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 336.966,
+    "endTime": 339.9,
+    "text": "當你的軟裡面沒有這個春天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 343.966,
+    "endTime": 347.066,
+    "text": "去設定一下春天的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 353.866,
+    "endTime": 355.266,
+    "text": "那我們春天的斜率",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 363.866,
+    "endTime": 365.7,
+    "text": "要小於 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 369.5,
+    "endTime": 371.366,
+    "text": "假設下通道是 100 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 373.9,
+    "endTime": 376.066,
+    "text": "這個就是 10% 的概念",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 391.466,
+    "endTime": 392.966,
+    "text": "我會希望它大於 5%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 397.7,
+    "endTime": 399.966,
+    "text": "它殖利率有沒有超過 5%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 406.366,
+    "endTime": 409.5,
+    "text": "它就更適合做春天的選股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 437.066,
+    "endTime": 440.366,
+    "text": "再按春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 442.966,
+    "endTime": 446.166,
+    "text": "它就會幫助我們找到一些春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 462.5,
+    "endTime": 464.2,
+    "text": "至少不是主力出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "主力出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 474.1,
+    "endTime": 476.4,
+    "text": "看起來就是一個很春天的樣子",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 482.466,
+    "endTime": 484.9,
+    "text": "通常要是 5、6% 才有機會延續",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('6', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 484.9,
+    "endTime": 485.533,
+    "text": "那這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 493.5,
+    "endTime": 497.9,
+    "text": "這看起來就是一個很春天的感覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 497.9,
+    "endTime": 500.7,
+    "text": "各位看一下匯僑很春天 對不對",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 506.8,
+    "endTime": 510.4,
+    "text": "就是用今天選出來春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 535.9,
+    "endTime": 537.6,
+    "text": "春天選股參數是這樣子",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 543.2,
+    "endTime": 546.1,
+    "text": "你這邊就可以寫成交量大於 500 ",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 562.133,
+    "endTime": 563.566,
+    "text": "好那春天的選股清單",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 569.833,
+    "endTime": 571.333,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 573.633,
+    "endTime": 575.533,
+    "text": "好那春季選股清單",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 617.133,
+    "endTime": 619.366,
+    "text": "這邊有個重大事件",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 626.033,
+    "endTime": 627.966,
+    "text": "這邊有個除息",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 654.933,
+    "endTime": 656.766,
+    "text": "春天的選股案例",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  }
+]

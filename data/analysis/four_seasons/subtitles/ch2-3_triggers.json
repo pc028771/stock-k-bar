@@ -1,0 +1,1184 @@
+[
+  {
+    "startTime": 9.633,
+    "endTime": 12.533,
+    "text": "也就是春天最強的武器",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 78.433,
+    "endTime": 80.533,
+    "text": "可轉債漲到 400 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('400', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 84.333,
+    "endTime": 86.033,
+    "text": "也就是夏天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 97.633,
+    "endTime": 100.633,
+    "text": "各位一定要好好的學習可轉債",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 108.233,
+    "endTime": 109.033,
+    "text": "那春季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 118.733,
+    "endTime": 121.033,
+    "text": "4% 以上就非常漂亮了",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 121.033,
+    "endTime": 122.433,
+    "text": "4% 以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 143.966,
+    "endTime": 146.433,
+    "text": "這邊有個領債息跟套利",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 146.433,
+    "endTime": 150.333,
+    "text": "這邊就有一些委賣價成交殖利率",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 187.333,
+    "endTime": 189.633,
+    "text": "就來到 7.07%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('7.07', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 192.733,
+    "endTime": 196.333,
+    "text": "年化殖利率來到 7.99%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('7.99', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 196.333,
+    "endTime": 199.033,
+    "text": "那這邊有一堆 4% 以上的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 201.566,
+    "endTime": 202.966,
+    "text": "那通常 4% 以上的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 205.633,
+    "endTime": 207.966,
+    "text": "因為 4% 以上我就覺得蠻值得的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 209.733,
+    "endTime": 212.233,
+    "text": "那為什麼這裡面會有一個 7% 的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('7', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 212.233,
+    "endTime": 213.766,
+    "text": "那其它都沒有 7%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('7', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 220.233,
+    "endTime": 221.966,
+    "text": "你可以在理財寶這邊有沒有看到",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 221.966,
+    "endTime": 223.733,
+    "text": "這邊有個信評 9",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 261.166,
+    "endTime": 265.533,
+    "text": "你可以去選負債比小於 50% 的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 265.533,
+    "endTime": 266.733,
+    "text": "小於 50%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 266.733,
+    "endTime": 268.366,
+    "text": "小於 50% 就很好",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 269.366,
+    "endTime": 271.633,
+    "text": "要大於 100%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 271.633,
+    "endTime": 272.633,
+    "text": "像這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 272.633,
+    "endTime": 275.733,
+    "text": "這個負債比小於 50% 的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 276.966,
+    "endTime": 277.8,
+    "text": "那接近 50%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 277.8,
+    "endTime": 281.133,
+    "text": "有這個弘帆二 52%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('52', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 281.133,
+    "endTime": 282.833,
+    "text": "那速動比有 110%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('110', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 293.966,
+    "endTime": 297.166,
+    "text": "你一定要挑負債比比較低的",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 298.966,
+    "endTime": 302.033,
+    "text": "所以這是一個年化大於 3% 的案例",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 328.766,
+    "endTime": 334.333,
+    "text": "年化殖利率大於這個 3 % 的案例",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 344.833,
+    "endTime": 346.133,
+    "text": "首頁這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 430.866,
+    "endTime": 434.333,
+    "text": "可以這個買年化殖率大於 3% 的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 437.566,
+    "endTime": 439.333,
+    "text": "因為定存大概只有 1%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('1', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 442.366,
+    "endTime": 444.966,
+    "text": "就是我們持有年利率大於 3%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 473.833,
+    "endTime": 477.633,
+    "text": "所以我的投報率是遠遠超過 20%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('20', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 491.466,
+    "endTime": 493.466,
+    "text": "旺宏已經來到 400 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('400', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 499.033,
+    "endTime": 500.466,
+    "text": "後面漲到 400 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('400', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 503.333,
+    "endTime": 505.933,
+    "text": "這個 2028 年還我 100 塊就好",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 517.033,
+    "endTime": 519.9,
+    "text": "當時做講義的時候是 90 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 519.9,
+    "endTime": 520.9,
+    "text": "我買 89 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('89', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 520.9,
+    "endTime": 522.6,
+    "text": "90 塊買了一堆",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 555.0,
+    "endTime": 555.5,
+    "text": "那這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 626.5,
+    "endTime": 628.833,
+    "text": "可轉債慢慢來到 100 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 633.833,
+    "endTime": 636.2,
+    "text": "退可守這邊就可以守",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 663.0,
+    "endTime": 666.1,
+    "text": "它就必須得用 101 塊收回去",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('101', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 683.633,
+    "endTime": 685.633,
+    "text": "必須這個價格收回去",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 729.133,
+    "endTime": 730.333,
+    "text": "那這邊很多履約損益",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 733.433,
+    "endTime": 734.733,
+    "text": "所以這邊有一些什麼",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 748.833,
+    "endTime": 749.533,
+    "text": "那這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 769.4,
+    "endTime": 771.3,
+    "text": "因為現股搞不好會跌破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 796.233,
+    "endTime": 798.8,
+    "text": "大概也有 4 % 的空間",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 804.833,
+    "endTime": 808.866,
+    "text": "那它前陣子曾經跌到 96 塊、97 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('96', '塊'), ('97', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 813.066,
+    "endTime": 816.366,
+    "text": "它都是一個不錯的進場機會",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 820.5,
+    "endTime": 822.6,
+    "text": "像這邊有個中鼎二",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 838.6,
+    "endTime": 840.0,
+    "text": "它在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 846.4,
+    "endTime": 848.233,
+    "text": "到 87、88 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('88', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 869.133,
+    "endTime": 872.8,
+    "text": "你看這最低有到 86、87、88、89 這邊都有",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 872.8,
+    "endTime": 875.333,
+    "text": "我在這邊佈局很多了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 877.733,
+    "endTime": 881.1,
+    "text": "它已經緩步地來到了 94 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('94', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 921.533,
+    "endTime": 924.466,
+    "text": "在低檔各位有沒有看到這邊漲到 95",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 981.5,
+    "endTime": 983.1,
+    "text": "那通常到 100 塊的時候",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 992.733,
+    "endTime": 995.1,
+    "text": "到了 100 塊附近",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1041.3,
+    "endTime": 1042.3,
+    "text": "到了 100 塊以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1044.9,
+    "endTime": 1046.0,
+    "text": "也就是說 100 塊以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1108.7,
+    "endTime": 1111.7,
+    "text": "基本上看這價格應該是也不會倒了",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 1115.4,
+    "endTime": 1118.233,
+    "text": "這種 94、95 的應該是不會倒",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 1140.233,
+    "endTime": 1142.3,
+    "text": "因為我之前有買到這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 1169.3,
+    "endTime": 1172.6,
+    "text": "目前的賣回殖利率有到 4.54%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.54', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1199.7,
+    "endTime": 1201.6,
+    "text": "還曾經跌破 90 過",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 1205.0,
+    "endTime": 1205.9,
+    "text": "因為我這邊我有買到",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1218.3,
+    "endTime": 1220.233,
+    "text": "單買可轉債殖利率有到 4.15%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.15', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1221.3,
+    "endTime": 1222.466,
+    "text": "一定 10% 以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1289.466,
+    "endTime": 1291.166,
+    "text": "殖利率有到 4.86%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.86', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1312.7,
+    "endTime": 1314.633,
+    "text": "我覺得春天就是要等待",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1359.166,
+    "endTime": 1361.266,
+    "text": "所以殖利率目前來到 4.17%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.17', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1427.1,
+    "endTime": 1429.4,
+    "text": "目前殖利率 4.32%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.32', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1429.4,
+    "endTime": 1430.4,
+    "text": "股價在這邊混",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1438.133,
+    "endTime": 1439.7,
+    "text": " 4.37% 也還好",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4.37', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1439.7,
+    "endTime": 1440.7,
+    "text": "假如殖利率 20%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('20', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1443.4,
+    "endTime": 1444.533,
+    "text": " 4% 的",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1448.666,
+    "endTime": 1452.433,
+    "text": "其實 99 塊大概在低檔這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('99', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1454.033,
+    "endTime": 1454.833,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1455.766,
+    "endTime": 1457.633,
+    "text": "這邊 99 塊這裡",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('99', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1497.566,
+    "endTime": 1499.766,
+    "text": "所以整個殖利率有到 5%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1500.933,
+    "endTime": 1503.6,
+    "text": "因為這個殖利率 5% 很漂亮",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1532.166,
+    "endTime": 1534.833,
+    "text": "然後庫存成本利息是 2.3 %",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2.3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1543.633,
+    "endTime": 1545.533,
+    "text": "要開一定要開 6 倍",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 1557.033,
+    "endTime": 1561.633,
+    "text": "它是算你 total 部位的利息 2.3 %",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2.3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1570.566,
+    "endTime": 1573.533,
+    "text": "利息大概是 2.76%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2.76', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1574.433,
+    "endTime": 1578.033,
+    "text": "你用 2.76% 去買一個 4%、5% 的商品",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2.76', '%'), ('4', '%'), ('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1580.166,
+    "endTime": 1584.166,
+    "text": "你的投報率就會來到 15、16% 以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('16', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1584.166,
+    "endTime": 1586.633,
+    "text": "所以賣回利率大於 2.76%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2.76', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1589.533,
+    "endTime": 1592.133,
+    "text": "你最好只買 4% 以上更划算",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1592.133,
+    "endTime": 1593.7,
+    "text": "所以通常建議買 4% 以上",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1609.233,
+    "endTime": 1612.033,
+    "text": "所以只要它下跌一個 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1612.033,
+    "endTime": 1613.433,
+    "text": "10% 左右",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1618.933,
+    "endTime": 1621.766,
+    "text": "就是假設 100 塊跌到 90 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('100', '塊'), ('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1621.766,
+    "endTime": 1625.733,
+    "text": "它就幫你戶頭做一個這個 90 塊平倉",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1625.733,
+    "endTime": 1627.733,
+    "text": "再用 90 塊再買進",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1627.733,
+    "endTime": 1630.433,
+    "text": "那因為你 100-90 塊平倉之後",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1632.433,
+    "endTime": 1633.433,
+    "text": "那你用 90 塊再買進",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1651.333,
+    "endTime": 1651.933,
+    "text": "所以這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1655.633,
+    "endTime": 1656.633,
+    "text": "一定要分散",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 1664.633,
+    "endTime": 1668.133,
+    "text": "50% 速動比大於 100% 比較安全",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%'), ('100', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1707.733,
+    "endTime": 1711.233,
+    "text": "就是這個春天的選股策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1711.233,
+    "endTime": 1713.766,
+    "text": "下個章節再來講夏季選股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  }
+]

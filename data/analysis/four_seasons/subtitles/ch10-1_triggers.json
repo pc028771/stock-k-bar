@@ -1,0 +1,1150 @@
+[
+  {
+    "startTime": 38.638,
+    "endTime": 41.374,
+    "text": "其實長期持有的我大概佔在 70%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('70', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 49.082,
+    "endTime": 50.15,
+    "text": "大概 30% 左右",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('30', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 102.302,
+    "endTime": 104.771,
+    "text": "它屬於比較春天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 104.771,
+    "endTime": 106.272,
+    "text": "夏天的、秋天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 106.272,
+    "endTime": 107.674,
+    "text": "或冬天的股票啊",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 139.139,
+    "endTime": 141.141,
+    "text": "我們一定要把資金有效率的應用",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 142.375,
+    "endTime": 145.278,
+    "text": "正在夏天炙熱當中的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 186.92,
+    "endTime": 189.856,
+    "text": "現在好像真的必須得從下而上的",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 198.932,
+    "endTime": 202.268,
+    "text": "我們去放在那種春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 202.268,
+    "endTime": 204.27,
+    "text": "春天股票呢就是",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 208.641,
+    "endTime": 210.343,
+    "text": "其實是因為有些股票",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "其實是"
+      }
+    ]
+  },
+  {
+    "startTime": 210.343,
+    "endTime": 211.711,
+    "text": "它都一直在走夏天嘛",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 214.447,
+    "endTime": 216.249,
+    "text": "夏天永遠不會結束",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 217.45,
+    "endTime": 219.352,
+    "text": "哈哈 夏天一直在",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 224.891,
+    "endTime": 227.26,
+    "text": "還是沒有秋天的現象 嗯",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 227.26,
+    "endTime": 231.197,
+    "text": "那你只要會分辨誰是正炎熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 247.046,
+    "endTime": 248.681,
+    "text": "哪些是夏天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 248.681,
+    "endTime": 250.316,
+    "text": "哪些是秋天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 259.425,
+    "endTime": 260.827,
+    "text": "春天的時候會長什麼樣",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 261.761,
+    "endTime": 263.263,
+    "text": "然後夏天的時候會有什麼樣",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 263.263,
+    "endTime": 264.097,
+    "text": "秋天的時候會什麼",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 268.268,
+    "endTime": 271.571,
+    "text": "譬如說我常常會覺得春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 280.28,
+    "endTime": 282.415,
+    "text": "我反而會把它歸在春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 301.634,
+    "endTime": 304.103,
+    "text": "那時候還定義在它的春天期",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 305.271,
+    "endTime": 307.006,
+    "text": "好 譬如到了夏天 其實它",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 324.957,
+    "endTime": 326.359,
+    "text": "我就覺得它是夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 326.359,
+    "endTime": 329.662,
+    "text": "那對我來說的秋天反而會是",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 362.862,
+    "endTime": 365.064,
+    "text": "你的春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 374.507,
+    "endTime": 376.642,
+    "text": "你的春天是初升段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 377.944,
+    "endTime": 378.778,
+    "text": "春天初升段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 378.778,
+    "endTime": 379.712,
+    "text": "那我們的夏天呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 384.05,
+    "endTime": 387.153,
+    "text": "好 那你的這個夏天呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 387.153,
+    "endTime": 388.254,
+    "text": "跟秋天呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 388.254,
+    "endTime": 389.522,
+    "text": "我們先講秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 389.522,
+    "endTime": 390.556,
+    "text": "你的秋天呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 390.556,
+    "endTime": 391.958,
+    "text": "跟我們的秋天差不多",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 418.985,
+    "endTime": 421.621,
+    "text": "嗯 這就是一個秋天的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 421.621,
+    "endTime": 423.623,
+    "text": "好 那秋天形態出來之後呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 426.893,
+    "endTime": 429.362,
+    "text": "那萬一秋天形態出來又再創高",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 430.229,
+    "endTime": 432.365,
+    "text": "就夏天繼續持續而已",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 522.922,
+    "endTime": 525.858,
+    "text": "這時候就是一個純純的秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 526.459,
+    "endTime": 527.226,
+    "text": "哦 秋天呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 527.226,
+    "endTime": 529.462,
+    "text": "就是盤整震盪出貨的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 543.843,
+    "endTime": 546.212,
+    "text": "哦 你看他就偶爾反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 555.521,
+    "endTime": 558.09,
+    "text": "不知道到底要怎麼抓那個出場點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 558.624,
+    "endTime": 560.927,
+    "text": "抓出場點其實我們就跟各位講",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 738.27,
+    "endTime": 739.739,
+    "text": "40% 的配息",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('40', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 739.739,
+    "endTime": 742.174,
+    "text": "殖利率到 40%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('40', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 742.174,
+    "endTime": 744.143,
+    "text": "把 40% 的配息拿來平均",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('40', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 746.912,
+    "endTime": 748.781,
+    "text": "有這個 8%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('8', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 767.867,
+    "endTime": 769.435,
+    "text": "台股上了 31,000 點",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('000', '點')]"
+      }
+    ]
+  },
+  {
+    "startTime": 786.786,
+    "endTime": 787.686,
+    "text": "秋天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 787.686,
+    "endTime": 789.855,
+    "text": "哈哈哈 秋天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 789.855,
+    "endTime": 791.323,
+    "text": "因為秋天股票就是",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 799.498,
+    "endTime": 801.801,
+    "text": "之前呢 他走過一個完整的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 804.436,
+    "endTime": 806.172,
+    "text": "走過完整的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 809.809,
+    "endTime": 811.477,
+    "text": "進入蕭瑟秋天之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 869.602,
+    "endTime": 870.803,
+    "text": "他只能買 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 902.001,
+    "endTime": 904.069,
+    "text": "我個人其實是覺得",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "其實是"
+      }
+    ]
+  },
+  {
+    "startTime": 925.09,
+    "endTime": 928.26,
+    "text": "對 所以他必須要有那一顆太陽",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 968.667,
+    "endTime": 972.171,
+    "text": "你必須還是要給很多費用下去啊",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 997.863,
+    "endTime": 1000.332,
+    "text": "因為反正台積電 always 夏天嘛",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1173.839,
+    "endTime": 1175.174,
+    "text": "他現在一個 tick 是 5 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1184.683,
+    "endTime": 1187.085,
+    "text": "我沒有買到特別多哦",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 1223.021,
+    "endTime": 1224.423,
+    "text": "今天大概值 4 塊多了",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('4', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1275.774,
+    "endTime": 1276.908,
+    "text": "你會其他會特別推",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 1283.582,
+    "endTime": 1285.751,
+    "text": "例如說夏天型的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1289.121,
+    "endTime": 1290.255,
+    "text": "夏天型的股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1294.493,
+    "endTime": 1296.461,
+    "text": "我們在做夏天型股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1296.461,
+    "endTime": 1297.663,
+    "text": "我們都有個停利點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停利"
+      }
+    ]
+  },
+  {
+    "startTime": 1297.663,
+    "endTime": 1299.331,
+    "text": "都會在處置前面停利",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停利"
+      }
+    ]
+  },
+  {
+    "startTime": 1316.982,
+    "endTime": 1318.517,
+    "text": "不一定要在前一天",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 1335.801,
+    "endTime": 1337.336,
+    "text": "例如說回檔有 15%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('15', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1358.09,
+    "endTime": 1360.959,
+    "text": "那夏天形態的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1360.959,
+    "endTime": 1364.029,
+    "text": "這個浪子回頭股常常是不錯的買點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "買點"
+      }
+    ]
+  },
+  {
+    "startTime": 1365.33,
+    "endTime": 1367.499,
+    "text": "買股票尤其夏天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1376.441,
+    "endTime": 1377.776,
+    "text": "夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1440.439,
+    "endTime": 1442.607,
+    "text": "因為基本上你要做夏天股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1545.176,
+    "endTime": 1548.013,
+    "text": "你可以把一些你覺得是夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1549.447,
+    "endTime": 1551.116,
+    "text": "AI 股票它不是夏天嗎",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1551.116,
+    "endTime": 1552.584,
+    "text": "那這些夏天股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1564.362,
+    "endTime": 1565.564,
+    "text": "然後設停損",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      }
+    ]
+  },
+  {
+    "startTime": 1565.564,
+    "endTime": 1566.865,
+    "text": "如果漲了 8%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('8', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1567.699,
+    "endTime": 1568.567,
+    "text": "6% 設停損",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('6', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1568.567,
+    "endTime": 1569.968,
+    "text": "你反正頂多賠 2%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('2', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1578.209,
+    "endTime": 1580.879,
+    "text": "那我要去找那種夏天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1700.532,
+    "endTime": 1704.235,
+    "text": "2601 哦 01 應該是航運類股",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 1718.683,
+    "endTime": 1720.218,
+    "text": "這種你一定要避開",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 1755.754,
+    "endTime": 1757.322,
+    "text": "它是正熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1763.061,
+    "endTime": 1765.663,
+    "text": "它原本從夏天就變成秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1766.331,
+    "endTime": 1768.767,
+    "text": "所以呢 你必須要非常瞭解",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 1825.757,
+    "endTime": 1826.958,
+    "text": "有春天夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1835.333,
+    "endTime": 1837.969,
+    "text": "哦 那個什麼是秋天的股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1874.939,
+    "endTime": 1877.642,
+    "text": "有的人喜歡春天穩健的感覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1877.642,
+    "endTime": 1880.311,
+    "text": "有的人喜歡夏天刺激的感覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1880.311,
+    "endTime": 1881.813,
+    "text": "然後有的人喜歡秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1889.187,
+    "endTime": 1891.489,
+    "text": "第二個 你千萬別選錯",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "千萬"
+      }
+    ]
+  },
+  {
+    "startTime": 1891.489,
+    "endTime": 1893.358,
+    "text": "你不能喜歡夏天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1893.358,
+    "endTime": 1894.726,
+    "text": "但是你老是在買秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1895.86,
+    "endTime": 1898.496,
+    "text": "或者是你喜歡春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1900.965,
+    "endTime": 1902.3,
+    "text": "夏天的快感",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1945.476,
+    "endTime": 1947.211,
+    "text": "屬於夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1971.803,
+    "endTime": 1974.305,
+    "text": "你不一定 你的要 1,000% 嘛",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('000', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1975.506,
+    "endTime": 1977.508,
+    "text": "20% 20% 20%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('20', '%'), ('20', '%'), ('20', '%')]"
+      }
+    ]
+  }
+]

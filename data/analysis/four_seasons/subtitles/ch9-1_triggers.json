@@ -1,0 +1,630 @@
+[
+  {
+    "startTime": 27.833,
+    "endTime": 30.7,
+    "text": "這邊把它按一下這個三角形",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 32.966,
+    "endTime": 37.4,
+    "text": "那這邊我會整理一些最近看的標的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 64.366,
+    "endTime": 67.366,
+    "text": "就是一個典型的一個夏天的型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 67.366,
+    "endTime": 69.433,
+    "text": "春天一下轉夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 79.066,
+    "endTime": 81.6,
+    "text": "這春天走完開始走夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 97.7,
+    "endTime": 99.833,
+    "text": "這邊也是一樣",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 101.3,
+    "endTime": 103.166,
+    "text": "但這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 155.766,
+    "endTime": 158.333,
+    "text": "這邊看一下",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 183.466,
+    "endTime": 186.266,
+    "text": "這邊我不曉得它的均價多少",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 226.6,
+    "endTime": 229.8,
+    "text": "這都是一個夏天型態的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 229.8,
+    "endTime": 234.866,
+    "text": "所以這裡常常會選出夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 264.966,
+    "endTime": 266.9,
+    "text": "我們都要特別小心",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 288.3,
+    "endTime": 292.1,
+    "text": "所以這符合我們春天型態的買法",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 292.1,
+    "endTime": 293.833,
+    "text": "因為我春天型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 300.3,
+    "endTime": 303.5,
+    "text": "我的報酬率來到了這個 5%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 303.5,
+    "endTime": 304.233,
+    "text": " 5%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 304.233,
+    "endTime": 307.066,
+    "text": "那 5% 開槓桿它就是 10 幾 %",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('5', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 331.9,
+    "endTime": 334.6,
+    "text": "可能必須再跟銀行多借點錢",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 338.066,
+    "endTime": 339.6,
+    "text": "所以在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 343.1,
+    "endTime": 345.833,
+    "text": "那在這邊就有點夏天的味道",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 375.9,
+    "endTime": 376.933,
+    "text": "這邊可以套利",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 380.433,
+    "endTime": 381.6,
+    "text": "套利 9%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('9', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 386.366,
+    "endTime": 389.166,
+    "text": "很有可能是在一個秋天的位置",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 389.166,
+    "endTime": 391.0,
+    "text": "很有可能在秋天的位置",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 391.0,
+    "endTime": 393.133,
+    "text": "我們來看一下是不是秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 395.6,
+    "endTime": 396.9,
+    "text": "看起來真的是秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 399.3,
+    "endTime": 401.2,
+    "text": "這裡是不是春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 401.2,
+    "endTime": 402.7,
+    "text": "春天對不對",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 402.7,
+    "endTime": 404.3,
+    "text": "那後來春天沒有量",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 405.4,
+    "endTime": 407.0,
+    "text": "是不是夏天來了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 454.7,
+    "endTime": 458.266,
+    "text": "所以折價的時候就是一個秋天的型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 458.266,
+    "endTime": 460.2,
+    "text": "秋天型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 488.9,
+    "endTime": 491.8,
+    "text": "這個夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 491.8,
+    "endTime": 493.6,
+    "text": "因為夏天必須要沿上軌",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 503.0,
+    "endTime": 504.2,
+    "text": "這也是夏天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 551.533,
+    "endTime": 553.1,
+    "text": "就這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 577.9,
+    "endTime": 582.033,
+    "text": "就大漲自營商必須要再多買",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 591.533,
+    "endTime": 592.5,
+    "text": "這邊有幾個欄位",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 644.1,
+    "endTime": 645.966,
+    "text": "這邊都寫得很清楚",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 744.166,
+    "endTime": 747.733,
+    "text": "高檔這邊我們把它抓一下",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 748.633,
+    "endTime": 750.533,
+    "text": "這邊各位你可以選 10 天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 763.133,
+    "endTime": 766.266,
+    "text": "所以它走了夏天很快結束",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 766.266,
+    "endTime": 767.666,
+    "text": "它的夏天很短",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 782.833,
+    "endTime": 784.933,
+    "text": "像這邊有波段大戶",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 791.033,
+    "endTime": 792.333,
+    "text": "那這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 816.366,
+    "endTime": 819.966,
+    "text": "也不是什麼特別的春跟夏季",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 819.966,
+    "endTime": 822.933,
+    "text": "這個看起來是春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 822.933,
+    "endTime": 825.333,
+    "text": "春天凱基士林已經開始大買",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 900.266,
+    "endTime": 901.833,
+    "text": "在最近這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 907.633,
+    "endTime": 910.8,
+    "text": "過往在這邊有稍微賣過一些",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 927.433,
+    "endTime": 928.666,
+    "text": "像這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1020.4,
+    "endTime": 1024.3,
+    "text": "那右邊這邊有一些重大事件",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1063.233,
+    "endTime": 1065.1,
+    "text": "重大事件這邊都有",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1083.033,
+    "endTime": 1084.8,
+    "text": "這邊就寫了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1088.166,
+    "endTime": 1089.633,
+    "text": "這邊各位就自己看",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1108.0,
+    "endTime": 1111.2,
+    "text": "這邊 ETF 還沒有做比較好的更新",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  }
+]

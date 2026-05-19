@@ -1,0 +1,186 @@
+[
+  {
+    "startTime": 22.7,
+    "endTime": 24.666,
+    "text": "春天主力吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 28.733,
+    "endTime": 30.8,
+    "text": "那夏天開始漲的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 37.266,
+    "endTime": 39.2,
+    "text": "在這邊會震盪出貨",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 46.0,
+    "endTime": 47.466,
+    "text": "否認它在出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 49.3,
+    "endTime": 50.466,
+    "text": "那等到冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 56.733,
+    "endTime": 59.966,
+    "text": "一直到這邊又變成一個春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 59.966,
+    "endTime": 62.666,
+    "text": "春天然後突然漲一下",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 73.466,
+    "endTime": 76.6,
+    "text": "你會在春天稍微佈局一些",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 76.6,
+    "endTime": 79.1,
+    "text": "夏天積極地參與",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 79.1,
+    "endTime": 81.666,
+    "text": "秋天可以做短空",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 81.666,
+    "endTime": 82.7,
+    "text": "冬天怎麼樣",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 112.066,
+    "endTime": 113.666,
+    "text": "重點是絕對不能大賠",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "重點"
+      }
+    ]
+  },
+  {
+    "startTime": 113.666,
+    "endTime": 114.966,
+    "text": "絕對不能大賠",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "絕對不能"
+      }
+    ]
+  },
+  {
+    "startTime": 127.433,
+    "endTime": 129.166,
+    "text": "永遠都是夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 136.566,
+    "endTime": 137.966,
+    "text": "那重點就怎麼樣",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "重點"
+      }
+    ]
+  },
+  {
+    "startTime": 137.966,
+    "endTime": 139.966,
+    "text": "重點就在不同的季節",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "重點"
+      }
+    ]
+  }
+]

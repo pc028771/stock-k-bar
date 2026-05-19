@@ -1,0 +1,693 @@
+[
+  {
+    "startTime": 8.766,
+    "endTime": 11.166,
+    "text": "高檔分點出貨的狀況",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 14.066,
+    "endTime": 16.666,
+    "text": "它就變成一個大主力出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "主力出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 16.666,
+    "endTime": 19.266,
+    "text": "通常這種高檔出貨對股價而言",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 38.566,
+    "endTime": 40.866,
+    "text": "賣到剩下 20 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('20', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 49.3,
+    "endTime": 50.866,
+    "text": "各位看一下它的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 54.766,
+    "endTime": 56.966,
+    "text": "春天漲上來變夏天之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 74.3,
+    "endTime": 77.566,
+    "text": "你去這個追逐夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 100.466,
+    "endTime": 101.066,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 104.0,
+    "endTime": 106.266,
+    "text": "然後現在反彈到高的位階",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 106.266,
+    "endTime": 108.766,
+    "text": "元大博愛也大量出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 108.766,
+    "endTime": 111.1,
+    "text": "所以當這種有分點大量出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 117.966,
+    "endTime": 119.166,
+    "text": "稍微反彈一點",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 124.466,
+    "endTime": 126.2,
+    "text": "在地人在這邊大賣",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 213.566,
+    "endTime": 215.066,
+    "text": "我們把注意股票把它關掉",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 215.066,
+    "endTime": 217.166,
+    "text": "這邊有大量的申報轉讓",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 223.066,
+    "endTime": 224.166,
+    "text": "郭人豪這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 248.066,
+    "endTime": 250.666,
+    "text": "但是實際上出貨量出這麼多",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 319.7,
+    "endTime": 321.1,
+    "text": "這邊不是有出量",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出量"
+      },
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 326.3,
+    "endTime": 327.933,
+    "text": "那這邊有一條線是",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 330.9,
+    "endTime": 333.566,
+    "text": "這裡它在這邊大買",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 335.9,
+    "endTime": 338.466,
+    "text": "然後在這邊有隔日沖進來",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 341.466,
+    "endTime": 344.1,
+    "text": "從這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 359.766,
+    "endTime": 361.966,
+    "text": "它的申報轉讓在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 366.7,
+    "endTime": 368.466,
+    "text": "這邊大概就 34,000",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 383.266,
+    "endTime": 384.3,
+    "text": "殺到現在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 411.866,
+    "endTime": 414.266,
+    "text": "它一路漲到 71 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 436.766,
+    "endTime": 439.266,
+    "text": "在這邊一路地賣超",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 494.466,
+    "endTime": 495.166,
+    "text": "到這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 516.766,
+    "endTime": 519.366,
+    "text": "它均價大概都 10 塊左右",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 521.666,
+    "endTime": 523.066,
+    "text": "在這邊買 10 億",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 525.366,
+    "endTime": 528.766,
+    "text": "到 70 塊到 70 塊就是 70 億",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('70', '塊'), ('70', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 541.966,
+    "endTime": 544.1,
+    "text": "絕對不能碰東森",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "絕對不能"
+      }
+    ]
+  },
+  {
+    "startTime": 548.366,
+    "endTime": 550.466,
+    "text": "各位有沒有看到這邊賣掉 6 萬張",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 550.466,
+    "endTime": 551.966,
+    "text": "均價賣 46 塊 3",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('46', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 551.966,
+    "endTime": 554.166,
+    "text": "你說肉腳 71 塊不賣",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 554.166,
+    "endTime": 556.166,
+    "text": "賣 46 塊 3",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('46', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 559.5,
+    "endTime": 561.666,
+    "text": "不可能等到 71 塊賣",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 561.666,
+    "endTime": 562.366,
+    "text": "然後 71 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 569.7,
+    "endTime": 571.1,
+    "text": "從 71 塊來看",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 575.066,
+    "endTime": 576.166,
+    "text": "實際上 46 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('46', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 577.3,
+    "endTime": 579.666,
+    "text": "均價可能只有 10 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 579.666,
+    "endTime": 580.866,
+    "text": "均價只有 10 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 580.866,
+    "endTime": 582.366,
+    "text": "因為它在這個地方買得好",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個地方"
+      }
+    ]
+  },
+  {
+    "startTime": 585.466,
+    "endTime": 587.266,
+    "text": "然後我們把這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 596.866,
+    "endTime": 598.7,
+    "text": "這邊買 10 萬張",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 598.7,
+    "endTime": 601.166,
+    "text": "然後均價才 12 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('12', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 601.166,
+    "endTime": 602.466,
+    "text": "它 12 塊賣 40 幾塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('12', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 616.666,
+    "endTime": 620.066,
+    "text": "它就是一個典型的這個秋天形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 623.4,
+    "endTime": 625.666,
+    "text": "我們來看一下這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 629.866,
+    "endTime": 631.066,
+    "text": "這邊是春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 631.066,
+    "endTime": 633.766,
+    "text": "然後夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 636.166,
+    "endTime": 639.666,
+    "text": "然後在這邊震盪變秋天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 647.666,
+    "endTime": 649.266,
+    "text": "從高點 71 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('71', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 652.566,
+    "endTime": 656.166,
+    "text": "20 塊東森剩 20 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('20', '塊'), ('20', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 688.966,
+    "endTime": 690.166,
+    "text": "這邊是春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 690.166,
+    "endTime": 691.7,
+    "text": "這邊是夏天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 691.7,
+    "endTime": 694.566,
+    "text": "那夏天之後一下就轉秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 755.3,
+    "endTime": 757.166,
+    "text": "其實很多人都說我跌破月線再賣",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 757.166,
+    "endTime": 759.266,
+    "text": "其實跌破月線有點晚",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 762.3,
+    "endTime": 764.266,
+    "text": "跌破月線剩 38",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 766.566,
+    "endTime": 768.9,
+    "text": "你等到跌破月線再賣的話",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  }
+]

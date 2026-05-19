@@ -1,0 +1,1927 @@
+[
+  {
+    "startTime": 6.966,
+    "endTime": 8.3,
+    "text": "那我先來介紹一下"
+  },
+  {
+    "startTime": 8.3,
+    "endTime": 11.066,
+    "text": "我盤中的看盤軟體"
+  },
+  {
+    "startTime": 11.066,
+    "endTime": 13.766,
+    "text": "盤中看盤軟體這是全方位監控"
+  },
+  {
+    "startTime": 13.766,
+    "endTime": 15.866,
+    "text": "那這邊你可以選擇版 1 或版 2"
+  },
+  {
+    "startTime": 15.866,
+    "endTime": 18.266,
+    "text": "版 2 它的畫面會大一點"
+  },
+  {
+    "startTime": 18.266,
+    "endTime": 19.7,
+    "text": "版 2 畫面大一點"
+  },
+  {
+    "startTime": 19.7,
+    "endTime": 20.866,
+    "text": "那這裡"
+  },
+  {
+    "startTime": 20.866,
+    "endTime": 25.266,
+    "text": "它每天會有做多跟做空的前 15 名"
+  },
+  {
+    "startTime": 25.266,
+    "endTime": 28.166,
+    "text": "那假設你今天看到做多"
+  },
+  {
+    "startTime": 28.166,
+    "endTime": 30.466,
+    "text": "那明天有可能就變做空"
+  },
+  {
+    "startTime": 30.466,
+    "endTime": 32.266,
+    "text": "那後天有可能又變做多"
+  },
+  {
+    "startTime": 32.266,
+    "endTime": 33.966,
+    "text": "大後天又變做空"
+  },
+  {
+    "startTime": 33.966,
+    "endTime": 37.066,
+    "text": "為什麼因為這個權證"
+  },
+  {
+    "startTime": 37.066,
+    "endTime": 38.866,
+    "text": "它很多都隔日沖"
+  },
+  {
+    "startTime": 38.866,
+    "endTime": 39.566,
+    "text": "隔日沖"
+  },
+  {
+    "startTime": 39.566,
+    "endTime": 41.766,
+    "text": "那我們怎麼判斷它是隔日沖"
+  },
+  {
+    "startTime": 41.766,
+    "endTime": 43.166,
+    "text": "其實很簡單"
+  },
+  {
+    "startTime": 43.166,
+    "endTime": 47.566,
+    "text": "這權證你要看它買的狀況"
+  },
+  {
+    "startTime": 47.566,
+    "endTime": 48.366,
+    "text": "我舉例來說"
+  },
+  {
+    "startTime": 48.366,
+    "endTime": 51.933,
+    "text": "來 我們來看這個 3324"
+  },
+  {
+    "startTime": 51.933,
+    "endTime": 54.633,
+    "text": "3324 我弄一次給各位看"
+  },
+  {
+    "startTime": 54.633,
+    "endTime": 57.566,
+    "text": "3324"
+  },
+  {
+    "startTime": 57.566,
+    "endTime": 61.733,
+    "text": "這個是它今天盤中的權證買的狀況"
+  },
+  {
+    "startTime": 61.733,
+    "endTime": 64.033,
+    "text": "那權證買的狀況各位看這裡"
+  },
+  {
+    "startTime": 64.033,
+    "endTime": 65.566,
+    "text": "這邊有一排"
+  },
+  {
+    "startTime": 65.566,
+    "endTime": 68.366,
+    "text": "10:05"
+  },
+  {
+    "startTime": 68.366,
+    "endTime": 70.466,
+    "text": "突然出現一排"
+  },
+  {
+    "startTime": 70.466,
+    "endTime": 73.066,
+    "text": "那代號都不一樣"
+  },
+  {
+    "startTime": 73.066,
+    "endTime": 77.466,
+    "text": "但是都是 10:10:05 買的"
+  },
+  {
+    "startTime": 77.466,
+    "endTime": 79.066,
+    "text": "那像這種代號不一樣"
+  },
+  {
+    "startTime": 79.066,
+    "endTime": 80.566,
+    "text": "可是一秒鐘可以買 10 檔的"
+  },
+  {
+    "startTime": 80.566,
+    "endTime": 82.1,
+    "text": "這一定程式交易"
+  },
+  {
+    "startTime": 82.1,
+    "endTime": 83.666,
+    "text": "那假如是程式交易"
+  },
+  {
+    "startTime": 83.666,
+    "endTime": 85.266,
+    "text": "它就怎麼樣"
+  },
+  {
+    "startTime": 85.266,
+    "endTime": 86.9,
+    "text": "程式交易的話"
+  },
+  {
+    "startTime": 86.9,
+    "endTime": 89.966,
+    "text": "它就是這個隔日沖"
+  },
+  {
+    "startTime": 89.966,
+    "endTime": 91.166,
+    "text": "而且各位你看一下"
+  },
+  {
+    "startTime": 91.166,
+    "endTime": 93.7,
+    "text": "這個程式交易事實上有點吃豆腐"
+  },
+  {
+    "startTime": 93.7,
+    "endTime": 97.766,
+    "text": "你看它是 89 張的股買"
+  },
+  {
+    "startTime": 97.766,
+    "endTime": 100.866,
+    "text": "然後趁那個權證的盤"
+  },
+  {
+    "startTime": 100.866,
+    "endTime": 102.466,
+    "text": "可能還沒變的過程中"
+  },
+  {
+    "startTime": 102.466,
+    "endTime": 104.1,
+    "text": "它就把它買掉"
+  },
+  {
+    "startTime": 104.1,
+    "endTime": 108.033,
+    "text": "所以這股買跟買購是同時發生的"
+  },
+  {
+    "startTime": 108.033,
+    "endTime": 109.666,
+    "text": "股買跟買購同時發生"
+  },
+  {
+    "startTime": 109.666,
+    "endTime": 111.966,
+    "text": "那這個股票上漲"
+  },
+  {
+    "startTime": 111.966,
+    "endTime": 113.266,
+    "text": "它權證會變盤"
+  },
+  {
+    "startTime": 113.266,
+    "endTime": 114.966,
+    "text": "那假設變盤時間"
+  },
+  {
+    "startTime": 114.966,
+    "endTime": 119.066,
+    "text": "可能是這個 100 毫秒的話"
+  },
+  {
+    "startTime": 119.066,
+    "endTime": 122.7,
+    "text": "就是它必須要把權證的買價給抽掉"
+  },
+  {
+    "startTime": 122.7,
+    "endTime": 124.3,
+    "text": "然後再鋪回去"
+  },
+  {
+    "startTime": 124.3,
+    "endTime": 126.366,
+    "text": "假設是 100 毫秒"
+  },
+  {
+    "startTime": 126.366,
+    "endTime": 128.4,
+    "text": "它們可能在 20 毫秒"
+  },
+  {
+    "startTime": 128.4,
+    "endTime": 130.7,
+    "text": "就把它的單子給吃了 "
+  },
+  {
+    "startTime": 130.7,
+    "endTime": 134.866,
+    "text": "那像這種吃掉它的權證"
+  },
+  {
+    "startTime": 134.866,
+    "endTime": 138.233,
+    "text": "它的這個 這麼快吃掉的"
+  },
+  {
+    "startTime": 138.233,
+    "endTime": 140.366,
+    "text": "它通常隔天都會賣出來"
+  },
+  {
+    "startTime": 140.366,
+    "endTime": 142.366,
+    "text": "所以你今天看到雙鴻做多"
+  },
+  {
+    "startTime": 142.366,
+    "endTime": 145.5,
+    "text": "明天你就會看到雙鴻做空"
+  },
+  {
+    "startTime": 145.5,
+    "endTime": 147.166,
+    "text": "是這樣子的"
+  },
+  {
+    "startTime": 147.166,
+    "endTime": 150.066,
+    "text": "那我們可以看得出來這些權證"
+  },
+  {
+    "startTime": 150.066,
+    "endTime": 151.966,
+    "text": "只要是同時間的"
+  },
+  {
+    "startTime": 151.966,
+    "endTime": 152.866,
+    "text": "各位你再看一次"
+  },
+  {
+    "startTime": 152.866,
+    "endTime": 156.2,
+    "text": "這邊股買 1010 就出現一排"
+  },
+  {
+    "startTime": 156.2,
+    "endTime": 158.266,
+    "text": "只要是這種同時間的"
+  },
+  {
+    "startTime": 158.266,
+    "endTime": 160.066,
+    "text": "它都是"
+  },
+  {
+    "startTime": 160.066,
+    "endTime": 163.266,
+    "text": "有沒有看到這裡 1005"
+  },
+  {
+    "startTime": 163.266,
+    "endTime": 166.133,
+    "text": "股買 20 張就突然一排"
+  },
+  {
+    "startTime": 166.133,
+    "endTime": 169.733,
+    "text": "它就是在吃那個權證市場的豆腐"
+  },
+  {
+    "startTime": 169.733,
+    "endTime": 171.333,
+    "text": "吃權證市場豆腐"
+  },
+  {
+    "startTime": 171.333,
+    "endTime": 172.933,
+    "text": "這個我們平常是這樣子看的"
+  },
+  {
+    "startTime": 172.933,
+    "endTime": 176.233,
+    "text": "我平常是時間序在底下"
+  },
+  {
+    "startTime": 176.233,
+    "endTime": 180.666,
+    "text": "然後這個出現股買之後突然一排"
+  },
+  {
+    "startTime": 180.666,
+    "endTime": 183.633,
+    "text": "出現股買之後突然一排"
+  },
+  {
+    "startTime": 183.633,
+    "endTime": 185.333,
+    "text": "那這個就是在吃"
+  },
+  {
+    "startTime": 185.333,
+    "endTime": 187.633,
+    "text": "吃這個發行商的豆腐"
+  },
+  {
+    "startTime": 187.633,
+    "endTime": 189.333,
+    "text": "那發行商對這個很感冒"
+  },
+  {
+    "startTime": 189.333,
+    "endTime": 192.333,
+    "text": "對這種這個程式交易的很感冒"
+  },
+  {
+    "startTime": 192.333,
+    "endTime": 193.333,
+    "text": "但這種程式交易"
+  },
+  {
+    "startTime": 193.333,
+    "endTime": 196.4,
+    "text": "它就是它就會一直被吃豆腐這樣子"
+  },
+  {
+    "startTime": 196.4,
+    "endTime": 197.433,
+    "text": "那景碩"
+  },
+  {
+    "startTime": 197.433,
+    "endTime": 199.033,
+    "text": "景碩今天也買蠻多的"
+  },
+  {
+    "startTime": 199.033,
+    "endTime": 199.633,
+    "text": "那我們來看一下"
+  },
+  {
+    "startTime": 199.633,
+    "endTime": 205.166,
+    "text": "景碩今天的權證是什麼狀況"
+  },
+  {
+    "startTime": 205.166,
+    "endTime": 207.466,
+    "text": "景碩今天就很強"
+  },
+  {
+    "startTime": 207.466,
+    "endTime": 211.1,
+    "text": "它的權證買一排的數量比較少"
+  },
+  {
+    "startTime": 211.1,
+    "endTime": 212.866,
+    "text": "數量比較少就這邊有一排"
+  },
+  {
+    "startTime": 212.866,
+    "endTime": 215.166,
+    "text": "11:55 有一排"
+  },
+  {
+    "startTime": 215.166,
+    "endTime": 217.733,
+    "text": "這邊是"
+  },
+  {
+    "startTime": 217.733,
+    "endTime": 219.933,
+    "text": "沒有特別的股買的訊號"
+  },
+  {
+    "startTime": 219.933,
+    "endTime": 221.733,
+    "text": "就出現一排"
+  },
+  {
+    "startTime": 221.733,
+    "endTime": 223.633,
+    "text": "所以今天景碩"
+  },
+  {
+    "startTime": 223.633,
+    "endTime": 226.8,
+    "text": "這個有比較"
+  },
+  {
+    "startTime": 226.8,
+    "endTime": 229.133,
+    "text": "這邊算是比較大單"
+  },
+  {
+    "startTime": 229.133,
+    "endTime": 233.466,
+    "text": "但是比較零散的分點有進來買"
+  },
+  {
+    "startTime": 233.466,
+    "endTime": 235.4,
+    "text": "那景碩今天蠻強的"
+  },
+  {
+    "startTime": 235.4,
+    "endTime": 236.433,
+    "text": "那種強勢"
+  },
+  {
+    "startTime": 236.433,
+    "endTime": 238.9,
+    "text": "我們還可以從期貨看得出來"
+  },
+  {
+    "startTime": 238.9,
+    "endTime": 241.166,
+    "text": "假如是期貨是正價差的話"
+  },
+  {
+    "startTime": 241.166,
+    "endTime": 243.666,
+    "text": "那這檔股票就比較偏多"
+  },
+  {
+    "startTime": 243.666,
+    "endTime": 245.0,
+    "text": "那正價差就是"
+  },
+  {
+    "startTime": 245.0,
+    "endTime": 246.266,
+    "text": "我們看一下"
+  },
+  {
+    "startTime": 246.266,
+    "endTime": 247.8,
+    "text": "這個藍色是期貨"
+  },
+  {
+    "startTime": 247.8,
+    "endTime": 251.833,
+    "text": "白色是這個現股"
+  },
+  {
+    "startTime": 251.833,
+    "endTime": 254.633,
+    "text": "那藍色的假如在白色的上面"
+  },
+  {
+    "startTime": 254.633,
+    "endTime": 256.433,
+    "text": "就是正價差"
+  },
+  {
+    "startTime": 256.433,
+    "endTime": 257.066,
+    "text": "各位看一下"
+  },
+  {
+    "startTime": 257.066,
+    "endTime": 258.266,
+    "text": "這期貨 272.5"
+  },
+  {
+    "startTime": 258.266,
+    "endTime": 259.966,
+    "text": "現股 270.5"
+  },
+  {
+    "startTime": 259.966,
+    "endTime": 261.266,
+    "text": "期貨比較貴"
+  },
+  {
+    "startTime": 261.266,
+    "endTime": 264.0,
+    "text": "期貨貴那就正價差"
+  },
+  {
+    "startTime": 264.0,
+    "endTime": 265.733,
+    "text": "這邊很多正價差"
+  },
+  {
+    "startTime": 265.733,
+    "endTime": 267.9,
+    "text": "就是期貨比較貴"
+  },
+  {
+    "startTime": 267.9,
+    "endTime": 272.133,
+    "text": "期貨貴它就是正價差"
+  },
+  {
+    "startTime": 272.133,
+    "endTime": 273.266,
+    "text": "像這種期貨貴"
+  },
+  {
+    "startTime": 273.266,
+    "endTime": 274.966,
+    "text": "正價差就比較偏多"
+  },
+  {
+    "startTime": 274.966,
+    "endTime": 277.0,
+    "text": "它今天就漲停"
+  },
+  {
+    "startTime": 277.0,
+    "endTime": 279.2,
+    "text": "那假如常常出現在做多排行榜"
+  },
+  {
+    "startTime": 279.2,
+    "endTime": 280.466,
+    "text": "就是禮拜一出現"
+  },
+  {
+    "startTime": 280.466,
+    "endTime": 281.266,
+    "text": "禮拜三出現"
+  },
+  {
+    "startTime": 281.266,
+    "endTime": 282.566,
+    "text": "禮拜五出現"
+  },
+  {
+    "startTime": 282.566,
+    "endTime": 285.6,
+    "text": "那代表說它是一個炎熱的夏天"
+  },
+  {
+    "startTime": 285.6,
+    "endTime": 287.366,
+    "text": "炎熱的夏天"
+  },
+  {
+    "startTime": 287.366,
+    "endTime": 289.666,
+    "text": "那假如常常都有什麼買售"
+  },
+  {
+    "startTime": 289.666,
+    "endTime": 292.933,
+    "text": "可能就是比較偏空的"
+  },
+  {
+    "startTime": 292.933,
+    "endTime": 295.0,
+    "text": "那這邊還有漲幅排行榜"
+  },
+  {
+    "startTime": 295.0,
+    "endTime": 296.266,
+    "text": "跌幅排行榜"
+  },
+  {
+    "startTime": 296.266,
+    "endTime": 297.633,
+    "text": "那正價差比"
+  },
+  {
+    "startTime": 297.633,
+    "endTime": 299.433,
+    "text": "正價差的股票"
+  },
+  {
+    "startTime": 299.433,
+    "endTime": 301.033,
+    "text": "就比較偏多"
+  },
+  {
+    "startTime": 301.033,
+    "endTime": 304.966,
+    "text": "像這一檔是尾盤變得超級正價差"
+  },
+  {
+    "startTime": 304.966,
+    "endTime": 309.0,
+    "text": "力積電它也是正價差"
+  },
+  {
+    "startTime": 309.0,
+    "endTime": 310.566,
+    "text": "正價差"
+  },
+  {
+    "startTime": 310.566,
+    "endTime": 312.766,
+    "text": "那逆價差是正常的"
+  },
+  {
+    "startTime": 312.766,
+    "endTime": 314.8,
+    "text": "所以每天我都會看這個"
+  },
+  {
+    "startTime": 314.8,
+    "endTime": 317.6,
+    "text": "這個多空的排行榜有誰"
+  },
+  {
+    "startTime": 317.6,
+    "endTime": 319.6,
+    "text": "就知道說今天的主角"
+  },
+  {
+    "startTime": 319.6,
+    "endTime": 322.2,
+    "text": "今天主力攻擊的是誰"
+  },
+  {
+    "startTime": 322.2,
+    "endTime": 324.366,
+    "text": "像今天主力攻擊的就是"
+  },
+  {
+    "startTime": 324.366,
+    "endTime": 330.6,
+    "text": "景碩 雙鴻 聯鈞這樣子"
+  },
+  {
+    "startTime": 330.6,
+    "endTime": 333.366,
+    "text": "也有景碩 華通這幾個"
+  },
+  {
+    "startTime": 333.366,
+    "endTime": 334.166,
+    "text": "這幾個"
+  },
+  {
+    "startTime": 334.166,
+    "endTime": 336.8,
+    "text": "主力今天的資金在這邊"
+  },
+  {
+    "startTime": 336.8,
+    "endTime": 339.966,
+    "text": "那明天這些可能就會比較偏空一些"
+  },
+  {
+    "startTime": 339.966,
+    "endTime": 341.0,
+    "text": "至少 10 點前"
+  },
+  {
+    "startTime": 341.0,
+    "endTime": 343.1,
+    "text": "比較會有短線的賣壓"
+  },
+  {
+    "startTime": 343.1,
+    "endTime": 346.4,
+    "text": "那每天晚上我會看這券商排行"
+  },
+  {
+    "startTime": 346.4,
+    "endTime": 347.166,
+    "text": "券商排行"
+  },
+  {
+    "startTime": 347.166,
+    "endTime": 348.966,
+    "text": "那你看那種元大 群益 凱基"
+  },
+  {
+    "startTime": 348.966,
+    "endTime": 350.266,
+    "text": "這個都不用看"
+  },
+  {
+    "startTime": 350.266,
+    "endTime": 353.4,
+    "text": "這都很多都是那個造市商"
+  },
+  {
+    "startTime": 353.4,
+    "endTime": 354.9,
+    "text": "我們要看的是像這種"
+  },
+  {
+    "startTime": 354.9,
+    "endTime": 357.4,
+    "text": "國票安和買台積電"
+  },
+  {
+    "startTime": 357.4,
+    "endTime": 359.366,
+    "text": "元大西螺買智通"
+  },
+  {
+    "startTime": 359.366,
+    "endTime": 360.666,
+    "text": "元大西螺"
+  },
+  {
+    "startTime": 360.666,
+    "endTime": 363.666,
+    "text": "就是我們要看的是分點"
+  },
+  {
+    "startTime": 363.666,
+    "endTime": 365.366,
+    "text": "凱基城中買台積電"
+  },
+  {
+    "startTime": 365.366,
+    "endTime": 367.5,
+    "text": "玉山城中買這個"
+  },
+  {
+    "startTime": 367.5,
+    "endTime": 368.966,
+    "text": "我們要看的是這種"
+  },
+  {
+    "startTime": 368.966,
+    "endTime": 371.9,
+    "text": "元大向上買智通"
+  },
+  {
+    "startTime": 371.9,
+    "endTime": 375.333,
+    "text": "所以要看的是這種"
+  },
+  {
+    "startTime": 375.333,
+    "endTime": 378.2,
+    "text": "這個應該是元大大天母"
+  },
+  {
+    "startTime": 378.2,
+    "endTime": 381.233,
+    "text": "元大大天母買至上"
+  },
+  {
+    "startTime": 381.233,
+    "endTime": 384.0,
+    "text": "要看這種分點大買的"
+  },
+  {
+    "startTime": 384.0,
+    "endTime": 385.066,
+    "text": "那分點大買"
+  },
+  {
+    "startTime": 385.066,
+    "endTime": 386.466,
+    "text": "你假如要看詳細一點"
+  },
+  {
+    "startTime": 386.466,
+    "endTime": 387.8,
+    "text": "例如說至上"
+  },
+  {
+    "startTime": 387.8,
+    "endTime": 390.733,
+    "text": "你可以從大戶搜密去看"
+  },
+  {
+    "startTime": 390.733,
+    "endTime": 394.466,
+    "text": "那這邊我們就改 8112"
+  },
+  {
+    "startTime": 394.466,
+    "endTime": 398.433,
+    "text": "然後天數改成一天"
+  },
+  {
+    "startTime": 398.433,
+    "endTime": 399.466,
+    "text": "一天"
+  },
+  {
+    "startTime": 399.466,
+    "endTime": 401.833,
+    "text": "今天至上被買到第三名"
+  },
+  {
+    "startTime": 401.833,
+    "endTime": 404.433,
+    "text": "大天母大買"
+  },
+  {
+    "startTime": 404.433,
+    "endTime": 407.866,
+    "text": "那我們可以看一下它大買的位置"
+  },
+  {
+    "startTime": 407.866,
+    "endTime": 409.5,
+    "text": "它幫我們統計"
+  },
+  {
+    "startTime": 409.5,
+    "endTime": 412.466,
+    "text": "這看起來有點秋天型態"
+  },
+  {
+    "startTime": 412.466,
+    "endTime": 413.366,
+    "text": "秋天型態"
+  },
+  {
+    "startTime": 413.366,
+    "endTime": 415.466,
+    "text": "然後進來買"
+  },
+  {
+    "startTime": 415.466,
+    "endTime": 416.166,
+    "text": "進來買"
+  },
+  {
+    "startTime": 416.166,
+    "endTime": 417.366,
+    "text": "買在下軌還不錯"
+  },
+  {
+    "startTime": 417.366,
+    "endTime": 419.466,
+    "text": "因為秋天有可能是一直盤整"
+  },
+  {
+    "startTime": 419.466,
+    "endTime": 424.366,
+    "text": "盤整就是上下通道一直震盪"
+  },
+  {
+    "startTime": 424.366,
+    "endTime": 426.166,
+    "text": "這是大天母"
+  },
+  {
+    "startTime": 426.166,
+    "endTime": 427.8,
+    "text": "所以每天都要研究一下"
+  },
+  {
+    "startTime": 427.8,
+    "endTime": 430.266,
+    "text": "今天買超的分點是誰"
+  },
+  {
+    "startTime": 430.266,
+    "endTime": 433.266,
+    "text": "金像電國票買"
+  },
+  {
+    "startTime": 433.266,
+    "endTime": 434.966,
+    "text": "國票雖然是總公司"
+  },
+  {
+    "startTime": 434.966,
+    "endTime": 436.2,
+    "text": "但是我們看一下"
+  },
+  {
+    "startTime": 436.2,
+    "endTime": 438.666,
+    "text": "國票它買的權證"
+  },
+  {
+    "startTime": 438.666,
+    "endTime": 440.566,
+    "text": "因為國票裡面藏著一個隔日沖"
+  },
+  {
+    "startTime": 440.566,
+    "endTime": 441.366,
+    "text": "有 你看"
+  },
+  {
+    "startTime": 441.366,
+    "endTime": 442.466,
+    "text": "各位看一下"
+  },
+  {
+    "startTime": 442.466,
+    "endTime": 445.966,
+    "text": "它買的權證就比較分散"
+  },
+  {
+    "startTime": 445.966,
+    "endTime": 448.266,
+    "text": "可以看得出來它都隔日沖"
+  },
+  {
+    "startTime": 448.266,
+    "endTime": 451.466,
+    "text": "那金像電還在走一個夏天的狀態"
+  },
+  {
+    "startTime": 451.466,
+    "endTime": 454.366,
+    "text": "因為金像電還在創高"
+  },
+  {
+    "startTime": 454.366,
+    "endTime": 457.066,
+    "text": "各位看一下"
+  },
+  {
+    "startTime": 457.066,
+    "endTime": 459.966,
+    "text": "金像電還在創高"
+  },
+  {
+    "startTime": 459.966,
+    "endTime": 463.8,
+    "text": "還在創高就是一個夏天的型態"
+  },
+  {
+    "startTime": 463.8,
+    "endTime": 464.4,
+    "text": "還在創高"
+  },
+  {
+    "startTime": 464.4,
+    "endTime": 466.466,
+    "text": "夏天型態"
+  },
+  {
+    "startTime": 466.466,
+    "endTime": 468.066,
+    "text": "主力是連買"
+  },
+  {
+    "startTime": 468.066,
+    "endTime": 469.866,
+    "text": "但自營商是一買一賣"
+  },
+  {
+    "startTime": 469.866,
+    "endTime": 471.333,
+    "text": "跟權證一樣"
+  },
+  {
+    "startTime": 471.333,
+    "endTime": 473.466,
+    "text": "權證都是一買一賣"
+  },
+  {
+    "startTime": 473.466,
+    "endTime": 477.6,
+    "text": "金像電創新高代表夏天持續"
+  },
+  {
+    "startTime": 477.6,
+    "endTime": 481.266,
+    "text": "所以每天可以從這裡面去找看看"
+  },
+  {
+    "startTime": 481.266,
+    "endTime": 482.666,
+    "text": "還在夏天的股票"
+  },
+  {
+    "startTime": 482.666,
+    "endTime": 486.066,
+    "text": "世芯 KY 這看起來有點秋天"
+  },
+  {
+    "startTime": 486.066,
+    "endTime": 487.266,
+    "text": "有一點秋天"
+  },
+  {
+    "startTime": 487.266,
+    "endTime": 489.466,
+    "text": "那國票買超"
+  },
+  {
+    "startTime": 489.466,
+    "endTime": 490.866,
+    "text": "國票買超"
+  },
+  {
+    "startTime": 490.866,
+    "endTime": 491.766,
+    "text": "各位你要看一下"
+  },
+  {
+    "startTime": 491.766,
+    "endTime": 493.666,
+    "text": "國票它買的權證"
+  },
+  {
+    "startTime": 493.666,
+    "endTime": 494.866,
+    "text": "假如它都買國票"
+  },
+  {
+    "startTime": 494.866,
+    "endTime": 496.533,
+    "text": "它就自營商"
+  },
+  {
+    "startTime": 496.533,
+    "endTime": 497.666,
+    "text": "但它不是都買國票"
+  },
+  {
+    "startTime": 497.666,
+    "endTime": 499.866,
+    "text": "它買一堆元大 富邦 元富的"
+  },
+  {
+    "startTime": 499.866,
+    "endTime": 502.733,
+    "text": "所以它是真的是一個隔日沖"
+  },
+  {
+    "startTime": 502.733,
+    "endTime": 506.166,
+    "text": "所以世芯 KY 是一個短線的隔日沖"
+  },
+  {
+    "startTime": 506.166,
+    "endTime": 508.4,
+    "text": "進來玩而已"
+  },
+  {
+    "startTime": 508.4,
+    "endTime": 510.366,
+    "text": "所以每天要把這個看一輪"
+  },
+  {
+    "startTime": 510.366,
+    "endTime": 514.2,
+    "text": "看看有沒有比較厲害的分點"
+  },
+  {
+    "startTime": 514.2,
+    "endTime": 516.766,
+    "text": "大天母還可以"
+  },
+  {
+    "startTime": 516.766,
+    "endTime": 520.033,
+    "text": "光寶科看一下是國票分點"
+  },
+  {
+    "startTime": 520.033,
+    "endTime": 522.766,
+    "text": "台光電"
+  },
+  {
+    "startTime": 522.766,
+    "endTime": 523.566,
+    "text": "元大台南"
+  },
+  {
+    "startTime": 523.566,
+    "endTime": 525.833,
+    "text": "這也是隔日沖"
+  },
+  {
+    "startTime": 525.833,
+    "endTime": 526.966,
+    "text": "我們點元大台南"
+  },
+  {
+    "startTime": 526.966,
+    "endTime": 529.666,
+    "text": "就會看得出來它的行為"
+  },
+  {
+    "startTime": 529.666,
+    "endTime": 531.833,
+    "text": "你看 隔日沖"
+  },
+  {
+    "startTime": 531.833,
+    "endTime": 533.5,
+    "text": "隔日沖"
+  },
+  {
+    "startTime": 533.5,
+    "endTime": 537.2,
+    "text": "所以各位要看權證的分點狀況"
+  },
+  {
+    "startTime": 537.2,
+    "endTime": 539.666,
+    "text": "可以進到全方位監控"
+  },
+  {
+    "startTime": 539.666,
+    "endTime": 543.9,
+    "text": "那這裡有這個大戶搜密可以看得到"
+  },
+  {
+    "startTime": 543.9,
+    "endTime": 548.166,
+    "text": "那這些分點到底厲不厲害"
+  },
+  {
+    "startTime": 548.166,
+    "endTime": 550.9,
+    "text": "假設你看到一個分點"
+  },
+  {
+    "startTime": 550.9,
+    "endTime": 553.3,
+    "text": "我看一下我記得華泰有進去"
+  },
+  {
+    "startTime": 553.3,
+    "endTime": 556.866,
+    "text": "華泰今天連跌 6 天"
+  },
+  {
+    "startTime": 556.866,
+    "endTime": 559.766,
+    "text": "今天華南永昌台中繼續買"
+  },
+  {
+    "startTime": 559.766,
+    "endTime": 561.3,
+    "text": "繼續買 看起來還不錯"
+  },
+  {
+    "startTime": 561.3,
+    "endTime": 564.933,
+    "text": "華南永昌台中繼續買"
+  },
+  {
+    "startTime": 564.933,
+    "endTime": 566.466,
+    "text": "繼續買"
+  },
+  {
+    "startTime": 566.466,
+    "endTime": 567.9,
+    "text": "那華泰看起來好像是"
+  },
+  {
+    "startTime": 567.9,
+    "endTime": 569.766,
+    "text": "要秋天的感覺 對不對"
+  },
+  {
+    "startTime": 569.766,
+    "endTime": 570.966,
+    "text": "但有權證大買"
+  },
+  {
+    "startTime": 570.966,
+    "endTime": 571.7,
+    "text": "我覺得這一檔"
+  },
+  {
+    "startTime": 571.7,
+    "endTime": 576.1,
+    "text": "可能沒有那麼快就真的會轉成冬天"
+  },
+  {
+    "startTime": 576.1,
+    "endTime": 578.766,
+    "text": "我覺得可能不會"
+  },
+  {
+    "startTime": 578.766,
+    "endTime": 580.466,
+    "text": "那這個華泰"
+  },
+  {
+    "startTime": 580.466,
+    "endTime": 582.9,
+    "text": "這個位階其實算蠻低的"
+  },
+  {
+    "startTime": 582.9,
+    "endTime": 585.4,
+    "text": "蠻低的 那我們也可以再搭配"
+  },
+  {
+    "startTime": 585.4,
+    "endTime": 588.066,
+    "text": "那個籌碼 K 線來看一下"
+  },
+  {
+    "startTime": 588.066,
+    "endTime": 590.933,
+    "text": "看一下有沒有"
+  },
+  {
+    "startTime": 590.933,
+    "endTime": 592.766,
+    "text": "有沒有這個"
+  },
+  {
+    "startTime": 592.766,
+    "endTime": 594.3,
+    "text": "地緣的分點買"
+  },
+  {
+    "startTime": 594.3,
+    "endTime": 597.633,
+    "text": "因為華泰這一檔我記得是有地緣買"
+  },
+  {
+    "startTime": 597.633,
+    "endTime": 599.466,
+    "text": "我們就 20 天來看一下"
+  },
+  {
+    "startTime": 599.466,
+    "endTime": 602.5,
+    "text": "20 天買的分點有永豐金市政"
+  },
+  {
+    "startTime": 602.5,
+    "endTime": 603.466,
+    "text": "這市政"
+  },
+  {
+    "startTime": 603.466,
+    "endTime": 605.266,
+    "text": "這個是台中人"
+  },
+  {
+    "startTime": 605.266,
+    "endTime": 608.033,
+    "text": "南屯也是台中人"
+  },
+  {
+    "startTime": 608.033,
+    "endTime": 609.5,
+    "text": "富邦公益也是台中人"
+  },
+  {
+    "startTime": 609.5,
+    "endTime": 610.7,
+    "text": "兆豐台中也台中人"
+  },
+  {
+    "startTime": 610.7,
+    "endTime": 612.566,
+    "text": "所以它事實上這一檔"
+  },
+  {
+    "startTime": 612.566,
+    "endTime": 615.8,
+    "text": "有一些台中人的分點在佈局"
+  },
+  {
+    "startTime": 615.8,
+    "endTime": 619.366,
+    "text": "然後它是大帶寬的下軌"
+  },
+  {
+    "startTime": 619.366,
+    "endTime": 620.966,
+    "text": "那整體而言"
+  },
+  {
+    "startTime": 620.966,
+    "endTime": 623.366,
+    "text": "感覺行情應該還沒結束"
+  },
+  {
+    "startTime": 623.366,
+    "endTime": 625.266,
+    "text": "所以看起來有點要入秋的樣子"
+  },
+  {
+    "startTime": 625.266,
+    "endTime": 626.966,
+    "text": "但我覺得應該"
+  },
+  {
+    "startTime": 626.966,
+    "endTime": 629.033,
+    "text": "應該後面還是有機會"
+  },
+  {
+    "startTime": 629.033,
+    "endTime": 632.166,
+    "text": "因為我們是從權證分點來看"
+  },
+  {
+    "startTime": 632.166,
+    "endTime": 635.833,
+    "text": "權證分點來看有些蹊蹺"
+  },
+  {
+    "startTime": 635.833,
+    "endTime": 637.433,
+    "text": "有些蹊蹺"
+  },
+  {
+    "startTime": 637.433,
+    "endTime": 640.033,
+    "text": "所以每天可以把這幾個分點"
+  },
+  {
+    "startTime": 640.033,
+    "endTime": 642.233,
+    "text": "這幾個買超分點看一輪"
+  },
+  {
+    "startTime": 642.233,
+    "endTime": 644.7,
+    "text": "那這個就在全方位監控的"
+  },
+  {
+    "startTime": 644.7,
+    "endTime": 647.133,
+    "text": "大戶搜密這裡"
+  },
+  {
+    "startTime": 647.133,
+    "endTime": 647.966,
+    "text": "大戶搜密這邊"
+  },
+  {
+    "startTime": 647.966,
+    "endTime": 649.5,
+    "text": "這邊都有"
+  },
+  {
+    "startTime": 649.5,
+    "endTime": 650.466,
+    "text": "台達電"
+  },
+  {
+    "startTime": 650.466,
+    "endTime": 652.266,
+    "text": "你看台達電是元富營業買的"
+  },
+  {
+    "startTime": 652.266,
+    "endTime": 655.0,
+    "text": "元富營業是隔日沖"
+  },
+  {
+    "startTime": 655.0,
+    "endTime": 657.566,
+    "text": "華城"
+  },
+  {
+    "startTime": 657.566,
+    "endTime": 658.766,
+    "text": "華城誰買的"
+  },
+  {
+    "startTime": 658.766,
+    "endTime": 660.866,
+    "text": "國票買的隔日沖"
+  },
+  {
+    "startTime": 660.866,
+    "endTime": 663.366,
+    "text": "美時"
+  },
+  {
+    "startTime": 663.366,
+    "endTime": 666.866,
+    "text": "這竹北 竹北哥是波段"
+  },
+  {
+    "startTime": 666.866,
+    "endTime": 669.233,
+    "text": "竹北哥波段"
+  },
+  {
+    "startTime": 669.233,
+    "endTime": 671.566,
+    "text": "波段 美時的表現還不錯"
+  },
+  {
+    "startTime": 671.566,
+    "endTime": 674.9,
+    "text": "竹北哥波段應該賺蠻多的"
+  },
+  {
+    "startTime": 674.9,
+    "endTime": 677.833,
+    "text": "那各位你也可以把時間弄長"
+  },
+  {
+    "startTime": 677.833,
+    "endTime": 680.266,
+    "text": "例如說我弄個 60 天"
+  },
+  {
+    "startTime": 680.266,
+    "endTime": 683.066,
+    "text": "60 天的美時"
+  },
+  {
+    "startTime": 683.066,
+    "endTime": 686.0,
+    "text": "應該就看得出來竹北哥大買"
+  },
+  {
+    "startTime": 686.0,
+    "endTime": 688.033,
+    "text": "60 天它買 2,700"
+  },
+  {
+    "startTime": 688.033,
+    "endTime": 690.566,
+    "text": "實際上是買更多"
+  },
+  {
+    "startTime": 690.566,
+    "endTime": 692.566,
+    "text": "因為 60 天大概算到"
+  },
+  {
+    "startTime": 692.566,
+    "endTime": 694.9,
+    "text": "算到這邊附近差不多"
+  },
+  {
+    "startTime": 694.9,
+    "endTime": 697.066,
+    "text": "實際上這邊可能沒算到"
+  },
+  {
+    "startTime": 697.066,
+    "endTime": 699.433,
+    "text": "2,700 賺了 2,100"
+  },
+  {
+    "startTime": 699.433,
+    "endTime": 703.733,
+    "text": "這 60 天來買最多的是鴻海"
+  },
+  {
+    "startTime": 703.733,
+    "endTime": 705.066,
+    "text": "接下來是世芯"
+  },
+  {
+    "startTime": 705.066,
+    "endTime": 708.666,
+    "text": "這邊會幫各位做統計"
+  },
+  {
+    "startTime": 708.666,
+    "endTime": 711.466,
+    "text": "世芯是元大新盛買"
+  },
+  {
+    "startTime": 711.466,
+    "endTime": 715.933,
+    "text": "元大新盛你就可以看到買的位置"
+  },
+  {
+    "startTime": 715.933,
+    "endTime": 716.566,
+    "text": "那各位"
+  },
+  {
+    "startTime": 716.566,
+    "endTime": 718.966,
+    "text": "你假如要看一下它的戰績"
+  },
+  {
+    "startTime": 718.966,
+    "endTime": 721.466,
+    "text": "例如說 2329 的華泰"
+  },
+  {
+    "startTime": 721.466,
+    "endTime": 723.9,
+    "text": "是華南永昌台中買的"
+  },
+  {
+    "startTime": 723.9,
+    "endTime": 726.666,
+    "text": "它一共買了 5,000 萬"
+  },
+  {
+    "startTime": 726.666,
+    "endTime": 730.366,
+    "text": "這應該是有點故事在後面的"
+  },
+  {
+    "startTime": 730.366,
+    "endTime": 734.0,
+    "text": "各位我們來看一下"
+  },
+  {
+    "startTime": 734.0,
+    "endTime": 737.966,
+    "text": " 9302 華南永昌台中"
+  },
+  {
+    "startTime": 737.966,
+    "endTime": 744.933,
+    "text": "來看看最近 300 天權證做的怎麼樣"
+  },
+  {
+    "startTime": 744.933,
+    "endTime": 748.3,
+    "text": "最近 300 天權證賺 400 多萬"
+  },
+  {
+    "startTime": 748.3,
+    "endTime": 749.266,
+    "text": "變少"
+  },
+  {
+    "startTime": 749.266,
+    "endTime": 751.1,
+    "text": "可能是很多權證到期的"
+  },
+  {
+    "startTime": 751.1,
+    "endTime": 753.033,
+    "text": "所以它的那個"
+  },
+  {
+    "startTime": 753.033,
+    "endTime": 754.566,
+    "text": "算出來是比較差"
+  },
+  {
+    "startTime": 754.566,
+    "endTime": 758.933,
+    "text": "我記得以前算出來是還蠻漂亮的"
+  },
+  {
+    "startTime": 758.933,
+    "endTime": 760.933,
+    "text": "那以上就是這個"
+  },
+  {
+    "startTime": 760.933,
+    "endTime": 764.966,
+    "text": "我們用全方位監控裡面的大戶搜密"
+  },
+  {
+    "startTime": 764.966,
+    "endTime": 766.766,
+    "text": "分點探索還有券商排行"
+  },
+  {
+    "startTime": 766.766,
+    "endTime": 769.566,
+    "text": "券商排行就是每天都要看一次的"
+  },
+  {
+    "startTime": 769.566,
+    "endTime": 772.866,
+    "text": "看一下說今天有哪個分點"
+  },
+  {
+    "startTime": 772.866,
+    "endTime": 774.833,
+    "text": "有突然大買"
+  },
+  {
+    "startTime": 774.833,
+    "endTime": 776.066,
+    "text": "因為這幾個分點"
+  },
+  {
+    "startTime": 776.066,
+    "endTime": 777.7,
+    "text": "每天都要研究一下"
+  },
+  {
+    "startTime": 777.7,
+    "endTime": 779.966,
+    "text": "這新光新竹買加權指數"
+  },
+  {
+    "startTime": 779.966,
+    "endTime": 781.833,
+    "text": "富邦公益買至上"
+  },
+  {
+    "startTime": 781.833,
+    "endTime": 785.533,
+    "text": "這邊都要看一下它們買了哪些股票"
+  },
+  {
+    "startTime": 785.533,
+    "endTime": 789.066,
+    "text": "那這邊做一個大致上的整理"
+  },
+  {
+    "startTime": 789.066,
+    "endTime": 794.166,
+    "text": "好 以上就是全方位監控的使用方法"
+  },
+  {
+    "startTime": 794.166,
+    "endTime": 795.4,
+    "text": "那我們盤中"
+  },
+  {
+    "startTime": 795.4,
+    "endTime": 798.066,
+    "text": "我們會看一下這個流水牆"
+  },
+  {
+    "startTime": 798.066,
+    "endTime": 801.2,
+    "text": "盤中它就是流水牆在跳"
+  },
+  {
+    "startTime": 801.2,
+    "endTime": 802.433,
+    "text": "來 給各位看"
+  },
+  {
+    "startTime": 802.433,
+    "endTime": 805.633,
+    "text": "盤中你各位看到的樣子是這樣"
+  },
+  {
+    "startTime": 805.633,
+    "endTime": 806.7,
+    "text": "它流水牆在跳"
+  },
+  {
+    "startTime": 806.7,
+    "endTime": 807.533,
+    "text": "你看它彩晶"
+  },
+  {
+    "startTime": 807.533,
+    "endTime": 809.333,
+    "text": "創高"
+  },
+  {
+    "startTime": 809.333,
+    "endTime": 812.033,
+    "text": "群創股買"
+  },
+  {
+    "startTime": 812.033,
+    "endTime": 814.0,
+    "text": "股買這是鎖漲停的"
+  },
+  {
+    "startTime": 814.0,
+    "endTime": 815.6,
+    "text": "499 鎖漲停"
+  },
+  {
+    "startTime": 815.6,
+    "endTime": 817.833,
+    "text": "那今天盤看起來還不錯"
+  },
+  {
+    "startTime": 817.833,
+    "endTime": 819.033,
+    "text": "紅色比較多"
+  },
+  {
+    "startTime": 819.033,
+    "endTime": 821.433,
+    "text": "創高就是還不錯"
+  },
+  {
+    "startTime": 821.433,
+    "endTime": 827.5,
+    "text": "那股票多頭訊號就是要股買 創高 買購"
+  },
+  {
+    "startTime": 827.5,
+    "endTime": 829.366,
+    "text": "這是多頭訊號"
+  },
+  {
+    "startTime": 829.366,
+    "endTime": 831.5,
+    "text": "那股票假如要偏空的訊號"
+  },
+  {
+    "startTime": 831.5,
+    "endTime": 834.8,
+    "text": "我們看 6223"
+  },
+  {
+    "startTime": 834.8,
+    "endTime": 837.633,
+    "text": "來 看一下 6223"
+  },
+  {
+    "startTime": 841.7,
+    "endTime": 846.4,
+    "text": "6223 它今天是空頭第一名"
+  },
+  {
+    "startTime": 846.4,
+    "endTime": 848.066,
+    "text": "做空第一名"
+  },
+  {
+    "startTime": 848.066,
+    "endTime": 850.133,
+    "text": "來看一下它今天什麼訊號"
+  },
+  {
+    "startTime": 850.133,
+    "endTime": 851.7,
+    "text": "按照時間排序"
+  },
+  {
+    "startTime": 851.7,
+    "endTime": 854.333,
+    "text": "我們從下面往上看"
+  },
+  {
+    "startTime": 854.333,
+    "endTime": 858.4,
+    "text": "它今天一開盤股賣"
+  },
+  {
+    "startTime": 858.4,
+    "endTime": 859.9,
+    "text": "股賣賣一堆"
+  },
+  {
+    "startTime": 859.9,
+    "endTime": 864.4,
+    "text": "2830 50 45 40 到 80 都股賣"
+  },
+  {
+    "startTime": 864.4,
+    "endTime": 865.9,
+    "text": "賣購"
+  },
+  {
+    "startTime": 865.9,
+    "endTime": 867.966,
+    "text": "9:25 才開始賣購"
+  },
+  {
+    "startTime": 867.966,
+    "endTime": 870.766,
+    "text": "已經剩 2790 "
+  },
+  {
+    "startTime": 870.766,
+    "endTime": 871.966,
+    "text": "創低"
+  },
+  {
+    "startTime": 871.966,
+    "endTime": 875.8,
+    "text": "所以賣購 股賣 創低"
+  },
+  {
+    "startTime": 875.8,
+    "endTime": 878.8,
+    "text": "它就是一個偏空的訊號"
+  },
+  {
+    "startTime": 878.8,
+    "endTime": 880.0,
+    "text": "那短線"
+  },
+  {
+    "startTime": 880.0,
+    "endTime": 882.6,
+    "text": "今天就比較空一點"
+  },
+  {
+    "startTime": 882.6,
+    "endTime": 884.566,
+    "text": "今天比較空一點"
+  },
+  {
+    "startTime": 884.566,
+    "endTime": 887.9,
+    "text": "所以各位可以從這裡"
+  },
+  {
+    "startTime": 887.9,
+    "endTime": 891.1,
+    "text": "股買 買購 創高是偏多"
+  },
+  {
+    "startTime": 891.1,
+    "endTime": 896.0,
+    "text": "股賣 賣購 創低 還有期賣的話"
+  },
+  {
+    "startTime": 896.0,
+    "endTime": 897.733,
+    "text": "期賣 我看一下它有沒有期賣"
+  },
+  {
+    "startTime": 897.733,
+    "endTime": 899.133,
+    "text": "它沒有期賣"
+  },
+  {
+    "startTime": 899.133,
+    "endTime": 900.4,
+    "text": "假如有期賣的話"
+  },
+  {
+    "startTime": 900.4,
+    "endTime": 903.866,
+    "text": "它也是一個偏空的訊號"
+  },
+  {
+    "startTime": 903.866,
+    "endTime": 906.5,
+    "text": "那我們盤中就是看這些流水牆的狀況"
+  },
+  {
+    "startTime": 906.5,
+    "endTime": 909.066,
+    "text": "來決定短線的進出"
+  },
+  {
+    "startTime": 909.066,
+    "endTime": 912.966,
+    "text": "所以各位你要有一個宏觀的視野"
+  },
+  {
+    "startTime": 912.966,
+    "endTime": 916.1,
+    "text": "就是先看這檔股票位在哪一區"
+  },
+  {
+    "startTime": 916.1,
+    "endTime": 918.366,
+    "text": "春夏秋冬哪一區"
+  },
+  {
+    "startTime": 918.366,
+    "endTime": 921.9,
+    "text": "那短線就是要看這個流水牆的狀況"
+  },
+  {
+    "startTime": 921.9,
+    "endTime": 926.133,
+    "text": "來決定你要做短線的方向"
+  },
+  {
+    "startTime": 926.133,
+    "endTime": 929.066,
+    "text": "以上是跟各位介紹全方位監控"
+  }
+]

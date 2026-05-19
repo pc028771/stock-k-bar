@@ -1,0 +1,792 @@
+[
+  {
+    "startTime": 13.266,
+    "endTime": 15.033,
+    "text": "春天低量築底",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 15.033,
+    "endTime": 17.766,
+    "text": "夏天就爆量噴發",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 22.0,
+    "endTime": 22.833,
+    "text": "那秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 22.833,
+    "endTime": 24.033,
+    "text": "震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 31.4,
+    "endTime": 33.766,
+    "text": "那冬天就量縮下跌",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 36.333,
+    "endTime": 37.633,
+    "text": "那春天要有耐心",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 37.633,
+    "endTime": 40.033,
+    "text": "夏天要會玩動能",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 40.033,
+    "endTime": 41.366,
+    "text": "秋天要警覺",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 41.366,
+    "endTime": 43.133,
+    "text": "冬天要有紀律",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 43.133,
+    "endTime": 43.933,
+    "text": "所以春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 45.733,
+    "endTime": 49.433,
+    "text": "夏天我們要讓利潤極大化",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 50.933,
+    "endTime": 52.466,
+    "text": "然後移動停利",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停利"
+      }
+    ]
+  },
+  {
+    "startTime": 52.466,
+    "endTime": 53.333,
+    "text": "那秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 55.033,
+    "endTime": 55.933,
+    "text": "逢高出場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 58.166,
+    "endTime": 60.033,
+    "text": "其實秋天我也蠻喜歡做的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 60.033,
+    "endTime": 60.833,
+    "text": "因為秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 74.633,
+    "endTime": 76.833,
+    "text": "我覺得秋天其實也蠻好玩的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 76.833,
+    "endTime": 80.233,
+    "text": "我們今天這次會對秋天做詳細的介紹",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 80.233,
+    "endTime": 81.433,
+    "text": "那冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 99.766,
+    "endTime": 101.4,
+    "text": "這個要注意的事項",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 152.966,
+    "endTime": 154.433,
+    "text": "春天我們就建倉",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 154.433,
+    "endTime": 156.133,
+    "text": "夏天就加碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "加碼"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 156.133,
+    "endTime": 157.533,
+    "text": "秋天就減碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "減碼"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 157.533,
+    "endTime": 158.866,
+    "text": "冬天就觀望",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 158.866,
+    "endTime": 160.933,
+    "text": "那或者是秋天可以做短空",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 160.933,
+    "endTime": 163.1,
+    "text": "冬天就做波段空",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 183.333,
+    "endTime": 185.166,
+    "text": "然後在這裡震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 193.366,
+    "endTime": 194.333,
+    "text": "那春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 199.733,
+    "endTime": 202.633,
+    "text": "春天我們常去找殖利率高的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 205.166,
+    "endTime": 206.833,
+    "text": "拉回或突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 208.333,
+    "endTime": 209.633,
+    "text": "什麼叫突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 225.233,
+    "endTime": 228.333,
+    "text": "這個就有機會變成秋天的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 243.733,
+    "endTime": 246.233,
+    "text": "然後反彈沒過前高再拉回",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 246.233,
+    "endTime": 248.033,
+    "text": "反彈沒過前高再拉回",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 248.433,
+    "endTime": 251.333,
+    "text": "就很容易變成一個秋天的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 253.766,
+    "endTime": 256.166,
+    "text": "那反彈會有很多隔日沖",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 269.033,
+    "endTime": 270.866,
+    "text": "只剩高點的 1%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('1', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 270.866,
+    "endTime": 272.166,
+    "text": "1% 而已",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('1', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 285.966,
+    "endTime": 287.366,
+    "text": "春天打底",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 287.366,
+    "endTime": 289.133,
+    "text": "夏天主升段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 290.433,
+    "endTime": 293.433,
+    "text": "叫大暑盤整入秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 311.433,
+    "endTime": 312.933,
+    "text": "高檔震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 328.033,
+    "endTime": 330.033,
+    "text": "後面走一個夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 330.033,
+    "endTime": 331.333,
+    "text": "但這夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 334.433,
+    "endTime": 336.566,
+    "text": "所以它有的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 336.566,
+    "endTime": 338.533,
+    "text": "感覺要像要到秋天了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 339.166,
+    "endTime": 340.733,
+    "text": "又變成夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 343.266,
+    "endTime": 346.566,
+    "text": "那不過它整體這一段都叫夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 346.566,
+    "endTime": 347.966,
+    "text": "這段叫夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 347.966,
+    "endTime": 349.433,
+    "text": "這一段叫秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 349.433,
+    "endTime": 351.433,
+    "text": "後面才進入冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 351.433,
+    "endTime": 353.8,
+    "text": "冬天就整個沒有量了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 362.1,
+    "endTime": 364.866,
+    "text": "所以這一段是春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 375.933,
+    "endTime": 377.2,
+    "text": "震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 381.233,
+    "endTime": 385.933,
+    "text": "是一個秋天常見的一個事件",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 385.933,
+    "endTime": 387.333,
+    "text": "高檔震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 406.566,
+    "endTime": 408.233,
+    "text": "主力賣超出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 409.833,
+    "endTime": 413.733,
+    "text": "又是一個無盡漫長的冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 416.166,
+    "endTime": 417.633,
+    "text": "這春天 夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 417.633,
+    "endTime": 418.766,
+    "text": "秋天震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 418.766,
+    "endTime": 419.733,
+    "text": "後面冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 421.733,
+    "endTime": 423.033,
+    "text": "然後到了冬天之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 426.0,
+    "endTime": 427.533,
+    "text": "到了冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 439.766,
+    "endTime": 440.333,
+    "text": "在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 440.333,
+    "endTime": 442.733,
+    "text": "春天然後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 442.733,
+    "endTime": 445.366,
+    "text": "這邊是一個主升段的夏天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 446.533,
+    "endTime": 447.633,
+    "text": "在這邊震盪出貨",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 450.2,
+    "endTime": 453.333,
+    "text": "在這裡這個變成冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 453.333,
+    "endTime": 456.433,
+    "text": "這邊整個下來之後就是一個冬天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 456.433,
+    "endTime": 458.6,
+    "text": "然後慢慢無盡的春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  }
+]
