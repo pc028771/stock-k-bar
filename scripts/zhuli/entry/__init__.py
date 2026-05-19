@@ -11,13 +11,15 @@ Course: 主力大全方位操盤教戰守則 (林家洋)
 """
 from __future__ import annotations
 
-from . import suffocation
+from . import open_signal_filter, suffocation
 
 ENTRY_REGISTRY = {
     "suffocation": suffocation.detect,
+    "open_signal_filter": open_signal_filter.detect,
 }
 
 __all__ = [
     "ENTRY_REGISTRY",
+    "open_signal_filter",
     "suffocation",
 ]

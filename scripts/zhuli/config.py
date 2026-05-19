@@ -88,3 +88,88 @@ class SuffocationConfig:
             else:
                 d[key] = raw_val
         return SuffocationConfig.from_dict(d)
+
+
+@dataclass
+class OpenSignalConfig:
+    """Parameters for M 主力意圖判斷策略 (open_signal_filter).
+
+    Source: strategy-indicators.md §M 主力意圖判斷（Ch7-3）
+
+    Fields are grouped into:
+      - Hard rules: spec-defined constants from course.
+      - Soft margins: calibratable via CLI or JSON override.
+      - Liquidity filters: operational filters (course-neutral defaults).
+    """
+
+    # === Hard rules — 收高開低（bearish_exit）===
+    # 前日收盤需在當日 high 的 N 倍以上（收最高），預設 90%
+    # Source: strategy-indicators.md §M — 「前一天出量實紅K 收最高（或收相對高點）」
+    bearish_prev_close_position: float = 0.9
+
+    # 今日開盤 ≤ 前日收盤 × (1 + N)，N=0.0 = 開平/開低
+    # Source: strategy-indicators.md §M — 「次日開平、開綠」
+    bearish_today_open_max_gain: float = 0.0
+
+    # === Hard rules — 收低開高（bullish_entry）===
+    # 前日收盤需在當日 low 的 N 倍以下（收最低），預設 0.1（即 close ≤ low * 1.1）
+    # Source: strategy-indicators.md §M — 「前一天出量實黑K 收最低」
+    bullish_prev_close_position: float = 0.1
+
+    # 今日開盤 ≥ 前日收盤 × (1 + N)，N=0.0 = 開平/開高
+    # Source: strategy-indicators.md §M — 「次日開平、開紅」
+    bullish_today_open_min_gain: float = 0.0
+
+    # === Hard rules — 漲停開平警示（limit_up_flat_warning）===
+    # |today_open − prev_close| / prev_close 低於此門檻 = 開平盤
+    # Source: strategy-indicators.md §M — 「漲停的標的隔天開平盤也是危險訊號」
+    limit_up_flat_open_threshold: float = 0.005  # ±0.5%
+
+    # === Soft margins (calibratable) ===
+    # 前日需出量：前日 volume > 5MA volume × multiplier
+    # Source: strategy-indicators.md §M — 「前一天出量」
+    require_prev_volume_burst: bool = True
+    prev_volume_multiplier: float = 1.0  # 1.0 = 嚴格按 spec「量 > 5MA」
+
+    # === Liquidity filters (course-neutral operational defaults) ===
+    min_avg_volume_20: int = 200   # 千股
+    min_close: float = 10.0        # 元
+
+    # === Phase 2 placeholder ===
+    # 大盤普跌例外 filter（國際利空時 bearish_exit 不適用）
+    # 預設 OFF，Phase 2 補實作
+    apply_market_regime_filter: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "OpenSignalConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "OpenSignalConfig":
+        """Load config overrides from a JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "OpenSignalConfig":
+        """Apply KEY=VALUE string overrides (from CLI --config-override)."""
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown OpenSignalConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return OpenSignalConfig.from_dict(d)

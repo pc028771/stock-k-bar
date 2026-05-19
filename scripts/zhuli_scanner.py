@@ -1,7 +1,9 @@
 """主力大 zhuli daily scanner entry point.
 
 Loads bars, computes features, runs zhuli entry detection, writes ranked CSV.
-Currently supports: H 窒息量（zhuli_suffocation）
+Supports:
+  - H 窒息量（suffocation）
+  - M 主力意圖收高開低/收低開高（open_signal_filter）
 
 Usage:
     python scripts/zhuli_scanner.py --help
@@ -9,6 +11,8 @@ Usage:
     python scripts/zhuli_scanner.py --signal suffocation --top-n 50
     python scripts/zhuli_scanner.py --signal suffocation --config-override max20_volume_ratio=0.12
     python scripts/zhuli_scanner.py --signal suffocation --config path/to/config.json
+    python scripts/zhuli_scanner.py --signal open_signal_filter --date 2026-05-15
+    python scripts/zhuli_scanner.py --signal open_signal_filter --config-override prev_volume_multiplier=1.5
 
 Course: 主力大全方位操盤教戰守則 (林家洋)
 """
@@ -31,45 +35,60 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
-from zhuli.config import SuffocationConfig
+from zhuli.config import OpenSignalConfig, SuffocationConfig
 from zhuli.entry import ENTRY_REGISTRY
 from zhuli.features import add_zhuli_features
 
 DEFAULT_OUT = Path("data/analysis/zhuli/suffocation_scanner.csv")
 
+# 各 signal 對應的預設 config 類別與輸出路徑
+_SIGNAL_DEFAULTS: dict[str, tuple[type, Path]] = {
+    "suffocation": (SuffocationConfig, DEFAULT_OUT),
+    "open_signal_filter": (
+        OpenSignalConfig,
+        Path("data/analysis/zhuli/open_signal_filter_scanner.csv"),
+    ),
+}
+
 
 def run(
     db_path: Path = DEFAULT_DB_PATH,
-    out_path: Path = DEFAULT_OUT,
+    out_path: Path | None = None,
     as_of: pd.Timestamp | None = None,
     signal_name: str = "suffocation",
-    cfg: SuffocationConfig | None = None,
+    cfg: SuffocationConfig | OpenSignalConfig | None = None,
     top_n: int | None = None,
 ) -> pd.DataFrame:
     """Run the zhuli scanner. Returns signal candidates DataFrame.
 
     Args:
         db_path:     Path to SQLite database (default: ~/.four_seasons/data.sqlite).
-        out_path:    Output CSV path.
+        out_path:    Output CSV path. If None, uses signal-specific default.
         as_of:       Filter signals to this date only. None = all dates.
         signal_name: Entry signal to use (see ENTRY_REGISTRY).
-        cfg:         SuffocationConfig. Uses defaults if None.
-        top_n:       If set, return only top N rows (by ideal_ma_align desc, then ticker).
+        cfg:         Signal config. Uses signal-specific default if None.
+        top_n:       If set, return only top N rows.
 
     Returns:
         DataFrame of signal candidates.
     """
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if cfg is None:
-        cfg = SuffocationConfig()
-
     detect_fn = ENTRY_REGISTRY.get(signal_name)
     if detect_fn is None:
         raise ValueError(
             f"Unknown signal: '{signal_name}'. "
             f"Available: {list(ENTRY_REGISTRY.keys())}"
         )
+
+    # Resolve default config and output path per signal
+    cfg_cls, default_out = _SIGNAL_DEFAULTS.get(
+        signal_name, (SuffocationConfig, DEFAULT_OUT)
+    )
+    if cfg is None:
+        cfg = cfg_cls()
+    if out_path is None:
+        out_path = default_out
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     bars = load_bars(db_path=db_path)
     feats = add_features(bars)
@@ -80,12 +99,24 @@ def run(
     if as_of is not None:
         signals = signals[signals["signal_date"] == as_of].copy()
 
-    # Sort: ideal alignment first, then scenario A before B, then ticker
+    # Sort: prefer columns present in the result
     if len(signals) > 0:
-        signals = signals.sort_values(
-            ["ideal_ma_align", "scenario", "ticker"],
-            ascending=[False, True, True],
-        ).reset_index(drop=True)
+        sort_cols = []
+        sort_asc = []
+        if "ideal_ma_align" in signals.columns:
+            sort_cols.append("ideal_ma_align")
+            sort_asc.append(False)
+        if "signal_type" in signals.columns:
+            sort_cols.append("signal_type")
+            sort_asc.append(True)
+        elif "scenario" in signals.columns:
+            sort_cols.append("scenario")
+            sort_asc.append(True)
+        sort_cols.append("ticker")
+        sort_asc.append(True)
+        signals = signals.sort_values(sort_cols, ascending=sort_asc).reset_index(
+            drop=True
+        )
 
     if top_n is not None:
         signals = signals.head(top_n)
@@ -140,8 +171,8 @@ Examples:
         help="Path to SQLite database (default: ~/.four_seasons/data.sqlite)",
     )
     parser.add_argument(
-        "--out", type=Path, default=DEFAULT_OUT,
-        help=f"Output CSV path (default: {DEFAULT_OUT})",
+        "--out", type=Path, default=None,
+        help="Output CSV path (default: signal-specific path under data/analysis/zhuli/)",
     )
     parser.add_argument(
         "--date", "--as-of", type=str, default=None, metavar="YYYY-MM-DD",
@@ -159,12 +190,12 @@ Examples:
     )
     parser.add_argument(
         "--config", type=Path, default=None, metavar="JSON_PATH",
-        help="Load SuffocationConfig overrides from a JSON file.",
+        help="Load signal config overrides from a JSON file.",
     )
     parser.add_argument(
         "--config-override", nargs="*", metavar="KEY=VALUE",
         help=(
-            "Override individual SuffocationConfig values. "
+            "Override individual signal config values. "
             "Example: --config-override max20_volume_ratio=0.12 min_close=15"
         ),
     )
@@ -183,18 +214,23 @@ Examples:
 
     args = parser.parse_args()
 
+    # Resolve signal-specific config class
+    cfg_cls, _default_out = _SIGNAL_DEFAULTS.get(
+        args.signal, (SuffocationConfig, DEFAULT_OUT)
+    )
+
     # Build config
     if args.config:
-        cfg = SuffocationConfig.from_json(args.config)
+        cfg = cfg_cls.from_json(args.config)
     else:
-        cfg = SuffocationConfig()
+        cfg = cfg_cls()
 
     if args.config_override:
         overrides = _parse_config_overrides(args.config_override)
         cfg = cfg.apply_overrides(overrides)
 
     if args.show_config:
-        print("Effective SuffocationConfig:")
+        print(f"Effective {cfg_cls.__name__} (signal={args.signal}):")
         for k, v in cfg.to_dict().items():
             print(f"  {k}: {v}")
         return
@@ -216,19 +252,24 @@ Examples:
         top_n=args.top_n,
     )
 
+    # Resolve effective output path for display
+    _, effective_out = _SIGNAL_DEFAULTS.get(args.signal, (SuffocationConfig, DEFAULT_OUT))
+    out_display = args.out if args.out else effective_out
+
     date_label = args.date if args.date else "all dates"
     print(f"Signal: {args.signal} | Date: {date_label} | Found: {len(df)} candidates")
     if len(df) > 0:
-        print(f"Wrote → {args.out}")
-        # Print summary table
-        summary_cols = [
-            c for c in [
-                "ticker", "signal_date", "scenario", "breakout_close",
-                "stop_loss", "ideal_ma_align", "suffocation_vol_ratio",
-                "breakout_bar_type",
-            ]
-            if c in df.columns
+        print(f"Wrote → {out_display}")
+        # Print summary table — prefer relevant columns, fall back gracefully
+        preferred_cols = [
+            # open_signal_filter columns
+            "ticker", "signal_date", "signal_type",
+            "prev_close", "today_open", "today_open_gap_pct", "stop_loss",
+            # suffocation columns
+            "scenario", "breakout_close",
+            "ideal_ma_align", "suffocation_vol_ratio", "breakout_bar_type",
         ]
+        summary_cols = [c for c in preferred_cols if c in df.columns]
         print(df[summary_cols].to_string(index=False))
     else:
         print("No signals found.")
