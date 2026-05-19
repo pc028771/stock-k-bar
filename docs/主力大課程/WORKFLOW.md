@@ -412,20 +412,26 @@ SERVER_PID=$!
 
 JS 端（iframe context）：
 ```js
-async function dlSeg(segUrl, segName) {
-  // ⚠️ 用 iwin.XMLHttpRequest
-  const buf = await new Promise((res, rej) => {
-    const x = new iwin.XMLHttpRequest();
-    x.open('GET', segUrl);
-    x.withCredentials = true;
-    x.responseType = 'arraybuffer';
-    x.onload = () => res(x.response);
-    x.send();
-  });
-  await fetch(`http://localhost:18765/?dir=/tmp/${CH}_ts&name=${segName}`, {
-    method: 'POST', body: buf
-  });
-}
+// ⚠️ 注意 1: 用 iwin.XMLHttpRequest（不是 window.XMLHttpRequest）
+// ⚠️ 注意 2: responseType='arraybuffer' 從主頁 context 跑會失敗 →
+//            必須包在 iwin.eval() 內讓 XHR 在 iframe 自己的 JS context 跑
+//            或用 responseType='blob'（更穩）
+const dlSegInIframe = (segUrl, segName) => iwin.eval(`
+  (async () => {
+    const buf = await new Promise((res, rej) => {
+      const x = new XMLHttpRequest();
+      x.open('GET', ${JSON.stringify(segUrl)});
+      x.withCredentials = true;
+      x.responseType = 'blob';  // blob 比 arraybuffer 穩
+      x.onload = () => res(x.response);
+      x.onerror = rej;
+      x.send();
+    });
+    await fetch('http://localhost:18765/?dir=/tmp/${CH}_ts&name=${segName}', {
+      method: 'POST', body: buf
+    });
+  })()
+`);
 ```
 
 **Step 4: ffmpeg per-segment extract（無需 concat）**
