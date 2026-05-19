@@ -1,0 +1,428 @@
+[
+  {
+    "startTime": 3.319,
+    "endTime": 6.54,
+    "text": "2026年3月30號的晚上11點",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('11', '點')]"
+      }
+    ]
+  },
+  {
+    "startTime": 16.42,
+    "endTime": 18.92,
+    "text": "春天呢 我的月線斜率呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 33.159,
+    "endTime": 34.439,
+    "text": "殖利率可以拉來這邊看",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 50.24,
+    "endTime": 52.439,
+    "text": "所以這邊有些是去年的資料",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 84.799,
+    "endTime": 87.239,
+    "text": "像聯詠這屬於春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 88.239,
+    "endTime": 91.239,
+    "text": "春天就不知道有多長了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 91.239,
+    "endTime": 93.939,
+    "text": "所以這裡呢都是春天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 139.014,
+    "endTime": 143.493,
+    "text": "接下來我們來看一下這個夏天的參數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 143.993,
+    "endTime": 145.454,
+    "text": "那夏天的參數這樣子",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 152.514,
+    "endTime": 153.993,
+    "text": "這是夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 153.993,
+    "endTime": 156.713,
+    "text": "夏天股票有的都漲很多了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 159.313,
+    "endTime": 160.234,
+    "text": "純純夏天嘛",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 173.753,
+    "endTime": 176.514,
+    "text": "這些都是屬於比較夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 176.873,
+    "endTime": 179.114,
+    "text": "那夏天股票你要記得在處置前呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 184.794,
+    "endTime": 187.193,
+    "text": "他們也是剛夏天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 198.234,
+    "endTime": 210.427,
+    "text": "中碳 哇 剛起來哦 這也是剛要走夏天的感覺\n聯嘉、邁科這幾個 這幾個假如有人有選擇困難症的話",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 220.987,
+    "endTime": 222.987,
+    "text": "這個夏天的籌碼是怎樣",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 223.068,
+    "endTime": 226.068,
+    "text": "夏天我們只篩選主力5日 主力10日 主力20日",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 227.288,
+    "endTime": 229.348,
+    "text": "秋天的股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 229.348,
+    "endTime": 231.228,
+    "text": "我們看一下秋天股票 ",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 233.127,
+    "endTime": 234.487,
+    "text": "乖離年線大於 30%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('30', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 236.927,
+    "endTime": 239.927,
+    "text": "來 來看一下這秋天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 240.288,
+    "endTime": 241.388,
+    "text": "那秋天股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 249.228,
+    "endTime": 251.728,
+    "text": "哇 這有點秋天的 月線有點彎了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 282.627,
+    "endTime": 284.288,
+    "text": "紅k超過 3% 的隔天啊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 285.987,
+    "endTime": 290.228,
+    "text": "紅K超過 3% 有很多隔日沖隔天都是空點",
+    "triggers": [
+      {
+        "group": "K棒",
+        "keyword": "紅K"
+      },
+      {
+        "group": "價位",
+        "keyword": "[('3', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 295.788,
+    "endTime": 298.588,
+    "text": "榮科看起來就滿秋天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 300.687,
+    "endTime": 313.341,
+    "text": "記憶體很多都秋天的 記憶體很多都秋天 好 各位這幾個自己可以看一下 \n連台積電都秋天了 台積電也滿像秋天的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 313.341,
+    "endTime": 315.341,
+    "text": "接下來看這個冬天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 315.341,
+    "endTime": 316.341,
+    "text": "那冬天股票呢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 334.802,
+    "endTime": 337.401,
+    "text": "好 來看一下這冬天股票哪些",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 342.901,
+    "endTime": 344.502,
+    "text": "也變冬天了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 346.581,
+    "endTime": 349.002,
+    "text": "秋天完現在變冬天了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 360.341,
+    "endTime": 362.942,
+    "text": "好 這邊有很多冬天的股票",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 372.201,
+    "endTime": 373.601,
+    "text": "所以冬天股票各位",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 377.201,
+    "endTime": 380.041,
+    "text": "有很多股票感覺都走冬天了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 380.541,
+    "endTime": 382.882,
+    "text": "所以假如冬天股票太多了各位也可以",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 401.661,
+    "endTime": 404.062,
+    "text": "哪些是從冬天又再上來的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  }
+]

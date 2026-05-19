@@ -1,0 +1,508 @@
+[
+  {
+    "startTime": 7.066,
+    "endTime": 9.566,
+    "text": "接下來我們講夏季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 20.566,
+    "endTime": 21.766,
+    "text": "春季區",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 39.9,
+    "endTime": 41.166,
+    "text": "突破盤整",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 43.833,
+    "endTime": 44.966,
+    "text": "那夏季區",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 56.2,
+    "endTime": 58.166,
+    "text": "春季邏輯",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 66.666,
+    "endTime": 69.233,
+    "text": "那夏季就是一個爆發期",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 79.066,
+    "endTime": 82.5,
+    "text": "那夏天是股價的主升段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 87.066,
+    "endTime": 87.966,
+    "text": "所以夏季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 99.5,
+    "endTime": 101.9,
+    "text": "從春季的無人問津",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 122.466,
+    "endTime": 124.833,
+    "text": "這是夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 124.833,
+    "endTime": 126.1,
+    "text": "那夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 148.766,
+    "endTime": 152.9,
+    "text": "就是強的是不是某一個特別的族群",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 181.0,
+    "endTime": 184.8,
+    "text": "所以主升段一定要族群連動",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 250.233,
+    "endTime": 253.4,
+    "text": "例如說 90 塊 95 塊 100 塊",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('90', '塊'), ('95', '塊'), ('100', '塊')]"
+      }
+    ]
+  },
+  {
+    "startTime": 263.1,
+    "endTime": 264.266,
+    "text": "那夏季策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 264.266,
+    "endTime": 266.966,
+    "text": "我們要順勢交易跟突破追擊",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 266.966,
+    "endTime": 268.166,
+    "text": "因為夏季策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 274.2,
+    "endTime": 275.133,
+    "text": "那進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 277.466,
+    "endTime": 279.166,
+    "text": "有沒有辦法突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 297.4,
+    "endTime": 299.566,
+    "text": "例如說沒有跌破重要支撐",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 304.133,
+    "endTime": 308.133,
+    "text": "你可以設條線來當做你的停利點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停利"
+      }
+    ]
+  },
+  {
+    "startTime": 338.466,
+    "endTime": 340.633,
+    "text": "那夏季的特徵",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 342.8,
+    "endTime": 345.166,
+    "text": "秋季在山的右邊",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 351.066,
+    "endTime": 351.8,
+    "text": "那夏季策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 370.033,
+    "endTime": 373.233,
+    "text": "就順勢站上浪頭",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "站上"
+      }
+    ]
+  },
+  {
+    "startTime": 400.333,
+    "endTime": 402.133,
+    "text": "它一定要有事件",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 411.566,
+    "endTime": 413.233,
+    "text": "通常夏季的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 417.3,
+    "endTime": 420.1,
+    "text": "不然我們比較喜歡空秋天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 420.1,
+    "endTime": 424.2,
+    "text": "那關鍵切入點價量共振",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "切入"
+      }
+    ]
+  },
+  {
+    "startTime": 429.033,
+    "endTime": 430.366,
+    "text": "突破關鍵壓力",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 431.633,
+    "endTime": 434.133,
+    "text": "所以夏季策略最理想的啟動點",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏季"
+      }
+    ]
+  },
+  {
+    "startTime": 434.133,
+    "endTime": 435.3,
+    "text": "就在這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 435.3,
+    "endTime": 436.633,
+    "text": "那這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 440.0,
+    "endTime": 443.1,
+    "text": "立夏就是第一天的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 455.633,
+    "endTime": 460.733,
+    "text": "這個從春天的無人詢問成交量低迷",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 460.733,
+    "endTime": 462.733,
+    "text": "後面的春季的尾巴",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 464.3,
+    "endTime": 465.933,
+    "text": "聰明錢進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 465.933,
+    "endTime": 467.133,
+    "text": "春季的尾巴",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 467.133,
+    "endTime": 469.1,
+    "text": "夏天的開始",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 471.633,
+    "endTime": 473.033,
+    "text": "這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 521.5,
+    "endTime": 524.333,
+    "text": "率先跌破重要移動平均線",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 561.266,
+    "endTime": 564.433,
+    "text": "當所有人都在討論股票並瘋狂進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 567.1,
+    "endTime": 569.533,
+    "text": "過熱訊號就容易反轉",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反轉"
+      }
+    ]
+  },
+  {
+    "startTime": 571.033,
+    "endTime": 574.7,
+    "text": "當出現上述訊號記得要減碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "減碼"
+      }
+    ]
+  },
+  {
+    "startTime": 576.333,
+    "endTime": 579.966,
+    "text": "準備迎接這個秋天的修正",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 579.966,
+    "endTime": 585.166,
+    "text": "以上是本集的夏天的一些訊號觀察",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  }
+]

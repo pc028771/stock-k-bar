@@ -1,0 +1,332 @@
+[
+  {
+    "startTime": 9.166,
+    "endTime": 11.766,
+    "text": "你必須要比市場更快一步",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 23.833,
+    "endTime": 26.866,
+    "text": "關鍵分點喜歡在春天的時候買股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 52.4,
+    "endTime": 53.733,
+    "text": "都要特別留意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 69.2,
+    "endTime": 71.866,
+    "text": "那因為這個春天轉夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 71.866,
+    "endTime": 73.766,
+    "text": "它的量能一定要慢慢地帶",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 73.766,
+    "endTime": 75.233,
+    "text": "一定要慢慢地起來",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 78.133,
+    "endTime": 80.8,
+    "text": "那高檔你要注意有沒有連續賣超",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 188.966,
+    "endTime": 190.366,
+    "text": "你一定要買到",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 260.333,
+    "endTime": 263.5,
+    "text": "你一定要找那種優質的股票",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 299.333,
+    "endTime": 300.033,
+    "text": "那判讀就是主力默默地吃貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 303.966,
+    "endTime": 306.966,
+    "text": "就是價漲量增 突破頸線",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 324.266,
+    "endTime": 327.566,
+    "text": "這邊分點",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 373.966,
+    "endTime": 375.733,
+    "text": "因為這邊 15 個戶頭",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 414.966,
+    "endTime": 416.333,
+    "text": "回踩支撐",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "回踩"
+      }
+    ]
+  },
+  {
+    "startTime": 421.4,
+    "endTime": 422.8,
+    "text": "還沒到出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 438.2,
+    "endTime": 439.6,
+    "text": "準備要出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 439.6,
+    "endTime": 441.566,
+    "text": "那高檔震盪出貨的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 443.966,
+    "endTime": 445.466,
+    "text": "震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 489.133,
+    "endTime": 491.633,
+    "text": "那丙種資金大概跌個 10%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 493.7,
+    "endTime": 496.333,
+    "text": "丙種資金跌個 10% 準備斷頭",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 504.966,
+    "endTime": 507.033,
+    "text": "量縮止跌的時候進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 511.333,
+    "endTime": 513.2,
+    "text": "等到一回檔你就想要停損",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      }
+    ]
+  },
+  {
+    "startTime": 514.233,
+    "endTime": 516.2,
+    "text": "識破這假跌破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 517.833,
+    "endTime": 520.133,
+    "text": "那通常假跌破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 520.133,
+    "endTime": 522.966,
+    "text": "跌破支撐是不是沒有量",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 522.966,
+    "endTime": 525.833,
+    "text": "那跌破時候是不是 1-3 天內迅速的收復",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 525.833,
+    "endTime": 527.433,
+    "text": "有時候那種假跌破就是故意甩轎的",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 527.433,
+    "endTime": 529.2,
+    "text": "有時候那種假跌破就是故意甩轎的",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 529.2,
+    "endTime": 531.033,
+    "text": "那看到跌破先觀察",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "跌破"
+      }
+    ]
+  },
+  {
+    "startTime": 537.266,
+    "endTime": 539.933,
+    "text": "蠻強的一個並不是要出貨的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  }
+]

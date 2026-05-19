@@ -1,0 +1,321 @@
+[
+  {
+    "startTime": 9.0,
+    "endTime": 10.5,
+    "text": "春季耕耘期",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 14.8,
+    "endTime": 17.033,
+    "text": "首先來看春季的築底",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 19.633,
+    "endTime": 21.233,
+    "text": "那春季的核心樣貌",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 37.3,
+    "endTime": 40.0,
+    "text": "它完全不適合做春季的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春季"
+      }
+    ]
+  },
+  {
+    "startTime": 47.033,
+    "endTime": 50.033,
+    "text": "所以一定要挑產業穩健",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 83.0,
+    "endTime": 86.5,
+    "text": "我們就會找到比較好的進場點",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 89.733,
+    "endTime": 91.2,
+    "text": "那春天買股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 91.2,
+    "endTime": 94.3,
+    "text": "你就比較不用去擔心停損的問題",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      }
+    ]
+  },
+  {
+    "startTime": 94.3,
+    "endTime": 95.8,
+    "text": "因為通常春天買股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 99.5,
+    "endTime": 101.8,
+    "text": "你也不用擔心停損的問題",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "停損"
+      }
+    ]
+  },
+  {
+    "startTime": 127.233,
+    "endTime": 131.333,
+    "text": "那下跌就是一個這個冬天的一個症狀",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 146.933,
+    "endTime": 149.966,
+    "text": "春天的股票它的波動都會變小",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 153.566,
+    "endTime": 158.866,
+    "text": "它的目的是為了吃貨而不是拉抬",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 216.833,
+    "endTime": 219.233,
+    "text": "不會往上突破也不會往下突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 224.733,
+    "endTime": 227.633,
+    "text": "這是一個春天的一個形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 227.633,
+    "endTime": 228.633,
+    "text": "那春天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 228.633,
+    "endTime": 231.933,
+    "text": "這個我們很害怕就是你買到春天股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 233.733,
+    "endTime": 236.7,
+    "text": "所以它必須要有一個殖利率的防禦",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 252.366,
+    "endTime": 253.233,
+    "text": "那春天股",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 281.133,
+    "endTime": 281.966,
+    "text": "低檔吃貨期",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "吃貨"
+      }
+    ]
+  },
+  {
+    "startTime": 281.966,
+    "endTime": 284.2,
+    "text": "春天是低檔吃貨的階段",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 284.2,
+    "endTime": 286.366,
+    "text": "主力會趁市場沒有人注意",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "注意"
+      }
+    ]
+  },
+  {
+    "startTime": 296.433,
+    "endTime": 299.166,
+    "text": "那冬天轉春天的變化",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 310.833,
+    "endTime": 312.033,
+    "text": "春天到後面",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 315.8,
+    "endTime": 317.566,
+    "text": "最後進場訊號",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 328.266,
+    "endTime": 329.9,
+    "text": "不再被突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 333.066,
+    "endTime": 334.866,
+    "text": "低點不再突破",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "突破"
+      }
+    ]
+  },
+  {
+    "startTime": 339.133,
+    "endTime": 340.7,
+    "text": "成交量從窒息量",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "窒息量"
+      }
+    ]
+  },
+  {
+    "startTime": 342.766,
+    "endTime": 345.366,
+    "text": "就是一個春天後面的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  }
+]

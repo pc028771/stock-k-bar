@@ -1,0 +1,1339 @@
+[
+  {
+    "startTime": 6.966,
+    "endTime": 9.766,
+    "text": "接下來我們來看秋季的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 25.566,
+    "endTime": 28.533,
+    "text": "很有可能就在高檔會變成秋季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 28.533,
+    "endTime": 30.533,
+    "text": "那秋季後面又變冬季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 136.5,
+    "endTime": 141.066,
+    "text": "股價就很容易從秋季後轉成冬季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 214.266,
+    "endTime": 216.366,
+    "text": "2 月 16 號這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 226.233,
+    "endTime": 228.9,
+    "text": "也是一個秋季轉冬季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 233.033,
+    "endTime": 236.033,
+    "text": "在這個位置融券才大增",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 236.033,
+    "endTime": 238.0,
+    "text": "這邊也是融券現償大增",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 266.666,
+    "endTime": 267.866,
+    "text": "那這邊也是",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 277.433,
+    "endTime": 281.466,
+    "text": "股價就從秋季轉成冬季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 315.866,
+    "endTime": 319.4,
+    "text": "這邊就是融券有現償的狀況",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 345.933,
+    "endTime": 346.833,
+    "text": "在秋天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 359.733,
+    "endTime": 362.066,
+    "text": "利多不漲其實是蠻嚴重的",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "其實是"
+      }
+    ]
+  },
+  {
+    "startTime": 362.066,
+    "endTime": 366.433,
+    "text": "第三 是否應該開始執行分批減碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "減碼"
+      }
+    ]
+  },
+  {
+    "startTime": 366.433,
+    "endTime": 367.3,
+    "text": "分批減碼",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "減碼"
+      }
+    ]
+  },
+  {
+    "startTime": 389.7,
+    "endTime": 391.1,
+    "text": "所以在秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 394.2,
+    "endTime": 397.266,
+    "text": "而在於你留住了多少夏天的收成",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 397.266,
+    "endTime": 400.766,
+    "text": "很多主力在秋天會斷然地離場",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 400.766,
+    "endTime": 403.533,
+    "text": "所以這時候你一定要看主力買賣超",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 427.066,
+    "endTime": 430.6,
+    "text": "所以高檔主力大賣都要特別小心",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 430.6,
+    "endTime": 434.633,
+    "text": "它都是一個這秋天的出貨的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 435.8,
+    "endTime": 438.933,
+    "text": "我們來看一下秋天 K 棒的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 438.933,
+    "endTime": 440.6,
+    "text": "那在夏天的時候",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 451.4,
+    "endTime": 453.2,
+    "text": "在這邊一個主升段",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 455.366,
+    "endTime": 459.566,
+    "text": "等到夏天連續殺兩次之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 459.566,
+    "endTime": 461.4,
+    "text": "它就邁入一個秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 461.4,
+    "endTime": 463.533,
+    "text": "那秋天形態出現",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 485.333,
+    "endTime": 487.433,
+    "text": "我們這邊選這個買超分點",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 493.266,
+    "endTime": 495.7,
+    "text": "統一的買點是 80.26",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "買點"
+      }
+    ]
+  },
+  {
+    "startTime": 541.733,
+    "endTime": 543.6,
+    "text": "那隔天就出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 543.6,
+    "endTime": 546.533,
+    "text": "買漲停 出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 547.833,
+    "endTime": 550.1,
+    "text": "買漲停 出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 550.1,
+    "endTime": 551.866,
+    "text": "大買之後出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 551.866,
+    "endTime": 553.333,
+    "text": "那大買之後出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 574.2,
+    "endTime": 580.133,
+    "text": "驊宏資也是走完一個高檔出貨的徵狀",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 581.0,
+    "endTime": 581.766,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 586.3,
+    "endTime": 588.8,
+    "text": "反彈之後站不上去",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 590.5,
+    "endTime": 594.033,
+    "text": "就變成一個高檔出貨的徵狀",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 594.033,
+    "endTime": 595.033,
+    "text": "那高檔出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 597.166,
+    "endTime": 599.5,
+    "text": "這邊有個短紅配黑 K",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 599.5,
+    "endTime": 601.7,
+    "text": "這長紅是一個十字線",
+    "triggers": [
+      {
+        "group": "K棒",
+        "keyword": "十字"
+      }
+    ]
+  },
+  {
+    "startTime": 631.8,
+    "endTime": 636.166,
+    "text": "代表秋天已經悄悄地來臨了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 638.066,
+    "endTime": 641.9,
+    "text": "就很容易一紅一黑的震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 657.566,
+    "endTime": 665.3,
+    "text": "高檔我們來看它的這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 667.7,
+    "endTime": 669.1,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 674.5,
+    "endTime": 676.333,
+    "text": "反彈沒力站不上去",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 695.733,
+    "endTime": 698.7,
+    "text": "那這邊可以看出來明顯的高檔出貨",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 711.4,
+    "endTime": 713.6,
+    "text": "然後這邊殺了一次",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 713.6,
+    "endTime": 714.7,
+    "text": "反正都反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 714.7,
+    "endTime": 717.7,
+    "text": "可是在這邊高檔就彈不上去",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 717.7,
+    "endTime": 721.6,
+    "text": "這邊高檔我們放大一點給各位看",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 721.6,
+    "endTime": 725.1,
+    "text": "這邊殺了一次小反彈就殺不上去",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 745.933,
+    "endTime": 748.6,
+    "text": "也變成一個高檔出貨的樣子了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 752.1,
+    "endTime": 753.6,
+    "text": "反彈之後再殺一次",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 756.233,
+    "endTime": 758.8,
+    "text": "一個高檔出貨的狀況",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 766.4,
+    "endTime": 768.4,
+    "text": "申報轉讓這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 784.133,
+    "endTime": 786.2,
+    "text": "申報轉讓這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 786.866,
+    "endTime": 789.333,
+    "text": "一申報轉讓之後黑 K 特別多",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 792.733,
+    "endTime": 795.9,
+    "text": "長紅之後隔天就怎麼樣就出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 795.9,
+    "endTime": 796.4,
+    "text": "就出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 800.2,
+    "endTime": 801.533,
+    "text": "隔天又出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 816.4,
+    "endTime": 817.833,
+    "text": "我們看這個位置",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 826.6,
+    "endTime": 827.766,
+    "text": "出貨出 3 天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 836.466,
+    "endTime": 841.233,
+    "text": "所以這種長紅之後的出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 841.233,
+    "endTime": 844.766,
+    "text": "這個在秋天會常常看到",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 859.0,
+    "endTime": 860.966,
+    "text": "這邊是春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 860.966,
+    "endTime": 862.7,
+    "text": "後面轉夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 881.466,
+    "endTime": 882.733,
+    "text": "那反彈之後",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 884.433,
+    "endTime": 887.3,
+    "text": "走一個高檔出貨的這個形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 891.6,
+    "endTime": 894.1,
+    "text": "這就是一個高檔出貨形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 897.1,
+    "endTime": 897.7,
+    "text": "這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 897.7,
+    "endTime": 900.133,
+    "text": "這邊漲停板隔天就容易黑 K",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 900.133,
+    "endTime": 903.666,
+    "text": "那在這邊它就很容易出現怎麼樣",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 911.0,
+    "endTime": 913.033,
+    "text": "這邊就很好做了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 913.033,
+    "endTime": 915.733,
+    "text": "這邊你看這紅 K 出現",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 923.366,
+    "endTime": 926.1,
+    "text": "那我們做短空這個位置就很好做",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個位置"
+      }
+    ]
+  },
+  {
+    "startTime": 926.1,
+    "endTime": 929.266,
+    "text": "秋天的時候很容易做短空",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 956.966,
+    "endTime": 959.0,
+    "text": "這邊是春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 959.0,
+    "endTime": 960.633,
+    "text": "然後步入夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 975.733,
+    "endTime": 977.433,
+    "text": "高檔出貨的痕跡",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 984.333,
+    "endTime": 985.566,
+    "text": "反彈再殺一次",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 989.666,
+    "endTime": 990.833,
+    "text": "各位看這邊就很多",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1001.066,
+    "endTime": 1004.533,
+    "text": "這就是一個高檔震盪出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1004.533,
+    "endTime": 1005.8,
+    "text": "那震盪出貨怎麼出",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1009.7,
+    "endTime": 1011.533,
+    "text": "那就很容易出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1015.8,
+    "endTime": 1021.333,
+    "text": "益航也是一個走一個出貨的形態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1027.766,
+    "endTime": 1029.633,
+    "text": "各位看這邊是春天",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 1029.633,
+    "endTime": 1030.866,
+    "text": "有點轉夏天了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1032.1,
+    "endTime": 1035.7,
+    "text": "夏天之後到最高點 26.5",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1038.466,
+    "endTime": 1040.033,
+    "text": "反彈沒力了",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 1040.033,
+    "endTime": 1043.3,
+    "text": "所以這邊已經轉入秋天了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1043.3,
+    "endTime": 1046.466,
+    "text": "那秋天長紅之後就是長黑",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1061.933,
+    "endTime": 1063.533,
+    "text": "那誰出場了",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      }
+    ]
+  },
+  {
+    "startTime": 1063.533,
+    "endTime": 1064.9,
+    "text": "各位這邊有",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1064.9,
+    "endTime": 1067.1,
+    "text": "這邊有個重大事件",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1074.5,
+    "endTime": 1076.666,
+    "text": "有沒有這邊申報轉讓",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1168.633,
+    "endTime": 1171.7,
+    "text": "在秋天的時候要斷然出場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出場"
+      },
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1185.133,
+    "endTime": 1187.766,
+    "text": "一下子夏天就",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1187.766,
+    "endTime": 1190.3,
+    "text": "超級炎熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1190.3,
+    "endTime": 1192.3,
+    "text": "後面就出貨",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1192.3,
+    "endTime": 1193.9,
+    "text": "那這種超級炎熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 1202.066,
+    "endTime": 1204.166,
+    "text": "你看這邊拼命漲對不對",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "你看這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1215.7,
+    "endTime": 1220.166,
+    "text": "這也是一個高檔出貨形態的樣子",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "出貨"
+      }
+    ]
+  },
+  {
+    "startTime": 1230.8,
+    "endTime": 1234.566,
+    "text": "很有可能這檔股票的秋天已到",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1234.566,
+    "endTime": 1239.266,
+    "text": "準備邁入酷寒的冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 1239.266,
+    "endTime": 1240.9,
+    "text": "所以在這個地方",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這個地方"
+      }
+    ]
+  },
+  {
+    "startTime": 1240.9,
+    "endTime": 1243.933,
+    "text": "我們就把秋天的選股參數",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1253.9,
+    "endTime": 1255.3,
+    "text": "乖離年線 30%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('30', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1256.8,
+    "endTime": 1258.733,
+    "text": "漲多才是個秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1263.6,
+    "endTime": 1266.366,
+    "text": "你可以改這乖離年線 50%",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('50', '%')]"
+      }
+    ]
+  },
+  {
+    "startTime": 1304.433,
+    "endTime": 1305.5,
+    "text": "那秋天過往案例",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 1312.9,
+    "endTime": 1314.233,
+    "text": "國精化在這邊選出來",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1320.3,
+    "endTime": 1322.0,
+    "text": "東元這邊主力是賣的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1325.9,
+    "endTime": 1327.433,
+    "text": "這邊主力是賣的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1335.166,
+    "endTime": 1337.3,
+    "text": "這邊就是一個明顯的",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1337.3,
+    "endTime": 1339.966,
+    "text": "這個秋季的訊號",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋季"
+      }
+    ]
+  },
+  {
+    "startTime": 1341.7,
+    "endTime": 1344.533,
+    "text": "這邊主力月線轉彎了",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1358.4,
+    "endTime": 1360.3,
+    "text": "各位看在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 1364.433,
+    "endTime": 1368.533,
+    "text": "以上是秋天的過往案例",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  }
+]

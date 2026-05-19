@@ -1,0 +1,336 @@
+[
+  {
+    "startTime": 7.066,
+    "endTime": 10.233,
+    "text": "接下來我們講冬季 冬藏避險",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 16.966,
+    "endTime": 19.9,
+    "text": "所以冬天是很漫長的",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 19.9,
+    "endTime": 22.666,
+    "text": "冬天空頭與打底",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 31.966,
+    "endTime": 33.666,
+    "text": "任何有反彈的時候",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 53.466,
+    "endTime": 55.366,
+    "text": "冬季股價看似便宜",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 60.966,
+    "endTime": 61.766,
+    "text": "那冬季策略",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 72.133,
+    "endTime": 73.433,
+    "text": "千萬不要接",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "千萬"
+      }
+    ]
+  },
+  {
+    "startTime": 73.433,
+    "endTime": 74.766,
+    "text": "通常我們搶反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 74.766,
+    "endTime": 76.933,
+    "text": "都會去搶那個下跌出量",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出量"
+      }
+    ]
+  },
+  {
+    "startTime": 76.933,
+    "endTime": 79.233,
+    "text": "下跌出量可以搶一點反彈",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出量"
+      },
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 84.366,
+    "endTime": 87.433,
+    "text": "是為了春天的行情做準備",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 92.133,
+    "endTime": 94.533,
+    "text": "等待冬天結束",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 94.533,
+    "endTime": 96.633,
+    "text": "所以在熊市冬季",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 100.533,
+    "endTime": 102.233,
+    "text": "冬季的股票就不要玩了",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 132.066,
+    "endTime": 134.533,
+    "text": "它冬天的均線的特色",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 134.533,
+    "endTime": 135.9,
+    "text": "冬天之後",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 173.9,
+    "endTime": 174.866,
+    "text": "反彈空",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 174.866,
+    "endTime": 177.466,
+    "text": "股價反彈到壓力線的時候空",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 180.266,
+    "endTime": 181.8,
+    "text": "避免急跌的時候進場",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "進場"
+      }
+    ]
+  },
+  {
+    "startTime": 181.8,
+    "endTime": 183.6,
+    "text": "因為急跌容易反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 193.333,
+    "endTime": 195.7,
+    "text": "常常會在急跌的時候會出量",
+    "triggers": [
+      {
+        "group": "進出場",
+        "keyword": "出量"
+      }
+    ]
+  },
+  {
+    "startTime": 195.7,
+    "endTime": 197.2,
+    "text": "那反彈又沒量",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 199.466,
+    "endTime": 202.0,
+    "text": "這就是一個冬季的跌勢",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬季"
+      }
+    ]
+  },
+  {
+    "startTime": 208.733,
+    "endTime": 212.1,
+    "text": "這個是冬天的一個很典型的一個型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 212.1,
+    "endTime": 214.766,
+    "text": "那這種股票即使大盤反彈",
+    "triggers": [
+      {
+        "group": "波段",
+        "keyword": "反彈"
+      }
+    ]
+  },
+  {
+    "startTime": 220.8,
+    "endTime": 224.1,
+    "text": "所以遇到這種冬天跌的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 224.1,
+    "endTime": 226.3,
+    "text": "一定要想辦法避開",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "一定要"
+      }
+    ]
+  },
+  {
+    "startTime": 231.966,
+    "endTime": 233.366,
+    "text": "春天也不會來",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "春天"
+      }
+    ]
+  },
+  {
+    "startTime": 240.733,
+    "endTime": 244.2,
+    "text": "這是最恐怖的一個冬天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 244.2,
+    "endTime": 248.066,
+    "text": "以上是這個冬天的一個狀況",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  }
+]

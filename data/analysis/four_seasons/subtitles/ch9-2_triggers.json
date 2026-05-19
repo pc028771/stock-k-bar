@@ -1,0 +1,409 @@
+[
+  {
+    "startTime": 13.766,
+    "endTime": 15.866,
+    "text": "那這邊你可以選擇版 1 或版 2",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 61.733,
+    "endTime": 64.033,
+    "text": "那權證買的狀況各位看這裡",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "看這裡"
+      }
+    ]
+  },
+  {
+    "startTime": 64.033,
+    "endTime": 65.566,
+    "text": "這邊有一排",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 119.066,
+    "endTime": 122.7,
+    "text": "就是它必須要把權證的買價給抽掉",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "必須"
+      }
+    ]
+  },
+  {
+    "startTime": 152.866,
+    "endTime": 156.2,
+    "text": "這邊股買 1010 就出現一排",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 211.1,
+    "endTime": 212.866,
+    "text": "數量比較少就這邊有一排",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 215.166,
+    "endTime": 217.733,
+    "text": "這邊是",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 217.733,
+    "endTime": 219.933,
+    "text": "沒有特別的股買的訊號",
+    "triggers": [
+      {
+        "group": "強調",
+        "keyword": "特別"
+      }
+    ]
+  },
+  {
+    "startTime": 226.8,
+    "endTime": 229.133,
+    "text": "這邊算是比較大單",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 264.0,
+    "endTime": 265.733,
+    "text": "這邊很多正價差",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 282.566,
+    "endTime": 285.6,
+    "text": "那代表說它是一個炎熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 285.6,
+    "endTime": 287.366,
+    "text": "炎熱的夏天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 292.933,
+    "endTime": 295.0,
+    "text": "那這邊還有漲幅排行榜",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 334.166,
+    "endTime": 336.8,
+    "text": "主力今天的資金在這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 339.966,
+    "endTime": 341.0,
+    "text": "至少 10 點前",
+    "triggers": [
+      {
+        "group": "價位",
+        "keyword": "[('10', '點')]"
+      }
+    ]
+  },
+  {
+    "startTime": 375.333,
+    "endTime": 378.2,
+    "text": "這個應該是元大大天母",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 390.733,
+    "endTime": 394.466,
+    "text": "那這邊我們就改 8112",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 409.5,
+    "endTime": 412.466,
+    "text": "這看起來有點秋天型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 412.466,
+    "endTime": 413.366,
+    "text": "秋天型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 417.366,
+    "endTime": 419.466,
+    "text": "因為秋天有可能是一直盤整",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 448.266,
+    "endTime": 451.466,
+    "text": "那金像電還在走一個夏天的狀態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 459.966,
+    "endTime": 463.8,
+    "text": "還在創高就是一個夏天的型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 464.4,
+    "endTime": 466.466,
+    "text": "夏天型態",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 473.466,
+    "endTime": 477.6,
+    "text": "金像電創新高代表夏天持續",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 481.266,
+    "endTime": 482.666,
+    "text": "還在夏天的股票",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "夏天"
+      }
+    ]
+  },
+  {
+    "startTime": 482.666,
+    "endTime": 486.066,
+    "text": "世芯 KY 這看起來有點秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 486.066,
+    "endTime": 487.266,
+    "text": "有一點秋天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 567.9,
+    "endTime": 569.766,
+    "text": "要秋天的感覺 對不對",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "秋天"
+      }
+    ]
+  },
+  {
+    "startTime": 571.7,
+    "endTime": 576.1,
+    "text": "可能沒有那麼快就真的會轉成冬天",
+    "triggers": [
+      {
+        "group": "四季",
+        "keyword": "冬天"
+      }
+    ]
+  },
+  {
+    "startTime": 647.133,
+    "endTime": 647.966,
+    "text": "大戶搜密這邊",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 647.966,
+    "endTime": 649.5,
+    "text": "這邊都有",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 692.566,
+    "endTime": 694.9,
+    "text": "算到這邊附近差不多",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 694.9,
+    "endTime": 697.066,
+    "text": "實際上這邊可能沒算到",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 705.066,
+    "endTime": 708.666,
+    "text": "這邊會幫各位做統計",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 726.666,
+    "endTime": 730.366,
+    "text": "這應該是有點故事在後面的",
+    "triggers": [
+      {
+        "group": "更正",
+        "keyword": "應該是"
+      }
+    ]
+  },
+  {
+    "startTime": 781.833,
+    "endTime": 785.533,
+    "text": "這邊都要看一下它們買了哪些股票",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  },
+  {
+    "startTime": 785.533,
+    "endTime": 789.066,
+    "text": "那這邊做一個大致上的整理",
+    "triggers": [
+      {
+        "group": "示範",
+        "keyword": "這邊"
+      }
+    ]
+  }
+]
