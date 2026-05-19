@@ -194,6 +194,40 @@ stock-analysis-system/docs/scripts/ 下既有的 .txt 講稿是這個格式（us
 
 **節省原則：簡單的東西用 thumbnail，需要細節的才另外抓清晰版。**
 
+### 解析度需求判別表（實證 2026-05-19）
+
+從 26 章升級/重審經驗歸納，**畫面型態 vs 必要解析度**：
+
+| 畫面型態 | 最低解析度 | 為何 | 案例 |
+|---|---|---|---|
+| **個股代號 + 公司名** | **🔴 必 L3 1080p** | 480p 嚴重誤判（廣達 2382 → 6706 惠特、振容 → 1904 正隆、大宇資 6111 → 6441 儒鴻） | ch2-4、ch4-2_reversal 個股案例 |
+| **K 圖具體價位手寫**（紅筆寫的小字數字） | **🔴 必 L3 1080p** | 21.65 / 19.64 / 91.88 / 92.04 / 104.76 等小字 480p 看不清 | ch2-1 4961 天鈺、ch2-4 6672 騰輝-KY |
+| **量柱數字 + 量倍數** | **🔴 必 L3 1080p** | 8425 張、4183 張等多位數字 480p 模糊 | ch4-2 6672 騰輝、ch4-1 投信買超表 |
+| **均線標籤數值**（5MA=91.88 旁邊的數字） | **🔴 必 L3 1080p** | 均線旁的小字標籤 720p 還勉強、480p 不行 | ch6-2 看盤室、ch2-4 量價支撐 |
+| **多視窗排列介面**（11 檔清單、軟體選股表）| **🔴 必 L3 1080p** | 表格內小字密集、欄位細節需要 1080p | ch5-2 13 檔精選清單、ch6-2 篩選介面 |
+| **講師現場手寫紅筆細節**（小字、箭頭目標、數字標註）| **🔴 必 L3 1080p** | 投影片錯字當場手寫修正、紅筆數字標註 | ch6-1「加量」「5MA 上」、ch2-3「應為缺口低點」|
+| **介面截圖中等大小** （軟體選單、欄位名稱、按鈕標題）| 🟡 720p OK | 中等字級 720p 可讀，1080p 更穩 | 富邦軟體選單、投信篩選介面 |
+| **投影片中等字級內文**（條件文字、SOP 步驟描述）| 🟡 720p OK | 文字段落 720p 清楚 | 投影片內條列文字 |
+| **純投影片大字標題 / 心法**（大字、單行）| 🟢 L1 Sprite OK | 大字 480p 也看得清 | 章節標題、概念性說明、「沒有停損點就沒有進場點」這種大字 |
+| **概念示意圖**（純圖示、無小字）| 🟢 L1 Sprite OK | 圖形結構簡單、不靠細節 | 三大原則示意圖、缺口示意圖 |
+| **頭尾過場 / 章節分隔** | 🟢 L1 Sprite OK | 純文字過渡 | 「下一節」「總結」等 |
+
+### 章節層級判別策略（重要 — 節省成本）
+
+抓任何章節**先 sample 一張**確認類型：
+- 看到 **K 圖 + 個股代號** 或**多視窗排列** → 該章全章 L3 1080p
+- 看到 **純投影片 + 心法文字** → L1 sprite 即可
+- 看到 **介面截圖 + 中等小字** → L2 或 720p 已夠
+
+**經驗值（依章節）：**
+- L3 1080p 必要：Ch2-1, Ch2-3, Ch2-4（K 棒/缺口/量價含 K 圖個股）、Ch4-1/4-2（飆股形態 + 個股案例）、Ch5-2/5-3（當沖含 5 分 K）、Ch6-1/6-2（隔日沖介面 + 個股）、Ex1-3（窒息量實戰多個股）、Ex2 系列（投信案例）
+- L1 sprite 即可：Ch1 投資三大原則（純心法）、Ch7-1/7-2（停損/資金純概念）、Ch7-3（主力意圖前段概念）
+- 邊界：Ch2-2 均線（含 K 圖但較不依賴個股代號）、Ch2-5 總結（綜合）、Ch3-1/3-2（大波段含案例）、Ch5-1 動能仔（含介面）
+
+**省 token 規則：**
+- 抓之前讀講稿/字幕的關鍵字判斷類型（「個股 XXXX、第 X 支撐、量 XX 張」→ L3；純概念句 → L1）
+- 若主 agent 不確定，**sample 1 張先 sprite**，看內容類型再決定全章策略
+
 ### L1 — Sprite Thumbnail（首選，DRM-immune）
 
 #### 取得 sprite 機制
@@ -326,10 +360,16 @@ function spriteFrameAt(timestamp) {
 - Master m3u8（`/vp/{videoId}.m3u8`）**無 EXT-X-KEY** → segments 未加密
 - variant playlist 有 4 個解析度（360/480/720/1080）→ 取最高 1080p
 - segment URL 是 JWT token（`media.pressplay.cc/jt/eyJ...`）
-- ⚠️ **JWT URL 只認 iframe context 的 XHR**：
-  - 直接 curl / parent page `XMLHttpRequest` → **403**
-  - iframe 內部 `iwin.XMLHttpRequest` + `withCredentials=true` → **200**
-  - 原因：JWT 綁定 iframe origin + session cookies
+- ⚠️ **雙層認證 — JWT proxy + CDN cookie**：
+  - JWT URL（`media.pressplay.cc/jt/...`）redirect 到真實 CDN（`media-v2.pressplay.cc/...`）
+  - CDN 二次驗證靠瀏覽器 session cookie
+  - **必須 `withCredentials: true`** 讓 redirect 時帶上 cookie
+  - 直接 curl / parent page XHR 沒 cookie → **403**
+- ⚠️ **iframe context 細節**：
+  - parent page `XMLHttpRequest` 取 m3u8 OK（同源 cookie 帶得到）
+  - 但 segment 下載：建議用 **`vhs.xhr({withCredentials:true, responseType:'arraybuffer'})`**（player 內建的 XHR，最穩）
+  - 或 `iwin.eval()` 包 XHR 跑在 iframe context
+  - `responseType: 'blob'` 比 `'arraybuffer'` 在某些 session state 更穩
 - ~~pimeo_content 路徑（早期 POC）~~ — 在 production session 仍 403，不可用
 
 #### 操作流程（每章，已驗證可行 — 主力大 5 章 92 張全成功）
@@ -412,20 +452,26 @@ SERVER_PID=$!
 
 JS 端（iframe context）：
 ```js
-async function dlSeg(segUrl, segName) {
-  // ⚠️ 用 iwin.XMLHttpRequest
-  const buf = await new Promise((res, rej) => {
-    const x = new iwin.XMLHttpRequest();
-    x.open('GET', segUrl);
-    x.withCredentials = true;
-    x.responseType = 'arraybuffer';
-    x.onload = () => res(x.response);
-    x.send();
-  });
-  await fetch(`http://localhost:18765/?dir=/tmp/${CH}_ts&name=${segName}`, {
-    method: 'POST', body: buf
-  });
-}
+// ⚠️ 注意 1: 用 iwin.XMLHttpRequest（不是 window.XMLHttpRequest）
+// ⚠️ 注意 2: responseType='arraybuffer' 從主頁 context 跑會失敗 →
+//            必須包在 iwin.eval() 內讓 XHR 在 iframe 自己的 JS context 跑
+//            或用 responseType='blob'（更穩）
+const dlSegInIframe = (segUrl, segName) => iwin.eval(`
+  (async () => {
+    const buf = await new Promise((res, rej) => {
+      const x = new XMLHttpRequest();
+      x.open('GET', ${JSON.stringify(segUrl)});
+      x.withCredentials = true;
+      x.responseType = 'blob';  // blob 比 arraybuffer 穩
+      x.onload = () => res(x.response);
+      x.onerror = rej;
+      x.send();
+    });
+    await fetch('http://localhost:18765/?dir=/tmp/${CH}_ts&name=${segName}', {
+      method: 'POST', body: buf
+    });
+  })()
+`);
 ```
 
 **Step 4: ffmpeg per-segment extract（無需 concat）**
