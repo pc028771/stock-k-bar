@@ -8,18 +8,25 @@ of signal rows (not a bool Series like kline.entry), because zhuli signals
 are multi-row (one row per signal, with scenario and metadata columns).
 
 Course: 主力大全方位操盤教戰守則 (林家洋)
+
+Registered signals:
+    suffocation            — H 窒息量策略 (Ex1-1 ~ Ex1-3)
+    open_signal_filter     — M 主力意圖判斷收高開低/收低開高 (Ch7-3)
+    institutional_firstbuy — J 投信首買策略 (Ex2-3)
 """
 from __future__ import annotations
 
-from . import open_signal_filter, suffocation
+from . import institutional_firstbuy, open_signal_filter, suffocation
 
 ENTRY_REGISTRY = {
     "suffocation": suffocation.detect,
     "open_signal_filter": open_signal_filter.detect,
+    "institutional_firstbuy": institutional_firstbuy.detect,
 }
 
 __all__ = [
     "ENTRY_REGISTRY",
+    "institutional_firstbuy",
     "open_signal_filter",
     "suffocation",
 ]

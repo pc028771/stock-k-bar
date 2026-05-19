@@ -4,6 +4,7 @@ Loads bars, computes features, runs zhuli entry detection, writes ranked CSV.
 Supports:
   - H 窒息量（suffocation）
   - M 主力意圖收高開低/收低開高（open_signal_filter）
+  - J 投信首買（institutional_firstbuy）
 
 Usage:
     python scripts/zhuli_scanner.py --help
@@ -13,6 +14,8 @@ Usage:
     python scripts/zhuli_scanner.py --signal suffocation --config path/to/config.json
     python scripts/zhuli_scanner.py --signal open_signal_filter --date 2026-05-15
     python scripts/zhuli_scanner.py --signal open_signal_filter --config-override prev_volume_multiplier=1.5
+    python scripts/zhuli_scanner.py --signal institutional_firstbuy --date 2026-05-15
+    python scripts/zhuli_scanner.py --signal institutional_firstbuy --config-override min_firstbuy_volume=50
 
 Course: 主力大全方位操盤教戰守則 (林家洋)
 """
@@ -35,7 +38,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
-from zhuli.config import OpenSignalConfig, SuffocationConfig
+from zhuli.config import InstitutionalFirstBuyConfig, OpenSignalConfig, SuffocationConfig
 from zhuli.entry import ENTRY_REGISTRY
 from zhuli.features import add_zhuli_features
 
@@ -47,6 +50,10 @@ _SIGNAL_DEFAULTS: dict[str, tuple[type, Path]] = {
     "open_signal_filter": (
         OpenSignalConfig,
         Path("data/analysis/zhuli/open_signal_filter_scanner.csv"),
+    ),
+    "institutional_firstbuy": (
+        InstitutionalFirstBuyConfig,
+        Path("data/analysis/zhuli/institutional_firstbuy_scanner.csv"),
     ),
 }
 
@@ -94,7 +101,11 @@ def run(
     feats = add_features(bars)
     feats = add_zhuli_features(feats)
 
-    signals = detect_fn(feats, cfg=cfg)
+    # institutional_firstbuy 需要額外的投信資料；其他 signal 只用 feats
+    if signal_name == "institutional_firstbuy":
+        signals = detect_fn(feats, cfg=cfg, db_path=db_path)
+    else:
+        signals = detect_fn(feats, cfg=cfg)
 
     if as_of is not None:
         signals = signals[signals["signal_date"] == as_of].copy()
@@ -268,6 +279,8 @@ Examples:
             # suffocation columns
             "scenario", "breakout_close",
             "ideal_ma_align", "suffocation_vol_ratio", "breakout_bar_type",
+            # institutional_firstbuy columns
+            "sitc_net", "price_divergence", "close", "ma10",
         ]
         summary_cols = [c for c in preferred_cols if c in df.columns]
         print(df[summary_cols].to_string(index=False))

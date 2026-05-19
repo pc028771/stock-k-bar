@@ -6,7 +6,7 @@ Course source: 主力大全方位操盤教戰守則 (林家洋)
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 import json
 from pathlib import Path
 from typing import Any
@@ -173,3 +173,87 @@ class OpenSignalConfig:
             else:
                 d[key] = raw_val
         return OpenSignalConfig.from_dict(d)
+
+
+@dataclass
+class InstitutionalFirstBuyConfig:
+    """Parameters for J 投信首買策略 (zhuli_institutional_firstbuy).
+
+    Source: strategy-indicators.md §J 投信首買策略（Ex2-3）
+            course_principles.md §17 投信跟單加碼
+
+    Fields are grouped into:
+      - Hard rules: spec-defined constants from course.
+      - Soft margins: calibratable via CLI or JSON override.
+      - Liquidity filters: operational filters (course-neutral defaults).
+      - Boost score conditions: ideal conditions for signal quality scoring.
+    """
+
+    # === Hard rules from course (spec-defined) ===
+    # Source: strategy-indicators.md §J — 「投信突然買（至少200張）」
+    # ex2-3 截圖 01:23 投影片確認；03:00 手寫說可降至 50 但勝率降低
+    min_firstbuy_volume: int = 200          # 首日 ≥ 200 張（user 拍板可調至 50）
+
+    # Source: strategy-indicators.md §J — 「前面至少 2 個月（最好 3 個月）無投信買超」
+    # ex2-3 字幕 05:42、截圖 07:24 確認「越長空白越高勝率」
+    # 預設 60 天（約 2 個月）；user 拍板
+    no_buy_window_days: int = 60            # 前 60 天無投信買超
+
+    # 「無投信買超」的定義：sitc_net ≤ 0（含賣超與零買）
+    # Source: strategy-indicators.md §J — 「前面都非常乾淨」（字幕 01:53）
+    no_buy_threshold: float = 0.0          # 前 window 內 sitc_net 必須全部 ≤ 0
+
+    # === Soft margins (calibratable) ===
+    # 技術面多頭排列（5>10>20）課程說「理想條件」而非必要
+    # Source: strategy-indicators.md §J — 「籌碼 + 技術面：均線多頭排列、未發散 → 勝率加成」
+    # ex2-3 截圖 11:13 — 「活用：技術面不好但夠低也可進場」
+    require_ma_alignment: bool = False      # 預設非必要（加分）
+
+    # === 價籌背離（加分條件）===
+    # Source: strategy-indicators.md §J — 「當日個股收黑K但投信買超 => 價籌背離」
+    # ex2-3 截圖 04:00 手寫強調；截圖 09:39 具體案例
+    # 加分：收黑K（close < open）且投信買超 > 0
+    bullish_price_divergence_bonus: bool = True  # 計分加成用，不做過濾
+
+    # === Liquidity filters (course-neutral operational defaults) ===
+    min_avg_volume_20: int = 200            # 20日均量 ≥ 200 張（流動性門檻）
+    min_close: float = 10.0                 # 收盤 ≥ 10 元
+
+    # === Boost score conditions (ideal 多頭排列) ===
+    # Source: strategy-indicators.md §J — 「技術面：5/10/20 多頭排列（理想）」
+    # 若 require_ma_alignment = False，ideal_ma_align 只當 bonus score 欄位輸出
+    # 若 require_ma_alignment = True，ideal_ma_align 不符合的直接過濾
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "InstitutionalFirstBuyConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "InstitutionalFirstBuyConfig":
+        """Load config overrides from a JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "InstitutionalFirstBuyConfig":
+        """Apply KEY=VALUE string overrides (from CLI --config-override)."""
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown InstitutionalFirstBuyConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return InstitutionalFirstBuyConfig.from_dict(d)
