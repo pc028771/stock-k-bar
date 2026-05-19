@@ -38,3 +38,44 @@
 - 任何課程外條件**必須**放在 `scripts/kline/extras/`，並以 `extras.` 為命名前綴，預設 OFF，透過 CLI `--extras` 啟用。
 - 詳見 `scripts/kline/extras/README.md`。
 - 若 audit 發現某個 extra 其實有課程依據，可「升格」搬到課程目錄；反之亦然。
+
+---
+
+## 📥 課程內容擷取工作流程
+
+未來要抓取**任何 PressPlay 線上課程**，依照已驗證的標準流程：
+
+📖 **完整文件：** [`docs/COURSE_EXTRACTION_WORKFLOW.md`](docs/COURSE_EXTRACTION_WORKFLOW.md)
+
+### 7 階段 Pipeline 概要
+
+1. **章節索引** — Chrome MCP navigate + 抓 `.article-card` + 分頁迴圈 → markdown 索引
+2. **字幕 VTT** — videojs `textTracks().cues` 首選；EME 卡時走 VHS m3u8 + XHR (`withCredentials + Referer`) fallback
+3. **講稿** — 字幕 cues 本身即時間戳講稿
+4. **講義 PDF** — pypdf 文字層 + pdftoppm + tesseract `chi_tra+eng` OCR
+5. **截圖** — 三層策略（依需求選）：
+   - **L1 Sprite Thumbnail（首選）：** `media-v2.pressplay.cc` sprite + fetch + slice，**繞 DRM**、427×240 native（縮放至 960×540），適用投影片文字/SOP
+   - **L2 Canvas drawImage：** per-shot navigate + canvas，1280×720~1920×1080，部分章節會踩 DRM
+   - **L3 JWT m3u8 + iframe XHR + ffmpeg：** **iframe context `iwin.XMLHttpRequest`** + 本地 server + ffmpeg per-segment（`-pix_fmt yuvj420p`），**1080p native**，HD 細節需求用
+6. **Vision 比對** — Read jpg + 字幕 ±15s → 填回 `handwritten_extracts.md`
+7. **Spec 整合** — dedupe vs 現有 docs → 補新條目並標來源時間戳
+
+### 關鍵規範（不可違反）
+
+- ✋ **外部任務（chrome / API）優先派 Sonnet，禁 Haiku**（Haiku 有偽造前科）
+- ✋ **外部呼叫產出必須 spot-check 驗證**（檔案是否存在、schema 真實性、數量合理）
+- ✋ **Worktree 路徑用絕對路徑**（subagent 易誤寫到主 repo）
+- ✋ **每張截圖間 sleep 3s、每 20 張小冷卻 30s、章間 60s、Batch 上限 ≤ 120 張**（L2）
+- ✋ **連 2 張 avgRGB 相同 → DRM 觸發，立即停下**（L2）
+- ✋ **JWT segment URL 只認 iframe context XHR**（L3，不是 parent page）
+- ✋ **補完課程內容前不更新主 spec 文件**（避免 churning）
+- ✋ **寫 scanner 前先讓 user 確認策略完備度**
+
+### 命名前綴（跨課程整合）
+
+| 課程 | 前綴 |
+|---|---|
+| K線力量入門 | `kline_course_`（或無）|
+| 主力大全方位 | `zhuli_` |
+| 未來其他課程 | 各自獨立前綴 |
+| 跨課程 | `cross_course_` |
