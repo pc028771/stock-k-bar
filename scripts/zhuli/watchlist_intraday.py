@@ -97,6 +97,19 @@ def get_db_baseline(db_path: Path, tickers: list[str]) -> dict:
                     "ma20_slope": row[4] or 0,
                     "vol_ma20": row[5] or 0,
                 }
+            # 取扣抵 close (N 天前) for MA 5/10/20/60
+            kickout = {}
+            for n in (5, 10, 20, 60):
+                cur.execute(
+                    "SELECT trade_date, close FROM standard_daily_bar "
+                    "WHERE ticker=? ORDER BY trade_date DESC LIMIT 1 OFFSET ?",
+                    (t, n),  # OFFSET n = 第 n+1 筆 = N 天前
+                )
+                r = cur.fetchone()
+                if r:
+                    kickout[f"ma{n}"] = {"date": r[0], "close": r[1]}
+            if t in result:
+                result[t]["kickout"] = kickout
         return result
 
 
@@ -120,6 +133,29 @@ def fmt_check(label: str, ok: bool) -> str:
     icon = "✓" if ok else "✗"
     color = "  " if ok else "⚠ "
     return f"      {color}{icon} {label}"
+
+
+def rolloff_status(price: float, kickout_close: float, kickout_date: str, ma_label: str) -> tuple[str, str]:
+    """扣抵預判亮燈 — 返回 (icon, msg)
+
+    🟢 將上揚 (price > kickout × 1.005)
+    🟡 臨界 (差 ±1% 內 = 1-2 天可能轉折)
+    🔴 將下彎 (price < kickout × 0.995) ← 課程系統最早期出場警示
+    """
+    if not kickout_close or kickout_close <= 0:
+        return ("--", f"{ma_label} 無扣抵資料")
+    diff_pct = (price / kickout_close - 1) * 100
+    if diff_pct > 0.5:
+        icon = "🟢"
+        direction = "將上揚"
+    elif diff_pct < -0.5:
+        icon = "🔴"
+        direction = "將下彎"
+    else:
+        icon = "🟡"
+        direction = "臨界(1-2 天內可能轉折)"
+    sign = "+" if diff_pct >= 0 else ""
+    return (icon, f"{ma_label} {icon} {direction}  今 {price:.2f} vs 扣抵 {kickout_close:.2f}（{kickout_date}）= {sign}{diff_pct:.2f}%")
 
 
 def main():
@@ -185,6 +221,17 @@ def main():
         print(f"  MA20  {b['ma20']:>7.2f}  bias {bias*100:+.1f}%  "
               f"slope {b['ma20_slope']*100:+.1f}%")
         print(f"  MA60  {b['ma60']:>7.2f}")
+        # 扣抵亮燈 (課程系統最早期出場警示)
+        kickout = b.get("kickout", {})
+        if kickout:
+            print(f"  📊 扣抵預判（明日 MA 方向 — 出場警示燈板）：")
+            for ma_n, ma_label in [(5, "MA5 "), (10, "MA10"), (20, "MA20"), (60, "MA60")]:
+                k = kickout.get(f"ma{ma_n}")
+                if k:
+                    icon, msg = rolloff_status(price, k["close"], k["date"], ma_label)
+                    # 警示突出 (🔴 將下彎 = 早期出場警示)
+                    prefix = "    ⚠️  " if icon == "🔴" else "    "
+                    print(f"{prefix}{msg}")
         print(f"  觀察指標即時狀態：")
         for label, fn in CHECKS.get(ticker, []):
             try:
@@ -198,7 +245,9 @@ def main():
     print(" 備註：")
     print(" - ma20/slope/vol_ma20 取自昨日收盤 baseline (DB)")
     print(" - bias = (現價/ma20)-1，vol_ratio = (即時量/昨日 vol_ma20)")
-    print(" - 課程紅線：判斷以收盤價為準，盤中震盪非依據")
+    print(" - 扣抵 = N 天前收盤；今 close > 扣抵 close → 明日 MA 將上揚")
+    print(" - 🟢 將上揚  🟡 臨界(1-2 天內可能轉折)  🔴 將下彎(早期出場警示)")
+    print(" - 課程紅線：盤中亮燈為預判，最終以收盤確認")
     print(" - 重跑：python scripts/zhuli/watchlist_intraday.py")
 
 
