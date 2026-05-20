@@ -87,6 +87,9 @@ class BacktestConfig:
     initial_capital: float = 1_000_000  # 用於 sharpe / drawdown 計算
     # 滑價估計 (進場買貴 / 出場賣便宜)
     slippage_pct: float = 0.003   # 0.3%
+    # First appearance dedupe: 同 ticker 在 N 天內只取第一個 signal
+    # (避免同事件重複進場稀釋勝率)
+    first_appearance_days: int = 30
 
 
 def _get_trade_outcome(
@@ -222,9 +225,21 @@ def run_backtest_for_scanner(
     start_dt = pd.Timestamp(cfg.start_date)
     end_dt = pd.Timestamp(cfg.end_date)
     signals = signals[(signals["sig_date_dt"] >= start_dt) & (signals["sig_date_dt"] <= end_dt)]
-    print(f"  {len(signals)} signals in {cfg.start_date} ~ {cfg.end_date}")
+    n_raw = len(signals)
+    print(f"  {n_raw} signals in {cfg.start_date} ~ {cfg.end_date}")
     if signals.empty:
         return pd.DataFrame(), {"trades": 0, "note": "no signals in date range"}
+
+    # First appearance dedupe: 同 ticker N 天內取第一筆
+    # (除了 G/F 1 天交易 — 它們不需要 dedupe，本來就是高頻)
+    if scanner_name not in {"overnight_swing", "intraday"} and cfg.first_appearance_days > 0:
+        signals = signals.sort_values(["ticker", "sig_date_dt"]).reset_index(drop=True)
+        signals["prev_sig"] = signals.groupby("ticker")["sig_date_dt"].shift(1)
+        signals["days_since"] = (signals["sig_date_dt"] - signals["prev_sig"]).dt.days
+        keep = signals["days_since"].isna() | (signals["days_since"] >= cfg.first_appearance_days)
+        signals = signals[keep].drop(columns=["prev_sig", "days_since"])
+        n_dedup = len(signals)
+        print(f"  → after {cfg.first_appearance_days}-day dedupe: {n_dedup} signals (- {n_raw - n_dedup})")
 
     # Identify stop_loss column
     stop_col = "stop_loss" if "stop_loss" in signals.columns else None
