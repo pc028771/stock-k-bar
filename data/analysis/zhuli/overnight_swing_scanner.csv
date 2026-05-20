@@ -1,0 +1,2 @@
+ticker,signal_date,close,prev_close,body_pct,bb_upper,bandwidth_prev,volume_lots,volume_ratio_prev,ma20_slope,market_pass,stop_loss,entry_note
+2412,2026-05-19,142.5,137.0,0.040145985401459854,139.76597023990897,0.022180646318006054,52962.314,6.866460439843956,0.004038920506700849,True,137.0,close=142.50 > upper=139.77; bw_prev=0.022; body=+4.01%; vol=52962張×6.87

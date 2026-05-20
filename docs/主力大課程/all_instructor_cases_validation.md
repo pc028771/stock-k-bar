@@ -2,7 +2,7 @@
 
 > 評估日期：2026-05-20
 > DB 範圍：bars + institutional 2020-01 ~ 2021-12 backfill
-> 案例總數：16 cases（H 5 + M 2 + J 2 + A 4 + D 3）
+> 案例總數：19 cases（H 5 + M 2 + J 2 + A 4 + D 3 + G 3）
 > **判定：✅ PASSED**
 
 ## 總表
@@ -14,7 +14,8 @@
 | J 投信首買 | 2 | 1 | 0 | 1 | 0 | 0 |
 | A 大波段 | 4 | 2 | 0 | 2 | 0 | 0 |
 | D 布林上軌 | 3 | 3 | 0 | 0 | 0 | 0 |
-| **總計** | **16** | **10** | **0** | **6** | **0** | **0** |
+| G 隔日沖 | 3 | 0 | 0 | 3 | 0 | 0 |
+| **總計** | **19** | **10** | **0** | **9** | **0** | **0** |
 
 ## 各 Scanner 詳情
 
@@ -59,6 +60,14 @@
 | 3006 | 晶豪科 | 2021-02-17 | ✓ hit | strict_hit | HD vision Ch4-2 39:32 — 大買 7,407 張，7 天 70→91 |
 | 6237 | 華訊 | 2020-12-17 | ✓ hit | strict_hit | HD vision Ch4-2 42:36 — 大買 4,183 張 |
 
+### G 隔日沖
+
+| ticker | name | date | result | category | note |
+|---|---|---|---|---|---|
+| 2351 | 順德 | 2021-06-22 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ch6-2 10:06 — 進 117 出 125。bandwidth_prev=0.278 不符合 spec「< 6%」。Case 為老師精選非速篩。 |
+| 6271 | 同欣電 | 2021-06-22 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ch6-2 08:29 — ~210.5 → 211 隔日。bandwidth_prev=0.202 不符 spec「< 6%」。 |
+| 3149 | 立達 | 2021-06-22 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ch6-2 05:51 — 漲停。bandwidth_prev=0.333 不符 spec「< 6%」。 |
+
 ## Divergence 分類解析
 
 - **strict_hit**：scanner 完整命中講師範例
@@ -72,8 +81,8 @@
 
 ## 結論
 
-- 嚴格命中：**10 / 16**
-- 已知落差（已記錄）：6
+- 嚴格命中：**10 / 19**
+- 已知落差（已記錄）：9
 - 資料缺漏：0
 - 意外漏抓：**0**
 

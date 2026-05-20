@@ -418,3 +418,81 @@ class BBandsUpperBreakConfig:
             else:
                 d[key] = raw_val
         return BBandsUpperBreakConfig.from_dict(d)
+
+
+@dataclass
+class OvernightSwingConfig:
+    """Parameters for G 隔日沖策略 (zhuli_overnight_swing).
+
+    Course source: strategy-indicators.md §G 隔日沖策略
+                   (HD vision Ch6-1 04:39+05:18, Ch6-2 00:44 已驗證)
+
+    定義: 今天尾盤 (1:20-1:25) 買、隔天開盤賣；目標每日 1-2% 達標。
+
+    Logic (個股篩選):
+        條件 1（布林）: K 棒突破布林高軌 + 通道窄率 < bandwidth_max
+        條件 2（K 棒）: 長紅 > body_min, 量 > min_volume_張, 量增 > prev_volume_multiplier
+        條件 3（斜率）: 月線斜率 > ma20_slope_min
+
+    大盤條件 (可選): 加權指數 + OTC 都需「量增紅K + close > 5ma」
+    """
+
+    # === 條件 1: 布林 ===
+    # HD vision Ch6-2 00:44 — 「布林窄率 < 6%」(嚴格 spec)
+    # ⚠️ 課程 3 個 case (2351/6271/3149) bandwidth_prev > 0.20，不符合 spec
+    # → 預設 0.06 嚴格版；可 cfg_override 放寬至 0.30 包含 case
+    bandwidth_max: float = 0.06
+    require_close_above_upper: bool = True
+
+    # === 條件 2: K 棒 ===
+    # HD vision Ch6-2 00:44 — 「長紅棒 > 3.5%，量 > 1,000 張，量增 > 前日 0.1%」
+    body_min: float = 0.035                  # 長紅 > 3.5%
+    min_volume_lots: int = 1000              # 量 > 1,000 張 (volume / 1000)
+    prev_volume_multiplier: float = 1.001    # 量增 > 前日 0.1%
+
+    # === 條件 3: 月線斜率 ===
+    # HD vision Ch6-2 00:44 — 「月線斜率 > 0.4」
+    # ⚠️ 「0.4」具體單位 spec 不明（可能為 5 天斜率百分比、線性回歸斜率元/天等）
+    # 暫用 5 天 proxy 0.4% (寬鬆) + cfg 可調
+    ma20_slope_min: float = 0.004
+
+    # === 大盤條件 (可選) ===
+    # HD vision Ch6-1 04:39+05:18 — 「加權 + OTC 量增紅K + 收盤 > 5ma」
+    require_market_filter: bool = False      # 預設關閉避免缺資料
+    market_taiex_ticker: str = "TAIEX"       # 加權指數
+    market_otc_ticker: str = "TPEX"          # OTC 櫃買指數
+
+    # === Liquidity filters ===
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "OvernightSwingConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "OvernightSwingConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "OvernightSwingConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown OvernightSwingConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return OvernightSwingConfig.from_dict(d)
