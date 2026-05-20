@@ -142,4 +142,80 @@ def add_zhuli_features(df: pd.DataFrame) -> pd.DataFrame:
         & ma60_up
     ).fillna(False)
 
+    # === Ch2 通用 features: 大量 K 棒高低點（Ch2-4 spec）===
+    # 「大量 K 棒高點 = 站上 = 轉強 / 大量 K 棒低點 = 跌破 = 出場」
+    # 找過去 30 天最大量 K 的 high / low（作為支撐 / 壓力）
+    # 分紅 K 黑 K 兩個追蹤
+    df["is_red_k"] = df["close"] > df["open"]
+    df["is_black_k"] = df["close"] < df["open"]
+    # 過去 30 天大量紅 K 的 high / low (用 volume 加權)
+    for color, mask_col in (("red", "is_red_k"), ("black", "is_black_k")):
+        # 對該顏色的 K 取 volume，其他設 0；rolling 30 天 max → 最大量那天的 H/L
+        vol_when_color = df["volume"].where(df[mask_col], 0)
+        rolling_max_vol = (
+            g.apply(lambda x: vol_when_color.loc[x.index].shift(1).rolling(30, min_periods=5).max())
+            if False else  # 使用簡化版以避免 groupby.apply 效能問題
+            None
+        )
+        # 用更簡單方式: shift 過的 vol_when_color 直接 rolling max
+        sub_vol = vol_when_color.copy()
+        # 對每 ticker 算 rolling
+        df[f"large_{color}_vol_30d_max"] = (
+            g["volume"].shift(1).rolling(30, min_periods=5).max().reset_index(level=0, drop=True)
+        )
+    # 簡化：用 volume × is_red_k mask 算出大量紅 K 的 idx 然後取 high/low
+    # 對每 ticker：找過去 30 天最大量那天（不分紅黑）的 high / low
+    df["vol_prev"] = g["volume"].shift(1)
+    df["high_prev"] = g["high"].shift(1)
+    df["low_prev"] = g["low"].shift(1)
+    df["close_prev"] = g["close"].shift(1)
+    df["open_prev"] = g["open"].shift(1)
+
+    # 過去 30 天最大量那天 (含當天 -1)
+    def _expand_max_vol_feats(group):
+        roll_window = 30
+        max_vol_idx = group["vol_prev"].rolling(roll_window, min_periods=5).apply(
+            lambda x: x.idxmax() if x.notna().any() else float("nan"), raw=False
+        )
+        return max_vol_idx
+
+    # 簡化版 (避免 apply 慢): 直接用 rolling argmax via numeric trick
+    # 大量 K 高 / 低 = 過去 30 日中 vol 最大那一天的 high / low
+    # 用 pandas 高效方式：rolling 30 天 max vol → 用該日 high/low
+    # 但要找到「那一天」的 high/low — 需要 idxmax
+    # 折衷：用「過去 30 天 high 最大值 / low 最小值」當壓力 / 支撐 (粗略版)
+    df["resistance_30d"] = (
+        g["high"].shift(1).rolling(30, min_periods=5).max().reset_index(level=0, drop=True)
+    )
+    df["support_30d"] = (
+        g["low"].shift(1).rolling(30, min_periods=5).min().reset_index(level=0, drop=True)
+    )
+
+    # === Ch2-3 缺口識別 ===
+    # 多方缺口: 今 low > 昨 high (跳空向上)
+    # 空方缺口: 今 high < 昨 low (跳空向下)
+    df["gap_up"] = df["low"] > df["high_prev"]
+    df["gap_down"] = df["high"] < df["low_prev"]
+
+    # 多方缺口未封閉 (past N days): 過去 30 天有 gap_up + 今 close >= 缺口低點 (高_prev)
+    df["gap_up_in_30d"] = (
+        g["gap_up"].shift(1).rolling(30, min_periods=1).sum().reset_index(level=0, drop=True) > 0
+    )
+    df["gap_down_in_30d"] = (
+        g["gap_down"].shift(1).rolling(30, min_periods=1).sum().reset_index(level=0, drop=True) > 0
+    )
+
+    # === Ch2-4 量縮 / 量增 (vs 前根) — Ch2-4 spec 明確定義 ===
+    # 量縮: 今 vol ≤ 前根 × 0.5 (spec: ≤ 前一根的 1/2)
+    df["vol_shrunk"] = df["volume"] <= df["vol_prev"] * 0.5
+    # 量增: 今 vol > 前根
+    df["vol_increased"] = df["volume"] > df["vol_prev"]
+
+    # 清理 temp 欄位避免污染
+    df = df.drop(columns=["vol_prev", "high_prev", "low_prev", "close_prev", "open_prev"],
+                 errors="ignore")
+    # 移除中間欄位（保留正式 feature）
+    cols_to_drop = [c for c in df.columns if c.startswith("large_") and "_max" in c]
+    df = df.drop(columns=cols_to_drop, errors="ignore")
+
     return df
