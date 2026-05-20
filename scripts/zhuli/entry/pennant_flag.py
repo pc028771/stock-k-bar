@@ -70,10 +70,12 @@ def detect(
         mask &= df["flag1_volume"] < df["pole_volume"]
         mask &= df["volume"] < df["pole_volume"]
 
-    # 5. 旗子兩根 close > pole_mid
+    # 5. 旗子兩根「下影線」在旗杆中段以上 (spec 明示 = low 不是 close)
+    # Source: strategy-indicators.md §B 「兩根的下影線在旗杆 K 棒中間以上」
     if cfg.require_consolidation_above_pole_mid:
-        mask &= df["flag1_close"] > df["pole_mid"]
-        mask &= df["close"] > df["pole_mid"]
+        df["flag1_low"] = g["low"].shift(1)
+        mask &= df["flag1_low"] > df["pole_mid"]
+        mask &= df["low"] > df["pole_mid"]
 
     # Liquidity
     if "vol_ma20" in df.columns:
