@@ -189,6 +189,114 @@ def load_consensus_for_tickers(tickers: list[str], lookback_days: int = 30) -> d
     return result
 
 
+def baseline_ch2_warnings(db_path: Path, ticker: str) -> list[str]:
+    """依課程 Ch2 規則對「**昨日 + 前 N 日**」K 棒組合算警示.
+
+    依據:
+      Ch2-1 上影線 = 賣壓: high 離 close 距離 / close > 5% → 警示
+      Ch2-4 大量黑 K: body_pct < -3% AND vol > prev_vol × 1.3 → 警示
+      5 停損 ③: 連續 N 天 low < prev_low → 趨勢特徵消失
+
+    Returns list of warning strings (空 = 無警示).
+    """
+    warnings = []
+    try:
+        with sqlite3.connect(str(db_path), timeout=15) as conn:
+            df = pd.read_sql_query(
+                "SELECT trade_date, open, high, low, close, volume "
+                "FROM standard_daily_bar WHERE ticker=? AND is_usable=1 "
+                "ORDER BY trade_date DESC LIMIT 6",
+                conn, params=(ticker,),
+            )
+        if len(df) < 2:
+            return warnings
+        df = df.sort_values("trade_date").reset_index(drop=True)
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
+
+        # === Ch2-1: 上影線警示 ===
+        upper_shadow_pct = (latest["high"] - latest["close"]) / latest["close"] * 100
+        if upper_shadow_pct > 5:
+            warnings.append(
+                f"⚠️  Ch2-1 上影線警示: H {latest['high']:.2f} 離 C {latest['close']:.2f} = "
+                f"{upper_shadow_pct:.1f}% (>5% 賣壓沉重)"
+            )
+
+        # === Ch2-4: 大量黑K警示 ===
+        body_pct = (latest["close"] - latest["open"]) / latest["open"] * 100
+        vol_ratio = latest["volume"] / prev["volume"] if prev["volume"] > 0 else 0
+        if body_pct < -3 and vol_ratio > 1.3:
+            warnings.append(
+                f"⚠️  Ch2-4 大量黑K警示: {body_pct:.1f}% + 量×{vol_ratio:.2f} "
+                f"(課程「價跌量增 = 籌碼凌亂」)"
+            )
+
+        # === 課程 5 停損訊號 ③: 連續低點下降 ===
+        if len(df) >= 4:
+            recent3 = df.tail(3).reset_index(drop=True)
+            if (recent3["low"].iloc[2] < recent3["low"].iloc[1] < recent3["low"].iloc[0]):
+                warnings.append(
+                    f"⚠️  5 停損 ③ 連 3 天低點下降: "
+                    f"{recent3['low'].iloc[0]:.1f} → {recent3['low'].iloc[1]:.1f} → "
+                    f"{recent3['low'].iloc[2]:.1f} (趨勢特徵消失)"
+                )
+            elif latest["low"] < prev["low"]:
+                warnings.append(
+                    f"⚠️  低點破前低: L {latest['low']:.2f} < 前日 L {prev['low']:.2f}"
+                )
+
+    except Exception as exc:
+        warnings.append(f"  ? Ch2 warnings 計算錯誤: {exc}")
+    return warnings
+
+
+def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float) -> list[str]:
+    """依即時 Fubon snapshot 算 Ch2 盤中警示.
+
+    Returns list of warning strings.
+    """
+    warnings = []
+    try:
+        h = live.get("high", 0)
+        l = live.get("low", 0)
+        o = live.get("open", 0)
+        c = live.get("price") or live.get("close", 0)
+        v = live.get("volume", 0)
+        if c == 0 or h == 0:
+            return warnings
+
+        # Ch2-1 即時上影 (盤中高離現價 %)
+        upper_shadow = (h - c) / c * 100
+        if upper_shadow > 5:
+            warnings.append(
+                f"⚠️  Ch2-1 盤中上影警示: 高 {h:.2f} 離 C {c:.2f} = {upper_shadow:.1f}% (>5% 盤中賣壓)"
+            )
+
+        # Ch2-4 盤中量爆 (相對昨日全日)
+        if prev_volume > 0 and v > 0:
+            v_張 = v / 1000 if v > 100000 else v  # 不確定 unit 兼容
+            prev_v_張 = prev_volume / 1000
+            vol_ratio = v_張 / prev_v_張 if prev_v_張 > 0 else 0
+            # 量比昨日全日 > 1.5 = 盤中已大量
+            if vol_ratio > 1.5:
+                warnings.append(
+                    f"⚠️  Ch2-4 盤中量爆: 已 {v_張:.0f} 張 vs 昨全日 {prev_v_張:.0f} "
+                    f"({vol_ratio:.2f}x, >1.5x 大量出貨/進貨)"
+                )
+
+        # 跌停接近
+        if prev_close > 0:
+            change_pct = (c - prev_close) / prev_close * 100
+            if change_pct < -8:
+                warnings.append(
+                    f"🔴 接近跌停: {change_pct:.2f}% (10% 限制 80% = -8% 警戒)"
+                )
+
+    except Exception as exc:
+        warnings.append(f"  ? intraday warnings 錯誤: {exc}")
+    return warnings
+
+
 def rolloff_status(price: float, kickout_close: float, kickout_date: str, ma_label: str) -> tuple[str, str]:
     """扣抵預判亮燈 — 返回 (icon, msg)
 
@@ -278,6 +386,15 @@ def main():
         print(f"  MA20  {b['ma20']:>7.2f}  bias {bias*100:+.1f}%  "
               f"slope {b['ma20_slope']*100:+.1f}%")
         print(f"  MA60  {b['ma60']:>7.2f}")
+        # === Ch2 警示 (課程 Ch2-1 上影線 / Ch2-4 大量黑K / 5 停損低點下降) ===
+        base_warnings = baseline_ch2_warnings(db_path, ticker)
+        live_warnings = intraday_ch2_warnings(live, b["prev_close"], b["vol_ma20"])
+        all_warnings = base_warnings + live_warnings
+        if all_warnings:
+            print(f"  🚨 Ch2 課程警示 (昨日 K + 即時盤中):")
+            for w in all_warnings:
+                print(f"    {w}")
+
         # 共識分數燈板 (過去 30 天 multi-scanner 累計)
         cons = consensus.get(ticker, {"score": 0, "scanners": []})
         score = cons["score"]
