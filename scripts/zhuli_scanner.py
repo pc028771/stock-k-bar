@@ -41,7 +41,7 @@ if str(_SCRIPTS_DIR) not in sys.path:
 
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
-from zhuli.config import InstitutionalFirstBuyConfig, OpenSignalConfig, SuffocationConfig, SwingBreakoutConfig
+from zhuli.config import BBandsUpperBreakConfig, InstitutionalFirstBuyConfig, OpenSignalConfig, SuffocationConfig, SwingBreakoutConfig
 from zhuli.entry import ENTRY_REGISTRY
 from zhuli.features import add_zhuli_features
 
@@ -61,6 +61,10 @@ _SIGNAL_DEFAULTS: dict[str, tuple[type, Path]] = {
     "swing_breakout": (
         SwingBreakoutConfig,
         Path("data/analysis/zhuli/swing_breakout_scanner.csv"),
+    ),
+    "bbands_upper_break": (
+        BBandsUpperBreakConfig,
+        Path("data/analysis/zhuli/bbands_upper_break_scanner.csv"),
     ),
 }
 
@@ -287,6 +291,7 @@ Examples:
             "open_signal_filter": "zhuli.sanity_check_open_signal",
             "institutional_firstbuy": "zhuli.sanity_check_institutional",
             "swing_breakout": "zhuli.sanity_check_swing",
+            "bbands_upper_break": "zhuli.sanity_check_bbands",
         }
         mod_name = _SANITY_MODULES.get(args.signal)
         if not mod_name:

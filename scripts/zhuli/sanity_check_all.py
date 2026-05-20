@@ -23,10 +23,12 @@ from zhuli.sanity_check import run_sanity_check as run_h
 from zhuli.sanity_check_open_signal import run_sanity_check as run_m
 from zhuli.sanity_check_institutional import run_sanity_check as run_j
 from zhuli.sanity_check_swing import run_sanity_check as run_a
+from zhuli.sanity_check_bbands import run_sanity_check as run_d
 from zhuli.sanity_check import EXPECTED_CASES as H_CASES
 from zhuli.sanity_check_open_signal import INSTRUCTOR_CASES as M_CASES
 from zhuli.sanity_check_institutional import INSTRUCTOR_CASES as J_CASES
 from zhuli.sanity_check_swing import CASES as A_CASES
+from zhuli.sanity_check_bbands import INSTRUCTOR_CASES as D_CASES
 
 
 # ── 統一 result normalizer ─────────────────────────────────────────────────────
@@ -68,6 +70,21 @@ def normalize_j(result: dict) -> list[dict]:
     for r in result.get("results", []):
         out.append({
             "scanner": "J 投信首買",
+            "ticker": r["ticker"],
+            "name": r["name"],
+            "date": r.get("signal_date", "?"),
+            "status": r.get("result", "?"),
+            "category": r.get("divergence_category"),
+            "note": r.get("note", ""),
+        })
+    return out
+
+
+def normalize_d(result: dict) -> list[dict]:
+    out = []
+    for r in result.get("results", []):
+        out.append({
+            "scanner": "D 布林上軌",
             "ticker": r["ticker"],
             "name": r["name"],
             "date": r.get("signal_date", "?"),
@@ -141,11 +158,16 @@ def run_all(db_path: Path, verbose: bool = False) -> dict:
         print("\n--- A 大波段 ---")
     a_result = run_a(db_path=db_path, verbose=verbose)
 
+    if verbose:
+        print("\n--- D 布林上軌 ---")
+    d_result = run_d(db_path=db_path, verbose=verbose)
+
     all_rows = []
     all_rows.extend(normalize_h(h_result))
     all_rows.extend(normalize_m(m_result))
     all_rows.extend(normalize_j(j_result))
     all_rows.extend(normalize_a(a_result))
+    all_rows.extend(normalize_d(d_result))
 
     # 統計
     totals = {
@@ -174,6 +196,7 @@ def run_all(db_path: Path, verbose: bool = False) -> dict:
             "M 收高開低": m_result,
             "J 投信首買": j_result,
             "A 大波段": a_result,
+            "D 布林上軌": d_result,
         },
         "all_rows": all_rows,
         "totals": totals,
@@ -192,7 +215,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
     lines.append("")
     lines.append(f"> 評估日期：{date.today().isoformat()}")
     lines.append(f"> DB 範圍：bars + institutional 2020-01 ~ 2021-12 backfill")
-    lines.append(f"> 案例總數：{total} cases（H 5 + M 2 + J 2 + A 4）")
+    lines.append(f"> 案例總數：{total} cases（H 5 + M 2 + J 2 + A 4 + D 3）")
     lines.append(f"> **判定：{'✅ PASSED' if summary['passed'] else '❌ FAILED'}**")
     lines.append("")
     lines.append("## 總表")
@@ -204,7 +227,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
     for row in summary["all_rows"]:
         scanner_groups.setdefault(row["scanner"], []).append(row)
 
-    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段"]:
+    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌"]:
         rows = scanner_groups.get(sc_name, [])
         n = len(rows)
         n_hit = sum(1 for r in rows if r["unified_category"] == "strict_hit")
@@ -221,7 +244,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
 
     lines.append("## 各 Scanner 詳情")
     lines.append("")
-    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段"]:
+    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌"]:
         rows = scanner_groups.get(sc_name, [])
         if not rows:
             continue

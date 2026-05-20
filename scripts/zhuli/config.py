@@ -339,3 +339,82 @@ class SwingBreakoutConfig:
             else:
                 d[key] = raw_val
         return SwingBreakoutConfig.from_dict(d)
+
+
+@dataclass
+class BBandsUpperBreakConfig:
+    """Parameters for D 布林上軌進出策略 (zhuli_bbands_upper_break).
+
+    Course source: strategy-indicators.md §D 布林上軌進出策略
+                   (HD vision Ch4-2 32:07 / 34:47 / 35:19 已驗證)
+
+    Logic:
+        1. 計算 20 日布林：BB_middle = MA20, BB_std = 20d close std,
+           BB_upper = mid + 2*std, BB_lower = mid - 2*std
+        2. 通道窄度 = (BB_upper - BB_lower) / BB_middle
+        3. **突破前一天**（不是突破當天）的 bandwidth 是判斷依據
+        4. 起漲 K：close > BB_upper 且 volume > prev_volume
+        5. 二買點 = BB_upper_next * 0.99（簡化用今日 BB_upper × 0.99）
+        6. 出場：實體綠 K 跌入上軌之內（close < BB_upper）
+    """
+
+    # === Hard rules from course (spec-defined) ===
+    # 起漲 K 必要條件
+    require_close_above_upper: bool = True   # close > BB_upper
+    require_volume_increase: bool = True     # volume > prev_volume
+
+    # === Soft margins (calibratable) ===
+    # 通道窄度門檻（突破前一天計）
+    # spec: < 0.10 = 飆股理想；> 0.10 也可飆但爆發力較弱
+    # 預設 0.30 包含 HD vision 全部 3 個 case (6672/3006/6237 bandwidth 0.15-0.19)
+    # 嚴格隔日沖版可調為 0.06
+    bandwidth_max: float = 0.30
+    bandwidth_ideal: float = 0.10   # < 此值算 ideal (加分用)
+
+    # 通道形狀：排除明顯下降趨勢
+    # spec: 「不可為下降趨勢；最佳橫盤壓縮；上升趨勢可用但爆發力較弱」
+    # ⚠️ 課程「下降趨勢」是視覺判斷不是 5 天斜率嚴格負，預設關閉避免漏抓橫盤微負 case
+    # 啟用後用 ma60_slope_5d > ma60_slope_tolerance 過濾
+    require_ma60_not_declining: bool = False
+    ma60_slope_tolerance: float = -0.005   # 允許 5 天內微跌 0.5% 以內（橫盤容忍）
+
+    # === Liquidity filters ===
+    min_avg_volume_20: int = 200   # 千股
+    min_close: float = 10.0        # 元
+
+    # === Output options ===
+    # 出口 stop_loss: BB_upper (跌入上軌之內 → 出場)
+    # 出口 second_buy_estimate: BB_upper * 0.99 (二買點預估)
+    second_buy_factor: float = 0.99
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "BBandsUpperBreakConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "BBandsUpperBreakConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "BBandsUpperBreakConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown BBandsUpperBreakConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return BBandsUpperBreakConfig.from_dict(d)
