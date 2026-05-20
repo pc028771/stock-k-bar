@@ -496,3 +496,78 @@ class OvernightSwingConfig:
             else:
                 d[key] = raw_val
         return OvernightSwingConfig.from_dict(d)
+
+
+@dataclass
+class ReversalBreakoutConfig:
+    """Parameters for C 反轉形態策略 (zhuli_reversal_breakout).
+
+    Course source: strategy-indicators.md §C 反轉形態 (Ch4-2 line 217-356)
+
+    定義: 一路下跌的標的，出現一根反轉紅K 整根站上所有均線 + 突破下降趨勢線。
+
+    Logic:
+        1. 紅 K: close > open
+        2. ma20 在 K 棒實體下方 (body_low > ma20)
+        3. ma10 在實體下方 (body_low > ma10) — 額外確認
+        4. 短均線上彎 (ma5_slope_5d > 0)
+        5. 均線發散度有限 (避免 6441 廣錠失敗特徵)
+        6. 前 60 日跌深 (有下降趨勢)
+    """
+
+    # === Hard rules from course ===
+    require_red_bar: bool = True              # 紅 K (close > open)
+    require_body_above_ma20: bool = True      # ma20 必須在實體下方
+    require_body_above_ma10: bool = True      # ma10 必須在實體下方
+    require_ma5_uptrend: bool = True          # ma5 上彎
+
+    # === Soft margins ===
+    # 均線發散度 (max - min)/close — 太大 = 均線發散，反轉不穩
+    # 6441 失敗 5.31% / 1904 1.67% / 3042 2.88%
+    max_ma_dispersion: float = 0.05
+
+    # 前 N 日跌深 (反轉特徵)
+    lookback_decline_days: int = 60
+    min_decline_pct: float = 0.10              # (H-L)/H > 10% 才算有「下降趨勢」可反轉
+
+    # === Output ===
+    # 切入價: 反轉紅K 下方 1/3 (low + (high-low)/3)
+    entry_third_factor: float = 1.0/3.0
+    # 停損: 反轉紅K 低點
+    # 停損就是 K 棒 low
+
+    # === Liquidity ===
+    min_avg_volume_20: int = 200
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "ReversalBreakoutConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "ReversalBreakoutConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "ReversalBreakoutConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown ReversalBreakoutConfig key: '{key}'. "
+                    f"Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return ReversalBreakoutConfig.from_dict(d)
