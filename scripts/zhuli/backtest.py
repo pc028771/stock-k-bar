@@ -80,6 +80,23 @@ SCANNER_BACKTEST_OVERRIDES = {
     "intraday": {"max_hold_days": 1, "entry_mode": "signal_day_close"},
 }
 
+# Top-N per day ranking — 每個 scanner 用哪個欄位排序「最強」signal
+# 統一原則：「攻擊強度」優先 — 出量大 / 漲幅大 / 法人買量大 / 距前高近
+# tuple = (column_name, ascending) ; ascending=False = 大 = 強
+SCANNER_RANKING = {
+    "suffocation":              ("breakout_vol", False),          # 出量越大越強
+    "open_signal_entry":        ("today_open_gap_pct", False),     # 開高越多越強
+    "institutional_firstbuy":   ("sitc_net", False),               # 投信買越多越強
+    "swing_breakout":           ("sector_density", False),         # 族群越大越強
+    "bbands_upper_break":       ("volume_ratio_prev", False),      # 量增越多越強 (改)
+    "overnight_swing":          ("body_pct", False),               # 漲幅越大越強
+    "reversal_breakout":        ("decline_pct_60d", False),        # 跌深越深反轉力越強 (改)
+    "pennant_flag":             ("pole_volume", False),            # 旗杆量越大越強 (改, 表示主力進場)
+    "institutional_swing":      ("buy_pct_of_shares", False),      # 5d 投本比越大越強
+    "intraday":                 ("dist_from_prev_high", True),     # 越接近前高越強 (小)
+    "bollinger_pullback":       ("attack_vol_ratio", False),       # 攻擊量越大越強 (改)
+}
+
 
 @dataclass
 class BacktestConfig:
@@ -92,6 +109,9 @@ class BacktestConfig:
     # First appearance dedupe: 同 ticker 在 N 天內只取第一個 signal
     # (避免同事件重複進場稀釋勝率)
     first_appearance_days: int = 30
+    # Top-N per day ranking: 每天每 scanner 取 ranking 最強 N 筆 (0 = 不過濾)
+    # (取「最高品質」signal,過濾掉勉強過篩的低品質 signal,拉勝率)
+    top_n_per_day: int = 5
 
 
 def _get_trade_outcome(
@@ -243,6 +263,21 @@ def run_backtest_for_scanner(
         n_dedup = len(signals)
         print(f"  → after {cfg.first_appearance_days}-day dedupe: {n_dedup} signals (- {n_raw - n_dedup})")
 
+    # Top-N per day ranking — 取每天 ranking 最強 N 名
+    rank_cfg = SCANNER_RANKING.get(scanner_name)
+    if rank_cfg and cfg.top_n_per_day > 0:
+        rank_col, ascending = rank_cfg
+        if rank_col in signals.columns:
+            before = len(signals)
+            signals = signals.sort_values(
+                ["sig_date_dt", rank_col], ascending=[True, ascending]
+            )
+            signals = signals.groupby("sig_date_dt").head(cfg.top_n_per_day).reset_index(drop=True)
+            print(f"  → top-{cfg.top_n_per_day} per day (rank by {rank_col}, asc={ascending}): "
+                  f"{len(signals)} signals (- {before - len(signals)})")
+        else:
+            print(f"  ⚠️ rank_col '{rank_col}' not in signals, skip ranking")
+
     # Identify stop_loss column
     stop_col = "stop_loss" if "stop_loss" in signals.columns else None
     if not stop_col:
@@ -341,10 +376,15 @@ def main():
     parser.add_argument("--start", type=str, default="2024-01-01")
     parser.add_argument("--end", type=str, default="2026-05-19")
     parser.add_argument("--max-hold", type=int, default=60)
+    parser.add_argument("--top-n", type=int, default=5, help="每天每 scanner 取 top N ranking (0=不過濾)")
     parser.add_argument("--out", type=Path, default=Path("data/analysis/zhuli/backtest"))
     args = parser.parse_args()
 
-    cfg = BacktestConfig(start_date=args.start, end_date=args.end, max_hold_days=args.max_hold)
+    cfg = BacktestConfig(
+        start_date=args.start, end_date=args.end,
+        max_hold_days=args.max_hold,
+        top_n_per_day=args.top_n,
+    )
     args.out.mkdir(parents=True, exist_ok=True)
 
     print("Loading bars + features...")
