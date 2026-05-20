@@ -32,9 +32,18 @@ from clients.finmind_client import FinMindClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
 # ── constants ──────────────────────────────────────────────────────────────────
-TICKERS = ["3533", "8150", "6284", "2338", "1590"]
-START_DATE = "2020-06-01"   # enough for MA60 warmup before Dec 2020
-END_DATE   = "2021-06-30"
+TICKERS = [
+    # H 窒息量（5）
+    "3533", "8150", "6284", "2338", "1590",
+    # M 收高開低（2）：Ch7-3 揚智 2020-10-21、海光 2021-06-23
+    "3041", "2038",
+    # J 投信首買（2）：漢磊 2020-12-09、同致 2020-08-03
+    "3707", "3552",
+    # A 大波段（3）：中鋼 2021-03-09 + 2021-06-30、群創 2021-03-09、開發金 2021-03-09
+    "2002", "2409", "2886",
+]
+START_DATE = "2020-01-01"   # warmup 起點，覆蓋 2020-08-03 同致案例
+END_DATE   = "2021-12-31"
 DATA_SOURCE_ID = 1           # finmind source row in data_source table
 
 

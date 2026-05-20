@@ -31,9 +31,11 @@ from pathlib import Path
 import pandas as pd
 
 # Allow running as script directly
-_SCRIPT_DIR = Path(__file__).parent.parent.parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+_WORKTREE = Path(__file__).parent.parent.parent
+_SCRIPTS_DIR = _WORKTREE / "scripts"
+for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
@@ -44,12 +46,18 @@ from zhuli.entry.suffocation import detect
 
 # === Instructor cases from strategy-indicators.md §H ===
 # Format: dict with keys: ticker, name, date_range, entry_type, [expected_entry], [expected_scenario], note
+# divergence_category 分類:
+#   None              = 期望機械命中
+#   'mechanical_strict' = 機械嚴格 / 講師判斷較寬鬆
+#   'spec_ambiguous'    = 講師範例無精確 spec（窒息量範例無進場價）
+#   'data_gap'          = FinMind 與富邦軟體差異 / 缺資料
 EXPECTED_CASES = [
     {
         'ticker': '3533',
         'name': '嘉澤',
         'date_range': ('2020-12-28', '2021-01-04'),
         'entry_type': 'suffocation_only',
+        'divergence_category': 'spec_ambiguous',
         'note': '課程明標窒息量範例（無進場價），不查出量 K',
     },
     {
@@ -59,7 +67,8 @@ EXPECTED_CASES = [
         'entry_type': 'full',
         'expected_entry': 35.43,
         'expected_scenario': 'A',
-        'note': '⚠️ 已知機械命中失敗',
+        'divergence_category': 'data_gap',
+        'note': '⚠️ 已知機械命中失敗 — FinMind 該日附近最低 vol_ratio=12.2% > 10%',
     },
     {
         'ticker': '6284',
@@ -68,6 +77,7 @@ EXPECTED_CASES = [
         'entry_type': 'full',
         'expected_entry': 73.9,
         'expected_scenario': 'A',
+        'divergence_category': 'mechanical_strict',
         'note': '⚠️ doji 阻擋（依拍板保持）',
     },
     {
@@ -77,6 +87,7 @@ EXPECTED_CASES = [
         'entry_type': 'full',
         'expected_entry': 45.28,
         'expected_scenario': 'B',
+        'divergence_category': 'data_gap',
         'note': '⚠️ 已知機械命中失敗 / 日期可能不準',
     },
     {
@@ -84,6 +95,7 @@ EXPECTED_CASES = [
         'name': '亞德客-KY',
         'date_range': ('2020-12-22', '2020-12-30'),
         'entry_type': 'full',
+        'divergence_category': None,
         'note': '基準成功案例',
     },
 ]

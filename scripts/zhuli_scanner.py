@@ -226,7 +226,11 @@ Examples:
     )
     parser.add_argument(
         "--sanity-check", action="store_true",
-        help="Run instructor case sanity check and exit.",
+        help="Run instructor case sanity check for --signal and exit.",
+    )
+    parser.add_argument(
+        "--all", action="store_true",
+        help="With --sanity-check: 跑 4 套 sanity + 寫整合 markdown 報告。",
     )
     parser.add_argument(
         "--verbose", "-v", action="store_true",
@@ -257,10 +261,39 @@ Examples:
         return
 
     if args.sanity_check:
-        # Delegate to sanity_check module
-        from zhuli.sanity_check import run_sanity_check, print_report
-        result = run_sanity_check(db_path=args.db, cfg=cfg, verbose=args.verbose)
-        print_report(result)
+        if args.all:
+            # 跨 scanner 整合 sanity check
+            from zhuli.sanity_check_all import run_all, write_markdown_report
+            summary = run_all(args.db, verbose=args.verbose)
+            print()
+            print("=" * 60)
+            print(f"跨 scanner 整合摘要：{summary['total_cases']} cases")
+            print("=" * 60)
+            t = summary["totals"]
+            print(f"   strict_hit:        {t['strict_hit']} / {summary['total_cases']}")
+            print(f"   partial_hit:       {t['partial_hit']}")
+            print(f"   known_divergence:  {t['known_divergence']}")
+            print(f"   data_gap:          {t['data_gap']}")
+            print(f"   unexpected_miss:   {t['unexpected_miss']}")
+            print(f"   {'✅ PASSED' if summary['passed'] else '❌ FAILED'}")
+            print("=" * 60)
+            out = Path("docs/主力大課程/all_instructor_cases_validation.md")
+            write_markdown_report(summary, out)
+            sys.exit(0 if summary["passed"] else 1)
+
+        # 單一 scanner sanity dispatch
+        _SANITY_MODULES = {
+            "suffocation": "zhuli.sanity_check",
+            "open_signal_filter": "zhuli.sanity_check_open_signal",
+            "institutional_firstbuy": "zhuli.sanity_check_institutional",
+            "swing_breakout": "zhuli.sanity_check_swing",
+        }
+        mod_name = _SANITY_MODULES.get(args.signal)
+        if not mod_name:
+            sys.exit(f"ERROR: --signal={args.signal} has no sanity check module.")
+        mod = __import__(mod_name, fromlist=["run_sanity_check", "print_report"])
+        result = mod.run_sanity_check(db_path=args.db, cfg=cfg, verbose=args.verbose)
+        mod.print_report(result)
         sys.exit(0 if result["passed"] else 1)
 
     as_of = pd.Timestamp(args.date) if args.date else None

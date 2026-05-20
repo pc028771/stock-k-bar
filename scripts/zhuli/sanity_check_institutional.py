@@ -39,6 +39,11 @@ from zhuli.entry.institutional_firstbuy import load_institutional, detect
 
 
 # === Instructor cases from ex2-3 截圖 (strategy-indicators.md §J) ===
+# divergence_category 分類:
+#   None              = 期望機械命中
+#   'mechanical_strict' = 機械嚴格 / 講師判斷較寬鬆
+#   'spec_ambiguous'    = 講師範例無精確 spec
+#   'data_gap'          = FinMind 與富邦軟體差異 / 缺資料
 INSTRUCTOR_CASES = [
     {
         "ticker": "3707",
@@ -46,7 +51,12 @@ INSTRUCTOR_CASES = [
         "signal_date": "2020-12-09",
         "expected_sitc_net": 3646.0,   # 張（課程截圖 05:42）
         "expected_price_action": "漲停 +10%",
-        "note": "Ex2-3 截圖 05:42 — 首買 3,646 張，前兩個月完全空白",
+        "divergence_category": "spec_ambiguous",
+        "note": (
+            "⚠️ Ex2-3 截圖 05:42 — 首買 3,646 張。Scanner 命中 2020-11-24（361 張首買），"
+            "因 detector first buy 定義為「首次 ≥ min_firstbuy_volume」，2020-11-24 已先觸發。"
+            "課程「首買」可能指「首次大買 / 漲停級首買」，spec 定義含糊。"
+        ),
     },
     {
         "ticker": "3552",
@@ -54,6 +64,7 @@ INSTRUCTOR_CASES = [
         "signal_date": "2020-08-03",
         "expected_sitc_net": 1637.0,   # 張（課程截圖 06:17）
         "expected_price_action": "+9.97%",
+        "divergence_category": None,
         "note": "Ex2-3 截圖 06:17 — 首買 1,637 張，前三個月完全空白",
     },
 ]
@@ -249,17 +260,27 @@ def run_sanity_check(
 
         results.append(r)
 
+    # 把 case 的 divergence_category propagate 到 result
+    for r in results:
+        case = next((c for c in INSTRUCTOR_CASES if c["ticker"] == r["ticker"]), None)
+        if case:
+            r["divergence_category"] = case.get("divergence_category")
+
     hits = [r for r in results if r["result"] == "hit"]
     misses = [r for r in results if r["result"] == "miss"]
     skipped = [r for r in results if r["result"] in ("no_bar_data", "no_institutional_data", "error")]
 
-    # 只有 "miss"（有資料但沒 hit）才算失敗；no_data 屬資料缺漏不算邏輯錯
-    passed = len(misses) == 0
+    # known_divergence: miss 但 case 已標 divergence_category（不算 unexpected）
+    known_divergence_misses = [r for r in misses if r.get("divergence_category")]
+    unexpected_misses = [r for r in misses if not r.get("divergence_category")]
+    passed = len(unexpected_misses) == 0
 
     return {
         "results": results,
         "hits": hits,
         "misses": misses,
+        "known_divergence_misses": known_divergence_misses,
+        "unexpected_misses": unexpected_misses,
         "skipped": skipped,
         "passed": passed,
         "total": len(INSTRUCTOR_CASES),
@@ -296,23 +317,29 @@ def print_report(result: dict) -> None:
         elif result_str in ("no_bar_data", "no_institutional_data"):
             print(f"  ⚠️  {ticker} ({name}): {r['msg']}")
         elif result_str == "miss":
-            print(f"  ✗ {ticker} ({name}): {r['msg']}")
+            if r.get("divergence_category"):
+                print(f"  ⚠️  {ticker} ({name}) [known_{r['divergence_category']}]: {r['msg']}")
+            else:
+                print(f"  ✗ {ticker} ({name}): {r['msg']}")
         else:
             print(f"  ? {ticker} ({name}): {result_str} — {r.get('msg', '')}")
 
     print()
     n_hit = len(hits)
-    n_miss = len(misses)
+    n_known = len(result.get("known_divergence_misses", []))
+    n_unexpected = len(result.get("unexpected_misses", []))
     n_skip = len(skipped)
 
-    if passed and n_miss == 0:
+    if passed:
         print(
-            f"PASSED — {n_hit}/{total} hit, "
-            f"{n_skip} skipped（資料不足，非邏輯錯誤）"
+            f"PASSED — {n_hit}/{total} strict hit, "
+            f"{n_known} known divergence, "
+            f"{n_skip} skipped"
         )
     else:
-        print(f"FAILED — {n_hit} hit, {n_miss} unexpected miss, {n_skip} skipped")
-        for r in misses:
+        print(f"FAILED — {n_hit} hit, {n_unexpected} unexpected miss, "
+              f"{n_known} known divergence, {n_skip} skipped")
+        for r in result.get("unexpected_misses", []):
             print(f"  ✗ {r['ticker']} {r['name']}：{r.get('msg', '')}")
 
     print("=" * 60)

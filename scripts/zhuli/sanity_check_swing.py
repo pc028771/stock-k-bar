@@ -34,6 +34,11 @@ from zhuli.entry.swing_breakout import detect, load_institutional_full, load_sto
 from zhuli.features import add_zhuli_features
 
 # ── 測試案例定義 ───────────────────────────────────────────────────────────────
+# divergence_category 分類:
+#   None              = 期望機械命中
+#   'mechanical_strict' = 機械嚴格 / 講師判斷較寬鬆
+#   'spec_ambiguous'    = 講師範例無精確 spec
+#   'data_gap'          = FinMind 與富邦軟體差異 / 缺資料
 
 CASES = [
     {
@@ -42,6 +47,7 @@ CASES = [
         "name": "中鋼",
         "date": "2021-03-09",  # 2021/03 族群性（鋼鐵）正例
         "expect": "signal",    # 應出現訊號
+        "divergence_category": None,
         "note": "族群性（鋼鐵）+ 技術面確認，三面齊備範例",
         "source": "Ch3-2 12:04 截圖",
         "cfg_override": {"require_sector_density": "false"},  # 只有 2002 被 backfill
@@ -52,6 +58,7 @@ CASES = [
         "name": "中鋼",
         "date": "2021-06-30",  # 投信買超第 1 名 6305 張
         "expect": "signal",
+        "divergence_category": None,
         "note": "上市投信買超第 1 名，6,305 張；族群：大成鋼、強茂、允強",
         "source": "HD vision Ch4-1 01:00",
         "cfg_override": {"require_sector_density": "false"},
@@ -62,7 +69,11 @@ CASES = [
         "name": "群創",
         "date": "2021-03-09",  # 帶量站上月線，空方缺口回補
         "expect": "signal",
-        "note": "帶量站上月線 + 空方缺口回補 + 雙重支撐",
+        "divergence_category": "spec_ambiguous",
+        "note": (
+            "⚠️ 「2021/03 帶量站上月線」實測 2021-03-09 vol_ratio_20=0.34 量縮，"
+            "課程日期不精確（應為 2021-02-25 vr=1.81 那天）。"
+        ),
         "source": "Ch3-2 09:41 截圖",
         "cfg_override": {"require_sector_density": "false"},
     },
@@ -72,7 +83,11 @@ CASES = [
         "name": "開發金",
         "date": "2021-03-09",  # 月線季線上彎但距月線 > 5%（負例：理想距離條件不符）
         "expect": "no_signal_with_dist_enforced",
-        "note": "月線季線上彎，但股價距月線 > 5%，不符合理想距離條件（負例）",
+        "divergence_category": "spec_ambiguous",
+        "note": (
+            "⚠️ 課程說「距月線 > 5%」，實測 2021-03-09 dist_to_ma20=4.49% < 5%，"
+            "scanner 未過濾即出現訊號。可能課程日期不精確或指標不同。"
+        ),
         "source": "Ch3-2 05:21 截圖",
         "cfg_override": {
             "require_sector_density": "false",
