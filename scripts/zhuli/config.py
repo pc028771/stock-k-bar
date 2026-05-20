@@ -637,3 +637,66 @@ class PennantFlagConfig:
             else:
                 d[key] = raw_val
         return PennantFlagConfig.from_dict(d)
+
+
+@dataclass
+class InstitutionalSwingConfig:
+    """Parameters for I 投信跟單策略 (zhuli_institutional_swing).
+
+    Course source: strategy-indicators.md §I + HD vision Ex2-1 + Ex2-2
+
+    Logic:
+        條件 1: 5 日累計投信買進 / 股本 ≥ 1.5%
+        條件 2: 剛上榜（前 N 天無此條件成立）
+        條件 3: MA5 > MA10 > MA20 皆上彎（短均線多頭排列）
+        警戒: inst_holding_pct > 12%（隨時倒貨，目前 FinMind 無此資料）
+    """
+
+    # === Hard rules from course ===
+    min_5d_buy_pct: float = 0.015           # 5 日 sitc_buy / shares ≥ 1.5%
+    # spec: 「最好 ≥ 1.5%」(Ex2-2)
+    use_sitc_buy_not_net: bool = True        # 用累計買進 (非淨買)
+
+    require_ma_alignment: bool = True        # MA5 > MA10 > MA20 上彎
+
+    # 「剛上榜」窗口：過去 N 天無此 ticker 命中
+    first_appearance_days: int = 30
+
+    # === Soft margins ===
+    # 警戒線 (目前 FinMind 無投信持股 ratio 資料 → log only)
+    warn_holding_pct: float = 0.12
+
+    # === Liquidity ===
+    min_avg_volume_20: int = 200
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "InstitutionalSwingConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "InstitutionalSwingConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "InstitutionalSwingConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown InstitutionalSwingConfig key: '{key}'. Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return InstitutionalSwingConfig.from_dict(d)

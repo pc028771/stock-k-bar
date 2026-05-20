@@ -2,7 +2,7 @@
 
 > 評估日期：2026-05-20
 > DB 範圍：bars + institutional 2020-01 ~ 2021-12 backfill
-> 案例總數：24 cases（H 5 + M 2 + J 2 + A 4 + D 3 + G 3 + C 3 + B 2）
+> 案例總數：33 cases（H 5 + M 2 + J 2 + A 4 + D 3 + G 3 + C 3 + B 2 + I 9）
 > **判定：✅ PASSED**
 
 ## 總表
@@ -17,7 +17,8 @@
 | G 隔日沖 | 3 | 0 | 0 | 3 | 0 | 0 |
 | C 反轉形態 | 3 | 3 | 0 | 0 | 0 | 0 |
 | B 旗形 | 2 | 1 | 0 | 1 | 0 | 0 |
-| **總計** | **24** | **14** | **0** | **10** | **0** | **0** |
+| I 投信跟單 | 9 | 4 | 0 | 4 | 1 | 0 |
+| **總計** | **33** | **18** | **0** | **14** | **1** | **0** |
 
 ## 各 Scanner 詳情
 
@@ -85,6 +86,20 @@
 | 2492 | 華新科 | 2019-12-26 | ✓ hit | strict_hit | Ch4-2 06:31 — 第一個旗型案例。旗杆 12/24 投信大買 3,725 張、漲 +9.19%、量 48,463 張。旗子 12/25/12/26 量縮整理。 |
 | 2108 | 南帝 | 2020-10-05 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ch4-2 09:16 — 第二實例。「第四天打不到五日線就直接噴出去」邊界範例。旗子 09/30 close 49.9 < 旗杆 mid 50.45（不符嚴格旗形 spec），10/05 才符合。案例用於展示非標準旗形仍能獲利，scanner 嚴格 spec 下不命中是預期。 |
 
+### I 投信跟單
+
+| ticker | name | date | result | category | note |
+|---|---|---|---|---|---|
+| 3092 | 鴻碩 | 2021-03-11 | ⓘ miss | known_divergence (data_gap) | ⚠️ Ex2-2 03:20 — 第一個案例。FinMind 該日附近 sitc_buy 資料缺。 |
+| 3545 | 敦泰 | 2021-03-11 | ✓ hit | strict_hit | ⚠️ Ex2-2 04:28 — 操作演示。FinMind buy_pct=1.144% 不到 1.5%（與課程 1.72% 差異）。 |
+| 6237 | 驊訊 | 2021-03-11 | ✓ hit | strict_hit | ⚠️ Ex2-2 05:00 — 最高 175.37 案例。FinMind buy_pct=1.739% 接近但 MA alignment 未過。 |
+| 6284 | 佳邦 | 2021-03-11 | ⓘ miss | known_divergence (data_gap) | ⚠️ Ex2-2 — FinMind 資料未達 1.5% |
+| 6443 | 元晶 | 2021-03-11 | ✓ hit | strict_hit | ⚠️ Ex2-2 — FinMind sitc_buy 嚴重缺漏（淨賣狀態） |
+| 8016 | 矽創 | 2021-03-11 | ✓ hit | strict_hit | ⚠️ Ex2-2 — FinMind sitc_buy 嚴重缺漏 |
+| 2138 | 茂達 | 2021-07-27 | ⚠️ no_bar_data | data_gap | ⚠️ Ex2-1 16:00 — 警戒案例 17.6% 投本比 → 倒貨。FinMind 無投信持股 ratio dataset。 |
+| 3131 | 弘塑 | 2020-10-15 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ex2-1 16:38 — 警戒案例 24.7% 投本比 → 腰斬。FinMind 無投信持股 ratio dataset。 |
+| 4919 | 新唐 | 2021-04-01 | ⓘ miss | known_divergence (spec_ambiguous) | ⚠️ Ex2-1 13:00 — 投信認養成功案例（高 161.06）。Spec 為「連續紅柱買超」非精確訊號定義。 |
+
 ## Divergence 分類解析
 
 - **strict_hit**：scanner 完整命中講師範例
@@ -98,9 +113,9 @@
 
 ## 結論
 
-- 嚴格命中：**14 / 24**
-- 已知落差（已記錄）：10
-- 資料缺漏：0
+- 嚴格命中：**18 / 33**
+- 已知落差（已記錄）：14
+- 資料缺漏：1
 - 意外漏抓：**0**
 
 ✅ **Phase 1 收尾驗收 PASSED** — 無意外漏抓，所有落差已分類記錄。
