@@ -17,6 +17,7 @@ Registered signals:
     bbands_upper_break     — D 布林上軌進出策略 (Ch4-2)
     overnight_swing        — G 隔日沖策略 (Ch6-1 + Ch6-2)
     reversal_breakout      — C 反轉形態策略 (Ch4-2)
+    pennant_flag           — B 旗形策略 (Ch4-2)
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from . import (
     institutional_firstbuy,
     open_signal_filter,
     overnight_swing,
+    pennant_flag,
     reversal_breakout,
     suffocation,
     swing_breakout,
@@ -38,6 +40,7 @@ ENTRY_REGISTRY = {
     "bbands_upper_break": bbands_upper_break.detect,
     "overnight_swing": overnight_swing.detect,
     "reversal_breakout": reversal_breakout.detect,
+    "pennant_flag": pennant_flag.detect,
 }
 
 __all__ = [
@@ -46,6 +49,7 @@ __all__ = [
     "institutional_firstbuy",
     "open_signal_filter",
     "overnight_swing",
+    "pennant_flag",
     "reversal_breakout",
     "suffocation",
     "swing_breakout",

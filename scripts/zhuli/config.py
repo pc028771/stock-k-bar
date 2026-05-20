@@ -571,3 +571,69 @@ class ReversalBreakoutConfig:
             else:
                 d[key] = raw_val
         return ReversalBreakoutConfig.from_dict(d)
+
+
+@dataclass
+class PennantFlagConfig:
+    """Parameters for B 形態一：旗形/旗杆 (zhuli_pennant_flag).
+
+    Course source: strategy-indicators.md §B (Ch4-2 line 9-216)
+
+    定義: 旗杆紅K + 兩根整理 K 棒（旗子）+ 第三天/第四天切入
+
+    Logic:
+        t-2: 旗杆 (pole) — 紅 K (close > open)
+        t-1: 旗子第 1 根 — close > ma5, volume < pole_volume
+        t   : 旗子第 2 根 (今日) — close > ma5, volume < pole_volume
+        兩根旗子 close > 旗杆 (low + close)/2 mid line
+    """
+
+    # === Hard rules from course ===
+    require_pole_red: bool = True              # 旗杆紅 K
+    require_consolidation_close_above_ma5: bool = True   # 旗子收盤 > ma5
+    require_consolidation_volume_below_pole: bool = True  # 旗子量縮 < 旗杆量
+    require_consolidation_above_pole_mid: bool = True    # 旗子 close > 旗杆 (low+close)/2
+
+    # === Soft margins ===
+    # 旗杆上影線限制（不可太長）
+    # spec: 「可帶少量上影線（不可太長）」
+    pole_max_upper_shadow_ratio: float = 0.5  # 上影 / 實體 ≤ 0.5
+
+    # 切入價: 收盤價 (第三天尾盤切入)
+    # 停損: 收盤跌破 5ma
+    # 加碼: 後續再出現旗形
+
+    # === Liquidity ===
+    min_avg_volume_20: int = 200
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "PennantFlagConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "PennantFlagConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "PennantFlagConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(
+                    f"Unknown PennantFlagConfig key: '{key}'. Valid keys: {list(d.keys())}"
+                )
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return PennantFlagConfig.from_dict(d)
