@@ -95,14 +95,17 @@ def detect(
     )
 
     mask = merged["buy_pct_of_shares"].fillna(0) >= cfg.min_5d_buy_pct
-    # MA alignment
+    # MA alignment (上彎用扣抵預判 — 比 slope 提早 1-2 天)
     if cfg.require_ma_alignment:
         ma_align = (
             (merged["ma5"] > merged["ma10"])
             & (merged["ma10"] > merged["ma20"])
         )
-        # 上彎
-        if "ma5_slope_5d" in merged.columns:
+        if "ma5_will_rise" in merged.columns:
+            ma_align &= merged["ma5_will_rise"].fillna(False)
+            ma_align &= merged["ma10_will_rise"].fillna(False)
+            ma_align &= merged["ma20_will_rise"].fillna(False)
+        elif "ma5_slope_5d" in merged.columns:
             ma_align &= merged["ma5_slope_5d"].fillna(-1) > 0
             ma_align &= merged["ma10_slope_5d"].fillna(-1) > 0
             ma_align &= merged["ma20_slope_5d"].fillna(-1) > 0

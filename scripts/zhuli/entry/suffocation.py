@@ -110,19 +110,25 @@ def detect(
     prev_vol_ratio = prev_vol / prev_max_vol_20d.replace(0, float("nan"))
     is_suffocation_bar = prev_vol_ratio < cfg.max20_volume_ratio
 
-    # === MA20 slope: must be upward ===
+    # === MA20 上彎: must be upward (扣抵預判 — 比 slope 提早 1-2 天) ===
     # Source: course_principles.md §16 — 「必要：月線上彎」
-    # Use DB ma20_slope if present, else ma20_slope_5d proxy
-    if "ma20_slope" in df.columns:
+    #         K 線力量入門 §季線扣抵原理 — 用扣抵 close 預判明日 MA 方向
+    if "ma20_will_rise" in df.columns:
+        ma20_up = df["ma20_will_rise"].fillna(False)
+        ma20_slope_series = df.get(
+            "ma20_rolloff_pressure", df.get("ma20_slope", df.get("ma20_slope_5d"))
+        )
+    elif "ma20_slope" in df.columns:
         ma20_slope_series = df["ma20_slope"]
+        ma20_up = ma20_slope_series.fillna(0) > 0
     elif "ma20_slope_5d" in df.columns:
         ma20_slope_series = df["ma20_slope_5d"]
+        ma20_up = ma20_slope_series.fillna(0) > 0
     else:
         raise KeyError(
-            "Neither 'ma20_slope' nor 'ma20_slope_5d' found in DataFrame. "
+            "None of 'ma20_will_rise', 'ma20_slope', 'ma20_slope_5d' found. "
             "Ensure add_zhuli_features() was called."
         )
-    ma20_up = ma20_slope_series.fillna(0) > 0
 
     # === Breakout bar (today) ===
     bar_type = _classify_breakout_bar(df)

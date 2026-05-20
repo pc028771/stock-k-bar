@@ -95,10 +95,15 @@ def detect(
 
     if cfg.require_ma_alignment:
         mask &= (df["ma5"] > df["ma10"]) & (df["ma10"] > df["ma20"])
-        # 三條上彎
-        for s in ["ma5_slope_5d", "ma10_slope_5d", "ma20_slope_5d"]:
-            if s in df.columns:
-                mask &= df[s].fillna(-1) > 0
+        # 三條上彎用扣抵預判 (比 slope 提早 1-2 天)
+        if "ma5_will_rise" in df.columns:
+            mask &= df["ma5_will_rise"].fillna(False)
+            mask &= df["ma10_will_rise"].fillna(False)
+            mask &= df["ma20_will_rise"].fillna(False)
+        else:
+            for s in ["ma5_slope_5d", "ma10_slope_5d", "ma20_slope_5d"]:
+                if s in df.columns:
+                    mask &= df[s].fillna(-1) > 0
 
     mask &= df["vol_2d_min"].fillna(0) > cfg.min_vol_2d_lots
     mask &= df["range_3d"].fillna(0) > cfg.min_range_3d

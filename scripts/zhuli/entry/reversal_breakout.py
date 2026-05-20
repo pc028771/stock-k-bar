@@ -69,14 +69,15 @@ def detect(
     if cfg.require_body_above_ma10:
         mask &= df["body_low"] > df["ma10"]
 
-    # 4. 短均線上彎
+    # 4. 短均線上彎（**課程明示用扣底值判斷** — §C spec）
+    # spec: 「短均線開始上彎（扣底值判斷）」
+    # 扣抵預判: today_close > 5 天前 close → 明日 MA5 將上揚
     if cfg.require_ma5_uptrend:
-        slope_col = "ma5_slope_5d" if "ma5_slope_5d" in df.columns else None
-        if slope_col:
-            mask &= df[slope_col].fillna(-1) > 0
+        if "ma5_will_rise" in df.columns:
+            mask &= df["ma5_will_rise"].fillna(False)
         else:
-            ma5_prev5 = g["ma5"].shift(5)
-            mask &= (df["ma5"] > ma5_prev5).fillna(False)
+            # fallback: 用 slope_5d
+            mask &= df["ma5_slope_5d"].fillna(-1) > 0
 
     # 5. 均線發散度
     mask &= df["ma_dispersion"].fillna(99) < cfg.max_ma_dispersion

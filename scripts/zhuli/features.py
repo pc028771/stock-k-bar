@@ -86,6 +86,31 @@ def add_zhuli_features(df: pd.DataFrame) -> pd.DataFrame:
     if "ma20_slope" not in df.columns:
         df["ma20_slope"] = df["ma20_slope_5d"]
 
+    # === 扣抵值預判（rolloff/kickout）===
+    # Source: K 線力量入門 course_principles.md §季線方向 — 扣抵原理
+    #         K 線行進ing Ch3 — 關鍵K線與均線連結（提早 1-2 天）
+    #         主力大 §C 反轉形態 — 「短均線開始上彎（扣底值判斷）」
+    #         主力大 PressPlay 11/26 扣抵值實務教學
+    #
+    # 扣抵 close = N 天前的收盤價（即將脫離 MA(N) 計算窗口的那一天）
+    # 預判明日 MA 方向:
+    #   today_close > kickout_close → 明日 MA 將上揚
+    #   today_close < kickout_close → 明日 MA 將下彎
+    #   today_close ≈ kickout_close → 持平 / 轉折
+    #
+    # 「rolloff_pressure」 = today_close - kickout_close（正值 = 上揚壓力）
+    # 正規化版本 = (today_close - kickout_close) / kickout_close
+    for n in (5, 10, 20, 60):
+        kickout_col = f"ma{n}_kickout_close"
+        pressure_col = f"ma{n}_rolloff_pressure"
+        will_rise_col = f"ma{n}_will_rise"
+        if kickout_col not in df.columns:
+            df[kickout_col] = g["close"].shift(n)
+            df[pressure_col] = (
+                (df["close"] - df[kickout_col]) / df[kickout_col].replace(0, np.nan)
+            )
+            df[will_rise_col] = df["close"] > df[kickout_col]
+
     # === Ideal MA alignment (boost score condition) ===
     # Source: strategy-indicators.md §H — 「理想（最高勝率）：5/10/20/60ma 排列正確且皆上彎」
     # Price ordering: 5 > 10 > 20 > 60
@@ -101,15 +126,12 @@ def add_zhuli_features(df: pd.DataFrame) -> pd.DataFrame:
         & (df["ma10"] > df["ma20"])
         & (df["ma20"] > df["ma60"])
     )
-    # Use DB ma20_slope if available; otherwise use 5d proxy
-    ma20_up = df["ma20_slope"].fillna(0) > 0
-    ma5_up = df["ma5_slope_5d"].fillna(0) > 0
-    ma10_up = df["ma10_slope_5d"].fillna(0) > 0
-    ma60_up = (
-        df["ma60_slope_5d"].fillna(0) > 0
-        if "ma60_slope_5d" in df.columns
-        else pd.Series(True, index=df.index)
-    )
+    # 「上彎」改用扣抵值判斷（明日將上揚 = 比 slope 提早 1-2 天）
+    # 課程依據: K 線力量入門 §季線扣抵原理 + 主力大 §C 反轉「扣底值判斷」
+    ma5_up = df["ma5_will_rise"].fillna(False)
+    ma10_up = df["ma10_will_rise"].fillna(False)
+    ma20_up = df["ma20_will_rise"].fillna(False)
+    ma60_up = df["ma60_will_rise"].fillna(False)
 
     df["ideal_ma_align"] = (
         has_all_ma

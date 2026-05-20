@@ -102,9 +102,13 @@ def detect(
     mask &= (df["volume"] / 1000.0) >= cfg.min_volume_lots
     mask &= df["volume"] > df["prev_volume"] * cfg.prev_volume_multiplier
 
-    # 4. 條件 3: ma20_slope
-    slope_col = "ma20_slope" if "ma20_slope" in df.columns else "ma20_slope_5d"
-    mask &= df[slope_col].fillna(0) > cfg.ma20_slope_min
+    # 4. 條件 3: ma20 上彎 (用扣抵預判 — 課程「月線斜率 > 0.4」=「明日上揚足夠」)
+    # spec ma20_slope_min 0.004 → 用扣抵 normalized pressure 對應
+    if "ma20_rolloff_pressure" in df.columns:
+        mask &= df["ma20_rolloff_pressure"].fillna(0) > cfg.ma20_slope_min
+    else:
+        slope_col = "ma20_slope" if "ma20_slope" in df.columns else "ma20_slope_5d"
+        mask &= df[slope_col].fillna(0) > cfg.ma20_slope_min
 
     # 5. Liquidity
     mask &= df["close"] >= cfg.min_close

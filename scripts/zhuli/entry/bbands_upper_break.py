@@ -87,14 +87,18 @@ def detect(
         mask &= df["volume"] > df["prev_volume"]
     # bandwidth_prev < bandwidth_max
     mask &= df["bandwidth_prev"] < cfg.bandwidth_max
-    # 排除下降趨勢（用 tolerance 允許橫盤微負）
+    # 排除下降趨勢（用扣抵預判 + tolerance 允許橫盤微負）
+    # 課程依據: K 線力量入門 §季線扣抵原理 — 比 slope 提早 1-2 天
     if cfg.require_ma60_not_declining:
-        if "ma60_slope_5d" in df.columns:
+        if "ma60_kickout_close" in df.columns:
+            # 扣抵預判: today_close > 60 天前 close * (1 + tolerance) → 明日 MA60 將上揚（含 tolerance）
+            kickout_threshold = df["ma60_kickout_close"] * (1 + cfg.ma60_slope_tolerance)
+            mask &= df["close"] > kickout_threshold
+        elif "ma60_slope_5d" in df.columns:
             mask &= df["ma60_slope_5d"].fillna(0) > cfg.ma60_slope_tolerance
         else:
-            # fallback: 用 ma60 比較 5 天前
-            g = df.groupby("ticker", group_keys=False)
-            ma60_prev5 = g["ma60"].shift(5)
+            g_local = df.groupby("ticker", group_keys=False)
+            ma60_prev5 = g_local["ma60"].shift(5)
             mask &= ((df["ma60"] / ma60_prev5 - 1).fillna(0) > cfg.ma60_slope_tolerance)
 
     # Liquidity filters
