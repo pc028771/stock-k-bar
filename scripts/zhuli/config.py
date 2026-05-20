@@ -657,7 +657,9 @@ class InstitutionalSwingConfig:
     # spec: 「最好 ≥ 1.5%」(Ex2-2)
     use_sitc_buy_not_net: bool = True        # 用累計買進 (非淨買)
 
-    require_ma_alignment: bool = True        # MA5 > MA10 > MA20 上彎
+    # ⚠️ 改加分不過濾（user 偏好）— 均線已排列 = 趨勢中段已晚，
+    # 抓更多獲利空間應允許「其他指標達到但均線還沒排列」進場
+    require_ma_alignment: bool = False        # MA5 > MA10 > MA20 上彎 (加分)
 
     # 「剛上榜」窗口：過去 N 天無此 ticker 命中
     first_appearance_days: int = 30
@@ -724,7 +726,9 @@ class IntradayConfig:
     """
 
     # === Hard rules from course ===
-    require_ma_alignment: bool = True       # MA5>10>20 + 三條上彎
+    # ⚠️ 改加分不過濾（user 偏好）— 均線排列是趨勢中段晚進場訊號，
+    # F 當沖更依賴量價爆發而非均線多頭排列
+    require_ma_alignment: bool = False      # MA5>10>20 + 三條上彎 (加分)
     min_vol_2d_lots: int = 20000            # 兩天量 > 2 萬張
     min_range_3d: float = 0.08              # 3 天振幅 > 8%
     min_turnover_3d: float = 0.20           # 3 天周轉率 > 20%
