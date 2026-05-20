@@ -67,48 +67,9 @@ INSTRUCTOR_CASES = [
         "divergence_category": None,
         "note": "Ex2-3 截圖 06:17 — 首買 1,637 張，前三個月完全空白",
     },
-    # === HD vision Ch4-2 補充案例 ===
-    # ⚠️ 課程「大買 X 張」與 FinMind sitc_net 差 30+ 倍 — 可能是「主力分點」或「外資」買量，非投信淨買
-    # → 全部標 spec_ambiguous（J detector 用 FinMind sitc_net，與課程定義不同）
-    {
-        "ticker": "6672",
-        "name": "騰輝電子-KY",
-        "signal_date": "2021-05-28",
-        "expected_sitc_net": 8425.0,   # 課程「8,425 張」實為當日總成交量
-        "expected_price_action": "+5.5%",
-        "divergence_category": "spec_ambiguous",
-        "note": (
-            "⚠️ HD vision Ch4-2 37:15 — 「8,425 張」實為當日總成交量（非投信買進）。"
-            "FinMind sitc_net=191 張，無 first buy signal 觸發。"
-            "課程「首買」定義可能是分點/外資，非 J detector 對應的投信淨買。"
-        ),
-    },
-    {
-        "ticker": "3006",
-        "name": "晶豪科",
-        "signal_date": "2021-02-17",
-        "expected_sitc_net": 7407.0,   # 課程「大買 7,407 張」可能是主力分點
-        "expected_price_action": "+9.86%",
-        "divergence_category": "spec_ambiguous",
-        "note": (
-            "⚠️ HD vision Ch4-2 39:32 — 「大買 7,407 張」與 FinMind sitc_net=240 張 差 30 倍。"
-            "可能是主力分點買量，非投信。3006 在 2020-12-09 已有投信 450 張 first buy，"
-            "2021-02-17 已超出 no_buy_window 60 天條件。"
-        ),
-    },
-    {
-        "ticker": "6237",
-        "name": "華訊",
-        "signal_date": "2020-12-17",
-        "expected_sitc_net": 4183.0,
-        "expected_price_action": "+9.23%",
-        "divergence_category": "spec_ambiguous",
-        "note": (
-            "⚠️ HD vision Ch4-2 42:36 — 「大買 4,183 張」與 FinMind sitc_net=144 張 差 29 倍。"
-            "Scanner 命中 2020-06-16 first buy (459 張)，2020-12-17 已超 no_buy_window。"
-            "課程「主力先買投信後加入」暗示分點優先而非投信首買 = J detector 不對應。"
-        ),
-    },
+    # === 註記 ===
+    # ⚠️ 之前誤將 6672/3006/6237 加為 J case，實際是 §D 布林上軌策略 (HD vision Ch4-2)
+    # → 已移除，轉記至 docs/主力大課程/pending_scanner_cases.md，等 D scanner 實作後再驗
 ]
 
 TOLERANCE_DAYS = 2   # ±2 個交易日容忍
