@@ -189,17 +189,19 @@ def load_consensus_for_tickers(tickers: list[str], lookback_days: int = 30) -> d
     return result
 
 
-def baseline_ch2_warnings(db_path: Path, ticker: str) -> list[str]:
-    """依課程 Ch2 規則對「**昨日 + 前 N 日**」K 棒組合算警示.
+def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
+    """依課程 Ch2 規則對「昨日 + 前 N 日」算多條件警示, 分數累積式.
 
-    依據:
-      Ch2-1 上影線 = 賣壓: high 離 close 距離 / close > 5% → 警示
-      Ch2-4 大量黑 K: body_pct < -3% AND vol > prev_vol × 1.3 → 警示
-      5 停損 ③: 連續 N 天 low < prev_low → 趨勢特徵消失
+    每個觸發條件給 1 分; 總分等級:
+      0     ✓ 無警示
+      1     🟡 觀察 (單一條件, 可能假警報)
+      2     ⚠️ 警示 (兩條件 AND, 應檢核)
+      3+    🔴 強警示 (多條件確認賣壓)
+      含「大量黑K」單獨 = 強警示 (因課程明示出場訊號)
 
-    Returns list of warning strings (空 = 無警示).
+    Returns (score, warning_lines).
     """
-    warnings = []
+    triggers = []
     try:
         with sqlite3.connect(str(db_path), timeout=15) as conn:
             df = pd.read_sql_query(
@@ -209,45 +211,101 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> list[str]:
                 conn, params=(ticker,),
             )
         if len(df) < 2:
-            return warnings
+            return 0, []
         df = df.sort_values("trade_date").reset_index(drop=True)
         latest = df.iloc[-1]
         prev = df.iloc[-2]
 
-        # === Ch2-1: 上影線警示 ===
-        upper_shadow_pct = (latest["high"] - latest["close"]) / latest["close"] * 100
-        if upper_shadow_pct > 5:
-            warnings.append(
-                f"⚠️  Ch2-1 上影線警示: H {latest['high']:.2f} 離 C {latest['close']:.2f} = "
-                f"{upper_shadow_pct:.1f}% (>5% 賣壓沉重)"
-            )
+        # 1. Ch2-1 單日上影 > 3.5%
+        upper_pct = (latest["high"] - latest["close"]) / latest["close"] * 100
+        if upper_pct > 3.5:
+            triggers.append((
+                "Ch2-1 上影線",
+                f"H {latest['high']:.2f} 離 C {latest['close']:.2f} = {upper_pct:.1f}%",
+                2 if upper_pct > 7 else 1,   # 大上影 7%+ 給 2 分
+            ))
 
-        # === Ch2-4: 大量黑K警示 ===
+        # 2. Ch2-1 多日上影 (近 3 天 ≥ 2 根 > 3%)
+        if len(df) >= 3:
+            shadows = (df.tail(3)["high"] - df.tail(3)["close"]) / df.tail(3)["close"] * 100
+            big = (shadows > 3).sum()
+            if big >= 2:
+                triggers.append((
+                    "Ch2-1 多日上影",
+                    f"{big}/3 天 > 3% 上影 ({[f'{s:.1f}%' for s in shadows]})",
+                    1,
+                ))
+
+        # 3. Ch2-4 大量黑K
         body_pct = (latest["close"] - latest["open"]) / latest["open"] * 100
         vol_ratio = latest["volume"] / prev["volume"] if prev["volume"] > 0 else 0
         if body_pct < -3 and vol_ratio > 1.3:
-            warnings.append(
-                f"⚠️  Ch2-4 大量黑K警示: {body_pct:.1f}% + 量×{vol_ratio:.2f} "
-                f"(課程「價跌量增 = 籌碼凌亂」)"
-            )
+            triggers.append((
+                "Ch2-4 大量黑K",
+                f"body {body_pct:.1f}% + 量×{vol_ratio:.2f}",
+                3,  # 課程明示出場訊號，單獨給 3 分
+            ))
 
-        # === 課程 5 停損訊號 ③: 連續低點下降 ===
-        if len(df) >= 4:
-            recent3 = df.tail(3).reset_index(drop=True)
-            if (recent3["low"].iloc[2] < recent3["low"].iloc[1] < recent3["low"].iloc[0]):
-                warnings.append(
-                    f"⚠️  5 停損 ③ 連 3 天低點下降: "
-                    f"{recent3['low'].iloc[0]:.1f} → {recent3['low'].iloc[1]:.1f} → "
-                    f"{recent3['low'].iloc[2]:.1f} (趨勢特徵消失)"
-                )
+        # 4. 連 3 天低點下降 (5 停損 ③)
+        if len(df) >= 3:
+            r = df.tail(3).reset_index(drop=True)
+            if r["low"].iloc[2] < r["low"].iloc[1] < r["low"].iloc[0]:
+                triggers.append((
+                    "5 停損 ③ 連 3 天低點下降",
+                    f"{r['low'].iloc[0]:.1f}→{r['low'].iloc[1]:.1f}→{r['low'].iloc[2]:.1f}",
+                    2,
+                ))
             elif latest["low"] < prev["low"]:
-                warnings.append(
-                    f"⚠️  低點破前低: L {latest['low']:.2f} < 前日 L {prev['low']:.2f}"
-                )
+                triggers.append((
+                    "低點破前低",
+                    f"L {latest['low']:.2f} < 前日 L {prev['low']:.2f}",
+                    1,
+                ))
+
+        # 5. 量爆 (vol > prev × 2) — 加分項
+        if vol_ratio >= 2.0:
+            triggers.append((
+                "Ch2-4 量爆",
+                f"今量×{vol_ratio:.2f} (vs 前日)",
+                1,
+            ))
+
+        # 6. 收盤跌破 MA5 (短均跌破 = 早期警示)
+        if "ma5" not in df.columns:
+            cur = sqlite3.connect(str(db_path), timeout=15).execute(
+                "SELECT ma5 FROM standard_daily_bar WHERE ticker=? AND trade_date=?",
+                (ticker, latest["trade_date"]),
+            ).fetchone()
+            ma5 = cur[0] if cur else None
+        else:
+            ma5 = latest.get("ma5")
+        if ma5 and latest["close"] < ma5:
+            triggers.append((
+                "收盤跌破 MA5",
+                f"C {latest['close']:.2f} < MA5 {ma5:.2f}",
+                1,
+            ))
 
     except Exception as exc:
-        warnings.append(f"  ? Ch2 warnings 計算錯誤: {exc}")
-    return warnings
+        return 0, [f"  ? Ch2 warnings 計算錯誤: {exc}"]
+
+    score = sum(t[2] for t in triggers)
+    # 等級
+    if score == 0:
+        return 0, []
+    elif score == 1:
+        prefix = "🟡 觀察"
+    elif score == 2:
+        prefix = "⚠️  警示"
+    elif score >= 3 and score < 5:
+        prefix = "🔴 強警示"
+    else:
+        prefix = "💀 致命警示"
+
+    lines = [f"{prefix} (Ch2 score={score}):"]
+    for label, detail, pts in triggers:
+        lines.append(f"      [{pts}分] {label} — {detail}")
+    return score, lines
 
 
 def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float) -> list[str]:
@@ -386,13 +444,14 @@ def main():
         print(f"  MA20  {b['ma20']:>7.2f}  bias {bias*100:+.1f}%  "
               f"slope {b['ma20_slope']*100:+.1f}%")
         print(f"  MA60  {b['ma60']:>7.2f}")
-        # === Ch2 警示 (課程 Ch2-1 上影線 / Ch2-4 大量黑K / 5 停損低點下降) ===
-        base_warnings = baseline_ch2_warnings(db_path, ticker)
+        # === Ch2 警示 (分數累積系統) ===
+        ch2_score, ch2_lines = baseline_ch2_warnings(db_path, ticker)
         live_warnings = intraday_ch2_warnings(live, b["prev_close"], b["vol_ma20"])
-        all_warnings = base_warnings + live_warnings
-        if all_warnings:
-            print(f"  🚨 Ch2 課程警示 (昨日 K + 即時盤中):")
-            for w in all_warnings:
+        if ch2_lines or live_warnings:
+            print(f"  🚨 Ch2 課程警示:")
+            for line in ch2_lines:
+                print(f"    {line}")
+            for w in live_warnings:
                 print(f"    {w}")
 
         # 共識分數燈板 (過去 30 天 multi-scanner 累計)
