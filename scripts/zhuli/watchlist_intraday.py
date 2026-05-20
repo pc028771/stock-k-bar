@@ -31,6 +31,19 @@ import pandas as pd
 from clients.fubon_client import FubonClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
+# 族群定義 (供法人籌碼過濾器用)
+_GROUP_TICKERS = {
+    "半導體": {"2330","2454","8110","3583","6770","6669","3260","3017","3711","6488","2308","6451"},
+    "被動元件": {"2327","2492","2472","3026","6173","2375","2456","2354","2308","2317"},
+    "機器人": {"4540","1597","2464","4576","2049","8027","3552","2233","3041","2059"},
+    "記憶體": {"2344","2337","2408","3006","8150","2351","3105","2329","8048"},
+    "玻璃基板": {"8064","3055","3580","3663","4916","6139","1560","3481"},
+}
+_TICKER_TO_GROUP = {t: g for g, ts in _GROUP_TICKERS.items() for t in ts}
+
+# 法人籌碼流向門檻 (5 日累計，張)
+_FLOW_THRESHOLD = 5000
+
 # 共識分數 — scanner trades CSV 列表 (排除 G/F 短線時間框架不同)
 _CONSENSUS_SCANNERS = {
     "A 大波段":      "swing_breakout_trades.csv",
@@ -189,6 +202,42 @@ def load_consensus_for_tickers(tickers: list[str], lookback_days: int = 30) -> d
     return result
 
 
+def get_group_flow_state(db_path: Path, ticker: str) -> tuple[str, float, str]:
+    """取 ticker 所屬族群最近 5 日法人合計買賣超 + 流向 state.
+
+    Returns (state, net_5d_張, group_name)
+        state: "流入" / "中性" / "流出" / "未知(無族群)"
+    """
+    group = _TICKER_TO_GROUP.get(ticker)
+    if not group:
+        return ("未知", 0.0, "")
+    tickers = _GROUP_TICKERS[group]
+    try:
+        with sqlite3.connect(str(db_path), timeout=15) as conn:
+            placeholders = ",".join(["?"] * len(tickers))
+            df = pd.read_sql_query(
+                f"SELECT trade_date, sitc_net, foreign_net "
+                f"FROM institutional_investors WHERE ticker IN ({placeholders}) "
+                f"ORDER BY trade_date DESC LIMIT 500",
+                conn, params=list(tickers),
+            )
+        if df.empty:
+            return ("未知", 0.0, group)
+        df["net"] = df["sitc_net"] + df["foreign_net"]
+        grp_daily = df.groupby("trade_date")["net"].sum().reset_index()
+        grp_daily = grp_daily.sort_values("trade_date", ascending=False).head(5)
+        net_5d = grp_daily["net"].sum()
+        if net_5d > _FLOW_THRESHOLD:
+            state = "流入"
+        elif net_5d < -_FLOW_THRESHOLD:
+            state = "流出"
+        else:
+            state = "中性"
+        return (state, float(net_5d), group)
+    except Exception:
+        return ("未知", 0.0, group)
+
+
 def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
     """依課程 Ch2 規則對「昨日 + 前 N 日」算多條件警示, 分數累積式.
 
@@ -290,22 +339,47 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
         return 0, [f"  ? Ch2 warnings 計算錯誤: {exc}"]
 
     score = sum(t[2] for t in triggers)
-    # 等級
-    if score == 0:
+
+    # === 法人籌碼過濾器：調整警示等級 ===
+    # 流入期: 法人在加倉, 個股留上影/破前低多半是健康整理 → 降 1 分 (除大量黑K真背離保留)
+    # 流出期: 法人賣超中, 警示更可信 → 升 1 分
+    flow_state, flow_5d, group = get_group_flow_state(db_path, ticker)
+    has_big_black = any(label.startswith("Ch2-4 大量黑K") for label, _, _ in triggers)
+    adjusted_score = score
+    flow_note = ""
+    if flow_state == "流入" and not has_big_black:
+        adjusted_score = max(0, score - 1)
+        flow_note = f" [法人 5d 流入 {flow_5d:+.0f} 張 → 警示降 1]"
+    elif flow_state == "流出":
+        adjusted_score = score + 1
+        flow_note = f" [法人 5d 流出 {flow_5d:+.0f} 張 → 警示升 1]"
+    elif flow_state == "中性" and score > 0:
+        flow_note = f" [法人 5d 中性 {flow_5d:+.0f} 張]"
+    elif flow_state == "未知" and score > 0:
+        flow_note = " [未在 4 大族群分類]"
+
+    # 等級 (用 adjusted_score)
+    if adjusted_score == 0:
+        if score > 0 and flow_state == "流入":
+            return 0, [f"✓ 無警示 (原 score={score}, 法人流入降級){flow_note}"]
         return 0, []
-    elif score == 1:
+    elif adjusted_score == 1:
         prefix = "🟡 觀察"
-    elif score == 2:
+    elif adjusted_score == 2:
         prefix = "⚠️  警示"
-    elif score >= 3 and score < 5:
+    elif adjusted_score >= 3 and adjusted_score < 5:
         prefix = "🔴 強警示"
     else:
         prefix = "💀 致命警示"
 
-    lines = [f"{prefix} (Ch2 score={score}):"]
+    if group:
+        header = f"{prefix} (Ch2 score={score}→{adjusted_score} after 法人 [{group}]{flow_note})"
+    else:
+        header = f"{prefix} (Ch2 score={score}){flow_note}"
+    lines = [header]
     for label, detail, pts in triggers:
         lines.append(f"      [{pts}分] {label} — {detail}")
-    return score, lines
+    return adjusted_score, lines
 
 
 def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float) -> list[str]:
