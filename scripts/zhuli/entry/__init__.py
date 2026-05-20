@@ -21,6 +21,8 @@ Registered signals:
     institutional_swing    — I 投信跟單策略 (Ex2-1 + Ex2-2)
     intraday               — F 當沖策略 (Ch5-1/Ch5-2/Ch5-3)
     bollinger_pullback     — E 布林回測策略 (Ch4-2 形態四)
+    open_signal_entry      — M-Entry 收低開高 (進場子集, Ch7-3)
+    open_signal_exit       — M-Exit 收高開低/漲停板平盤 (出場警示子集, Ch7-3)
 """
 from __future__ import annotations
 
@@ -30,6 +32,8 @@ from . import (
     institutional_firstbuy,
     institutional_swing,
     intraday,
+    open_signal_entry,
+    open_signal_exit,
     open_signal_filter,
     overnight_swing,
     pennant_flag,
@@ -40,7 +44,9 @@ from . import (
 
 ENTRY_REGISTRY = {
     "suffocation": suffocation.detect,
-    "open_signal_filter": open_signal_filter.detect,
+    "open_signal_filter": open_signal_filter.detect,        # master (sanity 用)
+    "open_signal_entry": open_signal_entry.detect,          # bullish_entry only
+    "open_signal_exit": open_signal_exit.detect,            # bearish_exit + warning
     "institutional_firstbuy": institutional_firstbuy.detect,
     "swing_breakout": swing_breakout.detect,
     "bbands_upper_break": bbands_upper_break.detect,
@@ -52,13 +58,21 @@ ENTRY_REGISTRY = {
     "bollinger_pullback": bollinger_pullback.detect,
 }
 
+# Scanner 性質分類 (給 backtest 用 — 出場 scanner 不該當進場 backtest)
+EXIT_ONLY_SCANNERS = {"open_signal_exit"}
+MASTER_SCANNERS = {"open_signal_filter"}  # 子集 wrapper 的 master，sanity 用、backtest 跳
+
 __all__ = [
     "ENTRY_REGISTRY",
+    "EXIT_ONLY_SCANNERS",
+    "MASTER_SCANNERS",
     "bbands_upper_break",
     "bollinger_pullback",
     "institutional_firstbuy",
     "institutional_swing",
     "intraday",
+    "open_signal_entry",
+    "open_signal_exit",
     "open_signal_filter",
     "overnight_swing",
     "pennant_flag",

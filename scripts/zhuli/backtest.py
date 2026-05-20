@@ -42,7 +42,7 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
 from kline.bars import DEFAULT_DB_PATH, load_bars
 from kline.features import add_features
 from zhuli.features import add_zhuli_features
-from zhuli.entry import ENTRY_REGISTRY
+from zhuli.entry import ENTRY_REGISTRY, EXIT_ONLY_SCANNERS, MASTER_SCANNERS
 
 
 # Scanner 對應的 detect args (有些 scanner 要 db_path)
@@ -54,7 +54,9 @@ _SCANNER_NEEDS_INST = {"institutional_firstbuy"}
 # Scanner 課程中文名對應 (依 strategy-indicators.md 章節名稱)
 SCANNER_DISPLAY_NAMES = {
     "suffocation":              "H 窒息量",
-    "open_signal_filter":       "M 收高開低",
+    "open_signal_filter":       "M 主力意圖(master)",
+    "open_signal_entry":        "M+ 收低開高(進場)",
+    "open_signal_exit":         "M- 收高開低(出場警示)",
     "institutional_firstbuy":   "J 投信首買",
     "swing_breakout":           "A 大波段",
     "bbands_upper_break":       "D 布林上軌",
@@ -351,7 +353,12 @@ def main():
     feats = add_zhuli_features(feats)
     print(f"  bars: {len(bars):,} rows / {bars['ticker'].nunique():,} tickers")
 
-    scanners = list(ENTRY_REGISTRY.keys()) if args.all else [args.signal]
+    if args.all:
+        # 排除出場 scanner + master (master 是 wrapper 的源，已被 entry/exit 拆解)
+        scanners = [s for s in ENTRY_REGISTRY.keys()
+                    if s not in EXIT_ONLY_SCANNERS and s not in MASTER_SCANNERS]
+    else:
+        scanners = [args.signal]
     if not scanners[0]:
         print("ERROR: --signal or --all required")
         sys.exit(1)
