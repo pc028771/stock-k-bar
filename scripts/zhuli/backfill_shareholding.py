@@ -1,0 +1,105 @@
+"""Backfill stock_shareholding (NumberOfSharesIssued) 從 FinMind.
+
+對全部 institutional_investors 表中的 ticker × 2024-2026 backfill。
+用於 I 投信跟單 scanner 計算「5 日累計買超 / 股本」需要的股本資料。
+
+Usage:
+    python scripts/zhuli/backfill_shareholding.py [--start 2024-01-01] [--end 2026-05-19]
+                                                   [--limit N] [--tickers 2330,2454]
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import sqlite3
+import sys
+import time
+from pathlib import Path
+
+import requests
+
+_WORKTREE = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(_WORKTREE / "scripts"))
+from kline.bars import DEFAULT_DB_PATH
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--start", default="2024-01-01")
+    ap.add_argument("--end", default="2026-05-19")
+    ap.add_argument("--limit", type=int)
+    ap.add_argument("--tickers", help="comma-separated")
+    ap.add_argument("--sleep-every", type=int, default=10, help="sleep 1s every N tickers")
+    args = ap.parse_args()
+
+    token = os.environ["FINMIND_TOKEN"]
+
+    # 取得 ticker 清單
+    with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
+        if args.tickers:
+            tickers = args.tickers.split(",")
+        else:
+            cur = conn.execute(
+                "SELECT DISTINCT ticker FROM institutional_investors ORDER BY ticker"
+            )
+            tickers = [r[0] for r in cur.fetchall()]
+        if args.limit:
+            tickers = tickers[: args.limit]
+
+        print(f"Backfill {len(tickers)} tickers × {args.start} ~ {args.end}")
+
+        # 確保表存在
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS stock_shareholding (
+                ticker TEXT, trade_date TEXT, shares_issued INTEGER,
+                PRIMARY KEY (ticker, trade_date)
+            )
+        """)
+        conn.commit()
+
+        total = 0
+        fails = []
+        for i, t in enumerate(tickers, 1):
+            try:
+                r = requests.get(
+                    "https://api.finmindtrade.com/api/v4/data",
+                    params={
+                        "dataset": "TaiwanStockShareholding",
+                        "data_id": t,
+                        "start_date": args.start,
+                        "end_date": args.end,
+                        "token": token,
+                    },
+                    timeout=20,
+                )
+                if r.status_code != 200:
+                    fails.append((t, r.status_code))
+                    continue
+                d = r.json().get("data", [])
+                rows = [
+                    (t, row["date"], row["NumberOfSharesIssued"])
+                    for row in d
+                    if row.get("NumberOfSharesIssued")
+                ]
+                if rows:
+                    conn.executemany(
+                        "INSERT OR REPLACE INTO stock_shareholding VALUES (?,?,?)",
+                        rows,
+                    )
+                    total += len(rows)
+                if i % 50 == 0:
+                    conn.commit()
+                    print(f"  [{i}/{len(tickers)}] {t}: {len(rows)} rows (cumulative {total:,})")
+            except Exception as exc:
+                fails.append((t, str(exc)[:50]))
+            if i % args.sleep_every == 0:
+                time.sleep(1)
+        conn.commit()
+
+    print(f"\nDone: {total:,} rows inserted")
+    if fails:
+        print(f"Fails: {len(fails)} (first 10: {fails[:10]})")
+
+
+if __name__ == "__main__":
+    main()

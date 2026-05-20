@@ -149,24 +149,39 @@
     }
   },
   "institutional_swing": {
-    "trades": 0,
-    "note": "no signals in date range"
+    "trades": 150,
+    "hit_rate_pct": 36.67,
+    "avg_return_pct": 13.916,
+    "avg_win_pct": 51.981,
+    "avg_loss_pct": -8.121,
+    "worst_loss_pct": -23.25,
+    "best_win_pct": 232.71,
+    "expected_value_pct": 13.916,
+    "profit_factor": 3.71,
+    "max_loss_streak": 20,
+    "sharpe": 0.99,
+    "avg_hold_days": 22.5,
+    "exit_distribution": {
+      "stop_loss": 95,
+      "max_hold": 54,
+      "stop_loss_eod": 1
+    }
   },
   "intraday": {
-    "trades": 33,
-    "hit_rate_pct": 57.58,
-    "avg_return_pct": 0.771,
-    "avg_win_pct": 2.884,
-    "avg_loss_pct": -2.098,
-    "worst_loss_pct": -6.64,
-    "best_win_pct": 9.13,
-    "expected_value_pct": 0.771,
-    "profit_factor": 1.87,
-    "max_loss_streak": 4,
-    "sharpe": 3.66,
+    "trades": 2311,
+    "hit_rate_pct": 51.84,
+    "avg_return_pct": 0.23,
+    "avg_win_pct": 1.882,
+    "avg_loss_pct": -1.548,
+    "worst_loss_pct": -10.54,
+    "best_win_pct": 9.34,
+    "expected_value_pct": 0.23,
+    "profit_factor": 1.31,
+    "max_loss_streak": 26,
+    "sharpe": 1.48,
     "avg_hold_days": 1.0,
     "exit_distribution": {
-      "overnight_exit": 33
+      "overnight_exit": 2311
     }
   },
   "bollinger_pullback": {
