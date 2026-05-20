@@ -51,6 +51,33 @@ _SCANNER_NEEDS_DB = {"institutional_firstbuy", "institutional_swing", "intraday"
 # Scanner default config 對應 — 直接從 ENTRY_REGISTRY detect 用 default config
 _SCANNER_NEEDS_INST = {"institutional_firstbuy"}
 
+# Scanner 課程中文名對應 (依 strategy-indicators.md 章節名稱)
+SCANNER_DISPLAY_NAMES = {
+    "suffocation":              "H 窒息量",
+    "open_signal_filter":       "M 收高開低",
+    "institutional_firstbuy":   "J 投信首買",
+    "swing_breakout":           "A 大波段",
+    "bbands_upper_break":       "D 布林上軌",
+    "overnight_swing":          "G 隔日沖",
+    "reversal_breakout":        "C 反轉形態",
+    "pennant_flag":             "B 旗形(奇形)",
+    "institutional_swing":      "I 投信跟單",
+    "intraday":                 "F 當沖",
+    "bollinger_pullback":       "E 布林回測",
+}
+
+# Per-scanner backtest 客製化參數
+# 課程設計交易期不同 → entry timing + max_hold 必須跟著
+# entry_mode:
+#   "next_day_open" (預設, 波段 scanner) — entry = signal_date+1 day open
+#   "signal_day_close" (G 隔日沖) — entry = signal_date close, exit = next day open
+SCANNER_BACKTEST_OVERRIDES = {
+    # G 隔日沖: 「今天尾盤買、隔天開盤賣」 — entry close, exit next day open
+    "overnight_swing": {"max_hold_days": 1, "entry_mode": "signal_day_close"},
+    # F 當沖: 「當日進出」 — 用日 K 近似為 signal_day_close + 1 day
+    "intraday": {"max_hold_days": 1, "entry_mode": "signal_day_close"},
+}
+
 
 @dataclass
 class BacktestConfig:
@@ -69,9 +96,43 @@ def _get_trade_outcome(
     max_hold_days: int,
     slippage_pct: float,
     ticker: str,
+    entry_mode: str = "next_day_open",
 ) -> Optional[dict]:
-    """模擬單筆交易. Returns trade dict or None if can't enter."""
-    # 找 entry: signal_date 之後第一根 K 棒的開盤
+    """模擬單筆交易. Returns trade dict or None if can't enter.
+
+    entry_mode:
+        "next_day_open": entry = signal_date+1 day open (波段預設)
+        "signal_day_close": entry = signal_date close, exit = next day open (G 隔日沖)
+    """
+    if entry_mode == "signal_day_close":
+        # G 隔日沖: 當日尾盤買進 (signal_date close), 隔日 open 賣
+        sig_row = sub[sub["trade_date"] == signal_date]
+        if sig_row.empty:
+            return None
+        entry_price = sig_row.iloc[0]["close"] * (1 + slippage_pct)
+        entry_date = sig_row.iloc[0]["trade_date"]
+        # 隔日 (next day) open 出場
+        after = sub[sub["trade_date"] > signal_date].head(1)
+        if after.empty:
+            return None
+        exit_row = after.iloc[0]
+        exit_price = exit_row["open"] * (1 - slippage_pct)
+        exit_date = exit_row["trade_date"]
+        ret = (exit_price - entry_price) / entry_price
+        return {
+            "ticker": ticker,
+            "signal_date": signal_date.strftime("%Y-%m-%d") if hasattr(signal_date, "strftime") else str(signal_date),
+            "entry_date": entry_date.strftime("%Y-%m-%d") if hasattr(entry_date, "strftime") else str(entry_date),
+            "exit_date": exit_date.strftime("%Y-%m-%d") if hasattr(exit_date, "strftime") else str(exit_date),
+            "entry_price": round(entry_price, 4),
+            "exit_price": round(exit_price, 4),
+            "stop_loss": round(stop_loss, 4),
+            "hold_days": 1,
+            "return_pct": round(ret * 100, 3),
+            "exit_reason": "overnight_exit",
+        }
+
+    # === next_day_open 預設模式 (波段 scanner) ===
     after = sub[sub["trade_date"] > signal_date].head(max_hold_days + 1)
     if after.empty:
         return None
@@ -128,7 +189,14 @@ def run_backtest_for_scanner(
     """跑單個 scanner 的 backtest. Returns (trades_df, stats)."""
 
     detect_fn = ENTRY_REGISTRY[scanner_name]
-    print(f"\n--- {scanner_name} backtest ---")
+    display = SCANNER_DISPLAY_NAMES.get(scanner_name, scanner_name)
+    print(f"\n--- {display} ({scanner_name}) backtest ---")
+    # Apply scanner-specific cfg override
+    scanner_cfg = SCANNER_BACKTEST_OVERRIDES.get(scanner_name, {})
+    effective_max_hold = scanner_cfg.get("max_hold_days", cfg.max_hold_days)
+    effective_entry_mode = scanner_cfg.get("entry_mode", "next_day_open")
+    if scanner_cfg:
+        print(f"  ⚙️  per-scanner override: max_hold={effective_max_hold}, entry_mode={effective_entry_mode}")
 
     # 跑 scanner on full history
     kwargs = {}
@@ -184,7 +252,8 @@ def run_backtest_for_scanner(
         if sub is None:
             continue
         trade = _get_trade_outcome(
-            sub, sig.sig_date_dt, float(stop), cfg.max_hold_days, cfg.slippage_pct, sig.ticker,
+            sub, sig.sig_date_dt, float(stop), effective_max_hold, cfg.slippage_pct, sig.ticker,
+            entry_mode=effective_entry_mode,
         )
         if trade:
             trade["scanner"] = scanner_name
@@ -284,14 +353,20 @@ def main():
 
     # Summary
     print("\n" + "=" * 80)
-    print(f"{'Scanner':<22} {'Trades':>7} {'Hit%':>6} {'EV%':>7} {'Win%':>6} {'Loss%':>7} {'Worst':>7} {'Best':>7} {'PF':>5} {'Sharpe':>7} {'Hold':>5}")
+    print(f"{'策略':<18} {'Trades':>7} {'Hit%':>6} {'EV%':>7} {'Win%':>6} {'Loss%':>7} {'Worst':>7} {'Best':>7} {'PF':>5} {'Sharpe':>7} {'Hold':>5}")
     print("=" * 100)
-    for sname, s in all_stats.items():
+    # 依 PF 排序顯示（最強到最弱）
+    sorted_items = sorted(
+        all_stats.items(),
+        key=lambda kv: -kv[1].get("profit_factor", 0) if kv[1].get("trades", 0) > 0 else 0,
+    )
+    for sname, s in sorted_items:
+        display = SCANNER_DISPLAY_NAMES.get(sname, sname)
         if "trades" not in s or s.get("trades", 0) == 0:
             note = s.get('note', s.get('error', ''))
-            print(f"{sname:<22} {'-':>7} {'-':>6} {'-':>7} {'-':>6} {'-':>7} {'-':>7} {'-':>7} {'-':>5} {'-':>7} {'-':>5}  {note}")
+            print(f"{display:<18} {'-':>7} {'-':>6} {'-':>7} {'-':>6} {'-':>7} {'-':>7} {'-':>7} {'-':>5} {'-':>7} {'-':>5}  {note}")
             continue
-        print(f"{sname:<22} {s['trades']:>7} {s['hit_rate_pct']:>6.1f} {s['expected_value_pct']:>+7.2f} {s['avg_win_pct']:>+6.2f} {s['avg_loss_pct']:>+7.2f} {s['worst_loss_pct']:>7.1f} {s['best_win_pct']:>7.1f} {s['profit_factor']:>5.2f} {s['sharpe']:>7.2f} {s['avg_hold_days']:>5.1f}")
+        print(f"{display:<18} {s['trades']:>7} {s['hit_rate_pct']:>6.1f} {s['expected_value_pct']:>+7.2f} {s['avg_win_pct']:>+6.2f} {s['avg_loss_pct']:>+7.2f} {s['worst_loss_pct']:>7.1f} {s['best_win_pct']:>7.1f} {s['profit_factor']:>5.2f} {s['sharpe']:>7.2f} {s['avg_hold_days']:>5.1f}")
     print("=" * 100)
 
     # Save summary JSON
