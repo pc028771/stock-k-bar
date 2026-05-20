@@ -28,6 +28,7 @@ from zhuli.sanity_check_overnight import run_sanity_check as run_g
 from zhuli.sanity_check_reversal import run_sanity_check as run_c
 from zhuli.sanity_check_pennant import run_sanity_check as run_b
 from zhuli.sanity_check_inst_swing import run_sanity_check as run_i
+from zhuli.sanity_check_intraday import run_sanity_check as run_f
 from zhuli.sanity_check import EXPECTED_CASES as H_CASES
 from zhuli.sanity_check_open_signal import INSTRUCTOR_CASES as M_CASES
 from zhuli.sanity_check_institutional import INSTRUCTOR_CASES as J_CASES
@@ -37,6 +38,7 @@ from zhuli.sanity_check_overnight import INSTRUCTOR_CASES as G_CASES
 from zhuli.sanity_check_reversal import INSTRUCTOR_CASES as C_CASES
 from zhuli.sanity_check_pennant import INSTRUCTOR_CASES as B_CASES
 from zhuli.sanity_check_inst_swing import INSTRUCTOR_CASES as I_CASES
+from zhuli.sanity_check_intraday import INSTRUCTOR_CASES as F_CASES
 
 
 # ── 統一 result normalizer ─────────────────────────────────────────────────────
@@ -163,6 +165,21 @@ def normalize_i(result: dict) -> list[dict]:
     return out
 
 
+def normalize_f(result: dict) -> list[dict]:
+    out = []
+    for r in result.get("results", []):
+        out.append({
+            "scanner": "F 當沖",
+            "ticker": r["ticker"],
+            "name": r["name"],
+            "date": r.get("signal_date", "?"),
+            "status": r.get("result", "?"),
+            "category": r.get("divergence_category"),
+            "note": r.get("note", ""),
+        })
+    return out
+
+
 def normalize_a(result: dict) -> list[dict]:
     out = []
     for r in result.get("results", []):
@@ -246,6 +263,10 @@ def run_all(db_path: Path, verbose: bool = False) -> dict:
         print("\n--- I 投信跟單 ---")
     i_result = run_i(db_path=db_path, verbose=verbose)
 
+    if verbose:
+        print("\n--- F 當沖 ---")
+    f_result = run_f(db_path=db_path, verbose=verbose)
+
     all_rows = []
     all_rows.extend(normalize_h(h_result))
     all_rows.extend(normalize_m(m_result))
@@ -256,6 +277,7 @@ def run_all(db_path: Path, verbose: bool = False) -> dict:
     all_rows.extend(normalize_c(c_result))
     all_rows.extend(normalize_b(b_result))
     all_rows.extend(normalize_i(i_result))
+    all_rows.extend(normalize_f(f_result))
 
     # 統計
     totals = {
@@ -289,6 +311,7 @@ def run_all(db_path: Path, verbose: bool = False) -> dict:
             "C 反轉形態": c_result,
             "B 旗形": b_result,
             "I 投信跟單": i_result,
+            "F 當沖": f_result,
         },
         "all_rows": all_rows,
         "totals": totals,
@@ -307,7 +330,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
     lines.append("")
     lines.append(f"> 評估日期：{date.today().isoformat()}")
     lines.append(f"> DB 範圍：bars + institutional 2020-01 ~ 2021-12 backfill")
-    lines.append(f"> 案例總數：{total} cases（H 5 + M 2 + J 2 + A 4 + D 3 + G 3 + C 3 + B 2 + I 9）")
+    lines.append(f"> 案例總數：{total} cases（H 5 + M 2 + J 2 + A 4 + D 3 + G 3 + C 3 + B 2 + I 9 + F 4）")
     lines.append(f"> **判定：{'✅ PASSED' if summary['passed'] else '❌ FAILED'}**")
     lines.append("")
     lines.append("## 總表")
@@ -319,7 +342,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
     for row in summary["all_rows"]:
         scanner_groups.setdefault(row["scanner"], []).append(row)
 
-    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌", "G 隔日沖", "C 反轉形態", "B 旗形", "I 投信跟單"]:
+    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌", "G 隔日沖", "C 反轉形態", "B 旗形", "I 投信跟單", "F 當沖"]:
         rows = scanner_groups.get(sc_name, [])
         n = len(rows)
         n_hit = sum(1 for r in rows if r["unified_category"] == "strict_hit")
@@ -336,7 +359,7 @@ def write_markdown_report(summary: dict, out_path: Path) -> None:
 
     lines.append("## 各 Scanner 詳情")
     lines.append("")
-    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌", "G 隔日沖", "C 反轉形態", "B 旗形", "I 投信跟單"]:
+    for sc_name in ["H 窒息量", "M 收高開低", "J 投信首買", "A 大波段", "D 布林上軌", "G 隔日沖", "C 反轉形態", "B 旗形", "I 投信跟單", "F 當沖"]:
         rows = scanner_groups.get(sc_name, [])
         if not rows:
             continue

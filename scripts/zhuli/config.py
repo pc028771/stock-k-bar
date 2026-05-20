@@ -700,3 +700,68 @@ class InstitutionalSwingConfig:
             else:
                 d[key] = raw_val
         return InstitutionalSwingConfig.from_dict(d)
+
+
+@dataclass
+class IntradayConfig:
+    """Parameters for F 當沖策略 (zhuli_intraday).
+
+    Course source: strategy-indicators.md §F 當沖策略 (Ch5-1 + Ch5-2 + Ch5-3)
+                   HD vision Ch5-2 案例: 3141 晶宏 / 2314 台揚 / 2010 春源 / 3006 晶豪科
+
+    Note: scanner 只做前夜選股 (日 K 級)，盤中執行（5 分 K, VWAP, 突破第一根 K 高點）
+    不在 scanner 範圍 — 由 user 手動執行。
+
+    Logic (前夜篩選):
+        1. MA5 > MA10 > MA20 三條均線多頭排列且皆上彎
+        2. 近 2 日成交量 > 2 萬張
+        3. 近 3 日 (H-L)/L 振幅 > 8%
+        4. 近 3 日周轉率 (volume_3d_sum / shares_issued) > 20%
+        5. 股價離月線 (close-ma20)/ma20 < 30%
+
+    精選 (Ch5-2):
+        距前高 (60D high) < 10%
+    """
+
+    # === Hard rules from course ===
+    require_ma_alignment: bool = True       # MA5>10>20 + 三條上彎
+    min_vol_2d_lots: int = 20000            # 兩天量 > 2 萬張
+    min_range_3d: float = 0.08              # 3 天振幅 > 8%
+    min_turnover_3d: float = 0.20           # 3 天周轉率 > 20%
+    max_dist_from_ma20: float = 0.30        # 股價離月線 < 30%
+
+    # === Ch5-2 精選 ===
+    max_dist_from_prev_high: float = 0.10   # 距 60D 高 < 10%
+    prev_high_lookback_days: int = 60       # 前高 lookback
+
+    # === Liquidity ===
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "IntradayConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "IntradayConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "IntradayConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(f"Unknown IntradayConfig key: '{key}'. Valid: {list(d.keys())}")
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return IntradayConfig.from_dict(d)

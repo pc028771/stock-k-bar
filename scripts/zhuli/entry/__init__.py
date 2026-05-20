@@ -19,6 +19,7 @@ Registered signals:
     reversal_breakout      — C 反轉形態策略 (Ch4-2)
     pennant_flag           — B 旗形策略 (Ch4-2)
     institutional_swing    — I 投信跟單策略 (Ex2-1 + Ex2-2)
+    intraday               — F 當沖策略 (Ch5-1/Ch5-2/Ch5-3)
 """
 from __future__ import annotations
 
@@ -26,6 +27,7 @@ from . import (
     bbands_upper_break,
     institutional_firstbuy,
     institutional_swing,
+    intraday,
     open_signal_filter,
     overnight_swing,
     pennant_flag,
@@ -44,6 +46,7 @@ ENTRY_REGISTRY = {
     "reversal_breakout": reversal_breakout.detect,
     "pennant_flag": pennant_flag.detect,
     "institutional_swing": institutional_swing.detect,
+    "intraday": intraday.detect,
 }
 
 __all__ = [
@@ -51,6 +54,7 @@ __all__ = [
     "bbands_upper_break",
     "institutional_firstbuy",
     "institutional_swing",
+    "intraday",
     "open_signal_filter",
     "overnight_swing",
     "pennant_flag",
