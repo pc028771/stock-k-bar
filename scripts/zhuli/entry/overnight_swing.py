@@ -104,6 +104,7 @@ def detect(
 
     # 4. 條件 3: ma20 上彎 (用扣抵預判 — 課程「月線斜率 > 0.4」=「明日上揚足夠」)
     # spec ma20_slope_min 0.004 → 用扣抵 normalized pressure 對應
+    slope_col = None  # fallback
     if "ma20_rolloff_pressure" in df.columns:
         mask &= df["ma20_rolloff_pressure"].fillna(0) > cfg.ma20_slope_min
     else:
@@ -158,7 +159,7 @@ def detect(
         "bandwidth_prev": signals["bandwidth_prev"],
         "volume_lots": signals["volume"] / 1000.0,
         "volume_ratio_prev": signals["volume"] / signals["prev_volume"].replace(0, np.nan),
-        "ma20_slope": signals[slope_col],
+        "ma20_slope": signals[slope_col] if slope_col else signals.get("ma20_rolloff_pressure", np.nan),
         "market_pass": market_pass_series.loc[signals.index] if cfg.require_market_filter else True,
         "stop_loss": signals["prev_low"] if "prev_low" in signals.columns else signals["low"],
     })
