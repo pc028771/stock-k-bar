@@ -78,6 +78,12 @@ SCANNER_BACKTEST_OVERRIDES = {
     "overnight_swing": {"max_hold_days": 1, "entry_mode": "signal_day_close"},
     # F 當沖: 「當日進出」 — 用日 K 近似為 signal_day_close + 1 day
     "intraday": {"max_hold_days": 1, "entry_mode": "signal_day_close"},
+    # A 大波段: 課程「波段 = 月以上」, hold > 60 天 trades 87% hit / +31% avg
+    "swing_breakout": {"max_hold_days": 120},
+    # I 投信跟單: 同樣是中長波段
+    "institutional_swing": {"max_hold_days": 120},
+    # J 投信首買: 中波段
+    "institutional_firstbuy": {"max_hold_days": 90},
 }
 
 # Top-N per day ranking — 每個 scanner 用哪個欄位排序「最強」signal
