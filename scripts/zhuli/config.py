@@ -765,3 +765,81 @@ class IntradayConfig:
             else:
                 d[key] = raw_val
         return IntradayConfig.from_dict(d)
+
+
+@dataclass
+class BollingerPullbackConfig:
+    """Parameters for E 布林回測策略 (zhuli_bollinger_pullback).
+
+    Course source: strategy-indicators.md §E + PDF p.127 + sprite scan ch4-2 48:05-71:32
+    Core case: 3042 晶技 (反轉+旗型+中軌+上軌+回補缺口+站上大量高點離開上軌出場)
+
+    Logic:
+        前置: 過去 N 天曾經 close > BB_upper (D 觸發過，曾跳出布林上軌)
+        觸發: 急漲後回測到 MA20 附近，量縮，不跌破，第二波啟動
+        進場: 第二波第一根攻擊 K
+        停損: 收盤跌破 MA20
+        出場: 沿用 D — 實體綠 K 跌入上軌之內
+
+    判別條件:
+        1. close > MA20 (未跌破中軌)
+        2. close 距 MA20 ≤ pullback_proximity_max (回測到 MA20 附近)
+        3. 過去 prerequisite_lookback 天 close 曾 > BB_upper (D pattern 觸發過)
+        4. ma5_will_rise (短均線將上揚 = 第二波啟動)
+        5. 回測量縮: 近 N 日 mean vol < 過去 60 日 max vol × pullback_volume_ratio_max
+    """
+
+    # === Hard rules ===
+    require_close_above_ma20: bool = True       # 不跌破中軌 (停損)
+
+    # 距 MA20 比例 (close 接近 MA20 = 回測位置)
+    # spec: 「回跌至中軌」 — close 在 MA20 上方但接近
+    pullback_proximity_max: float = 0.10        # close ≤ MA20 × 1.10 (距 MA20 10% 內)
+
+    # 前置: 過去 N 天 close > BB_upper 至少一次 (D scanner 觸發過)
+    prerequisite_lookback: int = 60
+    require_d_prerequisite: bool = True
+
+    # 第二波啟動: ma5 將上揚 (扣抵預判)
+    require_ma5_will_rise: bool = True
+
+    # 回測量縮: 近 N 日 mean volume / 過去 60 日 max volume
+    pullback_volume_ratio_max: float = 0.30
+    pullback_volume_window: int = 10            # 近 10 日 mean vol
+
+    # 量增確認 (第二波攻擊 K 量需 > 近 5 日 mean × 1.0)
+    require_attack_volume: bool = True
+    attack_volume_multiplier: float = 1.0       # 今 volume > 近 5 日 mean × 1.0
+
+    # === Liquidity ===
+    min_avg_volume_20: int = 200
+    min_close: float = 10.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "BollingerPullbackConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "BollingerPullbackConfig":
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    def apply_overrides(self, overrides: dict[str, str]) -> "BollingerPullbackConfig":
+        d = self.to_dict()
+        for key, raw_val in overrides.items():
+            if key not in d:
+                raise ValueError(f"Unknown BollingerPullbackConfig key: '{key}'. Valid: {list(d.keys())}")
+            original = d[key]
+            if isinstance(original, bool):
+                d[key] = raw_val.lower() in ("1", "true", "yes")
+            elif isinstance(original, int):
+                d[key] = int(raw_val)
+            elif isinstance(original, float):
+                d[key] = float(raw_val)
+            else:
+                d[key] = raw_val
+        return BollingerPullbackConfig.from_dict(d)

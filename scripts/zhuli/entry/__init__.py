@@ -20,11 +20,13 @@ Registered signals:
     pennant_flag           — B 旗形策略 (Ch4-2)
     institutional_swing    — I 投信跟單策略 (Ex2-1 + Ex2-2)
     intraday               — F 當沖策略 (Ch5-1/Ch5-2/Ch5-3)
+    bollinger_pullback     — E 布林回測策略 (Ch4-2 形態四)
 """
 from __future__ import annotations
 
 from . import (
     bbands_upper_break,
+    bollinger_pullback,
     institutional_firstbuy,
     institutional_swing,
     intraday,
@@ -47,11 +49,13 @@ ENTRY_REGISTRY = {
     "pennant_flag": pennant_flag.detect,
     "institutional_swing": institutional_swing.detect,
     "intraday": intraday.detect,
+    "bollinger_pullback": bollinger_pullback.detect,
 }
 
 __all__ = [
     "ENTRY_REGISTRY",
     "bbands_upper_break",
+    "bollinger_pullback",
     "institutional_firstbuy",
     "institutional_swing",
     "intraday",
