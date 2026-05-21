@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  主力大每日晨報 launchd Job
+
+  觸發時間：週一~五 07:00
+  執行：morning_report.py → 產出 /tmp/morning_report_<date>.md
+
+  安裝步驟：
+    1. 複製 plist
+       cp scripts/zhuli/launchd/com.howard.zhuli.morning_report.plist ~/Library/LaunchAgents/
+
+    2. 載入 agent
+       launchctl load ~/Library/LaunchAgents/com.howard.zhuli.morning_report.plist
+
+    3. 確認已載入
+       launchctl list | grep zhuli
+
+    4. 手動測試（立即觸發）
+       launchctl start com.howard.zhuli.morning_report
+
+    5. 停用
+       launchctl unload ~/Library/LaunchAgents/com.howard.zhuli.morning_report.plist
+
+  注意：
+  - ProgramArguments 中的路徑需對應實際 python + script 位置
+  - 若用 conda/venv，請將 python 路徑改為對應 interpreter
+  - 輸出/錯誤 log 寫入 /tmp/zhuli_morning_report.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.morning_report</string>
+
+    <!-- 執行程式（python 路徑請依實際 venv/conda 調整） -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/.claude/worktrees/phase1-scanner/scripts/zhuli/morning_report.py</string>
+    </array>
+
+    <!-- 週一~五 07:00 觸發 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <!-- 週一 = Weekday 2 -->
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>7</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <!-- 週二 -->
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>7</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <!-- 週三 -->
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>7</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <!-- 週四 -->
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>7</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <!-- 週五 -->
+        <dict>
+            <key>Weekday</key><integer>6</integer>
+            <key>Hour</key><integer>7</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+    </array>
+
+    <!-- 工作目錄（script 內用相對路徑時需要） -->
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar/.claude/worktrees/phase1-scanner</string>
+
+    <!-- Log -->
+    <key>StandardOutPath</key>
+    <string>/tmp/zhuli_morning_report.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/zhuli_morning_report_err.log</string>
+
+    <!-- 環境變數（若 .env 在 worktree 根目錄） -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <!-- 若需要 FUBON credentials，在此加入 -->
+        <!-- <key>FUBON_PID</key><string>your_pid_here</string> -->
+    </dict>
+
+    <!-- 電腦喚醒時若錯過排程，是否補跑 -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

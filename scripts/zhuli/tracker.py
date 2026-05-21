@@ -22,6 +22,22 @@ from pathlib import Path
 
 _DB = Path.home() / ".four_seasons" / "data.sqlite"
 
+HOLDINGS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS zhuli_holdings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticker TEXT NOT NULL,
+    name TEXT,
+    avg_cost REAL NOT NULL,
+    shares INTEGER NOT NULL,
+    entry_date DATE,
+    note TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_zhuli_holdings_ticker ON zhuli_holdings(ticker);
+CREATE INDEX IF NOT EXISTS idx_zhuli_holdings_active ON zhuli_holdings(is_active);
+"""
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS zhuli_articles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,8 +86,9 @@ def db_conn():
 def cmd_init():
     with db_conn() as c:
         c.executescript(SCHEMA)
+        c.executescript(HOLDINGS_SCHEMA)
         c.commit()
-    print("✅ schema initialized")
+    print("✅ schema initialized (articles + mentions + stance_shifts + holdings)")
 
 
 def cmd_add(args):
@@ -171,6 +188,50 @@ def cmd_dashboard(args):
     print()
 
 
+def cmd_add_holding(args):
+    """手動加持股記錄."""
+    with db_conn() as c:
+        c.executescript(HOLDINGS_SCHEMA)  # ensure table exists
+        c.execute("""INSERT INTO zhuli_holdings
+            (ticker, name, avg_cost, shares, entry_date, note, is_active)
+            VALUES (?,?,?,?,?,?,1)""",
+            (args.ticker, args.name, args.avg_cost, args.shares, args.entry_date, args.note))
+        c.commit()
+    market_value = args.avg_cost * args.shares
+    print(f"✅ holding added: {args.ticker} {args.name}  "
+          f"均成本 {args.avg_cost}  股數 {args.shares}  "
+          f"市值 {market_value:,.0f}  進場 {args.entry_date}")
+
+
+def cmd_list_holdings(args):
+    """列出 active 持股."""
+    with db_conn() as c:
+        rows = c.execute("""SELECT ticker, name, avg_cost, shares, entry_date, note, created_at
+                            FROM zhuli_holdings WHERE is_active=1
+                            ORDER BY entry_date DESC""").fetchall()
+    if not rows:
+        print("（無 active 持股）")
+        return
+    print(f"\n{'ticker':<7}{'name':<10}{'均成本':>9}{'股數':>8}{'市值':>12}{'進場日':>12}  note")
+    print("-" * 90)
+    for tk, nm, cost, sh, edate, note, _ in rows:
+        mv = cost * sh
+        print(f"{tk:<7}{(nm or ''):<10}{cost:>9.2f}{sh:>8,}{mv:>12,.0f}{(edate or ''):>12}  {(note or '')[:40]}")
+
+
+def cmd_close_holding(args):
+    """標記持股 is_active=0（出場）."""
+    with db_conn() as c:
+        cur = c.execute("UPDATE zhuli_holdings SET is_active=0 WHERE ticker=? AND is_active=1",
+                        (args.ticker,))
+        c.commit()
+        n = cur.rowcount
+    if n == 0:
+        print(f"❌ 找不到 active 持股: {args.ticker}")
+    else:
+        print(f"✅ closed {n} holding(s) for {args.ticker}")
+
+
 def cmd_ingest_line(args):
     """從 line chat md 萃取已標 L 級的 mentions."""
     md = Path(args.path)
@@ -214,13 +275,35 @@ def main():
     p_in.add_argument("path")
     p_in.add_argument("--date", required=True)
 
+    # Holdings CLI
+    p_ah = sub.add_parser("add-holding")
+    p_ah.add_argument("ticker")
+    p_ah.add_argument("--name", default="")
+    p_ah.add_argument("--avg-cost", type=float, required=True, dest="avg_cost")
+    p_ah.add_argument("--shares", type=int, required=True)
+    p_ah.add_argument("--entry-date", default=None, dest="entry_date",
+                      help="YYYY-MM-DD, 預設今天")
+    p_ah.add_argument("--note", default="")
+
+    sub.add_parser("list-holdings")
+
+    p_ch = sub.add_parser("close-holding")
+    p_ch.add_argument("ticker")
+
     args = parser.parse_args()
+
+    # 補 entry_date 預設值
+    if hasattr(args, "entry_date") and args.entry_date is None:
+        args.entry_date = datetime.now().date().isoformat()
 
     if args.cmd == "init": cmd_init()
     elif args.cmd == "add": cmd_add(args)
     elif args.cmd == "list": cmd_list(args)
     elif args.cmd == "dashboard": cmd_dashboard(args)
     elif args.cmd == "ingest-line": cmd_ingest_line(args)
+    elif args.cmd == "add-holding": cmd_add_holding(args)
+    elif args.cmd == "list-holdings": cmd_list_holdings(args)
+    elif args.cmd == "close-holding": cmd_close_holding(args)
     else: parser.print_help()
 
 

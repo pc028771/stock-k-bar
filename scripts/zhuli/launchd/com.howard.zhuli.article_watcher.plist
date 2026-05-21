@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  主力大文章監控 launchd Job
+
+  觸發時間：每小時整點觸發（article_watcher.py 內建 1 小時 cooldown，不會重複觸發）
+  執行：article_watcher.py check-interval → 若到時間則寫 /tmp/article_watcher_trigger_*.flag
+
+  安裝步驟：
+    1. 複製 plist
+       cp scripts/zhuli/launchd/com.howard.zhuli.article_watcher.plist ~/Library/LaunchAgents/
+
+    2. 載入 agent
+       launchctl load ~/Library/LaunchAgents/com.howard.zhuli.article_watcher.plist
+
+    3. 確認已載入
+       launchctl list | grep zhuli
+
+    4. 手動測試（立即觸發）
+       launchctl start com.howard.zhuli.article_watcher
+
+    5. 停用
+       launchctl unload ~/Library/LaunchAgents/com.howard.zhuli.article_watcher.plist
+
+    6. 查看 flags（Claude session 中手動跑）
+       python scripts/zhuli/article_watcher.py list-flags
+       python scripts/zhuli/article_watcher.py status
+
+  注意：
+  - 此 script 只寫 trigger flag，不抓 PressPlay（需 Claude session + chrome MCP）
+  - 看到 flag 後，在 Claude session 中抓文章、呼叫 tracker.py add + publish.py enqueue
+  - 接著跑 publish.py drain 推送 Notion / Slack
+  - 最後: article_watcher.py mark-done <flag_path>
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.article_watcher</string>
+
+    <!-- 執行程式 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/.claude/worktrees/phase1-scanner/scripts/zhuli/article_watcher.py</string>
+        <string>check-interval</string>
+    </array>
+
+    <!-- 每小時整點觸發（0, 1, 2, ... 23 時） -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Minute</key><integer>0</integer></dict>
+    </array>
+
+    <!-- 工作目錄 -->
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar/.claude/worktrees/phase1-scanner</string>
+
+    <!-- Log -->
+    <key>StandardOutPath</key>
+    <string>/tmp/zhuli_article_watcher.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/zhuli_article_watcher_err.log</string>
+
+    <!-- 環境變數 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
