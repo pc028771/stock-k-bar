@@ -10,11 +10,15 @@ SLACK_WORKSPACE = "howard-sah1552.slack.com"
 SLACK_USER_DM_ID = "D08GZ6NMXR9"  # 個人 DM fallback
 SLACK_USER_ID = "U08GZ6NMGSX"
 
-# 雙 channel 分工 — 交易指示 vs 課程內容
-SLACK_CHANNEL_TRADING_ID = "C0B55KAF1PF"   # #主力大 — 晨報 / 持股警示 / L4-L5 即時主推
-SLACK_CHANNEL_TRADING_NAME = "主力大"
-SLACK_CHANNEL_COURSE_ID = "C0B55L1PH1B"    # #主力大-課程 — 文章摘要 / 教學 / stance shift
-SLACK_CHANNEL_COURSE_NAME = "主力大-課程"
+# 雙 channel 分工 (依 user 5/21 拍板)
+# - 交易策略 channel：盤中可執行的「預備動作」（停損 level / 進場 level / 觸發條件）
+# - 主力大課程 channel：警示 + 文章摘要 + 教學 + stance shift（一切資訊與警告）
+# ⚠️ 警示送「課程」channel，盤中操作 levels 送「交易策略」— 不混雜
+
+SLACK_CHANNEL_TRADING_ID = "C0B55KAF1PF"   # #交易策略 — 盤中操作指令
+SLACK_CHANNEL_TRADING_NAME = "交易策略"
+SLACK_CHANNEL_COURSE_ID = "C0B55L1PH1B"    # #主力大課程 — 警示 + 課程 + 文章摘要
+SLACK_CHANNEL_COURSE_NAME = "主力大課程"
 
 # Backward compat (legacy refs)
 SLACK_CHANNEL_ID = SLACK_CHANNEL_TRADING_ID
