@@ -43,13 +43,24 @@ LEVELS = [
 
 
 def fetch_intraday() -> dict | None:
-    """嘗試 Fubon → FinMind 1 分 K fallback."""
+    """嘗試 Fubon → FinMind 1 分 K fallback.
+
+    Fubon 盤前會回 close (試撮) 但 OHL=0，這時降級為 pre-market quote.
+    """
     # 1. Fubon snapshot
     try:
         from clients.fubon_client import FubonClient
         c = FubonClient()
         snap = c.get_realtime_snapshot(TICKER)
         if snap and snap.get("close"):
+            # 盤前: open=0 表示尚未開盤，僅有試撮 close
+            if not snap.get("open"):
+                return {
+                    "src": "Fubon 試撮（盤前）",
+                    "premarket": True,
+                    "close": snap["close"],
+                    "change_pct": snap.get("change_rate", 0),
+                }
             return {"src": "Fubon", **snap}
     except Exception:
         pass
@@ -89,6 +100,18 @@ def render(snap: dict | None):
         return
     if "err" in snap:
         print(f"  ⚠ {snap['err']}")
+        return
+    if snap.get("premarket"):
+        c = snap["close"]
+        d1 = snap.get("change_pct", 0)
+        arrow = "🟢" if d1 > 1 else ("🔴" if d1 < -1 else "─")
+        print(f"  [{snap['src']}]")
+        print(f"  試撮 {c:.2f} {arrow} ({d1:+.2f}% vs 昨收 {PREV_CLOSE:.2f})")
+        print(f"  ⏰ 開盤前無 OHL，僅 reference quote\n")
+        print(f"  Level 對照 (試撮 {c:.2f}):")
+        for lv, desc in LEVELS:
+            mark = "✓ 在上" if c >= lv else "✗ 已破"
+            print(f"    {lv:>7.2f}  [{mark}]  {desc}")
         return
     o, h, l, c = snap["open"], snap["high"], snap["low"], snap["close"]
     vol = snap.get("volume", 0)
