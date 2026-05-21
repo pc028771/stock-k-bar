@@ -65,6 +65,13 @@ class BacktestConfig:
     shengxia_vol_ratio_min: float = 5.0           # @ch3-2 34:15「至少 5 倍」進場篩選
     shengxia_vol_shares_min: float = 1_000_000    # @ch3-2 34:08「至少 1000 張」進場篩選
     autumn_rebound_red_k_pct_min: float = 3.0     # @ch4-1 03:23
+    # 夏轉秋警訊 量價背離 thresholds (§八; @ch7-1; course示範值)
+    # 量價背離A: price near all-time peak but volume drying up → top exhaustion
+    warn_near_peak_pct: float = 2.0    # within X% of peak = "near peak"
+    warn_vol_low_ratio: float = 0.6    # vol_ratio_20 < this = volume drying up
+    # 量價背離B: heavy volume but price barely moved → distribution / churning
+    warn_vol_high_ratio: float = 3.0   # vol_ratio_20 > this = abnormally heavy vol
+    warn_price_stall_pct: float = 1.0  # |daily_chg| < X% despite heavy vol = stall
 
 
 def load_bt_config(path: Path | None) -> BacktestConfig:
@@ -90,8 +97,41 @@ class Trade:
     censored: bool
 
 
-def warning_signals_triggered(row: pd.Series, entry_row: pd.Series) -> bool:
-    """Stub for 夏轉秋警訊 (§八). TODO: implement 量價背離/領頭羊力竭/月線兩次跌破/反彈未創高."""
+def warning_signals_triggered(
+    row: pd.Series, entry_row: pd.Series, peak_close: float, bt: BacktestConfig
+) -> bool:
+    """夏轉秋警訊 (§八 / @ch7-1). Fires before ma20_break in priority order.
+
+    Implemented (with available daily data):
+      A. 量價背離 — price at all-time high since entry but vol_ratio_20 very low
+         → top-out: buyers exhausted, distribution beginning
+      B. 量價背離 — abnormally heavy volume but price barely moved (churning)
+         → distribution: sellers absorbing every buy
+
+    Not implemented (require cross-ticker or sentiment data):
+      - 領頭羊力竭: need sector membership + peer prices
+      - 情緒極度樂觀: no retail-sentiment data available
+      - 月線兩次跌破: first break already handled by ma20_break exit;
+        implementing "two breaks" would require changing exit priority architecture
+    """
+    vol_ratio = row.get("vol_ratio_20")
+    if pd.isna(vol_ratio):
+        return False
+
+    close = row["close"]
+
+    # A: near all-time peak since entry but volume drying up
+    if close >= peak_close * (1 - bt.warn_near_peak_pct / 100):
+        if vol_ratio < bt.warn_vol_low_ratio:
+            return True
+
+    # B: heavy distribution volume but price stalled
+    prev = row.get("prev_close")
+    if not pd.isna(prev) and prev > 0 and vol_ratio > bt.warn_vol_high_ratio:
+        daily_chg_pct = abs(close - prev) / prev * 100
+        if daily_chg_pct < bt.warn_price_stall_pct:
+            return True
+
     return False
 
 
@@ -111,7 +151,7 @@ def simulate_long(
         peak_close = max(peak_close, r["close"])
 
         if apply_price_stops:
-            if warning_signals_triggered(r, entry_row):
+            if warning_signals_triggered(r, entry_row, peak_close, bt):
                 return _close_long(entry_row, r, name, "warning_signals", censored=False)
             if pd.notna(r["ma20"]) and r["close"] < r["ma20"]:
                 return _close_long(entry_row, r, name, "ma20_break", censored=False)
