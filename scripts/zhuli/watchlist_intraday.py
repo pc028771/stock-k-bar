@@ -358,12 +358,35 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
     elif flow_state == "未知" and score > 0:
         flow_note = " [未在 4 大族群分類]"
 
-    # 等級 (用 adjusted_score)
+    # === 持股集中度 chip 警示 ===
+    from zhuli.chip_concentration import concentration_warnings
+    conc_score, conc_lines = concentration_warnings(db_path, ticker)
+    if conc_lines:
+        adjusted_score += conc_score
+
+    # === 主力分點異常 chip 警示 ===
+    from zhuli.chip_broker import broker_warnings
+    try:
+        broker_score, broker_lines = broker_warnings(ticker, lookback_days=5)
+    except Exception as exc:
+        broker_score, broker_lines = 0, [f"  ? broker 警示計算失敗: {exc}"]
+    if broker_lines:
+        adjusted_score += broker_score
+
+    # 等級 (用 adjusted_score，含 chip)
     if adjusted_score == 0:
+        sub_lines = []
         if score > 0 and flow_state == "流入":
-            return 0, [f"✓ 無警示 (原 score={score}, 法人流入降級){flow_note}"]
-        return 0, []
-    elif adjusted_score == 1:
+            sub_lines.append(f"✓ 無警示 (原 score={score}, 法人流入降級){flow_note}")
+        if conc_lines:
+            sub_lines.append("      ─── 持股集中度 ───")
+            sub_lines.extend(conc_lines)
+        if broker_lines:
+            sub_lines.append("      ─── 主力分點 ───")
+            sub_lines.extend(broker_lines)
+        return 0, sub_lines
+
+    if adjusted_score == 1:
         prefix = "🟡 觀察"
     elif adjusted_score == 2:
         prefix = "⚠️  警示"
@@ -375,14 +398,22 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
     if group:
         header = f"{prefix} (Ch2 score={score}→{adjusted_score} after 法人 [{group}]{flow_note})"
     else:
-        header = f"{prefix} (Ch2 score={score}){flow_note}"
+        header = f"{prefix} (Ch2 score={score}→{adjusted_score}){flow_note}"
     lines = [header]
     for label, detail, pts in triggers:
         lines.append(f"      [{pts}分] {label} — {detail}")
+
+    if conc_lines:
+        lines.append("      ─── 持股集中度 ───")
+        lines.extend(conc_lines)
+    if broker_lines:
+        lines.append("      ─── 主力分點 ───")
+        lines.extend(broker_lines)
+
     return adjusted_score, lines
 
 
-def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float) -> list[str]:
+def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float, ticker: str = "") -> list[str]:
     """依即時 Fubon snapshot 算 Ch2 盤中警示.
 
     Returns list of warning strings.
@@ -426,6 +457,17 @@ def intraday_ch2_warnings(live: dict, prev_close: float, prev_volume: float) -> 
 
     except Exception as exc:
         warnings.append(f"  ? intraday warnings 錯誤: {exc}")
+
+    # === 5 分 K 量價結構警示 ===
+    try:
+        from zhuli.chip_intraday_5min import intraday_5min_warnings
+        score_5m, lines_5m = intraday_5min_warnings(ticker)
+        if lines_5m:
+            warnings.append("  ─── 5min ───")
+            warnings.extend([f"  {ln}" for ln in lines_5m])
+    except Exception as exc:
+        warnings.append(f"  ? 5min check failed: {exc}")
+
     return warnings
 
 
@@ -520,7 +562,7 @@ def main():
         print(f"  MA60  {b['ma60']:>7.2f}")
         # === Ch2 警示 (分數累積系統) ===
         ch2_score, ch2_lines = baseline_ch2_warnings(db_path, ticker)
-        live_warnings = intraday_ch2_warnings(live, b["prev_close"], b["vol_ma20"])
+        live_warnings = intraday_ch2_warnings(live, b["prev_close"], b["vol_ma20"], ticker)
         if ch2_lines or live_warnings:
             print(f"  🚨 Ch2 課程警示:")
             for line in ch2_lines:

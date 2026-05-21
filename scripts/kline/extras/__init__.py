@@ -27,8 +27,10 @@ from . import (
     consolidation_breakdown,
     gap_fill_excess_market_adjusted,
     hold_days_cap,
+    inst_direction_score,
     intensity_floor,
     neckline_break_crude,
+    shakeout_strong,
     strict_breakout,
 )
 
@@ -60,6 +62,20 @@ SCORING_REGISTRY: dict = {
     # is now scoring/trend_continuation.py (default ON). This module retains
     # only the three anti-course penalties (volume_ratio, body_pct, close_pos).
     "attack_quality_anti_course_penalties": attack_quality_anti_course_penalties.make_score,
+    # User-created inst-direction tiebreaker for shakeout_strong (NOT course-defined).
+    "inst_direction_score": inst_direction_score.score,
+}
+
+# --- Shakeout Strong strategy registries (user-created, NOT course-defined) ---
+# These are separate from ENTRY_FILTER_REGISTRY / EXIT_REGISTRY / SCORING_REGISTRY
+# because shakeout_strong is a full entry *strategy* (not a filter on top of course entries).
+
+ENTRY_STRATEGY_REGISTRY: dict = {
+    "shakeout_strong": shakeout_strong.detect,
+}
+
+INST_SCORING_REGISTRY: dict = {
+    "inst_direction_score": inst_direction_score.score,
 }
 
 
@@ -118,6 +134,8 @@ __all__ = [
     "ENTRY_FILTER_REGISTRY",
     "EXIT_REGISTRY",
     "SCORING_REGISTRY",
+    "ENTRY_STRATEGY_REGISTRY",
+    "INST_SCORING_REGISTRY",
     "parse_extras_spec",
     "resolve_extras",
 ]
