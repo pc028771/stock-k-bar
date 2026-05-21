@@ -6,11 +6,19 @@ NOTION_PARENT_PAGE_URL = "https://www.notion.so/3676ecfed0fa816dbd31e11b576a601c
 NOTION_PARENT_TITLE = "主力大每日摘要"
 
 # === Slack ===
-SLACK_CHANNEL_ID = "C0B55KAF1PF"
-SLACK_CHANNEL_NAME = "主力大"
 SLACK_WORKSPACE = "howard-sah1552.slack.com"
 SLACK_USER_DM_ID = "D08GZ6NMXR9"  # 個人 DM fallback
 SLACK_USER_ID = "U08GZ6NMGSX"
+
+# 雙 channel 分工 — 交易指示 vs 課程內容
+SLACK_CHANNEL_TRADING_ID = "C0B55KAF1PF"   # #主力大 — 晨報 / 持股警示 / L4-L5 即時主推
+SLACK_CHANNEL_TRADING_NAME = "主力大"
+SLACK_CHANNEL_COURSE_ID = "C0B55L1PH1B"    # #主力大-課程 — 文章摘要 / 教學 / stance shift
+SLACK_CHANNEL_COURSE_NAME = "主力大-課程"
+
+# Backward compat (legacy refs)
+SLACK_CHANNEL_ID = SLACK_CHANNEL_TRADING_ID
+SLACK_CHANNEL_NAME = SLACK_CHANNEL_TRADING_NAME
 
 # === 系統路徑 ===
 DB_PATH = "~/.four_seasons/data.sqlite"
