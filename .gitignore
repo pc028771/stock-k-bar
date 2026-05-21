@@ -48,3 +48,8 @@ dist/
 
 # FinMind cached raw data
 data/raw/
+
+# Four-seasons classifier output (large, regeneratable)
+data/analysis/four_seasons/season_*.csv
+data/analysis/four_seasons/backtest_*_trades.csv
+!data/analysis/four_seasons/backtest_2025_final_trades.csv
