@@ -1,185 +1,181 @@
 # 四季投資法 — 後續流程說明
 
-> 建立日期：2026-05-19
-> 當前 worktree：`/Users/howard/Repository/stock-k-bar/.claude/worktrees/four-seasons-redesign/`
-> 分支：`worktree-four-seasons-redesign`（從 main @ 4c2bd90）
+> 最後更新：2026-05-21（含 scanner + backtest session）
+> 分支：`worktree-four-seasons-redesign`
+> 上次 NEXT_SESSION 為 2026-05-19，已過時，本檔取代
 
 ---
 
-## 一、已完成
+## 一、已完成（截至 2026-05-21）
 
-### 1. 章節索引（Step 1）
+### 1. 章節索引 + PDF + VTT（Step 1-4）
 - 31 篇已發布 + 7 篇月度排程
-- 輸出：`docs/四季投資法/pressplay_four_seasons_article_index.md`
+- PDF：CH1-6 共 31 頁（CH7-10 無講義）
+- VTT：29 章字幕（12,590 cues、1,906 triggers）
 
-### 2. PDF 講義萃取（Step 4）
-- CH1-6（共 31 頁），0 OCR 失敗
-- CH7-10 講義不存在（只能靠 VTT）
-- 輸出：`docs/四季投資法/pdf_extracted/CH1.md ~ CH6.md + INDEX.md`
+### 2. 截圖（Step 5）— **29/29 章完成**
+- **26 章 L3 1920×1080**：ch_trial / ch1-1 / ch1-2 / ch2-1 / ch2-2 / ch2-3 / ch3-1 / ch3-2 / ch3-3 / ch4-1 / ch4-2 / ch5-1 / ch5-2 / ch6-1 / ch6-2 / ch6-3 / ch6-4 / ch7-1 / ch7-2 / ch8-1 / ch9-1 / ch9-2 / ch9-3 / monthly_202603-05
+- **3 章對談式（保留 L1）**：ch10-1 / ch10-2 / ch10-3 — 確認無投影片字卡，L1 thumbnail 已足夠
+- 總截圖數：約 530+ 張
 
-### 3. VTT 字幕（Step 2-3）
-- 29 章（跳過第 1 篇專訪、第 3 篇講義 — 兩篇無影片）
-- 12,590 cues、1,906 triggers，全用 textTracks 路徑（無 m3u8 fallback）
-- 輸出：`data/analysis/four_seasons/subtitles/{ch}_{raw.vtt,cues,triggers,shot_timestamps}.json`
+### 3. Vision 比對（Step 6）— **29/29 章完成**
+- 每章 `handwritten_extracts.md` 已產出
+- 個股名稱幻覺已修 3 筆：6148 群宏資→驊宏資、3189 瑞碁→景碩、3324 建興電→雙鴻
 
-### 4. 章節摘要 + course_principles 初稿
-- 29 個 chapter summaries
-- `course_principles.md`（401 行，31 條量化條件）
-- `READING_REPORT.md`
+### 4. course_principles 整合（Step 7）— **22 章 vision 已整合**
+- 404 → 904 行
+- 新增章節：軟體策略按鈕（24 個）/ 盤中異動 7 訊號 / 波段主力分點 / 軟體欄位字典 / CB 代號↔母股對照表
+- 個股案例彙整 61+ 檔
+- 主要矛盾修正：豪勉 60 日 13%→13.7%、秋季月線斜率 < 0→介於 -1~0、策略按鈕 30+→24
+- ch4-1 秋天短空倉位修正：50%→10%/20%（commit 728b67f，課程外條件移除）
 
-### 5. 截圖（Step 5）
-- ch3-2（59）、ch4-2（33）、ch9-1（24）、ch9-2（20）= 136 張 L3 1080p
-- ch6-4（10）：第一次 L1 sprite 太小（87×49）讀不出文字，已升級為 L3 1080p；L1 備份在 `video_screenshots/ch6-4/L1_sprite_backup/`
-- 輸出：`data/analysis/four_seasons/video_screenshots/{ch}/`
-
-### 6. Vision 比對（Step 6）✅ 2026-05-20 完成
-
-5 章全 vision 比對完成：
-
-| 章 | jpg vs cues | scanner 條目 | 個股案例 |
-|---|---|---|---|
-| ch3-2 | 59 vs 1149 | 8 大類 | 29 檔 |
-| ch4-2 | 33 vs 634  | 6 條 | 10 檔 CB |
-| ch6-4 | 10 vs 284  | 5 條 | 3 檔（含 6116 彩晶 / 8422 可寧衛 / 3481 群創）|
-| ch9-1 | 24 vs 511  | 9 條 | 3 檔 CB |
-| ch9-2 | 20 vs 385  | 7 條 | 9 檔 |
-
-**重大發現**：
-- 軟體實際 24 個預設策略按鈕（原估「30+」是錯的）
-- 立夏選股完整 9 條（黑板節略 4 條 vs 軟體實際 9 條）
-- 秋天選股 3 條 — 跟立夏對比方向反轉（乖離 30%、籌碼符號）
-- 量價籌碼**四階段框架**完整（底部吸籌 → 主升攻擊 → 高檔換手 → 高檔出貨）
-- 盤中異動 7 大訊號（偏多 3 / 偏空 4）+ 程式交易識別法
-- 波段主力分點清單（竹北哥、大天母、華南永昌-台中等）
-
-輸出：`data/analysis/four_seasons/video_screenshots/{ch}/handwritten_extracts.md`（5 個檔，總 ~3500 行）
-
-### 7. course_principles 補完 ✅ 2026-05-20 完成
-
-- 從 401 行 → 696 行（+333 / -38）
-- 新增章節 4 個（軟體策略按鈕 / 盤中異動 7 訊號 / 波段主力分點 / 軟體欄位字典）
-- 新增 CB 代號 ↔ 母股對照表（第 16 章）
-- 個股案例彙整 61 檔
-- 已修正主要矛盾：豪勉 60 日 13% → 13.7%、秋季月線斜率 < 0 → 介於 -1～0、策略按鈕 30+ → 24
-
-### 8. 股票代號校對 ✅ 2026-05-20 完成
-
-已修正錯誤：
-- 2230 雙鴻 → **2230 泰茂**（CB 代號 22304 母股對照）
-- 3324 建興電 / 3322 建興電 → **3324 雙鴻**（建興電 = 8008，原為 vision 對小字名稱欄幻覺）
-- 4722 鈾精化 → **4722 國精化**（vision OCR 對冷字誤讀）
-- 6122 零邦 → **6122 擎邦**
-- ch9-2 @00:48 案例：字幕從頭到尾只說「3324」沒提「建興電」，**vision 幻覺記錄已澄清**
-
-仍待 user 確認的 5 筆 ⚠️：
-- 49163 泰茂三（母股欄 4916 ≠ 泰茂 2230）
-- 36451 迅得 vs 26100 迅得（兩個前 4 碼指不同母股）
-- 允強 CB 代號（截圖未覆蓋；允強 = 6020）
-- 2230 春池 × 2 處（軟體截圖清楚但對不上 — 春池 = 2283）
+### 5. Audit
+- `VISION_AUDIT_2026-05-20.md`：5 章 68 配對代號名稱審查
+- `L1_SCAN_REPORT_2026-05-20.md`：L1 sprite 掃描 21 章分類
 
 ---
 
-## 二、待辦（未完成的 workflow 步驟）
+## 二、真正待辦（2026-05-21）
 
-### A. 5 筆 ⚠️ 代號未確認 ⏳
-詳列於 course_principles.md「⚠️ 仍待確認」區段，scanner 階段需補抓對應 timestamp 截圖。
+### A. 5 筆 ⚠️ CB 代號待 user 確認 ⏳
+詳列於 `course_principles.md`「⚠️ 仍待確認」區段：
+1. **49163 泰茂三**（母股欄 4916 ≠ 泰茂 2230）
+2. **36451 迅得 vs 26100 迅得**（兩個前 4 碼指不同母股）
+3. **允強 CB 代號**（截圖未覆蓋；允強母股 = 6020）
+4. **2230 春池 ×2 處**（軟體截圖清楚但對不上 — 春池 = 2283）
 
-### B. 其他章節 vision（非高優先）⏳
-ch1-1 ~ ch10-3 還有 24 章（無截圖）。需要時逐章補抓截圖 + vision。但目前 5 章已覆蓋核心：選股參數、CB、四階段框架、籌碼工具、盤中異動。其他章節多屬 PDF 已涵蓋的概念講解。
+→ 需重抓對應 timestamp 截圖 + vision 確認，或由 user 直接核可。
 
-### C. 框架明顯缺口（4 個）需要決定怎麼處理 ⏳
+### B. 4 個框架缺口（課程本身缺漏，不可自行補完）⏳
 
 READING_REPORT 已標出：
+
 1. **停利規則模糊** — 夏季沒有「跌破幾日線出場」明確規則
 2. **加碼條件未定義** — 沒講加碼間隔 / 觸發條件
-3. **資金配置比例完全沒講** — 春夏秋冬各放幾成？課程完全未提
-4. **秋季短空 SOP 只適用特定型態**，非通用秋天策略
+3. **資金配置比例完全沒講** — 春夏秋冬各放幾成？
+4. **秋季短空 SOP 只適用特定型態** — 非通用秋天策略
 
-→ 這些是課程本身的缺漏，**不可自行補完**（CLAUDE.md 規範）。需 user 決定：
+依 CLAUDE.md「禁止自行加入課程以外的條件」原則，**不可自行補完**。需 user 決策：
+
 - (a) 留白標「課程未說」
-- (b) 從週邊資源（葉芷娟 / 股魚 / 邱沁宜 對談章節 ch10 可能有提）找補充
-- (c) 跑回測自行決定參數，但要明確標「非課程內容、實證得出」
+- (b) 從 ch10 對談章節（葉芷娟 / 股魚 / 邱沁宜）找補充
+- (c) 跑回測自行決定參數，明確標「非課程內容、實證得出」並隔離到 `scripts/kline/extras/`
 
-### D. Strategy / Scanner（最遠程） ⏳
+### C. Scanner / Strategy 寫作 — **第一版已完成 2026-05-21** ✅
 
-依 CLAUDE.md：「寫 scanner 前 user 確認當前策略完備程度」。Vision 比對 + course_principles 補完後，再跟 user 確認是否動手寫 scanner。
+#### 已交付（2025-01 ~ 2026-05-14 共 17 個月實證）
 
-可能的 scanner 切入點：
-- 春季「立夏」進場 scanner（量 > 500、月線斜率 < 0.5、上軌斜率 > 1、位階 > 8、乖離年線 < 30%、主力 1/5/10/20 日 > 0）
-- 秋季「高檔出貨」警訊 scanner（量價背離、月線下彎、高檔長黑）
+1. **`scripts/four_seasons_classify.py`** — 全市場 5 季硬分類器（春/立夏/盛夏/秋/冬/未分類）
+   - 100% 課程條件，無外加邏輯
+   - 所有「策略/指標方向」hard-coded（§9.1 固定）
+   - 所有「具體數值門檻」抽到 `SeasonConfig` dataclass，CLI `--config foo.json` 可調（§9.2）
+   - 修補 DB 缺陷：`bb_lower_slope` 全 NULL → 用 DB 同公式 `(latest-5d_ago)/5d_ago*100` 重算
+   - CLI：`--date`、`--range START END`、`--season`、`--tickers`、`--config`、`--dump-config`
 
-### E. 整合層（最遠程，跨課程） ⏳
+2. **`scripts/four_seasons_backtest.py`** — 課程化退場規則回測
+   - 多單退場：state_change / ma20_break / trailing_stop (8%/6%/2%)
+   - 春多單僅 state_change（§三 春停損是基本面非價格）
+   - 短空退場：state_change / new_high / limit_up
+   - 進場品質閘門：盛夏 must-follow-立夏 + vol_ratio>5 + 量>1000 張；秋短空反彈紅 K >3%
+   - 同樣的 config dataclass `BacktestConfig`（trailing 8/6、漲停 9.5、紅 K 3、20 日 lookback）
+   - censored cohort 獨立統計
 
-四季投資法 + 主力大 + K 線力量 的整合是「策略之上的另一個 task」，**不在這個 worktree 做**。
-參考 memory：`project_four_seasons_course.md`。
+3. **17 個月實證結論**（`backtest_2025_final_*`）：
+   - **立夏多 125 筆**：trailing_stop **14 筆勝率 92.9%、中位 +9.19%、8 天**（精華訊號）
+   - **盛夏多 27 筆**：trailing_stop 7 筆勝率 57.1%、中位 +9.19%、7 天
+   - **秋短空 47 筆**：season_change 24 筆勝率 95.8% +3.40%、2 天；new_high 23 筆 0% 勝率
+   - **春多 27 筆**：勝率 25.9%，全部 state_change，課程預設值未證實在這段強市內可靠
+
+4. **configs/strict.json** — 立夏精準版（bb_upper_slope >3）範例
+
+#### 已釐清的設計原則（2026-05-21）
+
+`course_principles.md §九` 已重整為 **§9.1 固定（指標+方向）** vs **§9.2 可調（示範數值）**。
+依據 15+ 條講師原話佐證（@ch2/3/5/10/monthly），講師明示：
+- **策略結構與指標選擇 固定**（用「必須」「一定要」「規則是」「一律」）
+- **具體數值門檻 為示範起點**（用「你可以」「我希望」「至少」「就看你的取向」）
+
+→ 未來改動：只能改 §9.2 表內的「示範數值」，不能改 §9.1 表內的「指標/方向」。
+
+#### 接下來可做
+
+1. **`warning_signals_triggered()` stub 待實作** — 夏轉秋警訊（§八）：量價背離 / 領頭羊力竭 / 月線兩次跌破 / 反彈未創高。目前 backtest 仍只用 ma20_break + trailing + state_change。
+2. **春多策略待重思** — 預設條件下 25.9% 勝率太低；建議：(a) 春多只在「春→立夏切換」時換倉、不直接平倉，(b) 用更長時段（含完整冬→春→夏 cycle）的歷史資料重測，目前 2025-01 起樣本不足。
+3. **盛夏 25% 假突破殘餘** — 7 筆 ma20_break 大虧 -9.03%，需更嚴進場濾鏡或位置管理。
+4. **數值調優** — 用 `--config` 嘗試不同參數組合，例如：(a) 立夏 bb_upper_slope 3 vs 1，(b) 盛夏 vol_ratio 8 vs 5，看 win rate / median ret / trailing 觸發比例變化。
+
+### D. 整合層（跨課程，不在本 worktree 做）
+四季投資法 + 主力大 + K 線力量整合，參考 memory `project_four_seasons_course.md`。
 
 ---
 
-## 三、關鍵 gotcha / 經驗（給後續 session 看）
+## 三、關鍵 gotcha（給後續 session 看）
 
-### URL pattern（前例已踩）
+### URL pattern
 - 課程 URL 用 `/project/{project_id}/articles/{article_id}`（單數 project）
 - workflow 文件寫的 `/member/learning/projects/...` 會回 404
-- 已派 subagent 都記住這個了，但若 workflow 文件下次重寫要修正
 
 ### L1 sprite 解析度
-- workflow 文件寫 4697×2640，但四季投資法實測是 **960×544**（11×11 grid，每 frame 87×49）
-- **87×49 對含文字的章節完全不夠用**（連標題都讀不出來）
-- 規則：只要該章「有文字 / 個股代號 / 數字」，直接 L3，不要試 L1
+- workflow 文件寫 4697×2640，實測 **960×544**（11×11 grid，每 frame 87×49）
+- **87×49 對含文字章節完全不夠用**（連標題都讀不出）
+- 規則：只要該章「有文字 / 個股代號 / 數字」，**直接 L3**，不要試 L1
+- 例外：對談式章節（ch10-1/10-3）無投影片，L1 即可
 
-### L3 下載細節
-- workflow 寫「iwin.eval() 同步 XHR」 — 實測 async XHR + responseType='blob' 從 parent page 跑更穩
+### L3 下載
+- workflow 寫 iframe 同步 XHR；實測 async XHR + responseType='blob' 從 parent page 更穩
 - 5 並發 segment download 全程 0 失敗
 - `pgrep -f save_server.js || (start server)` 比每次重啟好
 
-### SPA 自動進下一篇
-- 影片播完 SPA 會跳下一篇（ch9-1 處理一半被跳到 ch9-2）
-- workaround：sessionStorage 累積資料、re-navigate 回原章續做
+### Vision 幻覺模式
+- **代號欄讀對、名稱欄誤讀**：監控列表小字 vision 易誤讀（已修 3 筆）
+- 同一幻覺會在多個截圖重複出現（如 6148 群宏資 出現 2 次）
+- audit 策略：交叉比對「字幕提名稱 vs 畫面寫名稱」分歧處
 
-### Vision 比對的省 token 規則
-- 「畫面顯示」完全同字幕 → 寫「同字幕」
-- 「手寫補充」無 → 寫「無」
-- 有手寫 / 錯字 / 具體價位 → 詳細記錄
-- 不要 padding
+### SPA 自動跳下一篇
+- 影片播完 SPA 跳下一篇 → sessionStorage 累積 + re-navigate 回原章
 
 ---
 
-## 四、檔案布局速查
+## 四、檔案布局
 
 ```
 docs/四季投資法/
-├── pressplay_four_seasons_article_index.md  # 章節索引
-├── pdf_extracted/
-│   ├── CH1.md ~ CH6.md
-│   └── INDEX.md
-├── chapter_summaries/
-│   └── ch_trial.md, ch1-1.md ~ monthly_202605.md   # 29 個
-├── course_principles.md          # 整合 spec（401 行，待 vision 補完）
-├── READING_REPORT.md             # 通讀感想 + 框架缺口
-└── NEXT_SESSION.md               # 本文件
+├── pressplay_four_seasons_article_index.md
+├── pdf_extracted/{CH1.md ~ CH6.md, INDEX.md}
+├── chapter_summaries/{29 個 ch_*.md}
+├── course_principles.md              # 904 行 spec（22 章 vision 已整合）
+├── READING_REPORT.md                 # 通讀感想 + 框架缺口
+├── L1_SCAN_REPORT_2026-05-20.md      # L1 sprite 分類
+├── VISION_AUDIT_2026-05-20.md        # 5 章代號名稱 audit
+└── NEXT_SESSION.md                   # 本文件
 
 data/analysis/four_seasons/
-├── subtitles/
-│   ├── {ch}_raw.vtt              # 29 章
-│   ├── {ch}_cues.json
-│   ├── {ch}_triggers.json
-│   └── {ch}_shot_timestamps.json
-└── video_screenshots/
-    ├── ch3-2/  (59 張 L3 1080p)
-    ├── ch4-2/  (33 張 L3 1080p)
-    ├── ch6-4/  (10 張 L3 1080p, L1_sprite_backup/ 內為舊版)
-    ├── ch9-1/  (24 張 L3 1080p)
-    └── ch9-2/  (20 張 L3 1080p)
+├── subtitles/{ch}_{raw.vtt,cues,triggers,shot_timestamps}.json
+├── video_screenshots/
+│   ├── ch_trial/ ~ ch9-3/            # 26 章 L3 1080p + handwritten_extracts.md
+│   ├── ch10-1/, ch10-3/              # 對談章 L1 thumbnail + extracts
+│   ├── ch10-2/                       # 部分 L3 + 確認無字卡
+│   └── monthly_202603-05/            # 月度排程 L3
+├── season_2025_final.csv             # 全市場 17 個月分類（161k 列）
+├── backtest_2025_final_trades.csv    # 245 筆交易明細
+└── backtest_2025_final_report.md     # 最終回測 markdown 報告
+
+scripts/
+├── four_seasons_classify.py          # 全市場 5 季分類器
+├── four_seasons_backtest.py          # 課程化退場回測
+└── four_seasons_accuracy.py          # forward-return 評估（早期版本，已被 backtest 取代）
+
+configs/
+└── strict.json                       # 立夏精準版範例
 ```
 
 ---
 
 ## 五、開新 session 怎麼接
 
-1. 切回 worktree：
-   ```bash
-   cd /Users/howard/Repository/stock-k-bar/.claude/worktrees/four-seasons-redesign
-   ```
-2. 讀本文件 + `course_principles.md` + `READING_REPORT.md` 進入狀況
-3. 從「二、待辦」挑下一步開做
-4. 切記 CLAUDE.md 規範：**禁止自行加入課程以外的條件**（針對個股操作分析）；spec 缺漏照課程原樣標明，不要自己補完
+1. 讀本文件 + `course_principles.md`
+2. 從「二、真正待辦」挑下一步：
+   - 想清 CB 代號 → A
+   - 想決策框架缺口 → B（討論題，非執行題）
+   - 寫 scanner → 先做 B 才能做 C
+3. **CLAUDE.md 核心限制**：禁止自行加入課程以外的條件（針對個股操作分析）；spec 缺漏照課程原樣標明，不可自行補完
