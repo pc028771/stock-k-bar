@@ -3,12 +3,18 @@
 Entry: first day a ticker enters a tradeable season.
 Holding period: VARIABLE — determined by course-defined exit rules only.
 
-Long side (春 / 立夏 / 盛夏):
+Long side (春 / 立夏 / 盛夏 — 直接持股；本 backtest 不含 CB):
   EXIT priority order (first match wins):
-    1. warning_signals  — stub: 夏轉秋警訊 (量價背離/領頭羊力竭/…); TODO §八
-    2. ma20_break       — close < ma20 (§三 夏季操作 停損)
-    3. trailing_stop    — ran ≥ +8% from entry, then close ≤ peak*0.94 (@ch10-1 26:18)
-    4. season_change    — classifier moved ticker to 秋/冬/未分類
+    1. warning_signals       — 夏轉秋量價背離 (§八 / ch7-1)
+    2. ma20_break (動態):
+       - trailing 未活化 (peak_ret < trigger): 1 天即出 (capital protection)
+         未獲利的部位無 trailing 安全墊，破月線多半是假突破
+       - trailing 已活化 (peak_ret ≥ trigger): 3 天確認 (ch7-1 @04:37
+         「跌破月線三天沒有站回」直接持股版)
+       (注：CB 的 1 天即停規則 ch3-3 與此無關；CB 不在本 backtest 範圍)
+    3. trailing_stop         — ran ≥ +8% from entry, then close ≤ peak*0.94 (@ch10-1 26:18)
+    4. season_change         — classifier moved ticker to 秋/冬 ONLY
+                               未分類 不退場（分類臨界游移，給持股機會走到盛夏）
 
 Short side (秋):
   EXIT:
@@ -41,7 +47,9 @@ DEFAULT_OUT_REPORT = Path("data/analysis/four_seasons/backtest_report.md")
 
 LONG_SEASONS = {"春", "立夏", "盛夏"}
 SHORT_SEASONS = {"秋"}
-LONG_EXIT_TO = {"秋", "冬", "未分類"}
+# 多單僅在「明確進入秋/冬」時退場；「未分類」屬於分類臨界游移，給持股機會走到盛夏 / 拿到 trailing / ma20
+LONG_EXIT_TO = {"秋", "冬"}
+# 短空（秋）退場含「未分類」：秋天空方走完，分類由明確轉模糊代表空方動能消退，可主動回補
 SHORT_EXIT_TO = {"春", "立夏", "盛夏", "未分類"}
 
 @dataclass
@@ -58,6 +66,7 @@ class BacktestConfig:
     # Long-side exits (@ch10-1 25:57「就看你的取向」)
     trailing_trigger_pct: float = 8.0     # ran ≥ +8% activates trailing
     trailing_giveback_pct: float = 6.0    # peak − 6% → stop
+    ma20_break_consecutive_days: int = 3  # ch7-1 @04:37「跌破月線三天沒有站回」直接持股版
     # Short-side exit (course-fixed concept; threshold approximates 台股漲停)
     limit_up_pct: float = 9.5
     # Entry quality gates (§三 進場條件 + ch3-2 @34:00 講師演示)
@@ -65,6 +74,10 @@ class BacktestConfig:
     shengxia_vol_ratio_min: float = 5.0           # @ch3-2 34:15「至少 5 倍」進場篩選
     shengxia_vol_shares_min: float = 1_000_000    # @ch3-2 34:08「至少 1000 張」進場篩選
     autumn_rebound_red_k_pct_min: float = 3.0     # @ch4-1 03:23
+    # 立夏進場品質：年線乖離（§九 寫 <30% 示範值；實證 ≤ 8% 才是「剛起漲」剔追高）
+    lixia_dev_240_max_pct: float = 8.0
+    # 立夏進場品質：主力 20 日累積（§九.1 hard-coded mf>0，強度未明示；實證濾掉隔日沖）
+    lixia_mf20_min: float = 0.0  # 預設 0=只要求 >0；可調更嚴
     # 夏轉秋警訊 量價背離 thresholds (§八; @ch7-1; course示範值)
     # 量價背離A: price near all-time peak but volume drying up → top exhaustion
     warn_near_peak_pct: float = 2.0    # within X% of peak = "near peak"
@@ -146,17 +159,26 @@ def simulate_long(
     entry_close = entry_row["close"]
     peak_close = entry_close
     apply_price_stops = entry_row["season"] != "春"
+    ma20_break_streak = 0  # consecutive days closing below ma20
 
     for _, r in forward.iterrows():
         peak_close = max(peak_close, r["close"])
+        peak_ret = (peak_close - entry_close) / entry_close * 100
+        trailing_armed = peak_ret >= bt.trailing_trigger_pct
 
         if apply_price_stops:
             if warning_signals_triggered(r, entry_row, peak_close, bt):
                 return _close_long(entry_row, r, name, "warning_signals", censored=False)
+            # 動態 ma20 break：未獲利 1 天即出（capital protection）；獲利後 3 天確認（ch7-1 @04:37）
             if pd.notna(r["ma20"]) and r["close"] < r["ma20"]:
-                return _close_long(entry_row, r, name, "ma20_break", censored=False)
-            peak_ret = (peak_close - entry_close) / entry_close * 100
-            if peak_ret >= bt.trailing_trigger_pct:
+                ma20_break_streak += 1
+                required = bt.ma20_break_consecutive_days if trailing_armed else 1
+                if ma20_break_streak >= required:
+                    reason = "ma20_break_3day" if trailing_armed else "ma20_break_protect"
+                    return _close_long(entry_row, r, name, reason, censored=False)
+            else:
+                ma20_break_streak = 0  # 站回月線，計數歸零
+            if trailing_armed:
                 stop_price = peak_close * (1 - bt.trailing_giveback_pct / 100)
                 if r["close"] <= stop_price:
                     return _close_long(entry_row, r, name, "trailing_stop", censored=False)
@@ -223,7 +245,8 @@ def _snapshot(db: Path) -> str:
 def load_panel(conn_path: str) -> pd.DataFrame:
     with sqlite3.connect(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(
-            "select ticker, trade_date, close, ma20, volume, vol_ratio_20 "
+            "select ticker, trade_date, close, ma20, volume, vol_ratio_20, "
+            "dev_ma240_pct, main_force_20d "
             "from standard_daily_bar where is_usable=1",
             conn, parse_dates=["trade_date"],
         )
@@ -297,7 +320,14 @@ def run_backtest(
             continue
         entry_row["season"] = e["season"]
 
-        # Quality gates (§三 進場條件 + ch3-2 @34:00 講師演示)
+        # Quality gates (§三 進場條件 + ch3-2 @34:00 講師演示 + 實證調優)
+        if e["season"] == "立夏":
+            dev = entry_row.get("dev_ma240_pct")
+            if pd.isna(dev) or dev is None or dev > bt.lixia_dev_240_max_pct:
+                continue
+            mf20 = entry_row.get("main_force_20d")
+            if pd.isna(mf20) or mf20 is None or mf20 < bt.lixia_mf20_min:
+                continue
         if e["season"] == "盛夏":
             if not _had_recent_lixia(cls_sorted, tkr, e["trade_date"],
                                       bt.shengxia_requires_prior_lixia_days):

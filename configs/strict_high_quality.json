@@ -1,0 +1,16 @@
+{
+  "trailing_trigger_pct": 8.0,
+  "trailing_giveback_pct": 6.0,
+  "ma20_break_consecutive_days": 3,
+  "limit_up_pct": 9.5,
+  "shengxia_requires_prior_lixia_days": 20,
+  "shengxia_vol_ratio_min": 5.0,
+  "shengxia_vol_shares_min": 1000000,
+  "autumn_rebound_red_k_pct_min": 3.0,
+  "lixia_dev_240_max_pct": 10.0,
+  "lixia_mf20_min": 1000000.0,
+  "warn_near_peak_pct": 2.0,
+  "warn_vol_low_ratio": 0.6,
+  "warn_vol_high_ratio": 3.0,
+  "warn_price_stall_pct": 1.0
+}
