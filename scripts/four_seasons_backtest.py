@@ -34,14 +34,18 @@ import json
 import os
 import shutil
 import sqlite3
+import sys
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import pandas as pd
 
+# Allow inline classify when --in is omitted
+sys.path.insert(0, str(Path(__file__).parent))
+import four_seasons_classify as _classify
+
 DEFAULT_DB = Path("/Users/howard/.four_seasons/data.sqlite")
-DEFAULT_IN = Path("data/analysis/four_seasons/season_mar_may.csv")
 DEFAULT_OUT_TRADES = Path("data/analysis/four_seasons/backtest_trades.csv")
 DEFAULT_OUT_REPORT = Path("data/analysis/four_seasons/backtest_report.md")
 
@@ -404,22 +408,50 @@ def build_report(trades_df: pd.DataFrame) -> str:
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--db", type=Path, default=DEFAULT_DB)
-    p.add_argument("--in", dest="inp", type=Path, default=DEFAULT_IN)
+    p.add_argument("--in", dest="inp", type=Path, default=None,
+                   help="Pre-computed classification CSV. Omit to run classify inline.")
+    p.add_argument("--range", nargs=2, metavar=("START", "END"),
+                   help="Date range for inline classify (YYYY-MM-DD). Required when --in is omitted.")
+    p.add_argument("--classify-config", type=Path, default=None,
+                   help="JSON file with SeasonConfig thresholds for inline classify.")
     p.add_argument("--out-trades", type=Path, default=DEFAULT_OUT_TRADES)
     p.add_argument("--out-report", type=Path, default=DEFAULT_OUT_REPORT)
     p.add_argument("--config", type=Path,
                    help="JSON file with tunable backtest thresholds.")
     p.add_argument("--dump-config", action="store_true",
                    help="Print default BacktestConfig as JSON and exit.")
+    p.add_argument("--dump-classify-config", action="store_true",
+                   help="Print default SeasonConfig as JSON and exit.")
     args = p.parse_args()
 
     if args.dump_config:
         print(json.dumps(asdict(BacktestConfig()), indent=2))
         return 0
+    if args.dump_classify_config:
+        print(json.dumps(asdict(_classify.SeasonConfig()), indent=2))
+        return 0
 
     bt = load_bt_config(args.config)
     conn_path = _snapshot(args.db)
-    classifications = pd.read_csv(args.inp)
+
+    if args.inp is not None:
+        classifications = pd.read_csv(args.inp)
+    else:
+        if not args.range:
+            p.error("--range START END is required when --in is omitted")
+        season_cfg = _classify.load_config(args.classify_config)
+        print(f"[classify] running inline for {args.range[0]} → {args.range[1]} …")
+        # Write to a temp path so classify can satisfy its out_path requirement
+        _tmp_csv = Path(tempfile.mktemp(suffix=".csv"))
+        classifications = _classify.run(
+            db_path=args.db,
+            out_path=_tmp_csv,
+            date_range=(args.range[0], args.range[1]),
+            cfg=season_cfg,
+        )
+        _tmp_csv.unlink(missing_ok=True)
+        print(f"[classify] {len(classifications)} rows, seasons: {classifications['season'].value_counts().to_dict()}")
+
     panel = load_panel(conn_path)
     names = load_names(conn_path)
     trades = run_backtest(classifications, panel, names, bt)
