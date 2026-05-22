@@ -5,8 +5,9 @@
 每個交易日 14:30 由 launchd 觸發跑此 script:
   1. 跑 shakeout_strong + small_structure + w_bottom_launch 全市場
   2. 取聯集 → 候選清單
-  3. 輸出 markdown 到 /tmp/scanner_candidates_<DATE>.md
-  4. 寫 flag 到 /tmp/scanner_done_<DATE>.flag（給 morning_report 跟 Claude session 檢查）
+  3. shakeout_strong 命中 + 老師常駐族群 → 標 ⭐（EV +10.1% vs +5.1% baseline）
+  4. 輸出 markdown 到 /tmp/scanner_candidates_<DATE>.md
+  5. 寫 flag 到 /tmp/scanner_done_<DATE>.flag（給 morning_report 跟 Claude session 檢查）
 
 Usage:
   python scripts/zhuli/daily_scanner_job.py [--date YYYY-MM-DD] [--db PATH]
@@ -48,14 +49,28 @@ from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 _DB = Path.home() / ".four_seasons" / "data.sqlite"
 _TMP = Path("/tmp")
 
+# 老師常駐族群 — shakeout × 族群 EV +10.1% vs baseline +5.1%（2026 驗證）
+TEACHER_SECTORS = {"電子零組件業", "半導體業", "光電業", "電機機械", "化學工業"}
+
 
 def _db_uri(path: Path) -> str:
     return f"file:{path}?mode=ro"
 
 
+def load_stock_info(db_path: Path) -> dict[str, dict]:
+    """回傳 {ticker: {name, industry}} 對照表."""
+    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
+    rows = con.execute(
+        "SELECT ticker, stock_name, industry_category FROM stock_info"
+    ).fetchall()
+    con.close()
+    return {r[0]: {"name": r[1], "industry": r[2] or ""} for r in rows}
+
+
 def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     """跑三個 scanner 並回傳每個的命中清單."""
     con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+    stock_info = load_stock_info(db_path)
 
     # 全市場 ticker
     all_tickers = [
@@ -98,12 +113,22 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         df['volume_ratio'] = df['vol_ratio_20']  # alias
 
         last_close = df.iloc[-1]['close']
+        info = stock_info.get(t, {"name": "", "industry": ""})
 
         for name, fn in scanners.items():
             try:
                 sig = fn(df)
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
-                    results[name].append({'ticker': t, 'close': float(last_close)})
+                    hit = {
+                        'ticker': t,
+                        'name': info['name'],
+                        'industry': info['industry'],
+                        'close': float(last_close),
+                    }
+                    # shakeout × 老師族群 → tier-1 標記
+                    if name == 'shakeout_strong' and info['industry'] in TEACHER_SECTORS:
+                        hit['tier1'] = True
+                    results[name].append(hit)
             except Exception:
                 pass
 
@@ -113,19 +138,38 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
 
 def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     """產出明日打擊區候選 markdown."""
-    union = defaultdict(set)
+    # hit_meta: ticker → {scanners, name, industry, close, tier1}
+    hit_meta: dict[str, dict] = {}
     for scanner, hits in results.items():
         for h in hits:
-            union[h['ticker']].add(scanner)
+            t = h['ticker']
+            if t not in hit_meta:
+                hit_meta[t] = {
+                    'name': h.get('name', ''),
+                    'industry': h.get('industry', ''),
+                    'close': h['close'],
+                    'scanners': set(),
+                    'tier1': False,
+                }
+            hit_meta[t]['scanners'].add(scanner)
+            if h.get('tier1'):
+                hit_meta[t]['tier1'] = True
 
-    # 排序：多個 scanner 共識的優先
-    sorted_tickers = sorted(union.items(), key=lambda x: (-len(x[1]), x[0]))
+    # tier-1 shakeout 清單
+    tier1 = [t for t, m in hit_meta.items() if m['tier1']]
+    tier1_count = len(tier1)
+
+    # 排序：tier1 優先，再依共識數
+    sorted_tickers = sorted(
+        hit_meta.items(),
+        key=lambda x: (not x[1]['tier1'], -len(x[1]['scanners']), x[0])
+    )
 
     md = [
-        f"# 打擊區候選 — {target_date} 收盤後 / {(date.fromisoformat(target_date)).isoformat()} 開盤前",
+        f"# 打擊區候選 — {target_date} 收盤後",
         f"",
-        f"> 三個結構 scanner 聯集，依共識數排序",
-        f"> Scanner: shakeout_strong（底部窒息）/ small_structure（高位整理）/ w_bottom_launch（W 底起漲）",
+        f"> 三個結構 scanner 聯集，依 tier-1 ⭐ → 共識數排序",
+        f"> ⭐ = shakeout_strong × 老師常駐族群（EV +10.1% vs 全量 +5.1%，2026 驗證）",
         f"",
         f"## 各 scanner 統計",
         f"",
@@ -136,19 +180,37 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md.append(f"| {s} | {len(hits)} |")
 
     md += [
-        f"| **聯集** | **{len(union)}** |",
+        f"| **聯集** | **{len(hit_meta)}** |",
+        f"| **⭐ tier-1 shakeout** | **{tier1_count}** |",
         f"",
-        f"## 高共識候選（≥ 2 個 scanner 命中）",
-        f"",
-        f"| Ticker | Scanners | Count |",
-        f"|---|---|---|",
     ]
-    high_consensus = [(t, s) for t, s in sorted_tickers if len(s) >= 2]
-    for t, scanners_hit in high_consensus[:30]:
-        md.append(f"| {t} | {', '.join(sorted(scanners_hit))} | {len(scanners_hit)} |")
 
+    if tier1_count:
+        md += [
+            f"## ⭐ Tier-1：shakeout × 老師族群（{tier1_count} 檔）",
+            f"",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 其他 scanner |",
+            f"|---|---|---|---|---|",
+        ]
+        for t, m in sorted_tickers:
+            if not m['tier1']:
+                continue
+            others = sorted(m['scanners'] - {'shakeout_strong'})
+            other_str = ', '.join(others) if others else '—'
+            md.append(f"| {t} | {m['name']} | {m['industry']} | {m['close']:.2f} | {other_str} |")
+        md.append(f"")
+
+    md += [
+        f"## 高共識候選（≥ 2 個 scanner，非 tier-1）",
+        f"",
+        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 |",
+        f"|---|---|---|---|---|",
+    ]
+    high_consensus = [(t, m) for t, m in sorted_tickers if len(m['scanners']) >= 2 and not m['tier1']]
+    for t, m in high_consensus[:30]:
+        md.append(f"| {t} | {m['name']} | {m['industry']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} |")
     if not high_consensus:
-        md.append("| — | — | — |")
+        md.append("| — | — | — | — | — |")
 
     md += [
         f"",
@@ -158,8 +220,11 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     for s, hits in results.items():
         md.append(f"### {s} ({len(hits)} 檔)")
         md.append(f"")
+        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | ⭐ |")
+        md.append(f"|---|---|---|---|---|")
         for h in hits[:20]:
-            md.append(f"- {h['ticker']}  收盤 {h['close']:.2f}")
+            star = "⭐" if h.get('tier1') else ""
+            md.append(f"| {h['ticker']} | {h.get('name','')} | {h.get('industry','')} | {h['close']:.2f} | {star} |")
         md.append(f"")
 
     md += [
@@ -169,7 +234,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         f"",
         f"1. **盤後 17:00-22:00**: 對照老師當日 line / 培訓清單，找出**雙重命中**個股",
         f"2. **凌晨 1:00+**: 偵測老師凌晨新文章，加入清單",
-        f"3. **明早 8:30**: 對清單做試撮判斷，符合條件試單 1/3",
+        f"3. **明早 8:30**: 對清單做試撮判斷，⭐ 優先考慮，符合條件試單 1/3",
         f"",
         f"產生時間: {datetime.now():%Y-%m-%d %H:%M:%S}",
     ]
