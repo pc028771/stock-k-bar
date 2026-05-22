@@ -190,10 +190,12 @@ def main():
     print(f"Dry run: {args.dry_run}")
     print()
 
-    # Build ticker list
+    # Build ticker list — restrict to regular stocks only (exclude warrants/derivatives)
     bar_max = get_ticker_max_dates(args.db)
     inst_max = get_ticker_inst_max_dates(args.db)
-    all_tickers = sorted(set(bar_max.keys()) | set(inst_max.keys()))
+    # Filter to tickers in standard_daily_bar (regular stocks only, ~2321 tickers)
+    # institutional_investors has 19k+ entries incl. warrants/ETF derivatives
+    all_tickers = sorted(set(bar_max.keys()))
 
     if args.tickers:
         wanted = set(args.tickers.split(","))
