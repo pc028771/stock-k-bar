@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.daily_scanner</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/howard/.pyenv/shims/python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin</string>
+        <key>FINMIND_TOKEN</key>
+        <string></string>
+    </dict>
+
+    <!-- 每週一~五 14:30 跑（收盤 13:30 + 30 分緩衝） -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>14</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>14</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>14</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>14</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>14</integer>
+            <key>Minute</key><integer>30</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/zhuli_daily_scanner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/zhuli_daily_scanner.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
