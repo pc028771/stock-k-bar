@@ -134,8 +134,8 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
     return {"upserted": upserted, "skipped": skipped}
 
 
-def fetch_institutional_whole(target_date: str, token: str) -> pd.DataFrame:
-    """一次拿全市場當日法人資料."""
+def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set | None = None) -> pd.DataFrame:
+    """一次拿全市場當日法人資料，只保留一般股票（排除衍生商品）."""
     print(f"抓全市場法人 {target_date}...")
     r = requests.get("https://api.finmindtrade.com/api/v4/data", params={
         "dataset": "TaiwanStockInstitutionalInvestorsBuySell",
@@ -145,6 +145,10 @@ def fetch_institutional_whole(target_date: str, token: str) -> pd.DataFrame:
     }, timeout=60)
     data = r.json().get("data", [])
     print(f"  → {len(data)} 筆原始")
+    # 過濾：只保留在 standard_daily_bar 的 ticker（排除權證/衍生商品）
+    if valid_tickers and data:
+        data = [d for d in data if d.get("stock_id") in valid_tickers]
+        print(f"  → 過濾後 {len(data)} 筆")
     if not data:
         return pd.DataFrame()
     df = pd.DataFrame(data)
@@ -206,9 +210,14 @@ def main():
     result = compute_mas_and_upsert(bars, Path(args.db))
     print(f"日K upserted: {result['upserted']}  skipped(新股): {result['skipped']}")
 
-    # 法人
+    # 法人（只保留在 standard_daily_bar 的 ticker）
     if not args.skip_institutional:
-        inst = fetch_institutional_whole(args.date, token)
+        con_r = sqlite3.connect(f"file:{Path(args.db)}?mode=ro", uri=True, timeout=5)
+        valid_tickers = set(r[0] for r in con_r.execute(
+            "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
+        ).fetchall())
+        con_r.close()
+        inst = fetch_institutional_whole(args.date, token, valid_tickers)
         if not inst.empty:
             n = upsert_institutional(inst, Path(args.db))
             print(f"法人 upserted: {n}")
