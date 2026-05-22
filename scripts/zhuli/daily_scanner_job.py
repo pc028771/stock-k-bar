@@ -32,16 +32,18 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
 from zhuli.entry.small_structure import detect as detect_small_structure  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
-from zhuli.entry.bbands_upper_break import detect as detect_bbands        # noqa
-from zhuli.entry.bollinger_pullback import detect as detect_bb_pullback   # noqa
-from zhuli.entry.intraday import detect as detect_intraday                # noqa
-from zhuli.entry.overnight_swing import detect as detect_overnight        # noqa
-from zhuli.entry.open_signal_entry import detect as detect_open_entry     # noqa
-from zhuli.entry.open_signal_exit import detect as detect_open_exit       # noqa
-from zhuli.entry.open_signal_filter import detect as detect_open_filter   # noqa
-from zhuli.entry.pennant_flag import detect as detect_pennant             # noqa
-from zhuli.entry.reversal_breakout import detect as detect_reversal       # noqa
-from zhuli.entry.suffocation import detect as detect_suffocation          # noqa
+
+# 以下 scanner 尚未驗證門檻值，暫不加入 daily job
+# from zhuli.entry.bbands_upper_break import detect as detect_bbands
+# from zhuli.entry.bollinger_pullback import detect as detect_bb_pullback
+# from zhuli.entry.intraday import detect as detect_intraday
+# from zhuli.entry.overnight_swing import detect as detect_overnight
+# from zhuli.entry.open_signal_entry import detect as detect_open_entry
+# from zhuli.entry.open_signal_exit import detect as detect_open_exit
+# from zhuli.entry.open_signal_filter import detect as detect_open_filter
+# from zhuli.entry.pennant_flag import detect as detect_pennant
+# from zhuli.entry.reversal_breakout import detect as detect_reversal
+# from zhuli.entry.suffocation import detect as detect_suffocation
 
 _DB = Path.home() / ".four_seasons" / "data.sqlite"
 _TMP = Path("/tmp")
@@ -64,24 +66,12 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     ]
 
     results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': []}
+    # ⚠️ 只放已驗證門檻的 scanner
+    # 加入新 scanner 前必須先跑 5/20→5/21 回測確認上漲率 + 平均漲幅合理
     scanners = {
-        # 結構型（大波段）
-        'w_bottom_launch':   detect_wbottom,
-        'small_structure':   detect_small_structure,
-        'shakeout_strong':   detect_shakeout,      # 需要 overhead 特徵，部分ticker可能skip
-        'suffocation':       detect_suffocation,   # H 窒息量
-        # 趨勢型
-        'bbands_upper_break': detect_bbands,       # 布林上軌突破
-        'bollinger_pullback': detect_bb_pullback,  # 布林回測
-        'reversal_breakout': detect_reversal,      # C 反轉形態
-        'pennant_flag':      detect_pennant,       # B 旗形
-        # 開盤訊號
-        'open_signal_entry': detect_open_entry,    # M 進場
-        'open_signal_exit':  detect_open_exit,     # M 出場警示
-        'open_signal_filter': detect_open_filter,  # M 過濾
-        # 短線
-        'overnight_swing':   detect_overnight,     # G 隔日沖
-        'intraday':          detect_intraday,      # F 當沖
+        'w_bottom_launch':  detect_wbottom,         # 84% 上漲、平均 +2.54%（已驗證）
+        'small_structure':  detect_small_structure,  # 77% 上漲、平均 +1.99%（已驗證）
+        'shakeout_strong':  detect_shakeout,         # 3/3 案例命中（已驗證，需 overhead 特徵）
     }
 
     for t in all_tickers:
