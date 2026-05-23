@@ -89,6 +89,10 @@ class BacktestConfig:
     # 量價背離B: heavy volume but price barely moved → distribution / churning
     warn_vol_high_ratio: float = 3.0   # vol_ratio_20 > this = abnormally heavy vol
     warn_price_stall_pct: float = 1.0  # |daily_chg| < X% despite heavy vol = stall
+    # --- extras (非課程明示，需 --extras 啟用) ---
+    # 秋空單: 收盤需距 MA20 至少 N%，避免 MA20 支撐反彈創新高
+    # 實證：close_vs_ma20 <1.3% 者 new_high 失敗率顯著較高
+    extras_autumn_close_vs_ma20_min_pct: float = 2.0
 
 
 def load_bt_config(path: Path | None) -> BacktestConfig:
@@ -295,7 +299,7 @@ def _is_rebound_red_k(panel_row: pd.Series, threshold_pct: float) -> bool:
 
 def run_backtest(
     classifications: pd.DataFrame, panel: pd.DataFrame, names: dict[str, str],
-    bt: BacktestConfig,
+    bt: BacktestConfig, extras: bool = False,
 ) -> list[Trade]:
     # Merge season into panel so we can read season per (ticker, trade_date)
     cls = classifications[["ticker", "trade_date", "season"]].copy()
@@ -345,6 +349,12 @@ def run_backtest(
         if e["season"] == "秋":
             if not _is_rebound_red_k(entry_row, bt.autumn_rebound_red_k_pct_min):
                 continue
+            if extras:
+                ma20 = entry_row.get("ma20")
+                close = entry_row.get("close")
+                if ma20 and ma20 > 0 and close:
+                    if (close - ma20) / ma20 * 100 < bt.extras_autumn_close_vs_ma20_min_pct:
+                        continue
 
         forward = g[g["trade_date"] > e["trade_date"]].reset_index(drop=True)
         name = names.get(tkr, "")
@@ -422,6 +432,8 @@ def main() -> int:
                    help="Print default BacktestConfig as JSON and exit.")
     p.add_argument("--dump-classify-config", action="store_true",
                    help="Print default SeasonConfig as JSON and exit.")
+    p.add_argument("--extras", action="store_true",
+                   help="Enable non-course empirical filters (default OFF).")
     args = p.parse_args()
 
     if args.dump_config:
@@ -454,7 +466,7 @@ def main() -> int:
 
     panel = load_panel(conn_path)
     names = load_names(conn_path)
-    trades = run_backtest(classifications, panel, names, bt)
+    trades = run_backtest(classifications, panel, names, bt, extras=args.extras)
     df = trades_to_df(trades)
 
     args.out_trades.parent.mkdir(parents=True, exist_ok=True)
