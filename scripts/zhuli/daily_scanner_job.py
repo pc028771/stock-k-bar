@@ -102,6 +102,13 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         'small_structure':  detect_small_structure,  # 77% 上漲、平均 +1.99%（已驗證）
         'shakeout_strong':  detect_shakeout,         # 3/3 案例命中（已驗證，需 overhead 特徵）
     }
+    # 量比門檻：小結構是縮量整理型態，訊號日本身不需要爆量，用較低門檻
+    # 回測：w_bottom ≥2.0 → 78% 上漲/3% 停損；small_structure ≥1.0 → 72% 上漲/9% 停損
+    VOL_RATIO_MIN = {
+        'w_bottom_launch': 2.0,
+        'small_structure': 1.0,
+        'shakeout_strong': 2.0,
+    }
 
     for t in all_tickers:
         df = pd.read_sql("""
@@ -136,8 +143,7 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
             try:
                 sig = fn(df)
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
-                    # 量比 < 2.0 跳過（回測驗證：≥2.0 上漲率 78%、停損率 3%）
-                    if last_vol_ratio < 2.0:
+                    if last_vol_ratio < VOL_RATIO_MIN[name]:
                         continue
                     hit = {
                         'ticker': t,
