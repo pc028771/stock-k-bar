@@ -197,6 +197,15 @@ def main():
     if not token:
         print("⚠️  FINMIND_TOKEN 未設定"); sys.exit(1)
 
+    # 非交易日提早退出
+    try:
+        from zhuli.trading_calendar import is_trading_day
+        if not is_trading_day(args.date):
+            print(f"ℹ️  {args.date} 非交易日，略過同步")
+            sys.exit(0)
+    except Exception:
+        pass  # FinMind 無法使用時繼續（讓後面 fetch 自然回空）
+
     import time
     t0 = time.time()
     print(f"\n=== sync_today {args.date} ===")

@@ -12,18 +12,37 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
-from datetime import date, timedelta
+import sys
+from datetime import date
 from pathlib import Path
+
+# 讓 zhuli 模組可被 import
+_SCRIPTS = Path(__file__).parent.parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 
 DB = Path.home() / ".four_seasons" / "data.sqlite"
 
 
 def check(target_date: str | None = None) -> bool:
     today = target_date or date.today().isoformat()
-    # 上一個交易日（週一=跳回週五）
-    d = date.fromisoformat(today)
-    prev = d - timedelta(days=3 if d.weekday() == 0 else 1)
-    prev_str = prev.isoformat()
+
+    # 上一個交易日 — 用 FinMind 交易日曆（處理假日）
+    try:
+        from zhuli.trading_calendar import prev_trading_day, is_trading_day
+        prev_str = prev_trading_day(today)
+        if not prev_str:
+            raise ValueError("無法取得上一個交易日")
+        if not is_trading_day(today):
+            print(f"ℹ️  {today} 非交易日，以上一個交易日 {prev_str} 為基準\n")
+            today = prev_str
+            prev_str = prev_trading_day(today)
+    except Exception:
+        # FinMind 無法使用時 fallback 到週曆
+        from datetime import timedelta
+        d = date.fromisoformat(today)
+        prev = d - timedelta(days=3 if d.weekday() == 0 else 1)
+        prev_str = prev.isoformat()
 
     db_uri = f"file:{DB}?mode=ro"
     con = sqlite3.connect(db_uri, uri=True, timeout=5)
