@@ -109,6 +109,12 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         'small_structure': 1.0,
         'shakeout_strong': 2.0,
     }
+    # 出場策略拆分：爆量突破型追 MA5；縮量整理型守整理底
+    EXIT_STRATEGY = {
+        'w_bottom_launch': 'ma5_trail',
+        'small_structure': 'structural_low',
+        'shakeout_strong': 'ma5_trail',
+    }
 
     for t in all_tickers:
         df = pd.read_sql("""
@@ -145,6 +151,13 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
                     if last_vol_ratio < VOL_RATIO_MIN[name]:
                         continue
+                    # 停損參考：爆量突破型取近3根最低點；縮量整理型取前5根收盤底
+                    if EXIT_STRATEGY[name] == 'ma5_trail':
+                        stop_px = round(float(df.iloc[-3:]['low'].min()), 2)
+                        stop_note = f"MA5停利 底{stop_px:.2f}"
+                    else:
+                        stop_px = round(float(df.iloc[-6:-1]['close'].min()), 2)
+                        stop_note = f"守底{stop_px:.2f}"
                     hit = {
                         'ticker': t,
                         'name': info['name'],
@@ -152,6 +165,8 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                         'teacher_sectors': teacher_sectors,
                         'close': float(last_close),
                         'vol_ratio': round(last_vol_ratio, 1),
+                        'stop_note': stop_note,
+                        'exit_strategy': EXIT_STRATEGY[name],
                     }
                     # shakeout × 老師曾提過的族群 → tier-1 標記
                     if name == 'shakeout_strong' and teacher_sectors:
@@ -164,9 +179,17 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     return results
 
 
+def _primary_stop(stop_notes: dict) -> str:
+    """多 scanner 命中時取主要停損備注（shakeout > w_bottom > small_structure）."""
+    for s in ('shakeout_strong', 'w_bottom_launch', 'small_structure'):
+        if s in stop_notes:
+            return stop_notes[s]
+    return '—'
+
+
 def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     """產出明日打擊區候選 markdown."""
-    # hit_meta: ticker → {scanners, name, teacher_sectors, close, tier1}
+    # hit_meta: ticker → {scanners, name, teacher_sectors, close, tier1, stop_notes}
     hit_meta: dict[str, dict] = {}
     for scanner, hits in results.items():
         for h in hits:
@@ -182,8 +205,10 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
                     'vol_ratio': h.get('vol_ratio', '—'),
                     'scanners': set(),
                     'tier1': False,
+                    'stop_notes': {},
                 }
             hit_meta[t]['scanners'].add(scanner)
+            hit_meta[t]['stop_notes'][scanner] = h.get('stop_note', '—')
             if h.get('tier1'):
                 hit_meta[t]['tier1'] = True
 
@@ -221,28 +246,30 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md += [
             f"## ⭐ Tier-1：shakeout × 老師族群（{tier1_count} 檔）",
             f"",
-            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 其他 scanner |",
-            f"|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 停損參考 | 其他 scanner |",
+            f"|---|---|---|---|---|---|---|",
         ]
         for t, m in sorted_tickers:
             if not m['tier1']:
                 continue
             others = sorted(m['scanners'] - {'shakeout_strong'})
             other_str = ', '.join(others) if others else '—'
-            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {other_str} |")
+            stop = _primary_stop(m['stop_notes'])
+            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {stop} | {other_str} |")
         md.append(f"")
 
     md += [
         f"## 高共識候選（≥ 2 個 scanner，非 tier-1）",
         f"",
-        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 | 量比 |",
-        f"|---|---|---|---|---|---|",
+        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 | 量比 | 停損參考 |",
+        f"|---|---|---|---|---|---|---|",
     ]
     high_consensus = [(t, m) for t, m in sorted_tickers if len(m['scanners']) >= 2 and not m['tier1']]
     for t, m in high_consensus[:30]:
-        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x |")
+        stop = _primary_stop(m['stop_notes'])
+        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {stop} |")
     if not high_consensus:
-        md.append("| — | — | — | — | — | — |")
+        md.append("| — | — | — | — | — | — | — |")
 
     md += [
         f"",
@@ -252,16 +279,25 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     for s, hits in results.items():
         md.append(f"### {s} ({len(hits)} 檔)")
         md.append(f"")
-        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | ⭐ |")
-        md.append(f"|---|---|---|---|---|---|")
+        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 停損參考 | ⭐ |")
+        md.append(f"|---|---|---|---|---|---|---|")
         for h in hits[:20]:
             star = "⭐" if h.get('tier1') else ""
             vr = h.get('vol_ratio', '—')
-            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {vr}x | {star} |")
+            stop = h.get('stop_note', '—')
+            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {vr}x | {stop} | {star} |")
         md.append(f"")
 
     md += [
         f"---",
+        f"",
+        f"## 出場策略說明",
+        f"",
+        f"| Scanner | 型態特性 | 出場方式 | 停損基準 |",
+        f"|---|---|---|---|",
+        f"| w_bottom_launch | 爆量突破，動能啟動 | **MA5 收盤跌破出** | 近3根最低點（表中「底X.XX」） |",
+        f"| shakeout_strong | 主力洗盤後爆量，同突破型 | **MA5 收盤跌破出** | 近3根最低點（表中「底X.XX」） |",
+        f"| small_structure | 縮量整理，等待起漲 | **整理底收盤跌破出** | 前5根最低收盤（表中「守底X.XX」） |",
         f"",
         f"## 下一步動作",
         f"",
