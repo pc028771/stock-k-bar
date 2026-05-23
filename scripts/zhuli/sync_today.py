@@ -1,13 +1,11 @@
-"""快速同步今日（或指定日）全市場日 K — 一次 API call 搞定.
+"""快速同步今日（或指定日）全市場日 K — 一次 call 搞定.
 
 原理：
-  1. FinMind TaiwanStockPrice（不指定 data_id）→ 一次拿全市場當日所有股票
+  1. Fubon get_snapshot_quotes（TSE + OTC）→ 即時收盤資料，收盤後停留在收盤價
   2. 對每個 ticker 讀 DB 現有資料計算 MA（不需重抓 80 天 warmup）
   3. INSERT OR REPLACE 新一天的資料
 
-vs sync_missing_daily_bars.py:
-  - sync_missing_daily_bars: 逐 ticker、80 天 warmup、適合補歷史
-  - sync_today: 一次全市場、只補最新一天、速度快 10-20x
+法人資料仍走 FinMind（TWSE 收盤後才公布，時效性要求低）。
 
 Usage:
     python scripts/zhuli/sync_today.py
@@ -36,27 +34,41 @@ DB_PATH = Path.home() / ".four_seasons" / "data.sqlite"
 DATA_SOURCE_ID = 1
 
 
-def fetch_whole_market(target_date: str, token: str) -> pd.DataFrame:
-    """一次 call 拿全市場當日收盤資料."""
-    print(f"抓 FinMind 全市場 {target_date}...")
-    r = requests.get("https://api.finmindtrade.com/api/v4/data", params={
-        "dataset": "TaiwanStockPrice",
-        "start_date": target_date,
-        "end_date": target_date,
-        "token": token,
-    }, timeout=60)
-    data = r.json().get("data", [])
-    print(f"  → {len(data)} 筆")
-    if not data:
-        return pd.DataFrame()
-    df = pd.DataFrame(data)
-    df = df.rename(columns={
-        "stock_id": "ticker", "date": "trade_date",
-        "max": "high", "min": "low",
-        "Trading_Volume": "volume",
-    })
-    df["trade_date"] = pd.to_datetime(df["trade_date"]).dt.strftime("%Y-%m-%d")
-    return df[["ticker", "trade_date", "open", "high", "low", "close", "volume"]]
+def fetch_whole_market_fubon(target_date: str) -> pd.DataFrame:
+    """Fubon snapshot（TSE + OTC）→ 全市場當日收盤 OHLCV.
+
+    收盤後 snapshot 停留在收盤價，無需等 FinMind 延遲更新。
+    """
+    from clients.fubon_client import FubonClient
+
+    print(f"抓 Fubon snapshot {target_date}...")
+    client = FubonClient()
+    rows = []
+
+    for market in ["TSE", "OTC"]:
+        data = client.get_snapshot_quotes(market)
+        for d in data:
+            symbol = d.get("symbol") or d.get("code") or ""
+            if not str(symbol).isdigit() or len(str(symbol)) != 4:
+                continue  # 排除 ETF / 權證等非 4 位數 ticker
+
+            close_p = d.get("closePrice") or d.get("lastPrice") or d.get("close")
+            if not close_p:
+                continue
+
+            rows.append({
+                "ticker":     str(symbol),
+                "trade_date": target_date,
+                "open":       float(d.get("openPrice")  or d.get("open")  or close_p),
+                "high":       float(d.get("highPrice")  or d.get("high")  or close_p),
+                "low":        float(d.get("lowPrice")   or d.get("low")   or close_p),
+                "close":      float(close_p),
+                "volume":     int(d.get("tradeVolume")  or d.get("volume") or 0),
+            })
+
+    client.disconnect()
+    print(f"  → {len(rows)} 檔")
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
 
 
 def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
@@ -66,11 +78,9 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
     upserted = 0
     skipped = 0
 
-    # 先確認 data_source_id 1 存在
-    existing = [r[0] for r in con.execute(
+    existing_set = set(r[0] for r in con.execute(
         "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
-    ).fetchall()]
-    existing_set = set(existing)
+    ).fetchall())
 
     for t in tickers:
         row = new_df[new_df["ticker"] == t].iloc[0]
@@ -78,7 +88,6 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
             skipped += 1
             continue
 
-        # 讀近 240 天現有資料計算 MA
         hist = pd.read_sql("""
             SELECT trade_date, open, high, low, close, volume
             FROM standard_daily_bar
@@ -87,7 +96,6 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
         """, con, params=(t, row["trade_date"]))
         hist = hist.iloc[::-1].reset_index(drop=True)
 
-        # 接上新一天
         new_row = pd.DataFrame([{
             "trade_date": row["trade_date"],
             "open": row["open"], "high": row["high"],
@@ -103,10 +111,9 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
         ma20  = c.rolling(20).mean().iloc[-1]
         ma60  = c.rolling(60).mean().iloc[-1]
         ma240 = c.rolling(240).mean().iloc[-1]
-        vol_ma20 = v.rolling(20).mean().iloc[-1]
+        vol_ma20  = v.rolling(20).mean().iloc[-1]
         vol_ratio = (v.iloc[-1] / vol_ma20) if vol_ma20 else None
 
-        # ma20_slope (5d proxy)
         ma20_series = c.rolling(20).mean()
         slope = (ma20_series.iloc[-1] - ma20_series.iloc[-6]) / 5 if len(ma20_series) >= 6 else None
 
@@ -135,7 +142,7 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path) -> dict:
 
 
 def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set | None = None) -> pd.DataFrame:
-    """一次拿全市場當日法人資料，只保留一般股票（排除衍生商品）."""
+    """FinMind → 全市場當日法人資料（TWSE 收盤後公布，時效性要求低）."""
     print(f"抓全市場法人 {target_date}...")
     r = requests.get("https://api.finmindtrade.com/api/v4/data", params={
         "dataset": "TaiwanStockInstitutionalInvestorsBuySell",
@@ -145,14 +152,12 @@ def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set |
     }, timeout=60)
     data = r.json().get("data", [])
     print(f"  → {len(data)} 筆原始")
-    # 過濾：只保留在 standard_daily_bar 的 ticker（排除權證/衍生商品）
     if valid_tickers and data:
         data = [d for d in data if d.get("stock_id") in valid_tickers]
         print(f"  → 過濾後 {len(data)} 筆")
     if not data:
         return pd.DataFrame()
     df = pd.DataFrame(data)
-    # 聚合成每個 ticker 一行
     fi = df[df["name"] == "Foreign_Investor"].groupby("stock_id").agg(
         foreign_buy=("buy", "sum"), foreign_sell=("sell", "sum")
     )
@@ -162,8 +167,8 @@ def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set |
     merged = fi.join(it, how="outer").fillna(0).reset_index()
     merged.columns = ["ticker", "foreign_buy", "foreign_sell", "sitc_buy", "sitc_sell"]
     merged["foreign_net"] = (merged["foreign_buy"] - merged["foreign_sell"]) / 1000
-    merged["sitc_net"] = (merged["sitc_buy"] - merged["sitc_sell"]) / 1000
-    merged["trade_date"] = target_date
+    merged["sitc_net"]    = (merged["sitc_buy"]    - merged["sitc_sell"])    / 1000
+    merged["trade_date"]  = target_date
     print(f"  → {len(merged)} ticker")
     return merged
 
@@ -193,10 +198,6 @@ def main():
     ap.add_argument("--skip-institutional", action="store_true")
     args = ap.parse_args()
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        print("⚠️  FINMIND_TOKEN 未設定"); sys.exit(1)
-
     # 非交易日提早退出
     try:
         from zhuli.trading_calendar import is_trading_day
@@ -204,32 +205,36 @@ def main():
             print(f"ℹ️  {args.date} 非交易日，略過同步")
             sys.exit(0)
     except Exception:
-        pass  # FinMind 無法使用時繼續（讓後面 fetch 自然回空）
+        pass
 
     import time
     t0 = time.time()
     print(f"\n=== sync_today {args.date} ===")
 
-    # 日K
-    bars = fetch_whole_market(args.date, token)
+    # 日K：Fubon snapshot（收盤即時，無延遲）
+    bars = fetch_whole_market_fubon(args.date)
     if bars.empty:
-        print("無資料（可能是假日或尚未收盤）")
-        sys.exit(0)
+        print("無資料（可能是假日或 Fubon 連線失敗）")
+        sys.exit(1)
 
     result = compute_mas_and_upsert(bars, Path(args.db))
     print(f"日K upserted: {result['upserted']}  skipped(新股): {result['skipped']}")
 
-    # 法人（只保留在 standard_daily_bar 的 ticker）
+    # 法人：FinMind（TWSE 收盤後公布，不需要即時）
     if not args.skip_institutional:
-        con_r = sqlite3.connect(f"file:{Path(args.db)}?mode=ro", uri=True, timeout=5)
-        valid_tickers = set(r[0] for r in con_r.execute(
-            "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
-        ).fetchall())
-        con_r.close()
-        inst = fetch_institutional_whole(args.date, token, valid_tickers)
-        if not inst.empty:
-            n = upsert_institutional(inst, Path(args.db))
-            print(f"法人 upserted: {n}")
+        token = os.environ.get("FINMIND_TOKEN", "")
+        if not token:
+            print("⚠️  FINMIND_TOKEN 未設定，跳過法人資料")
+        else:
+            con_r = sqlite3.connect(f"file:{Path(args.db)}?mode=ro", uri=True, timeout=5)
+            valid_tickers = set(r[0] for r in con_r.execute(
+                "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
+            ).fetchall())
+            con_r.close()
+            inst = fetch_institutional_whole(args.date, token, valid_tickers)
+            if not inst.empty:
+                n = upsert_institutional(inst, Path(args.db))
+                print(f"法人 upserted: {n}")
 
     print(f"\n完成！耗時 {time.time()-t0:.1f}s")
 
