@@ -46,11 +46,25 @@ from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 # from zhuli.entry.reversal_breakout import detect as detect_reversal
 # from zhuli.entry.suffocation import detect as detect_suffocation
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-_TMP = Path("/tmp")
+_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_TMP  = Path("/tmp")
+_REPO = Path(__file__).parent.parent.parent
 
-# 老師常駐族群 — shakeout × 族群 EV +10.1% vs baseline +5.1%（2026 驗證）
-TEACHER_SECTORS = {"電子零組件業", "半導體業", "光電業", "電機機械", "化學工業"}
+# 老師族群對應表（teacher_sector_tickers.json）
+# ticker → [族群1, 族群2, ...]
+def _load_teacher_sectors() -> dict[str, list[str]]:
+    import json
+    p = _REPO / "docs" / "主力大課程" / "teacher_sector_tickers.json"
+    if not p.exists():
+        return {}
+    data = json.loads(p.read_text())
+    mapping: dict[str, list[str]] = {}
+    for sector, tickers in data.items():
+        for t in tickers:
+            mapping.setdefault(t, []).append(sector)
+    return mapping
+
+TEACHER_SECTOR_MAP: dict[str, list[str]] = _load_teacher_sectors()
 
 
 def _db_uri(path: Path) -> str:
@@ -114,6 +128,7 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
 
         last_close = df.iloc[-1]['close']
         info = stock_info.get(t, {"name": "", "industry": ""})
+        teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])  # 老師族群（可能跨多個）
 
         for name, fn in scanners.items():
             try:
@@ -123,10 +138,11 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                         'ticker': t,
                         'name': info['name'],
                         'industry': info['industry'],
+                        'teacher_sectors': teacher_sectors,
                         'close': float(last_close),
                     }
-                    # shakeout × 老師族群 → tier-1 標記
-                    if name == 'shakeout_strong' and info['industry'] in TEACHER_SECTORS:
+                    # shakeout × 老師曾提過的族群 → tier-1 標記
+                    if name == 'shakeout_strong' and teacher_sectors:
                         hit['tier1'] = True
                     results[name].append(hit)
             except Exception:
@@ -138,15 +154,18 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
 
 def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     """產出明日打擊區候選 markdown."""
-    # hit_meta: ticker → {scanners, name, industry, close, tier1}
+    # hit_meta: ticker → {scanners, name, teacher_sectors, close, tier1}
     hit_meta: dict[str, dict] = {}
     for scanner, hits in results.items():
         for h in hits:
             t = h['ticker']
             if t not in hit_meta:
+                ts = h.get('teacher_sectors', [])
                 hit_meta[t] = {
                     'name': h.get('name', ''),
                     'industry': h.get('industry', ''),
+                    'teacher_sectors': ts,
+                    'sector_str': '/'.join(ts) if ts else h.get('industry', ''),
                     'close': h['close'],
                     'scanners': set(),
                     'tier1': False,
@@ -197,7 +216,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
                 continue
             others = sorted(m['scanners'] - {'shakeout_strong'})
             other_str = ', '.join(others) if others else '—'
-            md.append(f"| {t} | {m['name']} | {m['industry']} | {m['close']:.2f} | {other_str} |")
+            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {other_str} |")
         md.append(f"")
 
     md += [
@@ -208,7 +227,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     ]
     high_consensus = [(t, m) for t, m in sorted_tickers if len(m['scanners']) >= 2 and not m['tier1']]
     for t, m in high_consensus[:30]:
-        md.append(f"| {t} | {m['name']} | {m['industry']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} |")
+        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} |")
     if not high_consensus:
         md.append("| — | — | — | — | — |")
 
@@ -224,7 +243,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md.append(f"|---|---|---|---|---|")
         for h in hits[:20]:
             star = "⭐" if h.get('tier1') else ""
-            md.append(f"| {h['ticker']} | {h.get('name','')} | {h.get('industry','')} | {h['close']:.2f} | {star} |")
+            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {star} |")
         md.append(f"")
 
     md += [
