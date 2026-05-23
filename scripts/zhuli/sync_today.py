@@ -63,7 +63,8 @@ def fetch_whole_market_fubon(target_date: str) -> pd.DataFrame:
                 "high":       float(d.get("highPrice")  or d.get("high")  or close_p),
                 "low":        float(d.get("lowPrice")   or d.get("low")   or close_p),
                 "close":      float(close_p),
-                "volume":     int(d.get("tradeVolume")  or d.get("volume") or 0),
+                # tradeVolume 單位為張（lots），× 1000 → 股（shares）與 FinMind 歷史資料一致
+                "volume":     int(d.get("tradeVolume") or 0) * 1000,
             })
 
     client.disconnect()
