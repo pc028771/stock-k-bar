@@ -130,16 +130,22 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         info = stock_info.get(t, {"name": "", "industry": ""})
         teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])  # 老師族群（可能跨多個）
 
+        last_vol_ratio = float(df.iloc[-1]['vol_ratio_20']) if pd.notna(df.iloc[-1]['vol_ratio_20']) else 0
+
         for name, fn in scanners.items():
             try:
                 sig = fn(df)
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
+                    # 量比 < 2.0 跳過（回測驗證：≥2.0 上漲率 78%、停損率 3%）
+                    if last_vol_ratio < 2.0:
+                        continue
                     hit = {
                         'ticker': t,
                         'name': info['name'],
                         'industry': info['industry'],
                         'teacher_sectors': teacher_sectors,
                         'close': float(last_close),
+                        'vol_ratio': round(last_vol_ratio, 1),
                     }
                     # shakeout × 老師曾提過的族群 → tier-1 標記
                     if name == 'shakeout_strong' and teacher_sectors:
@@ -167,6 +173,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
                     'teacher_sectors': ts,
                     'sector_str': '/'.join(ts) if ts else h.get('industry', ''),
                     'close': h['close'],
+                    'vol_ratio': h.get('vol_ratio', '—'),
                     'scanners': set(),
                     'tier1': False,
                 }
@@ -208,28 +215,28 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md += [
             f"## ⭐ Tier-1：shakeout × 老師族群（{tier1_count} 檔）",
             f"",
-            f"| Ticker | 名稱 | 族群 | 收盤 | 其他 scanner |",
-            f"|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 其他 scanner |",
+            f"|---|---|---|---|---|---|",
         ]
         for t, m in sorted_tickers:
             if not m['tier1']:
                 continue
             others = sorted(m['scanners'] - {'shakeout_strong'})
             other_str = ', '.join(others) if others else '—'
-            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {other_str} |")
+            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {other_str} |")
         md.append(f"")
 
     md += [
         f"## 高共識候選（≥ 2 個 scanner，非 tier-1）",
         f"",
-        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 |",
-        f"|---|---|---|---|---|",
+        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 | 量比 |",
+        f"|---|---|---|---|---|---|",
     ]
     high_consensus = [(t, m) for t, m in sorted_tickers if len(m['scanners']) >= 2 and not m['tier1']]
     for t, m in high_consensus[:30]:
-        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} |")
+        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x |")
     if not high_consensus:
-        md.append("| — | — | — | — | — |")
+        md.append("| — | — | — | — | — | — |")
 
     md += [
         f"",
@@ -239,11 +246,12 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     for s, hits in results.items():
         md.append(f"### {s} ({len(hits)} 檔)")
         md.append(f"")
-        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | ⭐ |")
-        md.append(f"|---|---|---|---|---|")
+        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | ⭐ |")
+        md.append(f"|---|---|---|---|---|---|")
         for h in hits[:20]:
             star = "⭐" if h.get('tier1') else ""
-            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {star} |")
+            vr = h.get('vol_ratio', '—')
+            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {vr}x | {star} |")
         md.append(f"")
 
     md += [
