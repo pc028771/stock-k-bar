@@ -77,6 +77,9 @@ class BacktestConfig:
     shengxia_requires_prior_lixia_days: int = 20  # 推論值
     shengxia_vol_ratio_min: float = 5.0           # @ch3-2 34:15「至少 5 倍」進場篩選
     shengxia_vol_shares_min: float = 1_000_000    # @ch3-2 34:08「至少 1000 張」進場篩選
+    # 盛夏量價同步上限：量大但漲幅縮小 = 出貨型 K（課程§夏「量價同步創新高」反面排除）
+    # 實證：vol>8M 進場漲幅 1.77% vs vol≤8M 的 2.16%，上影線 35% vs 28%
+    shengxia_vol_shares_max: float = 8_000_000   # 8000 張；超過視為量價背離出貨型態
     autumn_rebound_red_k_pct_min: float = 3.0     # @ch4-1 03:23
     # 立夏進場品質：年線乖離（§九 寫 <30% 示範值；實證 ≤ 8% 才是「剛起漲」剔追高）
     lixia_dev_240_max_pct: float = 8.0
@@ -345,6 +348,8 @@ def run_backtest(
             if pd.isna(vr) or vr is None or vr < bt.shengxia_vol_ratio_min:
                 continue
             if pd.isna(vol) or vol is None or vol < bt.shengxia_vol_shares_min:
+                continue
+            if vol > bt.shengxia_vol_shares_max:
                 continue
         if e["season"] == "秋":
             if not _is_rebound_red_k(entry_row, bt.autumn_rebound_red_k_pct_min):
