@@ -128,6 +128,17 @@ class Trade:
     censored: bool
 
 
+@dataclass
+class Tranche:
+    """Single position layer (春/立夏/盛夏 entry within a unified position lifecycle)."""
+    season: str
+    entry_date: pd.Timestamp
+    entry_close: float
+
+
+TIER_RANK = {"春": 0, "立夏": 1, "盛夏": 2}
+
+
 def warning_signals_triggered(
     row: pd.Series, entry_row: pd.Series, peak_close: float, bt: BacktestConfig
 ) -> bool:
@@ -168,45 +179,98 @@ def warning_signals_triggered(
 
 def simulate_long(
     entry_row: pd.Series, forward: pd.DataFrame, name: str, bt: BacktestConfig,
-) -> Trade:
-    """forward: rows for this ticker AFTER entry_date, sorted by trade_date.
+    promotions: list[dict] | None = None,
+) -> list[Trade]:
+    """Multi-tranche long simulation with mid-trade tier promotion.
 
-    Iterates each future day, checks exit rules in priority order.
-    春多單僅允許 state-change 退場（§三 春季操作：停損是「基本面惡化」非價格規則）.
+    forward: rows for this ticker AFTER entry_date, sorted by trade_date.
+    promotions: list of {trade_date, season, close} for 立夏/盛夏 transitions
+                this ticker has within forward window. When the loop reaches
+                a promotion date, a new Tranche is added and price stops
+                activate (if not already).
+
+    春→立夏→盛夏 升級：同一倉位生命週期，每個 tranche 各自記錄報酬，
+    全部 tranche 共用同一出場日（warning_signals / ma20_break / trailing /
+    season_change to 秋/冬）。
     """
-    entry_close = entry_row["close"]
-    peak_close = entry_close
-    apply_price_stops = entry_row["season"] != "春"
-    ma20_break_streak = 0  # consecutive days closing below ma20
+    tranches: list[Tranche] = [Tranche(
+        season=entry_row["season"],
+        entry_date=entry_row["trade_date"],
+        entry_close=entry_row["close"],
+    )]
+    peak_close = entry_row["close"]
+    ma20_break_streak = 0
+    promotions_by_date = {p["trade_date"]: p for p in (promotions or [])}
+
+    def current_tier() -> str:
+        return tranches[-1].season
 
     for _, r in forward.iterrows():
+        # === 1) tier 升級優先：今天若有更高階季節訊號，先加 tranche ===
+        promo = promotions_by_date.get(r["trade_date"])
+        if promo is not None:
+            new_season = promo["season"]
+            if TIER_RANK.get(new_season, -1) > TIER_RANK.get(current_tier(), -1):
+                tranches.append(Tranche(
+                    season=new_season,
+                    entry_date=r["trade_date"],
+                    entry_close=r["close"],  # 加碼 entry close = 升級當天 close
+                ))
+                ma20_break_streak = 0  # 升級重置計數
+
+        # === 2) 更新 peak ===
         peak_close = max(peak_close, r["close"])
-        peak_ret = (peak_close - entry_close) / entry_close * 100
+        # peak return 以第一個 tranche 為基準（最早的春買進價）
+        peak_ret = (peak_close - tranches[0].entry_close) / tranches[0].entry_close * 100
         trailing_armed = peak_ret >= bt.trailing_trigger_pct
+
+        # === 3) 價格停損：only when current tier != 春 ===
+        apply_price_stops = current_tier() != "春"
 
         if apply_price_stops:
             if warning_signals_triggered(r, entry_row, peak_close, bt):
-                return _close_long(entry_row, r, name, "warning_signals", censored=False)
-            # 動態 ma20 break：未獲利 1 天即出（capital protection）；獲利後 3 天確認（ch7-1 @04:37）
+                return _close_long_tranches(tranches, r, name, "warning_signals", censored=False)
             if pd.notna(r["ma20"]) and r["close"] < r["ma20"]:
                 ma20_break_streak += 1
                 required = bt.ma20_break_consecutive_days if trailing_armed else 1
                 if ma20_break_streak >= required:
                     reason = "ma20_break_3day" if trailing_armed else "ma20_break_protect"
-                    return _close_long(entry_row, r, name, reason, censored=False)
+                    return _close_long_tranches(tranches, r, name, reason, censored=False)
             else:
-                ma20_break_streak = 0  # 站回月線，計數歸零
+                ma20_break_streak = 0
             if trailing_armed:
                 stop_price = peak_close * (1 - bt.trailing_giveback_pct / 100)
                 if r["close"] <= stop_price:
-                    return _close_long(entry_row, r, name, "trailing_stop", censored=False)
+                    return _close_long_tranches(tranches, r, name, "trailing_stop", censored=False)
+
+        # === 4) season_change to 秋/冬 ===
         if r["season"] in LONG_EXIT_TO:
-            return _close_long(entry_row, r, name, "season_change", censored=False)
+            return _close_long_tranches(tranches, r, name, "season_change", censored=False)
 
     if forward.empty:
-        return _close_long(entry_row, entry_row, name, "censored", censored=True)
+        return _close_long_tranches(tranches, entry_row, name, "censored", censored=True)
     last = forward.iloc[-1]
-    return _close_long(entry_row, last, name, "censored", censored=True)
+    return _close_long_tranches(tranches, last, name, "censored", censored=True)
+
+
+def _close_long_tranches(
+    tranches: list[Tranche], exit_row, name: str, reason: str, censored: bool
+) -> list[Trade]:
+    """Close all tranches at the same exit point; each computes own return."""
+    out: list[Trade] = []
+    ticker = str(exit_row["ticker"])
+    xc = exit_row["close"]
+    xd = exit_row["trade_date"]
+    for t in tranches:
+        out.append(Trade(
+            ticker=ticker, name=name, season=t.season, side="long",
+            entry_date=t.entry_date, entry_close=t.entry_close,
+            exit_date=xd, exit_close=xc, exit_reason=reason,
+            days_held=(xd - t.entry_date).days,
+            return_pct=(xc - t.entry_close) / t.entry_close * 100,
+            censored=censored,
+        ))
+    return out
 
 
 def simulate_short(
@@ -321,10 +385,51 @@ def run_backtest(
 
     entries = find_first_entries(classifications)
     entries = entries[entries["season"].isin(LONG_SEASONS | SHORT_SEASONS)]
+    entries = entries.sort_values("trade_date").reset_index(drop=True)
 
     cls_sorted = cls.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
 
-    trades: list[Trade] = []
+    def passes_quality_gate(e_season: str, entry_row: pd.Series, tkr: str, edate) -> bool:
+        """Apply per-season quality gates. Returns True if entry should proceed."""
+        if e_season == "春":
+            mf20 = entry_row.get("main_force_20d")
+            if pd.isna(mf20) or mf20 is None or mf20 < bt.spring_mf20_min:
+                return False
+        if e_season == "立夏":
+            dev = entry_row.get("dev_ma240_pct")
+            if pd.isna(dev) or dev is None or dev > bt.lixia_dev_240_max_pct:
+                return False
+            mf20 = entry_row.get("main_force_20d")
+            if pd.isna(mf20) or mf20 is None or mf20 < bt.lixia_mf20_min:
+                return False
+        if e_season == "盛夏":
+            if bt.shengxia_require_prior_lixia:
+                if not _had_recent_lixia(cls_sorted, tkr, edate,
+                                          bt.shengxia_requires_prior_lixia_days):
+                    return False
+            vr = entry_row.get("vol_ratio_20")
+            vol = entry_row.get("volume")
+            if pd.isna(vr) or vr is None or vr < bt.shengxia_vol_ratio_min:
+                return False
+            if pd.isna(vol) or vol is None or vol < bt.shengxia_vol_shares_min:
+                return False
+            if vol > bt.shengxia_vol_shares_max:
+                return False
+        if e_season == "秋":
+            if not _is_rebound_red_k(entry_row, bt.autumn_rebound_red_k_pct_min):
+                return False
+            if extras:
+                ma20 = entry_row.get("ma20")
+                close = entry_row.get("close")
+                if ma20 and ma20 > 0 and close:
+                    if (close - ma20) / ma20 * 100 < bt.extras_autumn_close_vs_ma20_min_pct:
+                        return False
+        return True
+
+    # === 兩階段處理 long entries ===
+    # Phase 1：建立每檔股票的「entry events」時間序列（已過品質閘）
+    long_entries_by_ticker: dict[str, list[dict]] = {}
+    short_entries: list[pd.Series] = []
     for _, e in entries.iterrows():
         tkr = str(e["ticker"])
         if tkr not in panel_by_ticker:
@@ -338,47 +443,60 @@ def run_backtest(
             continue
         entry_row["season"] = e["season"]
 
-        # Quality gates (§三 進場條件 + ch3-2 @34:00 講師演示 + 實證調優)
-        if e["season"] == "春":
-            mf20 = entry_row.get("main_force_20d")
-            if pd.isna(mf20) or mf20 is None or mf20 < bt.spring_mf20_min:
-                continue
-        if e["season"] == "立夏":
-            dev = entry_row.get("dev_ma240_pct")
-            if pd.isna(dev) or dev is None or dev > bt.lixia_dev_240_max_pct:
-                continue
-            mf20 = entry_row.get("main_force_20d")
-            if pd.isna(mf20) or mf20 is None or mf20 < bt.lixia_mf20_min:
-                continue
-        if e["season"] == "盛夏":
-            if bt.shengxia_require_prior_lixia:
-                if not _had_recent_lixia(cls_sorted, tkr, e["trade_date"],
-                                          bt.shengxia_requires_prior_lixia_days):
-                    continue
-            vr = entry_row.get("vol_ratio_20")
-            vol = entry_row.get("volume")
-            if pd.isna(vr) or vr is None or vr < bt.shengxia_vol_ratio_min:
-                continue
-            if pd.isna(vol) or vol is None or vol < bt.shengxia_vol_shares_min:
-                continue
-            if vol > bt.shengxia_vol_shares_max:
-                continue
-        if e["season"] == "秋":
-            if not _is_rebound_red_k(entry_row, bt.autumn_rebound_red_k_pct_min):
-                continue
-            if extras:
-                ma20 = entry_row.get("ma20")
-                close = entry_row.get("close")
-                if ma20 and ma20 > 0 and close:
-                    if (close - ma20) / ma20 * 100 < bt.extras_autumn_close_vs_ma20_min_pct:
-                        continue
+        if not passes_quality_gate(e["season"], entry_row, tkr, e["trade_date"]):
+            continue
 
-        forward = g[g["trade_date"] > e["trade_date"]].reset_index(drop=True)
-        name = names.get(tkr, "")
         if e["season"] in LONG_SEASONS:
-            trades.append(simulate_long(entry_row, forward, name, bt))
+            long_entries_by_ticker.setdefault(tkr, []).append({
+                "trade_date": e["trade_date"],
+                "season": e["season"],
+                "close": float(entry_row["close"]),
+                "entry_row": entry_row,
+            })
         else:
-            trades.append(simulate_short(entry_row, forward, name, bt))
+            short_entries.append(entry_row)
+
+    # Phase 2：long — 同一檔依時間排序，第一個是 position root，
+    # 後續是 promotion（升級加碼）或被吸收（同階段/低階段時跳過）
+    trades: list[Trade] = []
+    for tkr, ev_list in long_entries_by_ticker.items():
+        ev_list.sort(key=lambda x: x["trade_date"])
+        g = panel_by_ticker[tkr]
+        name = names.get(tkr, "")
+
+        # 同檔股票可能有多個獨立 position 週期（出場後再開新倉）
+        i = 0
+        while i < len(ev_list):
+            root = ev_list[i]
+            current_tier = TIER_RANK.get(root["season"], -1)
+            promotions: list[dict] = []
+            # 收集 root 之後所有 tier 升級事件作為 promotion 候選
+            # （simulate 只會套用日期落在 exit 之前的；之後的自然被忽略）
+            for k in range(i + 1, len(ev_list)):
+                ev = ev_list[k]
+                ev_tier = TIER_RANK.get(ev["season"], -1)
+                if ev_tier > current_tier:
+                    promotions.append(ev)
+                    current_tier = ev_tier
+
+            forward = g[g["trade_date"] > root["trade_date"]].reset_index(drop=True)
+            tr_list = simulate_long(root["entry_row"], forward, name, bt, promotions=promotions)
+            trades.extend(tr_list)
+
+            # 跳過 root 自己 + 所有「出場前」已被消化的事件
+            exit_date = tr_list[0].exit_date if tr_list else root["trade_date"]
+            i += 1
+            while i < len(ev_list) and ev_list[i]["trade_date"] <= exit_date:
+                i += 1
+
+    # short entries (no promotion logic)
+    for entry_row in short_entries:
+        tkr = str(entry_row["ticker"])
+        g = panel_by_ticker[tkr]
+        name = names.get(tkr, "")
+        forward = g[g["trade_date"] > entry_row["trade_date"]].reset_index(drop=True)
+        trades.append(simulate_short(entry_row, forward, name, bt))
+
     return trades
 
 
