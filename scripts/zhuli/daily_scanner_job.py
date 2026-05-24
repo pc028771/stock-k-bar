@@ -67,6 +67,44 @@ def _load_teacher_sectors() -> dict[str, list[str]]:
 TEACHER_SECTOR_MAP: dict[str, list[str]] = _load_teacher_sectors()
 
 
+def _load_teacher_picks() -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    """讀 teacher_picks_2026.json. 回傳 (tier, name, first_mention) per ticker."""
+    import json
+    p = _REPO / "docs" / "主力大課程" / "teacher_picks_2026.json"
+    if not p.exists():
+        return {}, {}, {}
+    raw = json.loads(p.read_text())
+    tier, name, first = {}, {}, {}
+    for t, info in raw.items():
+        if t == '_meta':
+            continue
+        tier[t] = info.get('tier_signal', '')
+        name[t] = info.get('name', '')
+        mentions = info.get('mentions', [])
+        if mentions:
+            first[t] = min(m['date'] for m in mentions)
+    return tier, name, first
+
+
+TEACHER_TIER, TEACHER_NAME, TEACHER_FIRST = _load_teacher_picks()
+
+# Tier-A ticker 清單（從 cross_reference.py 統計：老師指名 × P90+ rate ≥30%, n≥2）
+TIER_A_WBOTTOM = {
+    '3016', '3037', '3189', '3481', '4919', '8027', '6173',
+    '2454', '3026', '4576', '4958', '8064', '2327', '6285',
+}
+TIER_A_SMALLSTR = {
+    '2303', '3189', '4958', '2454', '3036', '8103', '3702', '4919',
+}
+
+# 老師 core 但回測未抓到的 ticker（單獨觀察清單）
+CORE_UNCOVERED = ['1605', '6664', '6217', '6207', '1785']
+
+# 進場可行性門檻（距 MA10）
+MA10_DIST_ENTRY_OK = 5.0    # ≤5% 距 MA10 = 最佳進場
+MA10_DIST_RISKY = 10.0      # 5-10% = 可考慮、>10% = 已起漲、移至觀察
+
+
 def _db_uri(path: Path) -> str:
     return f"file:{path}?mode=ro"
 
@@ -151,13 +189,46 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
                     if last_vol_ratio < VOL_RATIO_MIN[name]:
                         continue
-                    # 停損參考：爆量突破型取近3根最低點；縮量整理型取前5根收盤底
-                    if EXIT_STRATEGY[name] == 'ma5_trail':
-                        stop_px = round(float(df.iloc[-3:]['low'].min()), 2)
-                        stop_note = f"MA5停利 底{stop_px:.2f}"
+                    # 停損參考：W底/shakeout 用 MA10 trail，小結構維持守底
+                    last_row = df.iloc[-1]
+                    ma10 = float(last_row['ma10']) if pd.notna(last_row.get('ma10')) else None
+                    if name in ('w_bottom_launch', 'shakeout_strong') and ma10:
+                        stop_note = f"MA10停利 ~{ma10:.2f}"
                     else:
                         stop_px = round(float(df.iloc[-6:-1]['close'].min()), 2)
                         stop_note = f"守底{stop_px:.2f}"
+
+                    # 距 MA10 — 用來判斷「是否已起漲過頭」
+                    dist_ma10 = None
+                    if ma10 and ma10 > 0:
+                        dist_ma10 = round((float(last_close) - ma10) / ma10 * 100, 1)
+
+                    # 老師指名分級 + 首提後天數
+                    teacher_tier = TEACHER_TIER.get(t, '')
+                    days_since = None
+                    if t in TEACHER_FIRST:
+                        days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+                    # Tier 評分
+                    tier = '一般'
+                    timing_bonus = ''
+                    if name == 'w_bottom_launch':
+                        if t in TIER_A_WBOTTOM:
+                            tier = '🔥 Tier-A'
+                        elif teacher_tier in ('core', 'frequent'):
+                            tier = '⭐ Tier-B'
+                        if days_since is not None and 8 <= days_since <= 30:
+                            timing_bonus = ' ✨黃金期'
+                    elif name == 'small_structure':
+                        if t in TIER_A_SMALLSTR:
+                            tier = '🔥 Tier-A'
+                        elif teacher_tier in ('core', 'frequent'):
+                            tier = '⭐ Tier-B'
+                        if days_since is not None and days_since > 30:
+                            timing_bonus = ' ✨二波期'
+                    elif name == 'shakeout_strong':
+                        tier = '➕ 加碼用'  # 加碼判斷在 render 階段做（跨 scanner 比對）
+
                     hit = {
                         'ticker': t,
                         'name': info['name'],
@@ -167,10 +238,12 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                         'vol_ratio': round(last_vol_ratio, 1),
                         'stop_note': stop_note,
                         'exit_strategy': EXIT_STRATEGY[name],
+                        'tier': tier,
+                        'timing_bonus': timing_bonus,
+                        'teacher_tier': teacher_tier,
+                        'days_since_first_mention': days_since,
+                        'dist_ma10_pct': dist_ma10,
                     }
-                    # shakeout × 老師曾提過的族群 → tier-1 標記
-                    if name == 'shakeout_strong' and teacher_sectors:
-                        hit['tier1'] = True
                     results[name].append(hit)
             except Exception:
                 pass
@@ -187,46 +260,93 @@ def _primary_stop(stop_notes: dict) -> str:
     return '—'
 
 
+def _tier_rank(hit: dict) -> int:
+    """Tier 排序鍵（越小越優先）."""
+    t = hit.get('tier', '一般')
+    bonus = hit.get('timing_bonus', '')
+    if t == '🔥 Tier-A' and bonus:
+        return 0
+    if t == '🔥 Tier-A':
+        return 1
+    if t == '⭐ Tier-B' and bonus:
+        return 2
+    if t == '⭐ Tier-B':
+        return 3
+    if t == '➕ 加碼用':
+        return 4
+    return 5
+
+
+def _format_hit_row(h: dict, show_scanner=False) -> str:
+    """單列輸出 markdown."""
+    parts = [h['ticker'], h.get('name', '')]
+    if show_scanner:
+        parts.append(h.get('scanner_name', ''))
+    sectors = h.get('teacher_sectors', [])
+    parts.append('/'.join(sectors) if sectors else h.get('industry', ''))
+    parts.append(f"{h['close']:.2f}")
+    parts.append(f"{h.get('vol_ratio', '—')}x")
+    d = h.get('dist_ma10_pct')
+    parts.append(f"{d:+.1f}%" if d is not None else '—')
+    days = h.get('days_since_first_mention')
+    parts.append(f"{days}d" if days is not None else '—')
+    tt = h.get('teacher_tier', '')
+    parts.append(tt if tt else '—')
+    parts.append(h.get('stop_note', '—'))
+    return '| ' + ' | '.join(parts) + ' |'
+
+
 def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
-    """產出明日打擊區候選 markdown."""
-    # hit_meta: ticker → {scanners, name, teacher_sectors, close, tier1, stop_notes}
-    hit_meta: dict[str, dict] = {}
+    """產出 Tier-based 打擊區候選 markdown."""
+    # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
+    all_hits = []
     for scanner, hits in results.items():
         for h in hits:
-            t = h['ticker']
-            if t not in hit_meta:
-                ts = h.get('teacher_sectors', [])
-                hit_meta[t] = {
-                    'name': h.get('name', ''),
-                    'industry': h.get('industry', ''),
-                    'teacher_sectors': ts,
-                    'sector_str': '/'.join(ts) if ts else h.get('industry', ''),
-                    'close': h['close'],
-                    'vol_ratio': h.get('vol_ratio', '—'),
-                    'scanners': set(),
-                    'tier1': False,
-                    'stop_notes': {},
-                }
-            hit_meta[t]['scanners'].add(scanner)
-            hit_meta[t]['stop_notes'][scanner] = h.get('stop_note', '—')
-            if h.get('tier1'):
-                hit_meta[t]['tier1'] = True
+            h = dict(h)
+            h['scanner_name'] = scanner
+            all_hits.append(h)
 
-    # tier-1 shakeout 清單
-    tier1 = [t for t, m in hit_meta.items() if m['tier1']]
-    tier1_count = len(tier1)
+    # 加碼判斷：shakeout 命中且該 ticker 30 天內有 W底/小結構訊號 → 標 ➕
+    prior_entries = set()
+    for h in all_hits:
+        if h['scanner_name'] in ('w_bottom_launch', 'small_structure'):
+            prior_entries.add(h['ticker'])
+    for h in all_hits:
+        if h['scanner_name'] == 'shakeout_strong' and h['ticker'] in prior_entries:
+            h['has_prior_entry'] = True
+        else:
+            h['has_prior_entry'] = False
 
-    # 排序：tier1 優先，再依共識數
-    sorted_tickers = sorted(
-        hit_meta.items(),
-        key=lambda x: (not x[1]['tier1'], -len(x[1]['scanners']), x[0])
-    )
+    # 分組
+    def in_section(h, section):
+        d = h.get('dist_ma10_pct')
+        tier = h.get('tier', '一般')
+        # 進場區：Tier-A/B 且距 MA10 ≤ MA10_DIST_RISKY
+        if section == 'entry':
+            return tier in ('🔥 Tier-A', '⭐ Tier-B') and (d is None or d <= MA10_DIST_RISKY)
+        if section == 'extended':  # 已起漲（後續觀察）
+            return tier in ('🔥 Tier-A', '⭐ Tier-B') and d is not None and d > MA10_DIST_RISKY
+        if section == 'add_position':
+            return h['scanner_name'] == 'shakeout_strong' and h.get('has_prior_entry')
+        if section == 'general':
+            return tier == '一般' and h['scanner_name'] != 'shakeout_strong'
+        return False
+
+    entry_hits = sorted([h for h in all_hits if in_section(h, 'entry')],
+                       key=lambda h: (_tier_rank(h), h.get('dist_ma10_pct') or 999))
+    extended_hits = sorted([h for h in all_hits if in_section(h, 'extended')],
+                          key=lambda h: (_tier_rank(h), h.get('dist_ma10_pct') or 999))
+    add_position_hits = sorted([h for h in all_hits if in_section(h, 'add_position')],
+                              key=lambda h: h['ticker'])
+    general_hits = sorted([h for h in all_hits if in_section(h, 'general')],
+                         key=lambda h: -(h.get('vol_ratio') or 0))
 
     md = [
         f"# 打擊區候選 — {target_date} 收盤後",
         f"",
-        f"> 三個結構 scanner 聯集，依 tier-1 ⭐ → 共識數排序",
-        f"> ⭐ = shakeout_strong × 老師常駐族群（EV +10.1% vs 全量 +5.1%，2026 驗證）",
+        f"> Tier 排序：🔥 Tier-A（P90+ 高機率）→ ⭐ Tier-B（老師指名）→ ➕ 加碼 → 一般",
+        f"> ✨黃金期 = W底 + 老師首提 8-30天；✨二波期 = 小結構 + 老師首提 >30天",
+        f"> 「距MA10」> 10% 表示已起漲、移至「後續觀察名單」",
         f"",
         f"## 各 scanner 統計",
         f"",
@@ -235,75 +355,103 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     ]
     for s, hits in results.items():
         md.append(f"| {s} | {len(hits)} |")
+    md.append(f"| **可進場** (Tier-A/B 距MA10≤10%) | **{len(entry_hits)}** |")
+    md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
+    md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
+    md += [f""]
 
-    md += [
-        f"| **聯集** | **{len(hit_meta)}** |",
-        f"| **⭐ tier-1 shakeout** | **{tier1_count}** |",
-        f"",
-    ]
-
-    if tier1_count:
+    # === 可進場區 ===
+    if entry_hits:
         md += [
-            f"## ⭐ Tier-1：shakeout × 老師族群（{tier1_count} 檔）",
+            f"## 🎯 可進場 — Tier-A/B 候選（距 MA10 ≤ 10%）",
             f"",
-            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 停損參考 | 其他 scanner |",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 |",
+            f"|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for h in entry_hits:
+            tier_label = h.get('tier', '') + h.get('timing_bonus', '')
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            days = h.get('days_since_first_mention')
+            days_str = f"{days}d" if days is not None else '—'
+            md.append(f"| **{h['ticker']}** {tier_label} | {h['name']} | {h['scanner_name']} | "
+                      f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
+                      f"{h.get('dist_ma10_pct', 0):+.1f}% | {days_str} | "
+                      f"{h.get('teacher_tier') or '—'} | {h.get('stop_note', '—')} |")
+        md.append(f"")
+
+    # === 後續觀察區（已起漲）===
+    if extended_hits:
+        md += [
+            f"## ⚠️ 後續觀察 — Tier-A/B 但已起漲（距 MA10 > 10%）",
+            f"",
+            f"> 等回測 MA10 附近再進場；現在追進場潛在虧損 = 距 MA10",
+            f"",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 距MA10 | 老師 | 備註 |",
+            f"|---|---|---|---|---|---|---|---|",
+        ]
+        for h in extended_hits:
+            tier_label = h.get('tier', '') + h.get('timing_bonus', '')
+            md.append(f"| {h['ticker']} {tier_label} | {h['name']} | {h['scanner_name']} | "
+                      f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
+                      f"{h['close']:.2f} | {h.get('dist_ma10_pct', 0):+.1f}% | "
+                      f"{h.get('teacher_tier') or '—'} | "
+                      f"距 MA10 太遠，等回測 |")
+        md.append(f"")
+
+    # === 加碼候選 ===
+    if add_position_hits:
+        md += [
+            f"## ➕ 加碼候選 — Shakeout × 已有 W底/小結構訊號",
+            f"",
+            f"> 30 天內已有進場訊號的 ticker 出現 shakeout（主力洗盤後爆量）= 加碼確認",
+            f"> 沒持倉者不要當第一次進場用（Shakeout 冷進場效果差）",
+            f"",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 距MA10 |",
+            f"|---|---|---|---|---|---|",
+        ]
+        for h in add_position_hits:
+            md.append(f"| {h['ticker']} | {h['name']} | "
+                      f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
+                      f"{h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
+                      f"{h.get('dist_ma10_pct', 0):+.1f}% |")
+        md.append(f"")
+
+    # === 老師 core 但 scanner 未抓到 ===
+    md += [
+        f"## 📋 老師 core 級指名（scanner 未命中，手動關注）",
+        f"",
+        f"| Ticker | 名稱 |",
+        f"|---|---|",
+    ]
+    for t in CORE_UNCOVERED:
+        n = TEACHER_NAME.get(t, '')
+        md.append(f"| {t} | {n} |")
+    md += [f""]
+
+    # === 一般候選（壓縮顯示）===
+    if general_hits:
+        md += [
+            f"## 一般命中（無老師指名/非常勝軍，量比降冪前 30）",
+            f"",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 |",
             f"|---|---|---|---|---|---|---|",
         ]
-        for t, m in sorted_tickers:
-            if not m['tier1']:
-                continue
-            others = sorted(m['scanners'] - {'shakeout_strong'})
-            other_str = ', '.join(others) if others else '—'
-            stop = _primary_stop(m['stop_notes'])
-            md.append(f"| {t} | {m['name']} | {m['sector_str']} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {stop} | {other_str} |")
-        md.append(f"")
-
-    md += [
-        f"## 高共識候選（≥ 2 個 scanner，非 tier-1）",
-        f"",
-        f"| Ticker | 名稱 | 族群 | Scanners | 收盤 | 量比 | 停損參考 |",
-        f"|---|---|---|---|---|---|---|",
-    ]
-    high_consensus = [(t, m) for t, m in sorted_tickers if len(m['scanners']) >= 2 and not m['tier1']]
-    for t, m in high_consensus[:30]:
-        stop = _primary_stop(m['stop_notes'])
-        md.append(f"| {t} | {m['name']} | {m['sector_str']} | {', '.join(sorted(m['scanners']))} | {m['close']:.2f} | {m.get('vol_ratio', '—')}x | {stop} |")
-    if not high_consensus:
-        md.append("| — | — | — | — | — | — | — |")
-
-    md += [
-        f"",
-        f"## 各 scanner 單獨命中（前 20 / 每 scanner）",
-        f"",
-    ]
-    for s, hits in results.items():
-        md.append(f"### {s} ({len(hits)} 檔)")
-        md.append(f"")
-        md.append(f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 停損參考 | ⭐ |")
-        md.append(f"|---|---|---|---|---|---|---|")
-        for h in hits[:20]:
-            star = "⭐" if h.get('tier1') else ""
-            vr = h.get('vol_ratio', '—')
-            stop = h.get('stop_note', '—')
-            md.append(f"| {h['ticker']} | {h.get('name','')} | {'/'.join(h.get('teacher_sectors',[])) or h.get('industry','')} | {h['close']:.2f} | {vr}x | {stop} | {star} |")
+        for h in general_hits[:30]:
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            md.append(f"| {h['ticker']} | {h['name']} | {h['scanner_name']} | "
+                      f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | {d_str} |")
         md.append(f"")
 
     md += [
         f"---",
         f"",
-        f"## 出場策略說明",
+        f"## 出場策略 + Tier 來源",
         f"",
-        f"| Scanner | 型態特性 | 出場方式 | 停損基準 |",
-        f"|---|---|---|---|",
-        f"| w_bottom_launch | 爆量突破，動能啟動 | **MA5 收盤跌破出** | 近3根最低點（表中「底X.XX」） |",
-        f"| shakeout_strong | 主力洗盤後爆量，同突破型 | **MA5 收盤跌破出** | 近3根最低點（表中「底X.XX」） |",
-        f"| small_structure | 縮量整理，等待起漲 | **整理底收盤跌破出** | 前5根最低收盤（表中「守底X.XX」） |",
-        f"",
-        f"## 下一步動作",
-        f"",
-        f"1. **盤後 17:00-22:00**: 對照老師當日 line / 培訓清單，找出**雙重命中**個股",
-        f"2. **凌晨 1:00+**: 偵測老師凌晨新文章，加入清單",
-        f"3. **明早 8:30**: 對清單做試撮判斷，⭐ 優先考慮，符合條件試單 1/3",
+        f"- W底/Shakeout: **MA10 收盤跌破 → 隔日 open 出**",
+        f"- 小結構: **整理底收盤跌破出**（或同 MA10 兩擇一）",
+        f"- Tier-A 來源：2026 回測（P90+ ≥30% 命中率 + 老師 core/frequent，n≥2）",
         f"",
         f"產生時間: {datetime.now():%Y-%m-%d %H:%M:%S}",
     ]

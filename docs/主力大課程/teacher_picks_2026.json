@@ -1,0 +1,1471 @@
+{
+  "_meta": {
+    "extraction_date": "2026-05-24",
+    "source_period": "2026-01 ~ 2026-05",
+    "sources": [
+      "pressplay_articles/*本週市場資訊報*.md (2026)",
+      "line_chat/2026-05-20_to_05-21.md",
+      "line_chat/2026-05-21_資訊統整培訓_摘要.md",
+      "line_chat/2026-05-22_盤中對話.md",
+      "line_chat/2026-05-23_市場廣度擴張觀察.md",
+      "teacher_sector_timeline.md",
+      "5_21_資訊統整培訓_講稿.md"
+    ],
+    "tier_definitions": {
+      "core": "≥3 次點名或明確偏好表述（愛將、重押、大部位、沿著X日線守住等）",
+      "frequent": "≥2 次點名",
+      "once": "1 次明確點名"
+    },
+    "exclusions": [
+      "純警示／弱勢／破要閃 (e.g. 6190 萬泰科)",
+      "純同學討論 (e.g. 3149 正達)",
+      "純融資警示且無正面點名 (e.g. 3055)"
+    ]
+  },
+
+  "3481": {
+    "name": "群創",
+    "mentions": [
+      {"date": "2026-03-01", "source": "421E13D4_3月初", "context": "面板 - 群創持續產能調整、資產活化、南科Fab2停運"},
+      {"date": "2026-05-16", "source": "0224C2349_本週市場資訊報", "context": "面板族群焦點：3481 3615 6405 3149"},
+      {"date": "2026-05-20", "source": "line_chat", "context": "Nick 5/20 教學影片 N字上攻案例 = 3481 群創"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『群創幫請+1』『開盤第一段作3481』"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "面板 群創（老師『愛將』）走強"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "Nick『我手在抖』群創大部位 L5 確認"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "core"
+  },
+
+  "2476": {
+    "name": "鉅祥",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "連接器：2476 6290（聚焦版）"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器抗跌：8103 2476CB轉換點厲害 3023 3533 6290 3665 3605"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『2476 不是我的主要部隊』『早就死了 不會死』"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "連接器定位 小錢短打玩玩 不可能像群創買 600 口"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "frequent"
+  },
+
+  "2303": {
+    "name": "聯電",
+    "mentions": [
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "群創 聯電都能漲停 是現在台股的熱度寫照"},
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "成熟製程（聯電 世界）"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "成熟製程：2303 4919"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『第二段做 2303 6139』『沿著五日線不能跌破』『外資買 2 萬張』"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "成熟製程：2303"}
+    ],
+    "sectors": ["成熟製程", "功率元件"],
+    "tier_signal": "core"
+  },
+
+  "5347": {
+    "name": "世界先進",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "成熟製程：聯電、世界先進"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "成熟製程 5347 世界先進"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥉老師有買非主推：5347 世界先進（簡單、安全、EV、跟順德一樣）"}
+    ],
+    "sectors": ["成熟製程", "功率元件"],
+    "tier_signal": "frequent"
+  },
+
+  "6139": {
+    "name": "亞翔",
+    "mentions": [
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『第二段做 2303 6139』"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "6139 亞翔 融資黑K大買 從72.3拉一根『很有趣』"}
+    ],
+    "sectors": ["主流設備", "廠務設備"],
+    "tier_signal": "frequent"
+  },
+
+  "2404": {
+    "name": "漢唐",
+    "mentions": [
+      {"date": "2026-05-21", "source": "line_chat", "context": "Han: 走的慢的漢唐也走出去了"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "2404 漢唐 外資大買 位階買得好 但明天上面還有壓力點"}
+    ],
+    "sectors": ["廠務設備"],
+    "tier_signal": "frequent"
+  },
+
+  "8064": {
+    "name": "東捷",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "上個月融資增 3615 3673 8064 / 設備清單 8027"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈：6196 1560 3680 6903 6187 1785 6640 2467 8064 6664 / 大家都跌他沒跌 2464 8064"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃設備 8064 8027 6207 1595 / 8064 東捷 跨入半導體先進封裝"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『東捷沒出貨跡象』"}
+    ],
+    "sectors": ["主流設備", "玻璃基板"],
+    "tier_signal": "core"
+  },
+
+  "8027": {
+    "name": "鈦昇",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備：3455 3030 2467 8091 3289 8027 6664"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "大家都跌他沒跌：2464 8064 3455 2426 3714 8027 3030 1785"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃基板：8027 鈦昇 TGV 玻璃穿孔技術 / 8027 鈦昇 5/19 出關"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『鈦昇沒出貨跡象』"}
+    ],
+    "sectors": ["主流設備", "玻璃基板"],
+    "tier_signal": "core"
+  },
+
+  "3037": {
+    "name": "欣興",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "ABF 三雄（欣興/南電/景碩）"},
+      {"date": "2026-03-01", "source": "1C992F9F_3月中", "context": "ABF 載板 三雄：欣興 3037 為了 ABF 擴產二度上修資本支出"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "ABF：8046 3037 4958 / ABF 載板 龍頭欣興"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "ABF 8046 3037 4958（旗型表態） / 龍頭欣興 南電"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥇明確主推 3037 欣興（ABF 主推）"}
+    ],
+    "sectors": ["ABF載板"],
+    "tier_signal": "core"
+  },
+
+  "8046": {
+    "name": "南電",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "ABF 三雄之一"},
+      {"date": "2026-03-01", "source": "1C992F9F_3月中", "context": "ABF 三雄 南電去年 EPS 3.01 大增 840%"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "ABF 8046 3037 4958"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "ABF 8046 3037 4958 / ABF 龍頭 欣興 南電"}
+    ],
+    "sectors": ["ABF載板"],
+    "tier_signal": "core"
+  },
+
+  "4958": {
+    "name": "臻鼎",
+    "mentions": [
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "4958 臻鼎 切入泰國 BOI 大型 PCB 合資案 20.7 億美元"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "ABF：8046 3037 4958"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "ABF 8046 3037 4958（旗型表態）"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "6284 佳邦 複製 4958 起漲前"}
+    ],
+    "sectors": ["ABF載板", "PCB"],
+    "tier_signal": "core"
+  },
+
+  "6239": {
+    "name": "力成",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "技術面走勢 6239 很像之前的 4958"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥇明確主推 6239 力成（5/22 凌晨文章 ABF 主推）"}
+    ],
+    "sectors": ["封測", "ABF載板"],
+    "tier_signal": "frequent"
+  },
+
+  "2327": {
+    "name": "國巨",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "被動元件龍頭國巨（漲價！）"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "被動元件龍頭：國巨"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "大錢 2454 2327 / 被動元件 6173 3026 2327"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "國巨四根 40% 老師『誇張誇張』被動元件黃金週"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "core"
+  },
+
+  "6213": {
+    "name": "聯茂",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CCL：6213"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "CCL 6213 同族群全上了"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "⚠️老師警示 6213 聯茂（位階超高、做眼線、破要閃）"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "frequent"
+  },
+
+  "1303": {
+    "name": "南亞",
+    "mentions": [
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "1303 南亞 AI 伺服器升級 玻纖布雙位數漲幅"},
+      {"date": "2026-03-01", "source": "1C992F9F_3月中", "context": "玻纖布 南亞 1303 與日東紡合作"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "玻纖布 1802 1303（到底要不要守）"}
+    ],
+    "sectors": ["CCL材料", "PCB"],
+    "tier_signal": "core"
+  },
+
+  "1802": {
+    "name": "台玻",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "玻纖 1815 1802"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "玻纖布 1802 台玻"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "⚠️老師警示 1802 已過熱"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "frequent"
+  },
+
+  "3715": {
+    "name": "定穎投控",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "PCB：4958 臻鼎 3715 定穎（金居禮拜五出關！）"},
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "3715 定穎切入輝達 Rubin 平台供應鏈"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "PCB 2402 5439 3715 2316"}
+    ],
+    "sectors": ["PCB"],
+    "tier_signal": "core"
+  },
+
+  "3105": {
+    "name": "穩懋",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "光通訊：3105 穩懋 2455 全新（特定分點/融資/權證大買）"},
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "3105 穩懋 SpaceX 來台 轉低軌衛星"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO：3081 3163 3363 中高 4979 3105 4991 4971"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "CPO 3105 穩懋 / 光 3105 4979 3587"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "core"
+  },
+
+  "4979": {
+    "name": "華星光",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 中高：4979"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "CPO 4979 華星光 / 光 3105 4979 3587"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "2408": {
+    "name": "南亞科",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "記憶體本人：2408 2344"},
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "記憶體相關（同族 2408 2344）"}
+    ],
+    "sectors": ["記憶體"],
+    "tier_signal": "frequent"
+  },
+
+  "2344": {
+    "name": "華邦電",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "記憶體本人：2408 2344"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "記憶體 2344 站前"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥈中等背書 2344 華邦電（華新集團）"}
+    ],
+    "sectors": ["記憶體"],
+    "tier_signal": "core"
+  },
+
+  "6770": {
+    "name": "力積電",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "6770 力積電 與美光 LOI 銅鑼廠 18 億美元售予美光"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "同學『力積電三陽開泰！』使用群創概念進場"}
+    ],
+    "sectors": ["記憶體", "功率元件"],
+    "tier_signal": "frequent"
+  },
+
+  "8299": {
+    "name": "群聯",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "記憶體 2337 8299"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "大錢 2454 2327 8299"}
+    ],
+    "sectors": ["記憶體"],
+    "tier_signal": "frequent"
+  },
+
+  "2337": {
+    "name": "旺宏",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "記憶體 2337 8299"}
+    ],
+    "sectors": ["記憶體"],
+    "tier_signal": "once"
+  },
+
+  "2308": {
+    "name": "台達電",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "HVDC：2308 台達電 6282 康舒 1605 華新 8103 瀚荃"},
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "電源方案：2308 台達電（HVDC）"},
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "電力發威（台達電 華城 康舒 華新）"}
+    ],
+    "sectors": ["BBU", "功率元件"],
+    "tier_signal": "core"
+  },
+
+  "6282": {
+    "name": "康舒",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "HVDC：6282 康舒"},
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "電力發威（台達電 華城 康舒 華新）"}
+    ],
+    "sectors": ["BBU"],
+    "tier_signal": "frequent"
+  },
+
+  "1605": {
+    "name": "華新",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "HVDC：1605 華新"},
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "電力發威（台達電 華城 康舒 華新）"},
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "1605 華新 破五日線後跌到月線止跌反轉 今年缺料嚴重"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "1605 華新 元大館前/六合/富邦南港買回"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥈中等背書 1605 華新（華新集團龍頭）"}
+    ],
+    "sectors": ["原物料"],
+    "tier_signal": "core"
+  },
+
+  "1519": {
+    "name": "華城",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "電力發威（台達電 華城 康舒 華新）"},
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "1/18 補 1519 華城（HVDC 相關）"}
+    ],
+    "sectors": ["重電"],
+    "tier_signal": "frequent"
+  },
+
+  "8103": {
+    "name": "瀚荃",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "HVDC 相關標的：8103 瀚荃"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器抗跌：8103 2476CB 3023 3533"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "frequent"
+  },
+
+  "8996": {
+    "name": "高力",
+    "mentions": [
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "1/11 補 8996 高力"},
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "散熱：8996 高力 2486 一詮（AI算力倍增計畫）"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "散熱 2486（拚轉型）6805+小奇鋐融資 8996"}
+    ],
+    "sectors": ["散熱"],
+    "tier_signal": "core"
+  },
+
+  "2486": {
+    "name": "一詮",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "散熱：2486 一詮 已小量打入輝達/谷歌散熱供應鏈"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "散熱 2486（拚轉型）"}
+    ],
+    "sectors": ["散熱"],
+    "tier_signal": "frequent"
+  },
+
+  "2467": {
+    "name": "志聖",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "設備：6877 鏵友益 3498 陽程 2467 志聖 3583 辛耘"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：2467"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈：2467 8064 6664"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "8064 東捷透過引進志聖入股深化策略合作"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥈中等背書 2467 志聖（康寧合作、台積御用、扇出封裝）"}
+    ],
+    "sectors": ["主流設備", "封測"],
+    "tier_signal": "core"
+  },
+
+  "6664": {
+    "name": "群翊",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：6664 / 上週漲幅前6名：6664 群翊"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈：6664"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick『6664 群翊 等 2 週』"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "core"
+  },
+
+  "3680": {
+    "name": "家登",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "廠務設備：3680 家登 6903 巨漢 5292 華懋 3551 世禾 / EUV Pod 受惠"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈：3680 發 CB"}
+    ],
+    "sectors": ["廠務設備"],
+    "tier_signal": "frequent"
+  },
+
+  "6903": {
+    "name": "巨漢",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "廠務設備：6903 巨漢（AI 基礎建設+公共工程雙引擎）"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈：6903"}
+    ],
+    "sectors": ["廠務設備"],
+    "tier_signal": "frequent"
+  },
+
+  "3551": {
+    "name": "世禾",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "廠務設備：3551 世禾（PVD設備清洗龍頭、3奈米/2奈米供應鏈）"}
+    ],
+    "sectors": ["廠務設備"],
+    "tier_signal": "once"
+  },
+
+  "6438": {
+    "name": "迅得",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "PCB 設備：6438 迅得（與臻鼎/景碩大單洽談）"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "once"
+  },
+
+  "6217": {
+    "name": "中探針",
+    "mentions": [
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "6217 中探針 發動後回跌 籌碼沒大幅賣出 永豐金戰隊持有"},
+      {"date": "2026-03-01", "source": "3B0A6F15", "context": "6217 一字 兩個一字 永豐金戰隊把握住"},
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "6217 中探針 如入無人之境 近30日"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 6217 / 6217 中探針 5/11 出關"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "core"
+  },
+
+  "3708": {
+    "name": "上緯投控",
+    "mentions": [
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "3708 上緯投控 第二次庫藏股 開始築底"},
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "庫藏股繼續買入"},
+      {"date": "2026-03-01", "source": "421E13D4_3月初", "context": "2/25 又開始新一期庫藏股 多引擎發展"},
+      {"date": "2026-04-19", "source": "9FEE65157_本週", "context": "新一輪庫藏 技術面均線整理至最後階段"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "Nick 問同學有沒蹲 3708 上緯投控"}
+    ],
+    "sectors": ["特化", "機器人"],
+    "tier_signal": "core"
+  },
+
+  "8038": {
+    "name": "長園科",
+    "mentions": [
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "8038 長園科 鋰鐵子公司寰聖 IPO 輔導 永豐金台中買後不破底"},
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "連續轉賣 下期不繼續追蹤"}
+    ],
+    "sectors": ["電池"],
+    "tier_signal": "frequent"
+  },
+
+  "8039": {
+    "name": "台虹",
+    "mentions": [
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "PCB 材料 原籌碼無鬆動"},
+      {"date": "2026-03-01", "source": "421E13D4_3月初", "context": "材料是今年上半年顯學"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "frequent"
+  },
+
+  "4916": {
+    "name": "事欣科",
+    "mentions": [
+      {"date": "2026-03-01", "source": "421E13D4_3月初", "context": "4916 事欣科 元大大天母波段買 籌碼都沒賣出 工業電腦+航太軍工"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "工業電腦 4916 事欣科（分點）/ 低軌衛星關鍵零組件"}
+    ],
+    "sectors": ["工業電腦", "低軌衛星"],
+    "tier_signal": "frequent"
+  },
+
+  "8021": {
+    "name": "尖點",
+    "mentions": [
+      {"date": "2026-03-01", "source": "1C992F9F_3月中", "context": "鑽針：8021 尖點 5498 凱崴 啟動擴產"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備：8021 / 鑽孔：8021 / 處置：8021 4/28"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 8021 / 鑽孔 8021 4577"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "core"
+  },
+
+  "4722": {
+    "name": "國精化",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "4722 國精化 樹脂材料 高階 CCL 材料需求提升"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "化學股第一名 國進化（國精化）最強"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥇明確主推 4722 國精化（特化首選）"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "core"
+  },
+
+  "4749": {
+    "name": "新應材",
+    "mentions": [
+      {"date": "2026-05-21", "source": "line_chat", "context": "化學股第二名 新硬材（新應材）"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥇明確主推 4749 新應材（特化次選）"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "frequent"
+  },
+
+  "1727": {
+    "name": "中華化",
+    "mentions": [
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "化學股第三名 中華化 1727 / 大義漲停、中華化、華榮、全速一片紅"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "once"
+  },
+
+  "4755": {
+    "name": "三福化",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "4755 三福化 TMAH 顯影劑回收 IC 客戶認證順利 本季放量"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "once"
+  },
+
+  "1717": {
+    "name": "長興/永光",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "1717 長興真空壓膜 IC 載板需求暢旺 訂單能見度看到 2026 年底"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "化學材料 1717 1711"}
+    ],
+    "sectors": ["特化", "封測"],
+    "tier_signal": "frequent"
+  },
+
+  "4764": {
+    "name": "雙鍵",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "4764 雙鍵 轉型 CCL 關鍵材料 5G/6G 電子化學 2025 占比 > 10%"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "once"
+  },
+
+  "2454": {
+    "name": "聯發科",
+    "mentions": [
+      {"date": "2026-01-25", "source": "3A243EDE_本週", "context": "本週漲幅 6% 族群：聯發科 台光電 ABF"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "大錢 2454 2327 / 2454 聯發科 5/20 處置出關"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "IC設計 聯發科準備出關 創意跟上"}
+    ],
+    "sectors": ["IC設計"],
+    "tier_signal": "core"
+  },
+
+  "3443": {
+    "name": "創意",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "單兵 2481 3443 / IP 龍頭 創意"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "IC設計 創意跟上"}
+    ],
+    "sectors": ["IC設計"],
+    "tier_signal": "frequent"
+  },
+
+  "8358": {
+    "name": "金居",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "金居禮拜五出關"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "銅箔材料 8358 4989 8074 / 處置 8358"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "銅箔 8358 4989 / 處置 8358 5/6 出關"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "core"
+  },
+
+  "4989": {
+    "name": "榮科",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "銅箔材料 8358 4989 8074"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "銅箔 8358 4989 / 處置 4989 榮科 4/30"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "frequent"
+  },
+
+  "6877": {
+    "name": "鏵友益",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "6877 鏵友益 同學在蹲 設備在圈圈內 均線順向 風報比好"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "once"
+  },
+
+  "2481": {
+    "name": "強茂",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "2481 強茂 籌碼圈圈內 整體姿態向上 月線非常近 / 功率元件 4919 2481 8261"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🚫融資警示：2481（含 2303 5347 等）"}
+    ],
+    "sectors": ["功率元件"],
+    "tier_signal": "frequent"
+  },
+
+  "4919": {
+    "name": "新唐",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "4919 新唐 BMC 遠端管理晶片 默默上漲 / 功率元件 4919"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "成熟製程 2303 4919（處置繼續看）/ 4919 新唐 5/6 準備出關"}
+    ],
+    "sectors": ["IC設計", "BMC"],
+    "tier_signal": "frequent"
+  },
+
+  "8261": {
+    "name": "富鼎",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "8261 富鼎 功率元件默默上漲 / 功率元件 4919 2481 8261"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "功率 8261 3317"}
+    ],
+    "sectors": ["功率元件"],
+    "tier_signal": "frequent"
+  },
+
+  "3042": {
+    "name": "晶技",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "石英 3042 / 3042 晶技 做石英默默上漲"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "3042 晶技 5/5 準備出關"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "同學分享老師週日點名 3042 晶技漲停"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "core"
+  },
+
+  "3023": {
+    "name": "信邦",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器抗跌：8103 2476CB 3023 3533"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "once"
+  },
+
+  "3533": {
+    "name": "嘉澤",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器抗跌：3533 / 龍頭嘉澤"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "跌深外資連買 3042 3533 3665"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "frequent"
+  },
+
+  "6290": {
+    "name": "良維",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "連接器：2476 6290"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器 6290"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "frequent"
+  },
+
+  "3665": {
+    "name": "貿聯",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器 3665 / 嘉澤（貿聯）"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "跌深外資連買 3665"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "frequent"
+  },
+
+  "3605": {
+    "name": "宏致",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "連接器 3605"}
+    ],
+    "sectors": ["連接器"],
+    "tier_signal": "once"
+  },
+
+  "2472": {
+    "name": "立隆電",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "2472 立隆電 鋁電容受惠中東戰火 鋁價飆漲"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "被動 2472"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "frequent"
+  },
+
+  "3026": {
+    "name": "禾伸堂",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "被動 2472 3026 6173 6127"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 3026 禾伸堂 4/28"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "被動元件 6173 3026 2327"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "core"
+  },
+
+  "6173": {
+    "name": "信昌電",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "被動 6173 / 破均線反V關鍵：6173"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "6173 信昌電 5/5 出關"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "被動元件 6173 3026 2327"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "core"
+  },
+
+  "6127": {
+    "name": "九豪",
+    "mentions": [
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "6127 九豪 陶瓷基板 受惠 AI 伺服器與車用功率模組"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "被動 6127"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "frequent"
+  },
+
+  "6284": {
+    "name": "佳邦",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "6284 可轉債快到期 + 庫藏股"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥇明確主推 6284 佳邦（CB+庫藏股勝利方程式、複製 4958 起漲前）"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "frequent"
+  },
+
+  "2492": {
+    "name": "華新科",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "被動元件 6173 3026 2327 2492"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥈中等背書 2492 華新科（華新集團）"}
+    ],
+    "sectors": ["被動元件"],
+    "tier_signal": "frequent"
+  },
+
+  "2464": {
+    "name": "盟立",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "機器人 2233 4576 1597 2464 / 大家都跌他沒跌 2464"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "機器人 2464 1597 4576 2233"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥈中等背書 2464 盟立（老師『我也有』+ 機器人協作）"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "core"
+  },
+
+  "2233": {
+    "name": "宇隆",
+    "mentions": [
+      {"date": "2026-01-18", "source": "D1B23CF4_本週", "context": "機器人：2233 宇隆"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "機器人 2233 4576 1597 2464"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "機器人 2233 5/20 出關"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "core"
+  },
+
+  "4576": {
+    "name": "大銀微",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "機器人 2233 4576 1597 2464 / 工具機（大銀微）"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "機器人 2464 1597 4576 2233"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "同學提到 4576"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "core"
+  },
+
+  "1597": {
+    "name": "直得",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "機器人 2233 4576 1597 2464"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "機器人 2464 1597 / 1597 直得 5/20 出關"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "frequent"
+  },
+
+  "4538": {
+    "name": "東台精機",
+    "mentions": [
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "機器人 東台整理到末端 形態像四星科 有一根很醜 猶豫"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥉老師有買非主推 4538 東台精機（下禮拜有機會）"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "frequent"
+  },
+
+  "8028": {
+    "name": "昇陽半 (東台 in 5/21)",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "4772 台特化 8028 昇陽半 1727 中華化"},
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "4772 台特化 8028 昇陽半"}
+    ],
+    "sectors": ["矽晶圓"],
+    "tier_signal": "frequent"
+  },
+
+  "4772": {
+    "name": "台特化",
+    "mentions": [
+      {"date": "2026-01-04", "source": "AC2811A7_本週", "context": "4772 台特化（台積電法說相關）"},
+      {"date": "2026-01-11", "source": "E7F2B4BB_本週", "context": "4772 台特化 8028 昇陽半"}
+    ],
+    "sectors": ["特化"],
+    "tier_signal": "frequent"
+  },
+
+  "3532": {
+    "name": "台勝科",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "矽晶圓 3532 3016"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "矽晶圓 3532 3016"}
+    ],
+    "sectors": ["矽晶圓"],
+    "tier_signal": "frequent"
+  },
+
+  "3016": {
+    "name": "嘉晶",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "矽晶圓 3532 3016"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "矽晶圓 3532 3016 / 3016 嘉晶 5/20 5/25 出關"}
+    ],
+    "sectors": ["矽晶圓"],
+    "tier_signal": "frequent"
+  },
+
+  "2402": {
+    "name": "毅嘉",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "PCB 2402 5439 3715 2316"}
+    ],
+    "sectors": ["PCB"],
+    "tier_signal": "once"
+  },
+
+  "5439": {
+    "name": "高技",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "PCB 5439 / 破均線反V：5439"}
+    ],
+    "sectors": ["PCB", "低軌衛星"],
+    "tier_signal": "once"
+  },
+
+  "2316": {
+    "name": "楠梓電",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "PCB 2316"}
+    ],
+    "sectors": ["PCB"],
+    "tier_signal": "once"
+  },
+
+  "3081": {
+    "name": "聯亞",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 高：3081"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "3163": {
+    "name": "波若威",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 高：3163"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "3163 波若威 4/23 出關倒數"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "3363": {
+    "name": "上詮",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 高：3363"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "1711 永光 3363 上詮 5/8 出關"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "4977": {
+    "name": "眾達",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 中價：4977 6426 6530"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "6442": {
+    "name": "光聖",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "光通訊龍頭：光聖（聯亞）"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "6442 光聖 5/6 出關 / 光通訊龍頭 光聖"}
+    ],
+    "sectors": ["光通訊/CPO", "網通"],
+    "tier_signal": "frequent"
+  },
+
+  "4991": {
+    "name": "環宇",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 中高：4991 / 4991 環宇 4/28 出關"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 4991 環宇 5/22 進關"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "4971": {
+    "name": "IET-KY",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "CPO 中高：4971 / 4971 IET-KY 4/20 出關倒數"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "3587": {
+    "name": "閎康",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "光 3105 4979 3587 / CPO 檢測 3587 閎康"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "6207": {
+    "name": "雷科",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃設備 8064 8027 6207"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "煒璁：雷科漲停 6207"},
+      {"date": "2026-05-21", "source": "5_21培訓摘要", "context": "6207 雷科 洗一下又跟上來 明天小心上面兩根上影線（⚠️）"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "core"
+  },
+
+  "3162": {
+    "name": "精確",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "單兵分點 3162"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥉老師有買非主推 3162 精確（Eric Li 蹲）"}
+    ],
+    "sectors": [],
+    "tier_signal": "frequent"
+  },
+
+  "3189": {
+    "name": "景碩",
+    "mentions": [
+      {"date": "2026-03-01", "source": "421E13D4_3月初", "context": "ABF 三雄之一 景碩 3189"},
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "ABF 三雄 景碩"}
+    ],
+    "sectors": ["ABF載板"],
+    "tier_signal": "frequent"
+  },
+
+  "3036": {
+    "name": "文曄",
+    "mentions": [
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "電子通路 5 家比較：3036 文曄（IC 全領域）"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "產業通路 3702 3036 3028"}
+    ],
+    "sectors": ["產業通路"],
+    "tier_signal": "frequent"
+  },
+
+  "3702": {
+    "name": "大聯大",
+    "mentions": [
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "電子通路：3702 大聯大（半導體IC+被動元件+車用工控）"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "產業通路 3702 3036 3028"}
+    ],
+    "sectors": ["產業通路"],
+    "tier_signal": "frequent"
+  },
+
+  "3028": {
+    "name": "增你強",
+    "mentions": [
+      {"date": "2026-01-31", "source": "5A728495_本週", "context": "1/31 漲幅 6% 族群：IC 通路 8096 擎亞 3028 增你強 8112 至上"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "產業通路 3702 3036 3028"}
+    ],
+    "sectors": ["產業通路"],
+    "tier_signal": "frequent"
+  },
+
+  "1785": {
+    "name": "光洋科",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "1785 光洋科 都如願以償"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "台積電鏈 1785 / 處置 1785"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 1785 / 大家都跌他沒跌 1785"}
+    ],
+    "sectors": [],
+    "tier_signal": "core"
+  },
+
+  "1560": {
+    "name": "中砂",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備 1560"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈 6196 1560 3680 6903"}
+    ],
+    "sectors": ["矽晶圓", "主流設備"],
+    "tier_signal": "frequent"
+  },
+
+  "6196": {
+    "name": "帆宣",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備 6196 / Touch Taiwan 帆宣 6196"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈 6196 1560 3680"}
+    ],
+    "sectors": ["主流設備", "廠務設備"],
+    "tier_signal": "frequent"
+  },
+
+  "6187": {
+    "name": "萬潤",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備 6187"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "台積電鏈 6187"}
+    ],
+    "sectors": ["主流設備", "封測"],
+    "tier_signal": "frequent"
+  },
+
+  "6805": {
+    "name": "富世達",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "散熱 6805+小奇鋐融資"}
+    ],
+    "sectors": ["散熱"],
+    "tier_signal": "once"
+  },
+
+  "8074": {
+    "name": "鉅橡",
+    "mentions": [
+      {"date": "2026-03-01", "source": "3B0A6F15", "context": "PCB 設備材料 8074 鉅橡（權證買盤）"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "銅箔材料 8358 4989 8074"}
+    ],
+    "sectors": ["CCL材料"],
+    "tier_signal": "frequent"
+  },
+
+  "8271": {
+    "name": "宇瞻",
+    "mentions": [
+      {"date": "2026-03-01", "source": "3B0A6F15", "context": "記憶體模組 8271 宇瞻（融資和權證買盤）"}
+    ],
+    "sectors": ["記憶體"],
+    "tier_signal": "once"
+  },
+
+  "6285": {
+    "name": "啟碁",
+    "mentions": [
+      {"date": "2026-03-01", "source": "3B0A6F15", "context": "封測 低軌衛星 6285 啟碁（融資和權證買盤）"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "低軌 2313 2367 2485 6285"}
+    ],
+    "sectors": ["低軌衛星", "網通"],
+    "tier_signal": "frequent"
+  },
+
+  "5309": {
+    "name": "系統電",
+    "mentions": [
+      {"date": "2026-03-01", "source": "3B0A6F15", "context": "BBU 電池模組 5309 系統電（融資和權證買盤）"}
+    ],
+    "sectors": ["BBU"],
+    "tier_signal": "once"
+  },
+
+  "3211": {
+    "name": "順達",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "BBU 3211 4931（分點）"}
+    ],
+    "sectors": ["BBU"],
+    "tier_signal": "once"
+  },
+
+  "4931": {
+    "name": "新盛力",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "融資增 4931"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "BBU 3211 4931（分點）"}
+    ],
+    "sectors": ["BBU"],
+    "tier_signal": "frequent"
+  },
+
+  "2855": {
+    "name": "統一證",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "券商 2855 6016 / 2855 統一證（5月產業介紹）"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "2855 統一證"}
+    ],
+    "sectors": ["金融/券商"],
+    "tier_signal": "frequent"
+  },
+
+  "5864": {
+    "name": "致和證",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "5864 致和證"}
+    ],
+    "sectors": ["金融/券商"],
+    "tier_signal": "once"
+  },
+
+  "6016": {
+    "name": "康和證",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "券商 2855 6016"}
+    ],
+    "sectors": ["金融/券商"],
+    "tier_signal": "once"
+  },
+
+  "2885": {
+    "name": "元大金",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "證券類占比高的銀行 2885 元大金 2883 凱基金"}
+    ],
+    "sectors": ["金融/券商"],
+    "tier_signal": "once"
+  },
+
+  "2883": {
+    "name": "凱基金",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "證券類占比高的銀行 2885 元大金 2883 凱基金"}
+    ],
+    "sectors": ["金融/券商"],
+    "tier_signal": "once"
+  },
+
+  "3030": {
+    "name": "德律",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：3030"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "大家都跌他沒跌：3030"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "frequent"
+  },
+
+  "3455": {
+    "name": "由田",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：3455 / 處置 3455 4/27"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 3455 / 大家都跌他沒跌：3455"}
+    ],
+    "sectors": ["主流設備", "PCB"],
+    "tier_signal": "frequent"
+  },
+
+  "3289": {
+    "name": "宜特",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：3289 / 3289 宜特 4/30 出關"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "once"
+  },
+
+  "3583": {
+    "name": "辛耘",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "設備：3583 辛耘"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：3583 / 處置 3583 4/27"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "frequent"
+  },
+
+  "8091": {
+    "name": "翔名",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "半導體製程設備：8091"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "once"
+  },
+
+  "6147": {
+    "name": "頎邦",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "上個月融資增 6147 / 6147 頎邦 4/28 出關"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "處置 6147"}
+    ],
+    "sectors": ["封測"],
+    "tier_signal": "frequent"
+  },
+
+  "4577": {
+    "name": "達航",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備：4577 / 4577 達航科技 4/29 出關 / 處置 4577"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "鑽孔 8021 4577 / 處置 4577"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "frequent"
+  },
+
+  "3498": {
+    "name": "陽程",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "設備：3498 陽程"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備 3498 / 融資增 3498"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "frequent"
+  },
+
+  "6727": {
+    "name": "亞太金屬",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備：6727 / 上週漲幅前6名：6727 亞太金屬"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "once"
+  },
+
+  "3167": {
+    "name": "大量",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "設備：3167 / 上週漲幅前6名：3167 大量 / 處置 3167"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "once"
+  },
+
+  "2409": {
+    "name": "友達",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "Touch Taiwan 友達 2409 / MicroLED 2409"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "MicroLED 2409 3714 2426 4956 3673 / 融資增 2409"},
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "面板龍頭：友達（群創）"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "core"
+  },
+
+  "2426": {
+    "name": "鼎元",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "Touch Taiwan：2426 鼎元"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "MicroLED 2426 / 2426 鼎元 4/28 出關"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "frequent"
+  },
+
+  "3714": {
+    "name": "富采",
+    "mentions": [
+      {"date": "2026-03-22", "source": "124D27F1_本週", "context": "Touch Taiwan：3714 富采"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "MicroLED：3714 / 3714 富采 5/4 出關"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "frequent"
+  },
+
+  "5498": {
+    "name": "凱崴",
+    "mentions": [
+      {"date": "2026-03-15", "source": "1C992F9F_3月中", "context": "鑽針：8021 尖點 5498 凱崴 啟動擴產"},
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "融資增 5498"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "frequent"
+  },
+
+  "2351": {
+    "name": "順德",
+    "mentions": [
+      {"date": "2026-04-18", "source": "9FEE65157_本週", "context": "2351 順德 做導線架默默上漲"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "🥉5347 世界先進 跟順德一樣"}
+    ],
+    "sectors": [],
+    "tier_signal": "frequent"
+  },
+
+  "3149": {
+    "name": "正達",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "面板族群：3481 3615 6405 3149 / 月K股 3149"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "once"
+  },
+
+  "3615": {
+    "name": "安可",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "面板：3481 3615 6405"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "once"
+  },
+
+  "6405": {
+    "name": "悅城",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "面板：3481 3615 6405 / 6405 悅城 5/22 進關"}
+    ],
+    "sectors": ["面板"],
+    "tier_signal": "once"
+  },
+
+  "2049": {
+    "name": "上銀",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "2049 的意義就像被動元件的國巨"},
+      {"date": "2026-05-22", "source": "line_chat", "context": "Carl lin：上銀是不是還不錯（同學）"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "frequent"
+  },
+
+  "4540": {
+    "name": "全球傳動",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "機器人 4540"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "同學提到 4540"}
+    ],
+    "sectors": ["機器人"],
+    "tier_signal": "frequent"
+  },
+
+  "1595": {
+    "name": "川寶",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃設備 1595 / 1595 川寶 5/22 進關"}
+    ],
+    "sectors": ["小設備"],
+    "tier_signal": "once"
+  },
+
+  "3663": {
+    "name": "鑫科",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃設備 3580 3663"}
+    ],
+    "sectors": ["主流設備"],
+    "tier_signal": "once"
+  },
+
+  "3580": {
+    "name": "友威科",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "玻璃設備 3580 3663"}
+    ],
+    "sectors": [],
+    "tier_signal": "once"
+  },
+
+  "3008": {
+    "name": "大立光",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "光 3008 3406 6209 / 鏡頭龍頭：大立光"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "6209": {
+    "name": "今國光",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "光 3008 3406 6209"},
+      {"date": "2026-05-21", "source": "line_chat", "context": "6209 今國光 漲停"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "6451": {
+    "name": "訊芯",
+    "mentions": [
+      {"date": "2026-05-03", "source": "C7E05EC6_本週", "context": "6451 訊芯 5/4 準備出關"},
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "CPO 3374 6451 6789"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "frequent"
+  },
+
+  "3374": {
+    "name": "精材",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "CPO 3374 6451 6789"}
+    ],
+    "sectors": ["封測"],
+    "tier_signal": "once"
+  },
+
+  "6789": {
+    "name": "采鈺",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "CPO 3374 6451 6789"}
+    ],
+    "sectors": ["光通訊/CPO"],
+    "tier_signal": "once"
+  },
+
+  "6166": {
+    "name": "凌華",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "工業電腦 4916 6166 2395"}
+    ],
+    "sectors": ["工業電腦"],
+    "tier_signal": "once"
+  },
+
+  "2395": {
+    "name": "研華",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "工業電腦 4916 6166 2395"}
+    ],
+    "sectors": ["工業電腦"],
+    "tier_signal": "once"
+  },
+
+  "4906": {
+    "name": "正文",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "網通 4906 3704"}
+    ],
+    "sectors": ["低軌衛星"],
+    "tier_signal": "once"
+  },
+
+  "3704": {
+    "name": "合勤控",
+    "mentions": [
+      {"date": "2026-05-16", "source": "0224C2349_本週", "context": "網通 4906 3704"}
+    ],
+    "sectors": ["網通"],
+    "tier_signal": "once"
+  }
+}
