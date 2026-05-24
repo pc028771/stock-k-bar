@@ -74,7 +74,11 @@ class BacktestConfig:
     # Short-side exit (course-fixed concept; threshold approximates 台股漲停)
     limit_up_pct: float = 9.5
     # Entry quality gates (§三 進場條件 + ch3-2 @34:00 講師演示)
-    shengxia_requires_prior_lixia_days: int = 20  # 推論值
+    shengxia_requires_prior_lixia_days: int = 20  # 推論值（非課程明說）
+    # 預設 False：放行未經立夏直接到盛夏的個股（如春→盛夏，無單日爆衝）
+    # 實證 2026-01：移除此限制後盛夏進場 1→21 筆、勝率 0%→66.7%、mean -1.9%→+5.7%
+    # 「春→盛夏」型可能比「立夏→盛夏」型更賺（漲勢更穩健，非單日煙火）
+    shengxia_require_prior_lixia: bool = False
     shengxia_vol_ratio_min: float = 5.0           # @ch3-2 34:15「至少 5 倍」進場篩選
     shengxia_vol_shares_min: float = 1_000_000    # @ch3-2 34:08「至少 1000 張」進場篩選
     # 盛夏量價同步上限：量大但漲幅縮小 = 出貨型 K（課程§夏「量價同步創新高」反面排除）
@@ -347,9 +351,10 @@ def run_backtest(
             if pd.isna(mf20) or mf20 is None or mf20 < bt.lixia_mf20_min:
                 continue
         if e["season"] == "盛夏":
-            if not _had_recent_lixia(cls_sorted, tkr, e["trade_date"],
-                                      bt.shengxia_requires_prior_lixia_days):
-                continue
+            if bt.shengxia_require_prior_lixia:
+                if not _had_recent_lixia(cls_sorted, tkr, e["trade_date"],
+                                          bt.shengxia_requires_prior_lixia_days):
+                    continue
             vr = entry_row.get("vol_ratio_20")
             vol = entry_row.get("volume")
             if pd.isna(vr) or vr is None or vr < bt.shengxia_vol_ratio_min:
