@@ -85,6 +85,9 @@ class BacktestConfig:
     lixia_dev_240_max_pct: float = 8.0
     # 立夏進場品質：主力 20 日累積（§九.1 hard-coded mf>0，強度未明示；實證濾掉隔日沖）
     lixia_mf20_min: float = 0.0  # 預設 0=只要求 >0；可調更嚴
+    # 春進場品質：主力 20 日累積（課程「主力 5/10/20 >0」+「持續穩定流入」，強度未明示）
+    # 實證：mf20≥1M 過濾 81% 雜訊、勝率 41%→52%、mean +28%→+36%；1M=1000 張同盛夏底線
+    spring_mf20_min: float = 1_000_000
     # 夏轉秋警訊 量價背離 thresholds (§八; @ch7-1; course示範值)
     # 量價背離A: price near all-time peak but volume drying up → top exhaustion
     warn_near_peak_pct: float = 2.0    # within X% of peak = "near peak"
@@ -332,6 +335,10 @@ def run_backtest(
         entry_row["season"] = e["season"]
 
         # Quality gates (§三 進場條件 + ch3-2 @34:00 講師演示 + 實證調優)
+        if e["season"] == "春":
+            mf20 = entry_row.get("main_force_20d")
+            if pd.isna(mf20) or mf20 is None or mf20 < bt.spring_mf20_min:
+                continue
         if e["season"] == "立夏":
             dev = entry_row.get("dev_ma240_pct")
             if pd.isna(dev) or dev is None or dev > bt.lixia_dev_240_max_pct:
