@@ -92,6 +92,14 @@ class BacktestConfig:
     # 春進場品質：主力 20 日累積（課程「主力 5/10/20 >0」+「持續穩定流入」，強度未明示）
     # 實證：mf20≥1M 過濾 81% 雜訊、勝率 41%→52%、mean +28%→+36%；1M=1000 張同盛夏底線
     spring_mf20_min: float = 1_000_000
+    # 春進場時機優化（實證調優，非課程明示）：
+    # 1) 限定 Q1 月份：實證 4 月後春多為跌出來的假訊號
+    # 2) 殖利率 ≥ 6.5%：真價值股 vs 強裝便宜的弱勢股
+    # 3) close > MA60：已脫離長期均線、有底氣突破
+    # 三條合用：2023 mean +2.21%→+12.64%、2024 mean +2.44%→+16.63%（過濾 ~80%）
+    spring_entry_month_max: int = 3       # 只接受 1-3 月進場（Q1 = 真主力吃貨期）
+    spring_dividend_yield_min: float = 6.5
+    spring_require_close_above_ma60: bool = True
     # 夏轉秋警訊 量價背離 thresholds (§八; @ch7-1; course示範值)
     # 量價背離A: price near all-time peak but volume drying up → top exhaustion
     warn_near_peak_pct: float = 2.0    # within X% of peak = "near peak"
@@ -327,8 +335,8 @@ def _snapshot(db: Path) -> str:
 def load_panel(conn_path: str) -> pd.DataFrame:
     with sqlite3.connect(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(
-            "select ticker, trade_date, close, ma20, volume, vol_ratio_20, "
-            "dev_ma240_pct, main_force_20d "
+            "select ticker, trade_date, close, ma20, ma60, volume, vol_ratio_20, "
+            "dev_ma240_pct, main_force_20d, dividend_yield_pct "
             "from standard_daily_bar where is_usable=1",
             conn, parse_dates=["trade_date"],
         )
@@ -395,6 +403,20 @@ def run_backtest(
             mf20 = entry_row.get("main_force_20d")
             if pd.isna(mf20) or mf20 is None or mf20 < bt.spring_mf20_min:
                 return False
+            # 月份限制（Q1 主力吃貨期）
+            if hasattr(edate, "month"):
+                if edate.month > bt.spring_entry_month_max:
+                    return False
+            # 殖利率底線
+            divy = entry_row.get("dividend_yield_pct")
+            if pd.isna(divy) or divy is None or divy < bt.spring_dividend_yield_min:
+                return False
+            # close > MA60（已脫離長期均線）
+            if bt.spring_require_close_above_ma60:
+                ma60 = entry_row.get("ma60")
+                close = entry_row.get("close")
+                if pd.isna(ma60) or ma60 is None or close is None or close <= ma60:
+                    return False
         if e_season == "立夏":
             dev = entry_row.get("dev_ma240_pct")
             if pd.isna(dev) or dev is None or dev > bt.lixia_dev_240_max_pct:
