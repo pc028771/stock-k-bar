@@ -1,6 +1,12 @@
 # macOS
 .DS_Store
 
+# 大型音檔/影片 — 放 iCloud 備份不入 repo
+*.m4a
+*.webm
+*.mp4
+*.mkv
+
 # Python
 __pycache__/
 *.py[cod]

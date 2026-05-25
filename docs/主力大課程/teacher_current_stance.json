@@ -1,0 +1,175 @@
+{
+  "_meta": {
+    "purpose": "老師最近 7 天對個股的明確表態，用來 override 機械停損規則",
+    "stance_values": {
+      "hold": "老師明說沒出/沒動/愛將/續抱 → 用結構底停損、不用 MA5/MA10",
+      "warn": "老師明說警示（上影、破要閃、籌碼異常）→ 提高警戒、可能要減碼",
+      "exit": "老師明說出場 → 立即清",
+      "watch": "老師有點名但沒明確進出表態 → 用標準機械停損",
+      "none": "老師沒提 → 標準機械停損"
+    },
+    "review_rule": "每天 review 完 line_chat + 新文章後、更新 stance_date 跟 source",
+    "default_stale_days": 7,
+    "last_updated": "2026-05-25"
+  },
+  "2464": {
+    "name": "盟立",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 + 5/21 培訓",
+    "quote": "5/16 法說態度強、與新公司合開協作機器人、機器人核心",
+    "stoploss_override": "結構底 119（5/20 低 + 5/15 起漲段底）",
+    "notes": "5/25 漲停 +10%，未實現 +43,500。漲停後第二天高開灌下=警示",
+    "review_by": "2026-05-30"
+  },
+  "3149": {
+    "name": "正達",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 line 771",
+    "quote": "我這邊都沒有動、線都沒有動、圓弧底持續、月K非常漂亮、跟康寧GLW合作材料；四大聚焦主題之一",
+    "stoploss_override": "結構底 55（5/16 低 51-52 區、或 MA20 51.6 守住）",
+    "notes": "四大主題唯一未噴；watchlist_intraday score 9 致命警示但屬於主力洗盤型",
+    "review_by": "2026-05-30"
+  },
+  "5347": {
+    "name": "世界先進",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 + part2",
+    "quote": "沿五日線、不能拉一根 10% 大紅K、報價調漲 10%、永豐金惠利在買、台積電關係企業",
+    "stoploss_override": "結構底 158（5/22 低）+ 量增放大才出；不用 MA5 連 2 天",
+    "notes": "5/25 進 3 張 @161.5；三大法人兩週淨買 +87K（券商分點警示是短期）",
+    "review_by": "2026-05-30"
+  },
+  "6217": {
+    "name": "中探針",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 書面文章 + 直播 part1",
+    "quote": "3/15 起如入無人之境、越蹲越久噴出越乾脆、老師重點分點追蹤",
+    "stoploss_override": "結構底 215（5/21 低）",
+    "notes": "5/22 已跌破 MA5/10/20 三均線；試水條件 = 站回 MA5 274 兩天",
+    "review_by": "2026-05-30"
+  },
+  "1605": {
+    "name": "華新",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part2 + 文章",
+    "quote": "華新利華集團=飆股媽媽；管錢哥(元大館前)+外資雙日大買 5,264 張",
+    "stoploss_override": "結構底（待持倉時定）",
+    "notes": "管錢哥兩週累買 5,367 張；元大系合計 9,000+ 張集中",
+    "review_by": "2026-05-30"
+  },
+  "8064": {
+    "name": "東捷",
+    "stance": "hold",
+    "stance_date": "2026-05-21",
+    "stance_source": "5/21 line_chat (Nick) + 5/16 5/3 4/18 週報",
+    "quote": "東捷沒出貨跡象；玻璃設備、跨入半導體先進封裝；大家都跌他沒跌",
+    "stoploss_override": "結構底 115（5/15 低）",
+    "notes": "⚠️ 教訓案例：user 5/21 全清 @120.5（跌破 MA5 機械停損），5/25 漲停 143、機會成本 ~30 萬",
+    "review_by": "2026-05-30"
+  },
+  "3042": {
+    "name": "晶技",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 line 533",
+    "quote": "上週四大聚焦主題之一（經濟）",
+    "stoploss_override": "結構底（待持倉時定）",
+    "notes": "5/18→22 +19.7% 已噴；想進場等回測 MA5",
+    "review_by": "2026-05-30"
+  },
+  "6239": {
+    "name": "力成",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 line 533",
+    "quote": "上週四大聚焦主題之一（歷程）",
+    "stoploss_override": "結構底（待持倉時定）",
+    "notes": "5/18→22 +13.2% 已噴；想進場等回測 MA5",
+    "review_by": "2026-05-30"
+  },
+  "6284": {
+    "name": "佳邦",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 line 533",
+    "quote": "上週四大聚焦主題之一（加邦）；被動元件",
+    "stoploss_override": "結構底（待持倉時定）",
+    "notes": "5/18→22 +20.4% + 5/25 試搓漲停；籌碼乾淨（大戶進+外資大買）；等回測 MA5 90.8 才進",
+    "review_by": "2026-05-30"
+  },
+  "3708": {
+    "name": "上緯投控",
+    "stance": "watch",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part2 + 書面文章",
+    "quote": "庫藏股方程式核心、執行多次庫藏、期待發債、循環經濟+航太+智能機器人三引擎",
+    "stoploss_override": null,
+    "notes": "等發債或更明確進場訊號",
+    "review_by": "2026-05-30"
+  },
+  "2303": {
+    "name": "聯電",
+    "stance": "hold",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 part1 + 5/21 培訓 + FinMind 站前哥實證",
+    "quote": "沿五日線、不能跌破；凱基站前 5/20 單日淨買 19,945 張（老師講的「2 萬張黑K買盤」實證）；外資 5/21 買 2 萬張；下週兩場法說",
+    "stoploss_override": "結構底 108（5/20 低）+ MA5 112 跌破才算「跌破五日線」",
+    "notes": "✅ 從 warn 修正為 hold；凱基系 5/19-22 合計買 41,400+ 張；user 5/22 全清是站前哥訊號被忽略+機械停損賣在底部",
+    "review_by": "2026-05-30"
+  },
+  "6207": {
+    "name": "雷科",
+    "stance": "warn",
+    "stance_date": "2026-05-21",
+    "stance_source": "5/21 培訓",
+    "quote": "洗一下又跟上來，明天小心上面兩根上影線",
+    "stoploss_override": null,
+    "notes": "⚠️ 老師明確上影警示；不適合新進場",
+    "review_by": "2026-05-30"
+  },
+  "2404": {
+    "name": "漢唐",
+    "stance": "warn",
+    "stance_date": "2026-05-21",
+    "stance_source": "5/21 培訓",
+    "quote": "外資大買、位階買得好，但明天上面還有壓力點要小心",
+    "stoploss_override": null,
+    "notes": "⚠️ 老師明確壓力警示",
+    "review_by": "2026-05-30"
+  },
+  "6213": {
+    "name": "聯茂",
+    "stance": "exit",
+    "stance_date": "2026-05-22",
+    "stance_source": "5/22 line_chat",
+    "quote": "破要閃",
+    "stoploss_override": null,
+    "notes": "⚠️ 老師明示出場訊號；勿進場",
+    "review_by": "2026-05-30"
+  },
+  "6282": {
+    "name": "康舒",
+    "stance": "watch",
+    "stance_date": "2026-05-23",
+    "stance_source": "5/23 直播 (低軌衛星 frequent)",
+    "quote": "低軌衛星族群、老師最新提的擴張族群",
+    "stoploss_override": null,
+    "notes": "持有 3000 @ 57.7；watchlist_intraday score 1 觀察、籌碼最乾淨",
+    "review_by": "2026-05-30"
+  },
+  "2476": {
+    "name": "鉅祥",
+    "stance": "none",
+    "stance_date": null,
+    "stance_source": null,
+    "quote": null,
+    "stoploss_override": null,
+    "notes": "5/22 同學 line 討論但老師沒明說；5/25 已賣 1000 鎖利 +10,170、剩 1000 用 MA5 機械停損",
+    "review_by": "2026-05-30"
+  }
+}
