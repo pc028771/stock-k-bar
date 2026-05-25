@@ -68,8 +68,9 @@ class BacktestConfig:
     All numeric thresholds below are course示範值 (§9.2) — tunable via --config.
     """
     # Long-side exits (@ch10-1 25:57「就看你的取向」)
-    trailing_trigger_pct: float = 8.0     # ran ≥ +8% activates trailing
-    trailing_giveback_pct: float = 6.0    # peak − 6% → stop
+    # 課程示範值 8/6；老師說「就看你的取向」可自由調整（see extras 區）
+    trailing_trigger_pct: float = 8.0     # ran ≥ +X% activates trailing
+    trailing_giveback_pct: float = 6.0    # peak − X% → stop
     ma20_break_consecutive_days: int = 3  # ch7-1 @04:37「跌破月線三天沒有站回」直接持股版
     # Short-side exit (course-fixed concept; threshold approximates 台股漲停)
     limit_up_pct: float = 9.5
@@ -111,6 +112,14 @@ class BacktestConfig:
     # 秋空單: 收盤需距 MA20 至少 N%，避免 MA20 支撐反彈創新高
     # 實證：close_vs_ma20 <1.3% 者 new_high 失敗率顯著較高
     extras_autumn_close_vs_ma20_min_pct: float = 2.0
+    # 動態 trailing giveback（非課程明示，純自創概念）：
+    # 公式：giveback = max(trailing_giveback_pct, peak_ret_pct × factor)
+    # 邏輯：漲越多趨勢越確立 → 給越大呼吸空間，自然讓 winners run
+    # 範例：peak +50%、factor 0.4 → giveback = 20%（比固定 6/10 寬容很多）
+    # 實證 2024 盛夏 trailing median +5.0% → +17.0%（固定 15/10 已測過）
+    # ⚠️ 課程說「固定 trailing」可能指機制（vs 主觀），也可能指「不變動」— 寬鬆解讀
+    extras_dynamic_trailing_giveback: bool = False
+    extras_dynamic_giveback_factor: float = 0.4
 
 
 def load_bt_config(path: Path | None) -> BacktestConfig:
@@ -187,7 +196,7 @@ def warning_signals_triggered(
 
 def simulate_long(
     entry_row: pd.Series, forward: pd.DataFrame, name: str, bt: BacktestConfig,
-    promotions: list[dict] | None = None,
+    promotions: list[dict] | None = None, extras: bool = False,
 ) -> list[Trade]:
     """Multi-tranche long simulation with mid-trade tier promotion.
 
@@ -247,7 +256,12 @@ def simulate_long(
             else:
                 ma20_break_streak = 0
             if trailing_armed:
-                stop_price = peak_close * (1 - bt.trailing_giveback_pct / 100)
+                # 動態 giveback (extras only)：peak 漲越多、giveback 越寬
+                giveback_pct = bt.trailing_giveback_pct
+                if extras and bt.extras_dynamic_trailing_giveback:
+                    dynamic = peak_ret * bt.extras_dynamic_giveback_factor
+                    giveback_pct = max(giveback_pct, dynamic)
+                stop_price = peak_close * (1 - giveback_pct / 100)
                 if r["close"] <= stop_price:
                     return _close_long_tranches(tranches, r, name, "trailing_stop", censored=False)
 
@@ -502,7 +516,8 @@ def run_backtest(
                     current_tier = ev_tier
 
             forward = g[g["trade_date"] > root["trade_date"]].reset_index(drop=True)
-            tr_list = simulate_long(root["entry_row"], forward, name, bt, promotions=promotions)
+            tr_list = simulate_long(root["entry_row"], forward, name, bt,
+                                     promotions=promotions, extras=extras)
             trades.extend(tr_list)
 
             # 跳過 root 自己 + 所有「出場前」已被消化的事件

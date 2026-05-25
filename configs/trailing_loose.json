@@ -1,0 +1,23 @@
+{
+  "trailing_trigger_pct": 15.0,
+  "trailing_giveback_pct": 10.0,
+  "ma20_break_consecutive_days": 3,
+  "limit_up_pct": 9.5,
+  "shengxia_requires_prior_lixia_days": 20,
+  "shengxia_require_prior_lixia": false,
+  "shengxia_vol_ratio_min": 5.0,
+  "shengxia_vol_shares_min": 1000000,
+  "shengxia_vol_shares_max": 8000000,
+  "autumn_rebound_red_k_pct_min": 3.0,
+  "lixia_dev_240_max_pct": 8.0,
+  "lixia_mf20_min": 0.0,
+  "spring_mf20_min": 1000000,
+  "spring_entry_month_max": 3,
+  "spring_dividend_yield_min": 6.5,
+  "spring_require_close_above_ma60": true,
+  "warn_near_peak_pct": 2.0,
+  "warn_vol_low_ratio": 0.6,
+  "warn_vol_high_ratio": 3.0,
+  "warn_price_stall_pct": 1.0,
+  "extras_autumn_close_vs_ma20_min_pct": 2.0
+}
