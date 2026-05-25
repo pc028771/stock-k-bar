@@ -124,11 +124,17 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔",
         "context": "下週開兩場法說會；凱基站前 2 萬張黑K買盤（要尊重）；沿五日線第二段需小心震盪"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "老師再次明確列入『3 檔融資股 6139 2404 2303 抓到了放風箏』"
       }
     ],
     "sectors": [
+      "功率元件",
       "成熟製程",
-      "功率元件"
+      "融資股"
     ],
     "tier_signal": "core"
   },
@@ -154,11 +160,21 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔",
         "context": "沿五日均線好姿態、不能拉一根 10% 大紅K；台積電關係企業、報價調漲 10%"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Howard Yang『5347 早上有進 現在可以再加嗎？』、老師『沒有脫離成本你加碼是無意義的』— +10% 規則親自指導"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "侑盛『5347 何時適合補加碼單』、老師『有漲然後 下次回到支撐的時候』— 加碼 SOP：脫離成本 +10% 後回測支撐才加"
       }
     ],
     "sectors": [
-      "成熟製程",
-      "功率元件"
+      "功率元件",
+      "成熟製程"
     ],
     "tier_signal": "core"
   },
@@ -174,13 +190,20 @@
         "date": "2026-05-21",
         "source": "5_21培訓摘要",
         "context": "6139 亞翔 融資黑K大買 從72.3拉一根『很有趣』"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "老師『上禮拜的 3 檔融資股 6139 2404 2303 — 現在就是抓到了一路抱著放風箏』；Pai Hung 同學『3 天送我 8 位數』；『長相漂亮的可怕』"
       }
     ],
     "sectors": [
       "主流設備",
-      "廠務設備"
+      "工程",
+      "廠務設備",
+      "融資股"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "core"
   },
   "2404": {
     "name": "漢唐",
@@ -194,12 +217,19 @@
         "date": "2026-05-21",
         "source": "5_21培訓摘要",
         "context": "2404 漢唐 外資大買 位階買得好 但明天上面還有壓力點"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "老師『上禮拜 3 檔融資股 6139 2404 2303 抓到了放風箏』"
       }
     ],
     "sectors": [
-      "廠務設備"
+      "工程",
+      "廠務設備",
+      "融資股"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "core"
   },
   "8064": {
     "name": "東捷",
@@ -223,11 +253,18 @@
         "date": "2026-05-21",
         "source": "line_chat",
         "context": "Nick『東捷沒出貨跡象』"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "老師回 William 6706『面板設備 普 去 8064』— 面板設備首選"
       }
     ],
     "sectors": [
       "主流設備",
-      "玻璃基板"
+      "玻璃基板",
+      "玻璃設備",
+      "面板設備"
     ],
     "tier_signal": "core"
   },
@@ -346,6 +383,11 @@
         "date": "2026-05-22",
         "source": "line_chat",
         "context": "6284 佳邦 複製 4958 起漲前"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組",
+        "context": "Shiuan 群組提案『4958 安全 性價比高』、老師 🌷 reaction 認可（已 core 級、此為第 5 次出現）"
       }
     ],
     "sectors": [
@@ -528,10 +570,18 @@
         "date": "2026-05-03",
         "source": "C7E05EC6_本週",
         "context": "CPO 3105 穩懋 / 光 3105 4979 3587"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Hsueh-Wen『光通回溫 OK!』— 光通族群另一檔"
       }
     ],
     "sectors": [
-      "光通訊/CPO"
+      "CPO",
+      "光通訊",
+      "光通訊/CPO",
+      "砷化鎵"
     ],
     "tier_signal": "core"
   },
@@ -595,6 +645,11 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔_part2",
         "context": "華新同集團；記憶體族群"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "老師『記憶體一樣都是小錯殺 美光要開始擴廠 做 DDR 了 所以記憶體不用在問』— 統一指引買進"
       }
     ],
     "sectors": [
@@ -648,12 +703,17 @@
         "date": "2026-05-03",
         "source": "C7E05EC6_本週",
         "context": "記憶體 2337 8299"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "李奇恩『今天有點被小錯殺! 美光要擴廠』— 記憶體族群一致受惠美光擴廠"
       }
     ],
     "sectors": [
       "記憶體"
     ],
-    "tier_signal": "once"
+    "tier_signal": "frequent"
   },
   "2308": {
     "name": "台達電",
@@ -900,12 +960,20 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔_part2",
         "context": "華新轉投資；廠務設備族群"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日晚_3413_3691",
+        "context": "老師暗示子公司 3691 應跟漲『家登都漲了』— 集團概念股；5/25 收 595 距 MA10 +6.1%"
       }
     ],
     "sectors": [
-      "廠務設備"
+      "半導體",
+      "家登集團",
+      "廠務設備",
+      "華新集團"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "core"
   },
   "6903": {
     "name": "巨漢",
@@ -1151,10 +1219,17 @@
         "date": "2026-05-22",
         "source": "line_chat",
         "context": "🥇明確主推 4749 新應材（特化次選）"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Carl lin『穩 要買他 CBAS 子公司上興櫃』、老師 🦊 認可"
       }
     ],
     "sectors": [
-      "特化"
+      "CBAS",
+      "特化",
+      "面板"
     ],
     "tier_signal": "frequent"
   },
@@ -1337,12 +1412,23 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔",
         "context": "功率元件三檔之一；外資不買現股、期貨歷史新高、內資集中；股性差需小倉位試水"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "矽晶圓三劍客之一『6182 3016 2481』；同時 5/23 part1 功率元件主推；老師對 2481 給 core 升級"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "杰問『3016 可以直接幹進去嗎』、老師『強貿（強茂）我一錠是尾盤才動作 她就是 OOXX 股性我太了解了 拉上去就是冠 往下冠』— 操作守則：尾盤動作、上下震盪"
       }
     ],
     "sectors": [
-      "功率元件"
+      "功率元件",
+      "矽晶圓"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "core"
   },
   "4919": {
     "name": "新唐",
@@ -1825,12 +1911,17 @@
         "date": "2026-05-16",
         "source": "0224C2349_本週",
         "context": "矽晶圓 3532 3016 / 3016 嘉晶 5/20 5/25 出關"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "老師親口『要 3016 或 2481 6182』『拜託轉 3016』『3707 永遠都漲輸 3016』— 矽晶圓三劍客之一、強推"
       }
     ],
     "sectors": [
       "矽晶圓"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "core"
   },
   "2402": {
     "name": "毅嘉",
@@ -1853,13 +1944,19 @@
         "date": "2026-04-18",
         "source": "9FEE65157_本週",
         "context": "PCB 5439 / 破均線反V：5439"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "王玟淮『高技殺一根是洗盤嗎？😱』、老師『對喔』— 認可洗盤判斷"
       }
     ],
     "sectors": [
       "PCB",
+      "—",
       "低軌衛星"
     ],
-    "tier_signal": "once"
+    "tier_signal": "frequent"
   },
   "2316": {
     "name": "楠梓電",
@@ -2001,12 +2098,18 @@
         "date": "2026-05-03",
         "source": "C7E05EC6_本週",
         "context": "光 3105 4979 3587 / CPO 檢測 3587 閎康"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ Alex Shao 提、老師『拉玩了』— 已過甜蜜點"
       }
     ],
     "sectors": [
       "光通訊/CPO"
     ],
-    "tier_signal": "once"
+    "tier_signal": "once",
+    "negative_flag": true
   },
   "6207": {
     "name": "雷科",
@@ -2445,12 +2548,19 @@
         "date": "2026-05-03",
         "source": "C7E05EC6_本週",
         "context": "大家都跌他沒跌：3030"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "❌ Johnson 問日內洗、老師『已經創高了 從下面上來 30% 當然就是倒』— 倒貨警示"
       }
     ],
     "sectors": [
-      "主流設備"
+      "主流設備",
+      "半導體"
     ],
-    "tier_signal": "frequent"
+    "tier_signal": "frequent",
+    "negative_flag": true
   },
   "3455": {
     "name": "由田",
@@ -2799,12 +2909,18 @@
         "date": "2026-05-16",
         "source": "0224C2349_本週",
         "context": "玻璃設備 1595 / 1595 川寶 5/22 進關"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "正賢『一字鎖開心ㄉ』— 已進處置 5/22 20分盤、一字漲停"
       }
     ],
     "sectors": [
-      "小設備"
+      "小設備",
+      "玻璃設備"
     ],
-    "tier_signal": "once"
+    "tier_signal": "frequent"
   },
   "3663": {
     "name": "鑫科",
@@ -3007,6 +3123,298 @@
     ],
     "sectors": [
       "金融/券商"
+    ],
+    "tier_signal": "frequent"
+  },
+  "6138": {
+    "name": "茂達",
+    "mentions": [
+      {
+        "date": "2026-05-22",
+        "source": "line_chat",
+        "context": "融資大增警示清單：2303 2476 3055 2481 6138 6206 5347（同 core 標一起列、非排除）"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat",
+        "context": "5/25 漲停 350 收盤、量 254 萬張。老師稱讚同學盤中上車：『不錯 敏感度很高 這檔很讚』"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Dennis C 想推 2421、老師『2421 普 6138 通過』— 第 2 次親自背書（5/25 漲停 +9.99%）"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "Dennis C『盤中上車 6138 感謝老大』、老師『不錯 敏感度很高 這檔很讚』+『國巨爸爸加持 剛好現在錢在 IC 設計 然後又是電源 IC』— 三題材匯流"
+      }
+    ],
+    "sectors": [
+      "半導體",
+      "國巨集團",
+      "電源IC",
+      "類比 IC",
+      "類比IC"
+    ],
+    "tier_signal": "frequent"
+  },
+  "3265": {
+    "name": "台星科",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組",
+        "context": "Kurt Chen 群組提案『3265 光通最近回暖 OK』、老師 🌷 reaction 認可（非老師主動點名、屬同學提案+老師背書級別）"
+      }
+    ],
+    "sectors": [
+      "IC 測試",
+      "光通訊（依 Kurt 視角）"
+    ],
+    "tier_signal": "frequent"
+  },
+  "6182": {
+    "name": "合晶",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "老師親口『直接講的 6182 3016 2481』；Lilian『6182 上週賣飛了 今天一開就漲停』— 強推但已漲停封死追高難"
+      }
+    ],
+    "sectors": [
+      "矽晶圓"
+    ],
+    "tier_signal": "core"
+  },
+  "8210": {
+    "name": "勤誠",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Ming 提案、老師『可以 AMD NV 要換新殼』— 受惠 AMD/NV 換代"
+      }
+    ],
+    "sectors": [
+      "機殼",
+      "AI伺服器"
+    ],
+    "tier_signal": "frequent"
+  },
+  "6257": {
+    "name": "矽格",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "Kyle Lee『光通回暖 通過!』、老師明確『通過』— 光通族群"
+      }
+    ],
+    "sectors": [
+      "IC測試",
+      "光通訊"
+    ],
+    "tier_signal": "frequent"
+  },
+  "5425": {
+    "name": "台半",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "古意人提案、老師『可以』"
+      }
+    ],
+    "sectors": [
+      "半導體"
+    ],
+    "tier_signal": "frequent"
+  },
+  "2317": {
+    "name": "鴻海",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "小吳『還能加碼嗎？』、老師『看 260』— 5/25 收 261 觀察點到位；同時『我喜歡海公』"
+      }
+    ],
+    "sectors": [
+      "權值"
+    ],
+    "tier_signal": "frequent"
+  },
+  "3231": {
+    "name": "緯創",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ 老師『我喜歡海公、甚至廣達都比他 3231 好』— 明確不推"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "3707": {
+    "name": "漢磊",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ 老師『拜託轉 3016 3707 永遠都漲輸 3016』— 直接勸退轉股"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "2342": {
+    "name": "茂矽",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ Kurt Chen 問、老師『不是這一檔 要 3016 或 2481 6182』"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "2421": {
+    "name": "建準",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ Dennis C 推、老師『2421 普 6138 通過』— 比 6138 差"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "5340": {
+    "name": "建榮",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ Lorena Wu 提、老師『普 好普』"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "2399": {
+    "name": "映泰",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ 晴天提、老師『普 沒料』"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "6706": {
+    "name": "惠特",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日中午",
+        "context": "❌ William 提、老師『面板設備 普 去 8064』— 換股建議"
+      }
+    ],
+    "sectors": [],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "3013": {
+    "name": "晟銘電",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "❌ 老師回煒璁『3013 感謝 去 8210』— 建議轉股"
+      }
+    ],
+    "sectors": [
+      "散熱"
+    ],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "3413": {
+    "name": "京鼎",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "傅建騏『3413 為何不行 子公司 AI 散熱要上櫃了』、老師『哦哦好唷』— 模糊正面"
+      },
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日晚_3413_3691",
+        "context": "Carl lin『老大很久以前介紹的京鼎今天有一點動了』、Nick『那個一定的』『3413 欸 穩定的公司』；同時老師市場大原則『現在是比效率不是比誰會漲 只要不要太爛都會漲』"
+      }
+    ],
+    "sectors": [
+      "AI散熱",
+      "機電",
+      "電子工業"
+    ],
+    "tier_signal": "core"
+  },
+  "5392": {
+    "name": "能率",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "❌ 太空人造皮提、老師『因為她就是 OOXX 股性』— 不熟/負面"
+      }
+    ],
+    "sectors": [
+      "—"
+    ],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "4566": {
+    "name": "時碩工業",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日下午",
+        "context": "❌ Aaron 問、老師『沒有研究』"
+      }
+    ],
+    "sectors": [
+      "—"
+    ],
+    "tier_signal": null,
+    "negative_flag": true
+  },
+  "3691": {
+    "name": "碩禾",
+    "mentions": [
+      {
+        "date": "2026-05-25",
+        "source": "line_chat_群組_5月25日晚_3413_3691",
+        "context": "傅建騏『3691 感覺有假日的那種意味』、Nick『看看他母公司是誰 然後家登都漲了』— 暗示家登集團子公司補漲訊號；5/25 收 144.5 跌破 MA10、母公司家登 +6.1%"
+      }
+    ],
+    "sectors": [
+      "光電",
+      "家登集團"
     ],
     "tier_signal": "frequent"
   }
