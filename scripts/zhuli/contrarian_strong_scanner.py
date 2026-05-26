@@ -63,28 +63,66 @@ try:
 except Exception:
     HAS_BROKER = False
 
+try:
+    from zhuli.institutional_signal import institutional_5d
+    HAS_INST = True
+except Exception:
+    HAS_INST = False
+
 
 def load_picks() -> dict:
     return {t: info for t, info in json.load(open(_PICKS)).items() if not t.startswith("_")}
 
 
+# 文章/講稿來源（穩定動詞）— line_chat 排除
+def _is_stable_source(source: str) -> bool:
+    """區分文章/講稿（穩定）vs line_chat（ad-hoc）."""
+    if not source:
+        return False
+    if "line_chat" in source:
+        return False
+    return any(k in source for k in ("_本週", "_直播音檔", "_培訓", "_part", "pressplay", "週報"))
+
+
+# 課程文章常態動詞 → 加分
+_STRONG_VERBS = {
+    "主推": 3, "重押": 3, "核心": 3, "複製": 3, "起漲前": 3,
+    "四大主題": 2, "三大主題": 2, "聚焦": 2, "本週主題": 2, "焦點": 2,
+    "庫藏股": 1, "勝利方程式": 2, "可轉債": 1,
+    "處置": 1, "出關": 1, "回補": 1,
+    "技術面": 1, "走勢像": 1,
+}
+
+
 def mention_features(info: dict, target_date: str) -> dict:
-    """回傳 mention 相關特徵 dict."""
+    """回傳 mention 相關特徵 dict（含動詞強度）."""
     mentions = info.get("mentions", [])
     if not mentions:
-        return {"recent_7d": False, "recent_14d": False, "mention_14d_count": 0, "last_days": 999}
+        return {"recent_7d": False, "recent_14d": False, "mention_14d_count": 0, "last_days": 999, "verb_score": 0, "verb_hits": []}
 
     ref = date.fromisoformat(target_date)
     days_list = []
+    verb_score = 0
+    verb_hits = []
     for m in mentions:
         try:
             d = date.fromisoformat(m["date"])
-            if d <= ref:
-                days_list.append((ref - d).days)
+            if d > ref:
+                continue
+            days = (ref - d).days
+            days_list.append(days)
+            # 只 14 天內 + 穩定 source 才抓動詞
+            if days <= 14 and _is_stable_source(m.get("source", "")):
+                ctx = m.get("context", "")
+                for verb, bonus in _STRONG_VERBS.items():
+                    if verb in ctx:
+                        verb_score = max(verb_score, bonus)
+                        verb_hits.append(f"{verb}(+{bonus})")
+                        break  # 一個 mention 只取最強動詞
         except (KeyError, ValueError):
             continue
     if not days_list:
-        return {"recent_7d": False, "recent_14d": False, "mention_14d_count": 0, "last_days": 999}
+        return {"recent_7d": False, "recent_14d": False, "mention_14d_count": 0, "last_days": 999, "verb_score": 0, "verb_hits": []}
 
     last_days = min(days_list)
     cnt14 = sum(1 for d in days_list if d <= 14)
@@ -93,6 +131,8 @@ def mention_features(info: dict, target_date: str) -> dict:
         "recent_14d": 7 < last_days <= 14,
         "mention_14d_count": cnt14,
         "last_days": last_days,
+        "verb_score": verb_score,
+        "verb_hits": verb_hits,
     }
 
 
@@ -192,6 +232,12 @@ def score_candidate(bar: dict, mention: dict, broker_strong: bool) -> tuple[int,
     if mention["mention_14d_count"] >= 2:
         score += 1; hits.append("頻繁mention+1")
 
+    # 文章動詞強度（只 stable source）
+    if mention.get("verb_score", 0) > 0:
+        vs = mention["verb_score"]
+        score += vs
+        hits.append(f"動詞{'/'.join(mention['verb_hits'][:2])}+{vs}")
+
     # 主力分點
     if broker_strong:
         score += 2; hits.append("分點大買+2")
@@ -199,7 +245,7 @@ def score_candidate(bar: dict, mention: dict, broker_strong: bool) -> tuple[int,
     return score, hits
 
 
-def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, broker_top_n: int = 30) -> list[dict]:
+def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, broker_top_n: int = 30, include_inst: bool = True) -> list[dict]:
     picks = load_picks()
     conn = sqlite3.connect(_DB)
     results = []
@@ -217,6 +263,26 @@ def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, 
             continue
         broker = broker_strong_buy(ticker)
         score, hits = score_candidate(bar, mention, broker)
+
+        # 加 institutional 訊號 (粗篩、無 API)
+        inst_score = 0
+        inst_detail = {}
+        if include_inst and HAS_INST:
+            try:
+                inst = institutional_5d(ticker, target_date, conn)
+                inst_score = inst["total_score"]
+                inst_detail = {
+                    "sitc": inst["sitc_5d"],
+                    "foreign": inst["foreign_5d"],
+                    "sitc_streak": inst["sitc_streak_buy"],
+                    "foreign_streak": inst["foreign_streak_buy"],
+                }
+                if inst_score >= 3:
+                    hits.append(f"法人+{inst_score}(投{inst['sitc_5d']/1000:.1f}k/外{inst['foreign_5d']/1000:.1f}k)")
+                score += inst_score
+            except Exception:
+                pass
+
         results.append({
             "ticker": ticker,
             "name": info.get("name", "?"),

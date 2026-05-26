@@ -78,17 +78,36 @@ def next_n_day_max_gain(conn: sqlite3.Connection, ticker: str, base_date: str, n
 
 
 def next_n_day_lu_hit(conn: sqlite3.Connection, ticker: str, base_date: str, n: int = 5) -> bool:
-    """隔日起 n 天內是否漲停過 (close >= prev_close × 1.099)."""
+    """隔日起 n 天內是否漲停過 (close >= prev_close × 1.094)."""
     rows = conn.execute(
         """SELECT trade_date, close FROM standard_daily_bar
            WHERE ticker=? AND trade_date >= ? ORDER BY trade_date LIMIT ?""",
         (ticker, base_date, n + 1),
     ).fetchall()
     for i in range(1, len(rows)):
-        # 9.5% 抓 tick rounding 後仍算漲停的（如 +9.70%、+9.73%）
         if rows[i][1] >= rows[i-1][1] * 1.094:
             return True
     return False
+
+
+def next_n_day_max_lu_streak(conn: sqlite3.Connection, ticker: str, base_date: str, n: int = 5) -> int:
+    """隔日起 n 天內最大連續漲停根數."""
+    rows = conn.execute(
+        """SELECT trade_date, close FROM standard_daily_bar
+           WHERE ticker=? AND trade_date >= ? ORDER BY trade_date LIMIT ?""",
+        (ticker, base_date, n + 1),
+    ).fetchall()
+    if len(rows) < 2:
+        return 0
+    max_streak = 0
+    curr = 0
+    for i in range(1, len(rows)):
+        if rows[i][1] >= rows[i-1][1] * 1.094:
+            curr += 1
+            max_streak = max(max_streak, curr)
+        else:
+            curr = 0
+    return max_streak
 
 
 def run_backtest(start: str, end: str, score_threshold: int = 10, top_n: int = 10) -> dict:
@@ -113,6 +132,7 @@ def run_backtest(start: str, end: str, score_threshold: int = 10, top_n: int = 1
         for r in results:
             max_gain, max_d = next_n_day_max_gain(conn, r["ticker"], d, n=5)
             lu_hit = next_n_day_lu_hit(conn, r["ticker"], d, n=5)
+            lu_streak = next_n_day_max_lu_streak(conn, r["ticker"], d, n=5)
             day_picks.append({
                 "ticker": r["ticker"],
                 "name": r["name"],
@@ -120,6 +140,7 @@ def run_backtest(start: str, end: str, score_threshold: int = 10, top_n: int = 1
                 "bias10": r["bias10"],
                 "next5d_max_gain": max_gain,
                 "next5d_lu_hit": lu_hit,
+                "next5d_lu_streak": lu_streak,
             })
             all_picks.append({**day_picks[-1], "scan_date": d, "mkt_chg": mkt_chg})
 
@@ -153,6 +174,15 @@ def summarize(backtest: dict, score_threshold: int) -> str:
     win_5pct = sum(1 for p in picks if p["next5d_max_gain"] >= 5)
     win_10pct = sum(1 for p in picks if p["next5d_max_gain"] >= 10)
 
+    # LU streak 分布
+    streak_dist = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+    for p in picks:
+        s = p.get("next5d_lu_streak", 0)
+        if s >= 5:
+            streak_dist[5] += 1
+        else:
+            streak_dist[s] += 1
+
     # 大盤跌日表現
     down_days = [p for p in picks if p["mkt_chg"] <= -0.3]
     if down_days:
@@ -177,6 +207,14 @@ def summarize(backtest: dict, score_threshold: int) -> str:
         f"- 平均 5 日最大漲幅: **{avg_gain:+.2f}%**",
         f"- ≥+5% 大勝率: {win_5pct/total_picks*100:.1f}%",
         f"- ≥+10% 飆股率: {win_10pct/total_picks*100:.1f}%",
+        "",
+        f"## 漲停連續根數分布（飆股強度）",
+        f"- 0 根: {streak_dist[0]} ({streak_dist[0]/total_picks*100:.1f}%)",
+        f"- 1 根: {streak_dist[1]} ({streak_dist[1]/total_picks*100:.1f}%)",
+        f"- **2 根**: {streak_dist[2]} ({streak_dist[2]/total_picks*100:.1f}%)",
+        f"- **3 根**: {streak_dist[3]} ({streak_dist[3]/total_picks*100:.1f}%)",
+        f"- **4 根**: {streak_dist[4]} ({streak_dist[4]/total_picks*100:.1f}%)",
+        f"- 5+ 根: {streak_dist[5]} ({streak_dist[5]/total_picks*100:.1f}%)",
         "",
         f"## 大盤跌日（≤-0.3%）抗跌能力",
         f"- 大盤跌日的 picks: {len(down_days)}",
