@@ -85,6 +85,7 @@ def _is_stable_source(source: str) -> bool:
 
 
 # 課程文章常態動詞 → 加分
+# 注意：5/27 測試 處置/出關 +1 反而正確（老師講處置時常有隱性正向訊號）
 _STRONG_VERBS = {
     "主推": 3, "重押": 3, "核心": 3, "複製": 3, "起漲前": 3,
     "四大主題": 2, "三大主題": 2, "聚焦": 2, "本週主題": 2, "焦點": 2,
@@ -92,6 +93,8 @@ _STRONG_VERBS = {
     "處置": 1, "出關": 1, "回補": 1,
     "技術面": 1, "走勢像": 1,
 }
+
+_WARNING_VERBS = {}
 
 
 def mention_features(info: dict, target_date: str) -> dict:
@@ -111,14 +114,21 @@ def mention_features(info: dict, target_date: str) -> dict:
                 continue
             days = (ref - d).days
             days_list.append(days)
-            # 只 14 天內 + 穩定 source 才抓動詞
-            if days <= 14 and _is_stable_source(m.get("source", "")):
+            if days <= 14:
                 ctx = m.get("context", "")
-                for verb, bonus in _STRONG_VERBS.items():
-                    if verb in ctx:
-                        verb_score = max(verb_score, bonus)
-                        verb_hits.append(f"{verb}(+{bonus})")
-                        break  # 一個 mention 只取最強動詞
+                # 警示動詞先處理（含 line_chat、處置/出關等永遠扣分）
+                for warn, penalty in _WARNING_VERBS.items():
+                    if warn in ctx:
+                        verb_score += penalty
+                        verb_hits.append(f"⚠️{warn}({penalty})")
+                        break
+                # 正向動詞只在 stable source (PressPlay 文章/講稿) 才算
+                if _is_stable_source(m.get("source", "")):
+                    for verb, bonus in _STRONG_VERBS.items():
+                        if verb in ctx:
+                            verb_score = max(verb_score, bonus)
+                            verb_hits.append(f"{verb}(+{bonus})")
+                            break
         except (KeyError, ValueError):
             continue
     if not days_list:
@@ -151,9 +161,9 @@ def broker_strong_buy(ticker: str) -> bool:
 
 
 def get_bar_features(conn: sqlite3.Connection, ticker: str, target_date: str) -> dict | None:
-    """取 ticker 在 target_date 的 K 棒特徵 + 過去 5 日量均."""
+    """取 ticker 在 target_date 的 K 棒特徵 + 過去 5 日量均 + 4 均線排列."""
     rows = conn.execute(
-        """SELECT trade_date, open, high, low, close, volume, ma5, ma10, ma20
+        """SELECT trade_date, open, high, low, close, volume, ma5, ma10, ma20, ma60
            FROM standard_daily_bar
            WHERE ticker=? AND trade_date <= ?
            ORDER BY trade_date DESC LIMIT 10""",
@@ -161,9 +171,9 @@ def get_bar_features(conn: sqlite3.Connection, ticker: str, target_date: str) ->
     ).fetchall()
     if not rows:
         return None
-    d, o, h, l, c, v, m5, m10, m20 = rows[0]
+    d, o, h, l, c, v, m5, m10, m20, m60 = rows[0]
     if d != target_date:
-        return None  # target_date 沒資料、跳過
+        return None
 
     if not (m10 and m5):
         return None
@@ -176,13 +186,25 @@ def get_bar_features(conn: sqlite3.Connection, ticker: str, target_date: str) ->
     c5 = rows[5][4] if len(rows) >= 6 else c
     ret5 = (c - c5) / c5 * 100 if c5 else 0
 
+    # 4 均線 ▲ 判讀（與前一日比較）
+    if len(rows) >= 2:
+        _, _, _, _, _, _, m5_p, m10_p, m20_p, m60_p = rows[1]
+        ma5_up = (m5 or 0) > (m5_p or 0)
+        ma10_up = (m10 or 0) > (m10_p or 0)
+        ma20_up = (m20 or 0) > (m20_p or 0)
+        ma60_up = (m60 or 0) > (m60_p or 0)
+    else:
+        ma5_up = ma10_up = ma20_up = ma60_up = False
+
     return {
-        "close": c, "ma5": m5, "ma10": m10, "ma20": m20,
+        "close": c, "ma5": m5, "ma10": m10, "ma20": m20, "ma60": m60,
         "bias10": bias10, "bias20": bias20,
         "vol_ratio": vol_ratio,
         "red_high": red_high,
         "ret5": ret5,
         "ma5_above_ma10": m5 > m10,
+        "ma20_above_ma60": (m20 or 0) > (m60 or 0),
+        "ma5_up": ma5_up, "ma10_up": ma10_up, "ma20_up": ma20_up, "ma60_up": ma60_up,
     }
 
 
@@ -217,6 +239,7 @@ def score_candidate(bar: dict, mention: dict, broker_strong: bool) -> tuple[int,
         score += 1; hits.append("紅高+1")
 
     # MA5 > MA10
+    # 注意：5/27 測試加 MA20/MA60 ▲ 反而傷勝率、revert（已上漲標 mean-reversion 風險）
     if bar["ma5_above_ma10"]:
         score += 1; hits.append("均向上+1")
 
@@ -304,7 +327,8 @@ def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, 
         })
     conn.close()
 
-    # 先依 tech_score 排序、只 enrich top N 的 broker signal（節省 API call）
+    # 依 tech_score 排序、enrich top N 的 broker signal
+    # broker score 門檻：>+3 才加（避免帶入弱訊號）
     results.sort(key=lambda x: -x["tech_score"])
     if include_broker and HAS_BROKER:
         for r in results[:broker_top_n]:
@@ -316,9 +340,14 @@ def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, 
                     "foreign": bs["foreign_total"],
                     "anomaly": len(bs["standalone_anomalies"]),
                 }
-                r["score"] = r["tech_score"] + bs["score"]
-                if bs["strong"]:
-                    r["hits"].append(f"主力共振+{bs['score']}")
+                # 只在 broker score > 3 才加分（強訊號）
+                if bs["score"] > 3:
+                    r["score"] = r["tech_score"] + bs["score"]
+                    r["hits"].append(f"分點強訊號+{bs['score']}")
+                else:
+                    # 弱 broker 訊號不加分、但記錄
+                    if bs["score"] >= 2:
+                        r["hits"].append(f"分點微訊號{bs['score']}/不加分")
             except Exception as exc:
                 r["hits"].append(f"broker_err:{type(exc).__name__}")
 

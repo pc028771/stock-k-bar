@@ -35,14 +35,20 @@ _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 _FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 
 # 老師分點 patterns（match against securities_trader name）
-TEACHER_BROKERS = {
+# Tier 1 = 特別被老師說「很強」（管錢哥、站前哥）
+# Tier 2 = 老師說「厲害」（永豐金惠利、永豐金戰隊）
+TEACHER_BROKERS_TIER1 = {
     "管錢哥（元大館前）": [r"元大.*館前"],
     "站前哥（凱基站前）": [r"凱基.*站前"],
+}
+TEACHER_BROKERS_TIER2 = {
     "永豐金惠利": [r"永豐.*惠利"],
     "永豐金潮州": [r"永豐.*潮州"],
     "永豐金屏東": [r"永豐.*屏東"],
-    "台星屏東": [r"台星.*屏東"],
+    "台新屏東": [r"台新.*屏東"],
 }
+# 合併供 _match_teacher_broker 使用
+TEACHER_BROKERS = {**TEACHER_BROKERS_TIER1, **TEACHER_BROKERS_TIER2}
 
 
 def _match_teacher_broker(name: str) -> str | None:
@@ -107,11 +113,10 @@ def main_force_5d(ticker: str, target_date: str) -> dict:
     Returns dict with 3-tier signal detection.
     """
     dates = _trading_dates_lookback(target_date, 5)
-    teacher_broker_net = defaultdict(int)
+    tier1_net = defaultdict(int)  # 管錢哥/站前哥
+    tier2_net = defaultdict(int)  # 永豐金惠利/戰隊
     foreign_broker_net = defaultdict(int)
     all_broker_net = defaultdict(int)
-    recent_2d_teacher = 0
-    recent_2d_foreign = 0
 
     for d in dates:
         try:
@@ -125,19 +130,25 @@ def main_force_5d(ticker: str, target_date: str) -> dict:
             net = (buy - sell) // 1000  # 張
             all_broker_net[name] += net
 
-            tlabel = _match_teacher_broker(name)
-            if tlabel:
-                teacher_broker_net[tlabel] += net
-                if d in dates[-2:]:
-                    recent_2d_teacher += net
+            # Tier 1 (強)
+            for label, patterns in TEACHER_BROKERS_TIER1.items():
+                if any(re.search(p, name) for p in patterns):
+                    tier1_net[label] += net
+                    break
+            else:
+                # Tier 2 (中)
+                for label, patterns in TEACHER_BROKERS_TIER2.items():
+                    if any(re.search(p, name) for p in patterns):
+                        tier2_net[label] += net
+                        break
 
             if _is_foreign(name):
                 foreign_broker_net[name] += net
-                if d in dates[-2:]:
-                    recent_2d_foreign += net
 
-    teacher_total = sum(teacher_broker_net.values())
-    teacher_active = sum(1 for v in teacher_broker_net.values() if v >= 100)
+    tier1_total = sum(tier1_net.values())
+    tier2_total = sum(tier2_net.values())
+    teacher_total = tier1_total + tier2_total  # 整體合計（兼容舊欄位）
+    teacher_active = sum(1 for v in {**tier1_net, **tier2_net}.values() if v >= 100)
     foreign_total = sum(foreign_broker_net.values())
     foreign_active = sum(1 for v in foreign_broker_net.values() if v >= 200)
 
@@ -150,29 +161,34 @@ def main_force_5d(ticker: str, target_date: str) -> dict:
     ]
     standalone_anomalies.sort(key=lambda x: -x[1])
 
-    # 評分（3 層獨立加分、max 8）
+    # 評分（tier-based）：
     score = 0
-    # Layer 1: 老師分點
-    if teacher_total >= 1000: score += 2
-    elif teacher_total >= 500: score += 1
-    if teacher_active >= 2: score += 1
-    if recent_2d_teacher >= 500: score += 1
-    # Layer 2: 外資集中
-    if foreign_total >= 3000: score += 2
-    elif foreign_total >= 1500: score += 1
-    if foreign_active >= 3: score += 1
-    # Layer 3: 單分點異常
-    if len(standalone_anomalies) >= 1 and standalone_anomalies[0][1] >= 1000: score += 1
+    # Tier 1 (管錢哥/站前哥) — 強訊號
+    if tier1_total >= 2000: score += 5  # 大買 ≥ 2k 張
+    elif tier1_total >= 1000: score += 3
+    elif tier1_total >= 500: score += 2
+    # Tier 2 (永豐金惠利/戰隊) — 中訊號
+    if tier2_total >= 1000: score += 2
+    elif tier2_total >= 500: score += 1
+    # 外資集中（保留、獨立加分）
+    if foreign_total >= 5000: score += 2
+    elif foreign_total >= 3000: score += 1
+    # 單分點異常（保留）
+    if len(standalone_anomalies) >= 1 and standalone_anomalies[0][1] >= 2000: score += 1
 
     return {
-        "teacher_broker_net": dict(teacher_broker_net),
+        "teacher_broker_net": {**dict(tier1_net), **dict(tier2_net)},
+        "tier1_net": dict(tier1_net),
+        "tier2_net": dict(tier2_net),
+        "tier1_total": tier1_total,
+        "tier2_total": tier2_total,
         "teacher_total": teacher_total,
         "foreign_broker_net": dict(foreign_broker_net),
         "foreign_total": foreign_total,
         "foreign_active": foreign_active,
         "standalone_anomalies": standalone_anomalies[:3],
-        "recent_2d_teacher": recent_2d_teacher,
-        "recent_2d_foreign": recent_2d_foreign,
+        "recent_2d_teacher": 0,  # 已 deprecated
+        "recent_2d_foreign": 0,
         "score": score,
         "strong": score >= 4,
     }

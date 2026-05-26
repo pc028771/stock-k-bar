@@ -121,7 +121,7 @@ def run_backtest(start: str, end: str, score_threshold: int = 10, top_n: int = 1
     for i, d in enumerate(dates):
         mkt_chg = market_index_change(conn, d)
         try:
-            raw = run_scan(d, min_score=score_threshold, include_broker=False)
+            raw = run_scan(d, min_score=score_threshold, include_broker=True, broker_top_n=20)
             # 只取 🟢 可進場 zone (bias ≤ +15%)
             results = [r for r in raw if r.get("zone") == "🟢可進場"][:top_n]
         except Exception as exc:
