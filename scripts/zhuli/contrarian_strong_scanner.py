@@ -151,11 +151,20 @@ def score_candidate(bar: dict, mention: dict, broker_strong: bool) -> tuple[int,
     score = 0
     hits = []
 
-    # 距 MA10
-    if bar["bias10"] <= 10:
-        score += 2; hits.append("打擊區+2")
-    elif bar["bias10"] <= 15:
-        score += 1; hits.append("邊緣+1")
+    # 距 MA10 — soft scoring（不 hard gate、極端才扣分）
+    b = bar["bias10"]
+    if b <= 5:
+        score += 3; hits.append(f"最佳區+3({b:+.1f}%)")
+    elif b <= 10:
+        score += 2; hits.append(f"打擊區+2({b:+.1f}%)")
+    elif b <= 15:
+        score += 1; hits.append(f"邊緣+1({b:+.1f}%)")
+    elif b <= 20:
+        hits.append(f"中性({b:+.1f}%)")
+    elif b <= 25:
+        score -= 1; hits.append(f"追高-1({b:+.1f}%)")
+    else:
+        score -= 2; hits.append(f"嚴重追高-2({b:+.1f}%)")
 
     # 量比
     if bar["vol_ratio"] >= 1.5:
@@ -198,9 +207,11 @@ def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, 
         bar = get_bar_features(conn, ticker, target_date)
         if not bar:
             continue
-        # 過濾掉已 over-extended（距 MA10 > +15%、跳過）
-        if bar["bias10"] > 15:
+        # Hard gate 嚴重追高（>30% 直接剔除、派發區）
+        if bar["bias10"] > 30:
             continue
+        # 分區標記（gate 在 +15% 老師紅線）
+        zone = "🟢可進場" if bar["bias10"] <= 15 else "🟡觀察區" if bar["bias10"] <= 25 else "🔴不碰"
         mention = mention_features(info, target_date)
         if mention["last_days"] > 14:  # 老師近 14 天沒提、跳過
             continue
@@ -223,6 +234,7 @@ def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, 
             "broker_score": 0,
             "broker_detail": {},
             "score": score,  # combined later
+            "zone": zone,
         })
     conn.close()
 
@@ -291,16 +303,26 @@ def main():
         print("無符合條件的候選")
         return
 
-    print(f"{'排名':<4}{'tk':<6}{'name':<10}{'tier':<10}{'距MA10':>8}{'量比':>6}{'5d%':>7}{'tech':>5}{'brok':>5}{'total':>6}  {'命中'}")
-    print("-" * 140)
-    for i, r in enumerate(results, 1):
-        rating = "⭐⭐⭐" if r["score"] >= 14 else "⭐⭐" if r["score"] >= 10 else "⭐"
-        hits_str = " / ".join(r["hits"][-3:])  # 只顯示最後 3 個 (broker 最相關)
-        print(
-            f"{i:<4}{r['ticker']:<6}{r['name']:<10}{r['tier']:<10}"
-            f"{r['bias10']:>+7.2f}%{r['vol_ratio']:>5.2f}x{r['ret5']:>+6.1f}%"
-            f"{r['tech_score']:>5}{r['broker_score']:>5}{r['score']:>6} {rating}  {hits_str}"
-        )
+    # 分區輸出
+    zones = {"🟢可進場": [], "🟡觀察區": [], "🔴不碰": []}
+    for r in results:
+        zones[r["zone"]].append(r)
+
+    for zone_name in ["🟢可進場", "🟡觀察區"]:
+        zlist = zones[zone_name]
+        if not zlist:
+            continue
+        print(f"\n=== {zone_name} ({len(zlist)} 檔) ===")
+        print(f"{'#':<3}{'tk':<6}{'name':<10}{'tier':<10}{'距MA10':>8}{'量比':>6}{'5d%':>7}{'tech':>5}{'brok':>5}{'total':>6}  {'命中'}")
+        print("-" * 140)
+        for i, r in enumerate(zlist, 1):
+            rating = "⭐⭐⭐" if r["score"] >= 14 else "⭐⭐" if r["score"] >= 10 else "⭐"
+            hits_str = " / ".join(r["hits"][-3:])
+            print(
+                f"{i:<3}{r['ticker']:<6}{r['name']:<10}{r['tier']:<10}"
+                f"{r['bias10']:>+7.2f}%{r['vol_ratio']:>5.2f}x{r['ret5']:>+6.1f}%"
+                f"{r['tech_score']:>5}{r['broker_score']:>5}{r['score']:>6} {rating}  {hits_str}"
+            )
 
     out = Path("/tmp") / f"contrarian_strong_{args.date}.md"
     write_report(args.date, results, out)
