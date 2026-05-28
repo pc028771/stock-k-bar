@@ -58,7 +58,7 @@ def load_yesterday_close_and_ma(tickers: list[str], verbose: bool = False) -> di
         print(f"   提示: 請先跑 python scripts/zhuli/sync_today.py 或從另一台機器 sync DB")
         sys.exit(1)
     if verbose: print(f"連接 DB: {DB}")
-    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)  # readonly + 5s timeout 避開 lock
+    conn = sqlite3.connect(f"file:{DB}?mode=ro&immutable=1", uri=True, timeout=5)  # readonly + 5s timeout 避開 lock
     if verbose: print(f"DB 連線 OK")
     result = {}
     for t in tickers:
@@ -252,7 +252,7 @@ def run_live(monitor: DumpMonitor):
 def run_mock(monitor: DumpMonitor, date: str, verbose: bool = False):
     """Mock 模式：用 DB 5/28 today's bar 模擬即時 tick (假日測試)."""
     if verbose: print(f"Mock: 抓 {date} bar 模擬...")
-    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+    conn = sqlite3.connect(f"file:{DB}?mode=ro&immutable=1", uri=True, timeout=5)
     today_bars = {}
     for t in monitor.holdings:
         r = conn.execute(
