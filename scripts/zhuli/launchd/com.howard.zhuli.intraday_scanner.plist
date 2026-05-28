@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.intraday_scanner</string>
+
+    <!-- 13:10 尾盤前 scanner — 用現價當收盤預判尾盤進出 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/howard/.pyenv/shims/python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/intraday_scanner.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>FINMIND_TOKEN</key>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
+        <key>FUBON_PID</key>
+        <string>A123309212</string>
+        <key>FUBON_API_KEY</key>
+        <string>CAD10AD5F4F0EA880FC3529FC7C7857D08228988EE9F718B7E83A8EE8C3B196A</string>
+        <key>FUBON_PWD</key>
+        <string>camGep2zaz</string>
+        <key>FUBON_CREDENTIAL_FILE</key>
+        <string>/Users/howard/.fubon/A123309212_20270401.p12</string>
+        <key>FUBON_CREDENTIAL_PWD</key>
+        <string>My253845</string>
+    </dict>
+
+    <!-- 每週一~五 13:10 跑（台股 9:00-13:30；13:10 給 user 15 分鐘準備） -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>10</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>10</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>10</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>10</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>13</integer>
+            <key>Minute</key><integer>10</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/zhuli_intraday.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/zhuli_intraday.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

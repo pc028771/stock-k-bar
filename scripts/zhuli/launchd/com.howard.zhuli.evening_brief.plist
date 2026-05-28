@@ -3,13 +3,21 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.howard.zhuli.daily_scanner</string>
+    <string>com.howard.zhuli.evening_brief</string>
 
-    <!-- wrapper 腳本：1) daily_scanner_job  2) broker_dage_tracker (extended) -->
+    <!--
+      每晚 18:00 深度報告（FinMind 分點資料 ~17:00 後 ready）：
+        - 大哥資料（即時抓取、不用 cache）
+        - holdings 狀態分析
+        - scanner 結果摘要
+        - trade_journal 當日
+        - 明日 SOP 候選
+      輸出：docs/主力大課程/daily_brief/YYYY-MM-DD_evening.md
+    -->
     <key>ProgramArguments</key>
     <array>
-        <string>/bin/bash</string>
-        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/run_daily_14h30.sh</string>
+        <string>/Users/howard/.pyenv/shims/python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/evening_brief.py</string>
     </array>
 
     <key>EnvironmentVariables</key>
@@ -20,40 +28,40 @@
         <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
     </dict>
 
-    <!-- 每週一~五 14:30 跑（收盤 13:30 + 30 分緩衝） -->
+    <!-- 每週一~五 21:00 -->
     <key>StartCalendarInterval</key>
     <array>
         <dict>
             <key>Weekday</key><integer>1</integer>
-            <key>Hour</key><integer>14</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key><integer>18</integer>
+            <key>Minute</key><integer>0</integer>
         </dict>
         <dict>
             <key>Weekday</key><integer>2</integer>
-            <key>Hour</key><integer>14</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key><integer>18</integer>
+            <key>Minute</key><integer>0</integer>
         </dict>
         <dict>
             <key>Weekday</key><integer>3</integer>
-            <key>Hour</key><integer>14</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key><integer>18</integer>
+            <key>Minute</key><integer>0</integer>
         </dict>
         <dict>
             <key>Weekday</key><integer>4</integer>
-            <key>Hour</key><integer>14</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key><integer>18</integer>
+            <key>Minute</key><integer>0</integer>
         </dict>
         <dict>
             <key>Weekday</key><integer>5</integer>
-            <key>Hour</key><integer>14</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key><integer>18</integer>
+            <key>Minute</key><integer>0</integer>
         </dict>
     </array>
 
     <key>StandardOutPath</key>
-    <string>/tmp/zhuli_daily_1430.log</string>
+    <string>/tmp/zhuli_evening_brief.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/zhuli_daily_1430.err</string>
+    <string>/tmp/zhuli_evening_brief.err</string>
 
     <key>RunAtLoad</key>
     <false/>

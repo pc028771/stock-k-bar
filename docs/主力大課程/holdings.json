@@ -1,0 +1,169 @@
+{
+  "_meta": {
+    "description": "Howard 現金部位 + ETF 持倉。手動維護。每次進出更新。",
+    "schema": {
+      "shares": "張數 (1 張 = 1000 股)",
+      "cost": "FIFO 平均成本",
+      "entry_date": "FIFO 剩餘 lot 中最後進場日",
+      "category": "core | frequent | short | etf_locked",
+      "stop_loss": "停損位 (若有)",
+      "lots": "FIFO 剩餘 lots [張@價]"
+    },
+    "last_updated": "2026-05-27",
+    "source": "證券對帳單 20260527233220.csv (FIFO reconstructed)"
+  },
+
+  "holdings": {
+    "2885": {
+      "name": "元大金",
+      "shares": 10,
+      "cost": 58.00,
+      "entry_date": "2026-05-27",
+      "category": "core",
+      "stop_loss": 55.71,
+      "lots": "10@58.0",
+      "notes": "券商兆元結構受惠、戰略親操標的；加碼門檻 $63.80"
+    },
+    "2344": {
+      "name": "華邦電",
+      "shares": 2,
+      "cost": 155.00,
+      "entry_date": "2026-05-27",
+      "category": "frequent",
+      "stop_loss": 133.00,
+      "lots": "2@155.0",
+      "notes": "5/27 漲停買進、記憶體華邦電系 (非南亞科系)"
+    },
+    "2464": {
+      "name": "盟立",
+      "shares": 2,
+      "cost": 143.5,
+      "entry_date": "2026-05-22",
+      "category": "frequent",
+      "stop_loss": 135.7,
+      "lots": "2@143.5",
+      "notes": "5/22 加碼後 5/27 沖賣 1 張 @176.5 已實現獲利"
+    },
+    "6282": {
+      "name": "康舒",
+      "shares": 3,
+      "cost": 57.70,
+      "entry_date": "2026-05-22",
+      "category": "core",
+      "stop_loss": 54.4,
+      "lots": "2@57.8 + 1@57.5",
+      "notes": "BBU 強勢、紅海系外資長挺、康舒缺口模型教材級"
+    },
+    "2476": {
+      "name": "鉅祥",
+      "shares": 3,
+      "cost": 123.17,
+      "entry_date": "2026-05-27",
+      "category": "frequent",
+      "stop_loss": 117.7,
+      "lots": "1@114.5 + 2@127.5",
+      "notes": "5/20 進 2 + 5/25 賣 1 + 5/27 加碼 2、被動元件主部隊"
+    },
+    "3149": {
+      "name": "正達",
+      "shares": 3,
+      "cost": 59.27,
+      "entry_date": "2026-05-25",
+      "category": "core",
+      "stop_loss": 55.74,
+      "lots": "2@58.4 + 1@61.0"
+    },
+    "5347": {
+      "name": "世界先進",
+      "shares": 3,
+      "cost": 161.50,
+      "entry_date": "2026-05-25",
+      "category": "core",
+      "stop_loss": 165.4,
+      "lots": "3@161.5",
+      "notes": "成熟製程、加碼條件 +10% 後回支撐 (老師親回 Howard 5/25)；連 2 日 < MA10 隔日全出"
+    },
+    "3162": {
+      "name": "精確",
+      "shares": 1,
+      "cost": 91.5,
+      "entry_date": "2026-05-26",
+      "category": "frequent",
+      "stop_loss": 83.0,
+      "lots": "1@91.5",
+      "notes": "5/26 新進、停損 $83 (結構底 5/14-5/15 區間)；5/27 收 $83.60 = 警戒、未觸發"
+    },
+    "1605": {
+      "name": "華新",
+      "shares": 6,
+      "cost": 37.30,
+      "entry_date": "2026-05-27",
+      "category": "core",
+      "stop_loss": 35.14,
+      "lots": "1@37.25 + 1@37.2 + 1@37.75 + 3@37.2",
+      "notes": "被動元件主部隊、5/26-5/27 分批進場"
+    },
+    "3265": {
+      "name": "台星科",
+      "shares": 3,
+      "cost": 189.67,
+      "entry_date": "2026-05-25",
+      "category": "frequent",
+      "stop_loss": 180.2,
+      "lots": "1@190.0 + 2@189.5",
+      "notes": "光通族群"
+    },
+    "5439": {
+      "name": "高技",
+      "shares": 2,
+      "cost": 385.75,
+      "entry_date": "2026-05-27",
+      "category": "frequent",
+      "stop_loss": 373.0,
+      "stop_warn": 380.0,
+      "lots": "1@386.0 + 1@385.5",
+      "notes": "5/27 老師說『看進場』、進場時點為中盤 (非尾盤)、V 反偏弱；5/27 收 385.5；MA5/10 糾結 385.x；結構底 373 (5/21 低)、警示 380 (5/25+5/27 兩次測試低)"
+    }
+  },
+
+  "etf_locked": {
+    "0052": {
+      "name": "富邦科技",
+      "shares": 30,
+      "cost": 55.20,
+      "notes": "原 40 張、5/20 賠錢賣 10 張籌資轉現股；剩 30 張等股魚課程鎖定不動"
+    },
+    "00403A": {
+      "name": "主動統一升級50",
+      "shares": 42,
+      "cost": 10.20,
+      "entry_date": "2026-05-12",
+      "lots": "30@10.0 (募資) + 12@10.71 (5/12)",
+      "notes": "主動式 ETF、鎖定不動；30 張為募資階段認購、12 張為 5/12 加碼"
+    }
+  },
+
+  "watchlist": {
+    "6285": {
+      "name": "啟碁",
+      "reason": "5/27 老師明示『起機外資一直連買、通過考驗』、SpaceX/PCB 鏈"
+    },
+    "4906": {
+      "name": "正文",
+      "reason": "5/27 老師明示『通過 12 點考驗』、位階好"
+    },
+    "2891": {
+      "name": "中信金",
+      "reason": "券商族群打擊區內、唯一符合 +4.45% 紀律 (5/27 broker_sector_watchlist)"
+    },
+    "6284": {
+      "name": "佳邦",
+      "reason": "5/25 trade_journal 重新評估標的"
+    }
+  },
+
+  "exclusion_list": {
+    "1303": {"name": "南亞", "reason": "老師明示『南亞那塊我不做了』(5/26)"},
+    "3036": {"name": "文曄", "reason": "老師明示『養豬哥套牢未消』(5/26)"}
+  }
+}
