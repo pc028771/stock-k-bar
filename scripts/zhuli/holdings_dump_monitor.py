@@ -36,6 +36,7 @@ for _p in [str(_SYS)]:
 DB = Path.home() / ".four_seasons" / "data.sqlite"
 HOLDINGS = _REPO / "docs" / "主力大課程" / "holdings.json"
 BASELINE_SNAPSHOT = _REPO / "docs" / "主力大課程" / "baseline_snapshot.json"
+STATE_FILE = Path("/tmp/holdings_dump_monitor_state.json")  # persist 重啟也保留量比
 
 
 def load_holdings() -> dict:
@@ -122,15 +123,40 @@ class DumpMonitor:
 
     def __init__(self, holdings: dict, baseline: dict):
         self.holdings = holdings
-        self.baseline = baseline  # {ticker: {yesterday_close, ma10, ...}}
-        # 即時狀態
+        self.baseline = baseline
         self.state: dict[str, dict] = {}
+        # 嘗試從 STATE_FILE 載入 (重啟保留量比)
+        prev_state = {}
+        today = datetime.now().strftime("%Y-%m-%d")
+        if STATE_FILE.exists():
+            try:
+                saved = json.loads(STATE_FILE.read_text())
+                if saved.get("date") == today:
+                    prev_state = saved.get("state", {})
+                    print(f"[state] 從 {STATE_FILE} 載入 {len(prev_state)} 檔狀態")
+            except Exception as e:
+                print(f"[state] 載入失敗、忽略: {e}")
         for t in holdings:
-            self.state[t] = {
+            self.state[t] = prev_state.get(t) or {
                 "open": None, "high": None, "low": None, "close": None,
                 "volume": 0, "last_price": None, "last_update": None,
-                "vol_minute": {},  # {YYYY-MM-DD HH:MM: cumulative_vol_this_minute}
+                "vol_minute": {},
             }
+        self._last_save = 0  # epoch、為了 throttle save
+
+    def save_state(self):
+        """寫 state 到 STATE_FILE (每 5 秒 throttle)."""
+        now = time.time()
+        if now - self._last_save < 5:
+            return
+        try:
+            STATE_FILE.write_text(json.dumps({
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "state": self.state,
+            }))
+            self._last_save = now
+        except Exception:
+            pass
 
     def update_tick(self, ticker: str, price: float, volume: int = 0):
         s = self.state.get(ticker)
@@ -153,6 +179,8 @@ class DumpMonitor:
             oldest = sorted(s["vol_minute"].keys())[:-30]
             for k in oldest:
                 del s["vol_minute"][k]
+        # persist (throttle 5 秒)
+        self.save_state()
 
     def get_volume_spike(self, ticker: str) -> tuple[int, float, float]:
         """回傳 (本分鐘量, 過去 10 分鐘平均量, 倍數).
@@ -172,6 +200,23 @@ class DumpMonitor:
         avg_vol = sum(vm[k] for k in prev_keys) / len(prev_keys)
         ratio = cur_vol / avg_vol if avg_vol > 0 else 0
         return cur_vol, avg_vol, ratio
+
+
+def get_spike_threshold(now: datetime | None = None) -> tuple[float, str] | None:
+    """依時段回 (spike threshold 倍數, 時段名).
+
+    回 None = 該時段忽略量比 (開盤 / 試撮)。
+    """
+    now = now or datetime.now()
+    hm = now.hour * 100 + now.minute
+    if 900 <= hm < 910: return None, "開盤"        # 集中委託、忽略
+    if 910 <= hm < 930: return 2.5, "早盤"
+    if 930 <= hm < 1130: return 2.0, "中盤"         # 最敏感
+    if 1130 <= hm < 1230: return 1.8, "午盤"
+    if 1230 <= hm < 1300: return 2.0, "殺盤窗"
+    if 1300 <= hm < 1325: return 3.0, "尾盤"         # 本來放量
+    if 1325 <= hm < 1330: return None, "試撮"        # 集中、忽略
+    return 2.0, "盤外"
 
     def signals(self, ticker: str) -> list[str]:
         """評估該檔當前出貨訊號、回傳警示 list."""
@@ -223,18 +268,31 @@ class DumpMonitor:
                 if dip >= 1.5 and recovery < 0.5:
                     warnings.append(f"⚠️ 12 點殺 {dip:.1f}% 未恢復")
 
-        # 6. 量能 spike
+        # 6. 出貨訊號（focus 賣壓、不關心進貨）
         cur_vol, avg_vol, ratio = self.get_volume_spike(ticker)
-        if ratio >= 2.0:
-            move_pct = (cur - op) / op * 100 if op else 0
-            if move_pct >= 1:
-                warnings.append(f"🚨 急量 {ratio:.1f}x + 漲 {move_pct:+.1f}% (主力進貨)")
-            elif move_pct <= -1:
-                warnings.append(f"🚨 急量 {ratio:.1f}x + 跌 {move_pct:+.1f}% (主力倒貨)")
-            else:
-                warnings.append(f"⚠️ 急量 {ratio:.1f}x (籌碼換手)")
-        elif ratio >= 1.5:
-            warnings.append(f"⚠️ 量放 {ratio:.1f}x")
+        threshold, band = get_spike_threshold()
+
+        if threshold is not None and op and hi:
+            move_pct = (cur - op) / op * 100
+            high_dist = (hi - cur) / op * 100  # 距日高的回吐 %
+
+            # 出貨訊號 A：急量 + 跌 (主力直接砸)
+            if ratio >= threshold and move_pct <= -1:
+                warnings.append(f"🚨 出貨A: {band}急量 {ratio:.1f}x + 跌 {move_pct:+.1f}%")
+
+            # 出貨訊號 B：急量 + 衝高拉回 (拉高出貨)
+            elif ratio >= threshold and high_dist >= 2:
+                warnings.append(f"🚨 出貨B: {band}急量 {ratio:.1f}x、衝高 ${hi:.2f} 回吐 -{high_dist:.1f}%")
+
+            # 出貨訊號 C：尾盤殺量 (13:00 後量放大 + 跌)
+            elif band in ("尾盤",) and ratio >= 1.5 and move_pct <= -0.5:
+                warnings.append(f"🚨 出貨C: 尾盤殺量 {ratio:.1f}x + 跌 {move_pct:+.1f}%")
+
+            # 中性訊號（量大但方向不明、不提示「主力進貨」）
+            elif ratio >= threshold:
+                warnings.append(f"⚠️ {band}量放 {ratio:.1f}x (觀察方向)")
+            elif ratio >= threshold * 0.75:
+                pass  # 不警示、避免雜訊
 
         if not warnings:
             warnings.append("🟢 正常")
@@ -242,7 +300,9 @@ class DumpMonitor:
         return warnings
 
     def render_table(self) -> Table:
-        t = Table(box=box.ROUNDED, title=f"持倉拉高出貨監控 [{datetime.now().strftime('%H:%M:%S')}]")
+        threshold, band = get_spike_threshold()
+        band_info = f"[{band}、量比門檻 {threshold}x]" if threshold else f"[{band}、忽略量比]"
+        t = Table(box=box.ROUNDED, title=f"持倉拉高出貨監控 [{datetime.now().strftime('%H:%M:%S')}] {band_info}")
         t.add_column("Ticker", style="cyan")
         t.add_column("名稱")
         t.add_column("成本", justify="right")
