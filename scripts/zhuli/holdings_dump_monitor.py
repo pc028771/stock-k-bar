@@ -253,6 +253,16 @@ class DumpMonitor:
             if upper_shadow_pct >= 5:
                 warnings.append(f"⚠️ 上影 {upper_shadow_pct:.1f}% (高檔出貨)")
 
+        # 3.5 破 MA5 (老師 5/28「破 MA5 可選擇停利、汰弱留強」)
+        ma5 = b.get("ma5", 0)
+        if ma5 and cur < ma5:
+            # 部位判定 (張數 × cost > 300K = 中大、小部位老師明示不用)
+            position_value = h.get("shares", 0) * h.get("cost", 0) * 1000
+            if position_value >= 300_000:
+                warnings.append(f"⚠️ 破 MA5 ${ma5:.2f} (中大部位、汰弱?)")
+            else:
+                warnings.append(f"📌 破 MA5 ${ma5:.2f} (小部位、老師說不用動)")
+
         # 4. 跌破 MA10
         if ma10 and cur < ma10:
             warnings.append(f"⚠️ 現價 < MA10 ${ma10:.2f}")
@@ -307,6 +317,7 @@ class DumpMonitor:
         t.add_column("現價", justify="right")
         t.add_column("損益%", justify="right")
         t.add_column("距開盤", justify="right")
+        t.add_column("MA5", justify="right")
         t.add_column("距MA10", justify="right")
         t.add_column("日內H/L", justify="right")
         t.add_column("量比", justify="right")
@@ -320,13 +331,20 @@ class DumpMonitor:
                 cur_str = "—"
                 pnl = "—"
                 dist_open = "—"
+                ma5_str = "—"
                 dist_ma10 = "—"
                 hl = "—"
             else:
                 cur_str = f"${cur:.2f}"
                 pnl = f"{(cur - h['cost']) / h['cost'] * 100:+.1f}%"
                 dist_open = f"{(cur - s['open']) / s['open'] * 100:+.1f}%" if s['open'] else "—"
+                ma5 = b.get("ma5", 0)
                 ma10 = b.get("ma10", 0)
+                if ma5:
+                    ma5_diff = (cur - ma5) / ma5 * 100
+                    ma5_str = f"[green]🟢${ma5:.1f}[/green]" if cur >= ma5 else f"[red]🔴${ma5:.1f}({ma5_diff:+.1f}%)[/red]"
+                else:
+                    ma5_str = "—"
                 dist_ma10 = f"{(cur - ma10) / ma10 * 100:+.1f}%" if ma10 else "—"
                 hl = f"{s['high']:.2f}/{s['low']:.2f}" if s['high'] else "—"
 
@@ -340,7 +358,7 @@ class DumpMonitor:
 
             t.add_row(
                 ticker, h["name"], f"${h['cost']:.2f}", cur_str, pnl,
-                dist_open, dist_ma10, hl,
+                dist_open, ma5_str, dist_ma10, hl,
                 f"[{vr_style}]{vr_str}[/{vr_style}]",
                 f"[{warn_style}]{warn_str}[/{warn_style}]",
             )
