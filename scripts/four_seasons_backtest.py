@@ -120,6 +120,14 @@ class BacktestConfig:
     # ⚠️ 課程說「固定 trailing」可能指機制（vs 主觀），也可能指「不變動」— 寬鬆解讀
     extras_dynamic_trailing_giveback: bool = False
     extras_dynamic_giveback_factor: float = 0.4
+    # 大盤方向 extras（自創）：TAIEX 作為大盤代理，過濾與大盤逆勢的進場
+    # 只套用於春與秋；立夏/盛夏 = 個股逆勢突破型，不套
+    # - 春：TAIEX close > MA20 才放行（大盤多頭、價值股才有人玩）
+    # - 秋（空單）：TAIEX close < MA20 才放行（大盤空頭才容易抓崩）
+    # 實證 2024：套全季節傷立夏（mean +1.75→+0.91），分季節保留立夏盛夏不變、春秋品質提升
+    # 註：0050 在 DB 2025 資料缺，已用 backfill_taiex.py 補抓 TAIEX 2022-2026
+    extras_market_direction_filter: bool = False
+    extras_market_proxy_ticker: str = "TAIEX"
 
 
 def load_bt_config(path: Path | None) -> BacktestConfig:
@@ -411,8 +419,29 @@ def run_backtest(
 
     cls_sorted = cls.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
 
+    # 大盤方向 extras：撈大盤代理 (0050) 的 close vs MA20 序列
+    market_direction: dict[pd.Timestamp, bool] = {}  # date → True=多頭(>MA20)
+    if extras and bt.extras_market_direction_filter:
+        proxy = bt.extras_market_proxy_ticker
+        if proxy in panel_by_ticker:
+            mp = panel_by_ticker[proxy]
+            for _, mr in mp.iterrows():
+                if pd.notna(mr["ma20"]) and mr["close"] is not None:
+                    market_direction[mr["trade_date"]] = mr["close"] > mr["ma20"]
+
     def passes_quality_gate(e_season: str, entry_row: pd.Series, tkr: str, edate) -> bool:
         """Apply per-season quality gates. Returns True if entry should proceed."""
+        # 大盤方向 extras：只套用於春與秋（立夏/盛夏 = 個股逆勢突破型，不套）
+        # 實證 2024 立夏 mean +1.75 → +0.91（套大盤過濾傷立夏）；秋大幅改善
+        if extras and bt.extras_market_direction_filter:
+            if e_season == "春" or e_season == "秋":
+                market_up = market_direction.get(edate)
+                if market_up is None:
+                    return False  # 大盤資料缺，安全保留
+                if e_season == "春" and not market_up:
+                    return False  # 大盤空頭、春不該進
+                if e_season == "秋" and market_up:
+                    return False  # 大盤多頭、秋空不該開
         if e_season == "春":
             mf20 = entry_row.get("main_force_20d")
             if pd.isna(mf20) or mf20 is None or mf20 < bt.spring_mf20_min:
