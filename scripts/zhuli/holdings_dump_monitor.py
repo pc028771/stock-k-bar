@@ -118,6 +118,20 @@ def load_yesterday_close_and_ma(tickers: list[str], verbose: bool = False) -> di
     return result
 
 
+def get_spike_threshold(now=None):
+    """依時段回 (spike threshold 倍數, 時段名). 回 (None, name) = 該時段忽略量比."""
+    now = now or datetime.now()
+    hm = now.hour * 100 + now.minute
+    if 900 <= hm < 910: return None, "開盤"
+    if 910 <= hm < 930: return 2.5, "早盤"
+    if 930 <= hm < 1130: return 2.0, "中盤"
+    if 1130 <= hm < 1230: return 1.8, "午盤"
+    if 1230 <= hm < 1300: return 2.0, "殺盤窗"
+    if 1300 <= hm < 1325: return 3.0, "尾盤"
+    if 1325 <= hm < 1330: return None, "試撮"
+    return 2.0, "盤外"
+
+
 class DumpMonitor:
     """每檔即時狀態 + 出貨訊號評估."""
 
@@ -201,22 +215,6 @@ class DumpMonitor:
         ratio = cur_vol / avg_vol if avg_vol > 0 else 0
         return cur_vol, avg_vol, ratio
 
-
-def get_spike_threshold(now: datetime | None = None) -> tuple[float, str] | None:
-    """依時段回 (spike threshold 倍數, 時段名).
-
-    回 None = 該時段忽略量比 (開盤 / 試撮)。
-    """
-    now = now or datetime.now()
-    hm = now.hour * 100 + now.minute
-    if 900 <= hm < 910: return None, "開盤"        # 集中委託、忽略
-    if 910 <= hm < 930: return 2.5, "早盤"
-    if 930 <= hm < 1130: return 2.0, "中盤"         # 最敏感
-    if 1130 <= hm < 1230: return 1.8, "午盤"
-    if 1230 <= hm < 1300: return 2.0, "殺盤窗"
-    if 1300 <= hm < 1325: return 3.0, "尾盤"         # 本來放量
-    if 1325 <= hm < 1330: return None, "試撮"        # 集中、忽略
-    return 2.0, "盤外"
 
     def signals(self, ticker: str) -> list[str]:
         """評估該檔當前出貨訊號、回傳警示 list."""
