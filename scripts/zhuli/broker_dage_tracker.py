@@ -364,6 +364,9 @@ def cross_reference_holdings(action: dict, holdings_path: Path) -> dict:
     # Watchlist 對照
     watchlist_action = []
     for ticker, info in watchlist.items():
+        # Skip non-dict entries (e.g. user notes added as strings in holdings.json watchlist)
+        if not isinstance(info, dict):
+            continue
         net = all_actions.get(ticker, 0)
         if net > 200:
             interp = "大哥大買 → 升格觀察 🔥"
