@@ -35,6 +35,7 @@ for _p in [str(_SYS)]:
 
 DB = Path.home() / ".four_seasons" / "data.sqlite"
 HOLDINGS = _REPO / "docs" / "主力大課程" / "holdings.json"
+BASELINE_SNAPSHOT = _REPO / "docs" / "主力大課程" / "baseline_snapshot.json"
 
 
 def load_holdings() -> dict:
@@ -52,40 +53,67 @@ def load_holdings() -> dict:
 
 
 def load_yesterday_close_and_ma(tickers: list[str], verbose: bool = False) -> dict:
-    """從 DB 取每檔最近收盤、MA5/MA10、5/27 高低."""
-    if not DB.exists():
-        print(f"❌ DB 不存在: {DB}")
-        print(f"   提示: 請先跑 python scripts/zhuli/sync_today.py 或從另一台機器 sync DB")
+    """從 DB 取每檔最近收盤、MA5/MA10、yesterday 高低。
+
+    Fallback: 若 DB 不存在 / 過舊、改讀 baseline_snapshot.json (home 機 export)。
+    """
+    # 優先 DB、失敗或太舊 fallback 到 snapshot
+    if DB.exists():
+        try:
+            if verbose: print(f"連接 DB: {DB}")
+            conn = sqlite3.connect(f"file:{DB}?mode=ro&immutable=1", uri=True, timeout=5)
+            if verbose: print(f"DB 連線 OK")
+            result = {}
+            for t in tickers:
+                try:
+                    rows = conn.execute(
+                        "SELECT trade_date, open, high, low, close FROM standard_daily_bar "
+                        "WHERE ticker=? ORDER BY trade_date DESC LIMIT 10",
+                        (t,),
+                    ).fetchall()
+                except sqlite3.OperationalError as e:
+                    print(f"❌ DB 查詢失敗 {t}: {e}")
+                    continue
+                if not rows: continue
+                closes = [r[4] for r in rows]
+                result[t] = {
+                    "yesterday_date": rows[0][0], "yesterday_close": closes[0],
+                    "yesterday_high": rows[0][2], "yesterday_low": rows[0][3],
+                    "ma5": sum(closes[:5])/5, "ma10": sum(closes[:10])/10,
+                }
+                if verbose: print(f"  {t}: 最新 {rows[0][0]} close={closes[0]}")
+            conn.close()
+            if result:
+                # 檢查是否太舊、若太舊 fallback snapshot
+                from datetime import date as _date, datetime as _dt
+                first = next(iter(result))
+                bdate = _dt.strptime(result[first]['yesterday_date'], "%Y-%m-%d").date()
+                if (_date.today() - bdate).days <= 3:
+                    if verbose: print(f"baseline 載入完成 (DB)、{len(result)} 檔")
+                    return result
+                else:
+                    print(f"⚠️ DB baseline 已 {(_date.today() - bdate).days} 天舊、改用 baseline_snapshot.json")
+        except Exception as e:
+            print(f"⚠️ DB 讀取失敗: {e}、改用 baseline_snapshot.json")
+
+    # Fallback: baseline_snapshot.json (home 機 export、git tracked)
+    if not BASELINE_SNAPSHOT.exists():
+        print(f"❌ DB 不可用、baseline_snapshot.json 也不存在: {BASELINE_SNAPSHOT}")
         sys.exit(1)
-    if verbose: print(f"連接 DB: {DB}")
-    conn = sqlite3.connect(f"file:{DB}?mode=ro&immutable=1", uri=True, timeout=5)  # readonly + 5s timeout 避開 lock
-    if verbose: print(f"DB 連線 OK")
+    snap = json.loads(BASELINE_SNAPSHOT.read_text())
+    if verbose: print(f"用 snapshot: {BASELINE_SNAPSHOT}")
     result = {}
     for t in tickers:
-        try:
-            rows = conn.execute(
-                "SELECT trade_date, open, high, low, close FROM standard_daily_bar "
-                "WHERE ticker=? ORDER BY trade_date DESC LIMIT 10",
-                (t,),
-            ).fetchall()
-        except sqlite3.OperationalError as e:
-            print(f"❌ DB 查詢失敗 {t}: {e}")
-            continue
-        if not rows:
-            if verbose: print(f"  {t}: 無資料")
-            continue
-        closes = [r[4] for r in rows]
+        d = snap['tickers'].get(t)
+        if not d: continue
         result[t] = {
-            "yesterday_date": rows[0][0],
-            "yesterday_close": closes[0],
-            "yesterday_high": rows[0][2],
-            "yesterday_low": rows[0][3],
-            "ma5": sum(closes[:5]) / 5,
-            "ma10": sum(closes[:10]) / 10,
+            "yesterday_date": d['yesterday_date'],
+            "yesterday_close": d['yesterday_close'],
+            "yesterday_high": d['yesterday_high'],
+            "yesterday_low": d['yesterday_low'],
+            "ma5": d['ma5'], "ma10": d['ma10'],
         }
-        if verbose: print(f"  {t}: 最新 {rows[0][0]} close={closes[0]}")
-    conn.close()
-    if verbose: print(f"baseline 載入完成、{len(result)} 檔有資料")
+    if verbose: print(f"baseline 載入完成 (snapshot)、{len(result)} 檔")
     return result
 
 

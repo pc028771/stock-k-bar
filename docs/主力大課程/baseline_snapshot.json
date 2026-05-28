@@ -1,0 +1,174 @@
+{
+  "_meta": {
+    "generated_at": "2026-05-28T08:49:39.767043",
+    "purpose": "holdings_dump_monitor 用、避免 office 機 DB 不全",
+    "source": "home 機 ~/.four_seasons/data.sqlite"
+  },
+  "tickers": {
+    "2885": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 59.6,
+      "yesterday_high": 59.8,
+      "yesterday_low": 57.5,
+      "yesterday_close": 59.5,
+      "yesterday_volume": 39721000,
+      "ma5": 56.54,
+      "ma10": 55.71,
+      "ma20": 55.29
+    },
+    "2344": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 155.0,
+      "yesterday_high": 155.0,
+      "yesterday_low": 146.0,
+      "yesterday_close": 155.0,
+      "yesterday_volume": 434958000,
+      "ma5": 132.7,
+      "ma10": 129.05,
+      "ma20": 117.88
+    },
+    "2464": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 177.0,
+      "yesterday_high": 184.0,
+      "yesterday_low": 173.0,
+      "yesterday_close": 177.0,
+      "yesterday_volume": 32100000,
+      "ma5": 157.7,
+      "ma10": 142.85,
+      "ma20": 129.0
+    },
+    "6282": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 64.8,
+      "yesterday_high": 65.1,
+      "yesterday_low": 58.5,
+      "yesterday_close": 59.4,
+      "yesterday_volume": 83005000,
+      "ma5": 59.18,
+      "ma10": 54.83,
+      "ma20": 52.84
+    },
+    "2476": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 132.0,
+      "yesterday_high": 135.0,
+      "yesterday_low": 126.5,
+      "yesterday_close": 129.0,
+      "yesterday_volume": 7930000,
+      "ma5": 125.1,
+      "ma10": 120.7,
+      "ma20": 118.25
+    },
+    "3149": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 68.4,
+      "yesterday_high": 69.0,
+      "yesterday_low": 65.0,
+      "yesterday_close": 65.4,
+      "yesterday_volume": 23812000,
+      "ma5": 62.82,
+      "ma10": 59.82,
+      "ma20": 54.95
+    },
+    "5347": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 169.5,
+      "yesterday_high": 171.5,
+      "yesterday_low": 165.5,
+      "yesterday_close": 166.0,
+      "yesterday_volume": 31956000,
+      "ma5": 165.0,
+      "ma10": 165.2,
+      "ma20": 164.05
+    },
+    "3162": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 93.0,
+      "yesterday_high": 93.0,
+      "yesterday_low": 82.0,
+      "yesterday_close": 83.6,
+      "yesterday_volume": 8181000,
+      "ma5": 87.28,
+      "ma10": 86.01,
+      "ma20": 85.64
+    },
+    "1605": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 38.0,
+      "yesterday_high": 38.2,
+      "yesterday_low": 36.45,
+      "yesterday_close": 37.5,
+      "yesterday_volume": 48600000,
+      "ma5": 36.92,
+      "ma10": 35.63,
+      "ma20": 34.41
+    },
+    "3265": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 194.5,
+      "yesterday_high": 194.5,
+      "yesterday_low": 187.0,
+      "yesterday_close": 189.5,
+      "yesterday_volume": 2052000,
+      "ma5": 186.8,
+      "ma10": 182.45,
+      "ma20": 181.03
+    },
+    "5439": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 398.5,
+      "yesterday_high": 401.0,
+      "yesterday_low": 380.0,
+      "yesterday_close": 385.5,
+      "yesterday_volume": 2871000,
+      "ma5": 385.1,
+      "ma10": 385.2,
+      "ma20": 388.18
+    },
+    "6285": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 309.0,
+      "yesterday_high": 320.0,
+      "yesterday_low": 305.0,
+      "yesterday_close": 311.5,
+      "yesterday_volume": 28798000,
+      "ma5": 298.1,
+      "ma10": 286.95,
+      "ma20": 265.3
+    },
+    "4906": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 43.15,
+      "yesterday_high": 45.35,
+      "yesterday_low": 42.25,
+      "yesterday_close": 44.75,
+      "yesterday_volume": 36781000,
+      "ma5": 42.22,
+      "ma10": 40.39,
+      "ma20": 38.69
+    },
+    "2891": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 58.5,
+      "yesterday_high": 60.2,
+      "yesterday_low": 57.6,
+      "yesterday_close": 59.2,
+      "yesterday_volume": 64831000,
+      "ma5": 57.84,
+      "ma10": 56.68,
+      "ma20": 55.48
+    },
+    "6284": {
+      "yesterday_date": "2026-05-27",
+      "yesterday_open": 120.0,
+      "yesterday_high": 120.0,
+      "yesterday_low": 110.0,
+      "yesterday_close": 113.0,
+      "yesterday_volume": 7471000,
+      "ma5": 107.78,
+      "ma10": 96.73,
+      "ma20": 88.29
+    }
+  }
+}
