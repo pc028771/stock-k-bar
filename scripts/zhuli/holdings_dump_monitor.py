@@ -129,6 +129,7 @@ class DumpMonitor:
             self.state[t] = {
                 "open": None, "high": None, "low": None, "close": None,
                 "volume": 0, "last_price": None, "last_update": None,
+                "vol_minute": {},  # {YYYY-MM-DD HH:MM: cumulative_vol_this_minute}
             }
 
     def update_tick(self, ticker: str, price: float, volume: int = 0):
@@ -142,7 +143,35 @@ class DumpMonitor:
         s["close"] = price
         s["last_price"] = price
         s["volume"] += volume
-        s["last_update"] = datetime.now().strftime("%H:%M:%S")
+        now = datetime.now()
+        s["last_update"] = now.strftime("%H:%M:%S")
+        # 累積每分鐘量
+        minute_key = now.strftime("%Y-%m-%d %H:%M")
+        s["vol_minute"][minute_key] = s["vol_minute"].get(minute_key, 0) + volume
+        # 只保留最近 30 分鐘 (節省記憶體)
+        if len(s["vol_minute"]) > 30:
+            oldest = sorted(s["vol_minute"].keys())[:-30]
+            for k in oldest:
+                del s["vol_minute"][k]
+
+    def get_volume_spike(self, ticker: str) -> tuple[int, float, float]:
+        """回傳 (本分鐘量, 過去 10 分鐘平均量, 倍數).
+
+        若資料不足、回 (0, 0, 0)。
+        """
+        s = self.state[ticker]
+        vm = s["vol_minute"]
+        if len(vm) < 2:
+            return 0, 0, 0
+        sorted_keys = sorted(vm.keys())
+        current_key = sorted_keys[-1]
+        prev_keys = sorted_keys[-11:-1]  # 過去 10 分鐘 (不含當前)
+        if not prev_keys:
+            return vm[current_key], 0, 0
+        cur_vol = vm[current_key]
+        avg_vol = sum(vm[k] for k in prev_keys) / len(prev_keys)
+        ratio = cur_vol / avg_vol if avg_vol > 0 else 0
+        return cur_vol, avg_vol, ratio
 
     def signals(self, ticker: str) -> list[str]:
         """評估該檔當前出貨訊號、回傳警示 list."""
@@ -194,6 +223,19 @@ class DumpMonitor:
                 if dip >= 1.5 and recovery < 0.5:
                     warnings.append(f"⚠️ 12 點殺 {dip:.1f}% 未恢復")
 
+        # 6. 量能 spike
+        cur_vol, avg_vol, ratio = self.get_volume_spike(ticker)
+        if ratio >= 2.0:
+            move_pct = (cur - op) / op * 100 if op else 0
+            if move_pct >= 1:
+                warnings.append(f"🚨 急量 {ratio:.1f}x + 漲 {move_pct:+.1f}% (主力進貨)")
+            elif move_pct <= -1:
+                warnings.append(f"🚨 急量 {ratio:.1f}x + 跌 {move_pct:+.1f}% (主力倒貨)")
+            else:
+                warnings.append(f"⚠️ 急量 {ratio:.1f}x (籌碼換手)")
+        elif ratio >= 1.5:
+            warnings.append(f"⚠️ 量放 {ratio:.1f}x")
+
         if not warnings:
             warnings.append("🟢 正常")
 
@@ -209,6 +251,7 @@ class DumpMonitor:
         t.add_column("距開盤", justify="right")
         t.add_column("距MA10", justify="right")
         t.add_column("日內H/L", justify="right")
+        t.add_column("量比", justify="right")
         t.add_column("警示", style="bold")
 
         for ticker, h in self.holdings.items():
@@ -233,9 +276,14 @@ class DumpMonitor:
             warn_str = " | ".join(warnings[:2])  # 最多顯示 2 個
             warn_style = "red" if any("🚨" in w for w in warnings) else "yellow" if any("⚠️" in w for w in warnings) else "green"
 
+            _, _, vr = self.get_volume_spike(ticker)
+            vr_str = f"{vr:.1f}x" if vr > 0 else "—"
+            vr_style = "red bold" if vr >= 2 else "yellow" if vr >= 1.5 else "white"
+
             t.add_row(
                 ticker, h["name"], f"${h['cost']:.2f}", cur_str, pnl,
                 dist_open, dist_ma10, hl,
+                f"[{vr_style}]{vr_str}[/{vr_style}]",
                 f"[{warn_style}]{warn_str}[/{warn_style}]",
             )
         return t
