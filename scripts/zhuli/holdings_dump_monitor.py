@@ -51,17 +51,28 @@ def load_holdings() -> dict:
     return out
 
 
-def load_yesterday_close_and_ma(tickers: list[str]) -> dict:
+def load_yesterday_close_and_ma(tickers: list[str], verbose: bool = False) -> dict:
     """從 DB 取每檔最近收盤、MA5/MA10、5/27 高低."""
-    conn = sqlite3.connect(DB)
+    if not DB.exists():
+        print(f"❌ DB 不存在: {DB}")
+        print(f"   提示: 請先跑 python scripts/zhuli/sync_today.py 或從另一台機器 sync DB")
+        sys.exit(1)
+    if verbose: print(f"連接 DB: {DB}")
+    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)  # readonly + 5s timeout 避開 lock
+    if verbose: print(f"DB 連線 OK")
     result = {}
     for t in tickers:
-        rows = conn.execute(
-            "SELECT trade_date, open, high, low, close FROM standard_daily_bar "
-            "WHERE ticker=? ORDER BY trade_date DESC LIMIT 10",
-            (t,),
-        ).fetchall()
+        try:
+            rows = conn.execute(
+                "SELECT trade_date, open, high, low, close FROM standard_daily_bar "
+                "WHERE ticker=? ORDER BY trade_date DESC LIMIT 10",
+                (t,),
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            print(f"❌ DB 查詢失敗 {t}: {e}")
+            continue
         if not rows:
+            if verbose: print(f"  {t}: 無資料")
             continue
         closes = [r[4] for r in rows]
         result[t] = {
@@ -72,7 +83,9 @@ def load_yesterday_close_and_ma(tickers: list[str]) -> dict:
             "ma5": sum(closes[:5]) / 5,
             "ma10": sum(closes[:10]) / 10,
         }
+        if verbose: print(f"  {t}: 最新 {rows[0][0]} close={closes[0]}")
     conn.close()
+    if verbose: print(f"baseline 載入完成、{len(result)} 檔有資料")
     return result
 
 
@@ -236,9 +249,10 @@ def run_live(monitor: DumpMonitor):
             ws.disconnect()
 
 
-def run_mock(monitor: DumpMonitor, date: str):
+def run_mock(monitor: DumpMonitor, date: str, verbose: bool = False):
     """Mock 模式：用 DB 5/28 today's bar 模擬即時 tick (假日測試)."""
-    conn = sqlite3.connect(DB)
+    if verbose: print(f"Mock: 抓 {date} bar 模擬...")
+    conn = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
     today_bars = {}
     for t in monitor.holdings:
         r = conn.execute(
@@ -248,6 +262,11 @@ def run_mock(monitor: DumpMonitor, date: str):
         if r:
             today_bars[t] = r
     conn.close()
+    if verbose: print(f"  {len(today_bars)}/{len(monitor.holdings)} 檔有 {date} bar")
+    if not today_bars:
+        print(f"❌ {date} 無任何持倉 bar、無法 mock")
+        print(f"   試試: --date 2026-05-26 或別的日期")
+        return
 
     # 假裝 tick by tick: open → high/low → close (4 個 tick 模擬)
     for ticker, bar in today_bars.items():
@@ -266,20 +285,29 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mock", action="store_true", help="Mock 模式（不連 WS）")
     ap.add_argument("--date", default=None, help="Mock 用的日期 (default: 昨天)")
+    ap.add_argument("-v", "--verbose", action="store_true", help="verbose 印每步")
     args = ap.parse_args()
 
+    if args.verbose: print(f"holdings.json: {HOLDINGS}")
     holdings = load_holdings()
     tickers = list(holdings.keys())
-    baseline = load_yesterday_close_and_ma(tickers)
+    if args.verbose: print(f"持倉 {len(tickers)} 檔: {tickers}")
+
+    baseline = load_yesterday_close_and_ma(tickers, verbose=args.verbose)
+    if not baseline:
+        print(f"❌ 沒任何持倉 baseline、DB 可能空、結束")
+        return
+
     monitor = DumpMonitor(holdings, baseline)
 
     print(f"監控 {len(tickers)} 檔持倉: {', '.join(tickers)}")
-    print(f"Baseline: 取自 {baseline[tickers[0]]['yesterday_date']}")
+    first_with_data = next(iter(baseline))
+    print(f"Baseline: 取自 {baseline[first_with_data]['yesterday_date']}")
     print()
 
     if args.mock:
-        date = args.date or baseline[tickers[0]]["yesterday_date"]
-        run_mock(monitor, date)
+        date = args.date or baseline[first_with_data]["yesterday_date"]
+        run_mock(monitor, date, verbose=args.verbose)
     else:
         run_live(monitor)
 
