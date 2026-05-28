@@ -232,9 +232,16 @@ def run_live(monitor: DumpMonitor):
 
     tickers = list(monitor.holdings.keys())
     print(f"連 Fubon WebSocket、subscribe {len(tickers)} 檔...")
-    ws = client.subscribe_quotes(tickers, on_message, channel="aggregates")
+    # 嘗試不同 channel (Speed mode 不支援 aggregates、要 trades)
+    ws = None
+    for ch in ["trades", "aggregates", "ticks", "books"]:
+        print(f"  嘗試 channel={ch}...")
+        ws = client.subscribe_quotes(tickers, on_message, channel=ch)
+        if ws is not None:
+            print(f"  ✅ 連上、用 channel={ch}")
+            break
     if ws is None:
-        print("❌ WS 連線失敗")
+        print("❌ 所有 channel 都失敗、檢查 Fubon 帳號權限")
         return
 
     console = Console()
@@ -302,7 +309,19 @@ def main():
 
     print(f"監控 {len(tickers)} 檔持倉: {', '.join(tickers)}")
     first_with_data = next(iter(baseline))
-    print(f"Baseline: 取自 {baseline[first_with_data]['yesterday_date']}")
+    baseline_date = baseline[first_with_data]['yesterday_date']
+    print(f"Baseline: 取自 {baseline_date}")
+    # 警示 DB 資料過舊
+    from datetime import date as _date
+    try:
+        from datetime import datetime as _dt
+        b_dt = _dt.strptime(baseline_date, "%Y-%m-%d").date()
+        days_old = (_date.today() - b_dt).days
+        if days_old > 3:
+            print(f"⚠️⚠️ DB baseline 已 {days_old} 天舊、MA10/停損 baseline 可能不準！")
+            print(f"   建議: python scripts/zhuli/sync_today.py  (補齊最新)")
+    except Exception:
+        pass
     print()
 
     if args.mock:
