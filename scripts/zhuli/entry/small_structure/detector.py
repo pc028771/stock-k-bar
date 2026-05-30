@@ -1,39 +1,36 @@
-"""小結構整理 scanner — 偵測「N字攻擊後的高位整理末端」.
+"""核心偵測邏輯 — 小結構整理 scanner.
 
 依據 5/21 老師「群創 N字上攻」教學提煉的 pattern。
-群創 5/14-5/20 即經典案例：5/13 攻上 37.5 後高點橫盤 7 天，量縮 → 5/21 漲停。
+spec 來自舊 scripts/zhuli/entry/small_structure.py（5/22 已驗證、3/3 案例全中、77% 全市場上漲率）。
 
-## 偵測邏輯
-
-1. **前段攻擊**：過去 10-20 個交易日有 +10% 以上的攻擊
-2. **高位整理**：近 5 天收盤在 95% 高點附近橫盤（不破前高 -5%）
-3. **量縮整理**：近 5 天均量比 < 1.0（窒息整理）
-4. **MA 追上**：MA5/收盤 > 0.95（均線快追上來）
-5. **無跌破結構**：未跌破 MA10
-
-## 與其他 scanner 區別
-
-- **shakeout_strong** 偵測「底部窒息 → 突破」
-- **small_structure** 偵測「突破後 → 高位整理 → 第二攻準備」
-- 兩者互補，shakeout 在 N 字底部，small_structure 在 N 字中段
-
-## 用法
-
-    from zhuli.entry.small_structure import detect
-
-    feats = add_features(bars)
-    feats['signal'] = detect(feats)
+**不可調整 6 條件 spec** — 已驗證，改動會破壞回測結果。
 """
 from __future__ import annotations
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """小結構整理偵測.
 
     回傳 bool Series，True = 該日符合「小結構整理末端」條件.
+
+    6 條件（已驗證 spec，不可調整）:
+    1. 前段攻擊：過去 10-20 天有 +10% 漲幅
+    2. 高位整理：近 5 天收盤 range < 10%
+    3. 量縮趨勢：近 3 天均量比 < 1.5 且當日 < 前 3 天均
+    4. MA5 追上：MA5/close > 0.93
+    5. 未跌破 MA10：close >= MA10 * 0.95
+    6. 高位維持：close / 10日high >= 0.85
+
+    Parameters
+    ----------
+    df : DataFrame，需含 close, high, vol_ratio_20, ma5, ma10 欄位
+
+    Returns
+    -------
+    bool Series（index 同 df）
     """
     c = df['close']
     h = df['high']
@@ -76,10 +73,21 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
 
 def detect_with_diagnostics(df: pd.DataFrame) -> pd.DataFrame:
-    """回傳含各條件診斷的 DataFrame（用於 debug）."""
+    """回傳含各條件診斷的 DataFrame（用於 debug / watchlist）.
+
+    Parameters
+    ----------
+    df : DataFrame，需含 close, high, low, vol_ratio_20, ma5, ma10 欄位
+
+    Returns
+    -------
+    DataFrame 含欄位：
+        date, close, cond_prior_attack, cond_sideways, cond_vol_contracted,
+        cond_ma5_close, cond_above_ma10, cond_high_holding,
+        vol_recent_3_mean, close_range_5d_pct, all_pass
+    """
     c = df['close']
     h = df['high']
-    l = df['low']
     vol_ratio = df.get('vol_ratio_20', pd.Series(np.nan, index=df.index))
     ma5 = df.get('ma5', pd.Series(np.nan, index=df.index))
     ma10 = df.get('ma10', pd.Series(np.nan, index=df.index))
