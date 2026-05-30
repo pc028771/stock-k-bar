@@ -33,6 +33,8 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
         sys.path.insert(0, _p)
 
 from zhuli.entry.small_structure.detector import detect_with_diagnostics
+from zhuli.entry.small_structure.post_attack_filter import get_post_attack_info
+from zhuli.entry.small_structure.lifecycle_classifier import classify_lifecycle_label, LIFECYCLE_DISPLAY
 
 
 # ── 族群 universe 載入 ────────────────────────────────────────────────────────
@@ -242,6 +244,151 @@ def run_watchlist(
     result = result.sort_values(['hit_count', ticker_col], ascending=[False, True])
     result = result.reset_index(drop=True)
     return result
+
+
+def run_post_attack_watchlist(
+    df: pd.DataFrame,
+    universe: str = 'sector_week',
+    target_date: str | None = None,
+    ticker_col: str = 'ticker',
+    attack_window: int = 15,
+    consol_window: int = 5,
+) -> pd.DataFrame:
+    """攻擊後盤整 watchlist — 給人眼辨識 + 問老師用.
+
+    Parameters
+    ----------
+    df           : 合併多 ticker DataFrame
+    universe     : 'all' | 'sector_all' | 'sector_week'（預設 sector_week）
+    target_date  : 用於 sector_week 過濾及截斷資料
+    ticker_col   : ticker 欄位名稱
+    attack_window: 往前找攻擊段的窗口 (預設 15 天)
+    consol_window: 盤整天數上限 (預設 5 天)
+
+    Returns
+    -------
+    DataFrame 含欄位:
+        ticker, close, attack_start_date, attack_end_date, attack_pct,
+        attack_days, consol_days, consol_range_pct, vol_contraction_ratio,
+        dist_ma10_pct, wantgoo
+    """
+    # Universe 過濾
+    allowed_tickers: set[str] | None = None
+    if universe == 'sector_all':
+        allowed_tickers = _load_sector_all()
+    elif universe == 'sector_week':
+        if target_date is None:
+            raise ValueError("target_date 必須提供（用於 sector_week universe）")
+        timeline = _parse_sector_timeline()
+        week_sectors = _get_week_sectors(target_date, timeline)
+        sector_map = _load_sector_tickers_json()
+        allowed_tickers = _sectors_to_tickers(week_sectors, sector_map)
+
+    if allowed_tickers is not None and ticker_col in df.columns:
+        df = df[df[ticker_col].isin(allowed_tickers)].copy()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    date_col = 'trade_date' if 'trade_date' in df.columns else 'date'
+    rows = []
+
+    if ticker_col in df.columns:
+        groups = df.groupby(ticker_col)
+    else:
+        groups = [(None, df)]
+
+    for ticker, gdf in groups:
+        gdf = gdf.sort_values(date_col).reset_index(drop=True)
+        if target_date is not None and date_col in gdf.columns:
+            gdf = gdf[gdf[date_col] <= target_date].reset_index(drop=True)
+        if len(gdf) < 20:
+            continue
+
+        try:
+            info = get_post_attack_info(
+                gdf,
+                attack_window=attack_window,
+                consol_window=consol_window,
+            )
+        except Exception:
+            continue
+
+        if info is None:
+            continue
+
+        # lifecycle label (純 info) — 傳 close Series 供拉回判定
+        lc_label, sub_pattern = classify_lifecycle_label(info, close=gdf['close'].reset_index(drop=True))
+        lc_display = LIFECYCLE_DISPLAY.get(lc_label, lc_label)
+
+        wantgoo = f"https://www.wantgoo.com/stock/{ticker}/technical-chart"
+
+        rows.append({
+            ticker_col: ticker,
+            'close': info['close_last'],
+            'attack_start_date': info.get('attack_start_date', ''),
+            'attack_end_date': info.get('attack_end_date', ''),
+            'attack_pct': round(info['attack_pct'] * 100, 1),
+            'attack_days': info['attack_days'],
+            'consol_days': info['consol_days'],
+            'consol_range_pct': round(info['consol_range_pct'] * 100, 1),
+            'vol_contraction_ratio': info.get('vol_contraction_ratio'),
+            'dist_ma10_pct': info.get('dist_ma10_pct'),
+            'lifecycle': lc_display,
+            'sub_pattern': sub_pattern or '—',
+            'wantgoo': wantgoo,
+        })
+
+    if not rows:
+        return pd.DataFrame()
+
+    result = pd.DataFrame(rows).reset_index(drop=True)
+    result = result.sort_values('attack_pct', ascending=False).reset_index(drop=True)
+    return result
+
+
+def format_post_attack_report(
+    wl: pd.DataFrame,
+    stock_info: dict | None = None,
+    target_date: str = '',
+    universe: str = 'sector_week',
+) -> str:
+    """將攻擊後盤整 watchlist 格式化成 markdown section."""
+    if wl.empty:
+        return f"## 🔬 攻擊後盤整 watchlist\n\n> {target_date} 無符合標的\n"
+
+    ticker_col = 'ticker' if 'ticker' in wl.columns else wl.columns[0]
+    lines = [
+        f"## 🔬 攻擊後盤整 watchlist (人力辨識 + 問老師)",
+        f"",
+        f"> 過去 15 天有攻擊 +10%+ + 最近 1-5 天進入盤整、人眼確認是真小結構/N字/W底",
+        f"> universe={universe}  {target_date}  共 {len(wl)} 檔",
+        f"",
+        f"| ticker | 名稱 | 攻擊區間 | 攻擊幅 | 整理天 | range | 量縮比 | 距MA10 | lifecycle | 子型 | wantgoo |",
+        f"|--------|------|---------|--------|--------|-------|--------|--------|-----------|------|---------|",
+    ]
+
+    for _, r in wl.iterrows():
+        ticker = r.get(ticker_col, '')
+        name = stock_info.get(ticker, '') if stock_info else ''
+        atk_range = f"{r.get('attack_start_date', '')[5:10]}~{r.get('attack_end_date', '')[5:10]}"
+        atk_pct = f"+{r.get('attack_pct', 0):.1f}%"
+        consol_d = r.get('consol_days', 0)
+        rng = f"{r.get('consol_range_pct', 0):.1f}%"
+        vcr = r.get('vol_contraction_ratio')
+        vcr_str = f"{vcr:.2f}x" if vcr is not None else '—'
+        dist = r.get('dist_ma10_pct')
+        dist_str = f"{dist:+.1f}%" if dist is not None else '—'
+        lc = r.get('lifecycle', '—')
+        sub = r.get('sub_pattern', '—')
+        url = r.get('wantgoo', '')
+        link_str = f"[chart]({url})" if url else '—'
+        lines.append(
+            f"| {ticker} | {name} | {atk_range} | {atk_pct} | {consol_d} | {rng} | {vcr_str} | {dist_str} | {lc} | {sub} | {link_str} |"
+        )
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 def format_watchlist_report(wl: pd.DataFrame, universe: str = 'all', target_date: str = '') -> str:

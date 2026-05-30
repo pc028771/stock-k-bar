@@ -26,12 +26,20 @@
     python -m zhuli.entry.small_structure --date 2026-05-29 --watchlist --universe sector_week
 """
 from zhuli.entry.small_structure.detector import detect, detect_with_diagnostics
-from zhuli.entry.small_structure.watchlist import run_watchlist
+from zhuli.entry.small_structure.watchlist import run_watchlist, run_post_attack_watchlist, format_post_attack_report
+from zhuli.entry.small_structure.post_attack_filter import is_post_attack_consolidating, get_post_attack_info
+from zhuli.entry.small_structure.lifecycle_classifier import classify_lifecycle_label, LIFECYCLE_DISPLAY
 
 __all__ = [
     "detect",
     "detect_with_diagnostics",
     "run_watchlist",
+    "run_post_attack_watchlist",
+    "format_post_attack_report",
+    "is_post_attack_consolidating",
+    "get_post_attack_info",
+    "classify_lifecycle_label",
+    "LIFECYCLE_DISPLAY",
     "run_scan",
 ]
 

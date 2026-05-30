@@ -32,6 +32,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 
 from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
 from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
+from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_attack_report  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
@@ -351,6 +352,34 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     except Exception as e:
         print(f"  [small_structure] run_scan 失敗: {e}（小結構候選數 0）")
 
+    # ── post_attack watchlist（攻擊後盤整早期追蹤）────────────────────────────
+    print(f"  [post_attack] 攻擊後盤整追蹤 (sector_week)...")
+    results['post_attack_watchlist'] = pd.DataFrame()
+    try:
+        if ticker_dfs:
+            combined_df2 = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            pa_wl = run_post_attack_watchlist(
+                combined_df2,
+                universe='sector_week',
+                target_date=target_date,
+                ticker_col='ticker',
+            )
+            if pa_wl is not None and not pa_wl.empty:
+                # 加名稱欄位
+                pa_wl['name'] = pa_wl['ticker'].map(lambda t: stock_info.get(t, {}).get('name', ''))
+                # 加族群欄位
+                pa_wl['teacher_sectors'] = pa_wl['ticker'].map(
+                    lambda t: '/'.join(TEACHER_SECTOR_MAP.get(t, [])) or ''
+                )
+                results['post_attack_watchlist'] = pa_wl
+                print(f"  [post_attack] 找到 {len(pa_wl)} 檔攻擊後盤整候選")
+            else:
+                print(f"  [post_attack] 無命中")
+        else:
+            print(f"  [post_attack] 無資料")
+    except Exception as e:
+        print(f"  [post_attack] 失敗: {e}")
+
     return results
 
 
@@ -379,9 +408,15 @@ def _tier_rank(hit: dict) -> int:
     return 5
 
 
+def _wantgoo_link(ticker: str) -> str:
+    """產生 wantgoo 技術圖連結."""
+    return f"[chart](https://www.wantgoo.com/stock/{ticker}/technical-chart)"
+
+
 def _format_hit_row(h: dict, show_scanner=False) -> str:
-    """單列輸出 markdown."""
-    parts = [h['ticker'], h.get('name', '')]
+    """單列輸出 markdown (含 wantgoo)."""
+    ticker = h['ticker']
+    parts = [ticker, h.get('name', '')]
     if show_scanner:
         parts.append(h.get('scanner_name', ''))
     sectors = h.get('teacher_sectors', [])
@@ -395,11 +430,15 @@ def _format_hit_row(h: dict, show_scanner=False) -> str:
     tt = h.get('teacher_tier', '')
     parts.append(tt if tt else '—')
     parts.append(h.get('stop_note', '—'))
+    parts.append(_wantgoo_link(ticker))
     return '| ' + ' | '.join(parts) + ' |'
 
 
-def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
+def render_markdown(target_date: str, results: dict) -> str:
     """產出 Tier-based 打擊區候選 markdown."""
+    # 分離 post_attack_watchlist (DataFrame) vs 其他 scanner (list[dict])
+    pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
+
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
     for scanner, hits in results.items():
@@ -457,6 +496,8 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
     ]
     for s, hits in results.items():
         md.append(f"| {s} | {len(hits)} |")
+    pa_count = len(pa_wl) if pa_wl is not None and not pa_wl.empty else 0
+    md.append(f"| post_attack_watchlist | {pa_count} |")
     md.append(f"| **可進場** (Tier-A/B 距MA10≤10%) | **{len(entry_hits)}** |")
     md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
     md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
@@ -467,8 +508,8 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md += [
             f"## 🎯 可進場 — Tier-A/B 候選（距 MA10 ≤ 10%）",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 |",
-            f"|---|---|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in entry_hits:
             tier_label = h.get('tier', '') + h.get('timing_bonus', '')
@@ -478,7 +519,8 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
             md.append(f"| **{h['ticker']}** {tier_label} | {h['name']} | {h['scanner_name']} | "
                       f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
                       f"{h.get('dist_ma10_pct', 0):+.1f}% | {days_str} | "
-                      f"{h.get('teacher_tier') or '—'} | {h.get('stop_note', '—')} |")
+                      f"{h.get('teacher_tier') or '—'} | {h.get('stop_note', '—')} | "
+                      f"{_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
     # === 後續觀察區（已起漲）===
@@ -488,8 +530,8 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
             f"",
             f"> 等回測 MA10 附近再進場；現在追進場潛在虧損 = 距 MA10",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 距MA10 | 老師 | 備註 |",
-            f"|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 距MA10 | 老師 | 備註 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|",
         ]
         for h in extended_hits:
             tier_label = h.get('tier', '') + h.get('timing_bonus', '')
@@ -497,7 +539,7 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
                       f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
                       f"{h['close']:.2f} | {h.get('dist_ma10_pct', 0):+.1f}% | "
                       f"{h.get('teacher_tier') or '—'} | "
-                      f"距 MA10 太遠，等回測 |")
+                      f"距 MA10 太遠，等回測 | {_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
     # === 加碼候選 ===
@@ -508,26 +550,47 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
             f"> 30 天內已有進場訊號的 ticker 出現 shakeout（主力洗盤後爆量）= 加碼確認",
             f"> 沒持倉者不要當第一次進場用（Shakeout 冷進場效果差）",
             f"",
-            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 距MA10 |",
-            f"|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 距MA10 | wantgoo |",
+            f"|---|---|---|---|---|---|---|",
         ]
         for h in add_position_hits:
             md.append(f"| {h['ticker']} | {h['name']} | "
                       f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
                       f"{h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
-                      f"{h.get('dist_ma10_pct', 0):+.1f}% |")
+                      f"{h.get('dist_ma10_pct', 0):+.1f}% | {_wantgoo_link(h['ticker'])} |")
         md.append(f"")
+
+    # === 攻擊後盤整早期追蹤 ===
+    if pa_wl is not None and not pa_wl.empty:
+        pa_stock_info = {}
+        if 'name' in pa_wl.columns:
+            for _, r in pa_wl.iterrows():
+                pa_stock_info[r.get('ticker', '')] = r.get('name', '')
+        pa_section = format_post_attack_report(
+            pa_wl,
+            stock_info=pa_stock_info,
+            target_date=target_date,
+            universe='sector_week',
+        )
+        md.append(pa_section)
+    else:
+        md += [
+            f"## 🔬 攻擊後盤整 watchlist (人力辨識 + 問老師)",
+            f"",
+            f"> {target_date} 無符合標的",
+            f"",
+        ]
 
     # === 老師 core 但 scanner 未抓到 ===
     md += [
         f"## 📋 老師 core 級指名（scanner 未命中，手動關注）",
         f"",
-        f"| Ticker | 名稱 |",
-        f"|---|---|",
+        f"| Ticker | 名稱 | wantgoo |",
+        f"|---|---|---|",
     ]
     for t in CORE_UNCOVERED:
         n = TEACHER_NAME.get(t, '')
-        md.append(f"| {t} | {n} |")
+        md.append(f"| {t} | {n} | {_wantgoo_link(t)} |")
     md += [f""]
 
     # === 一般候選（壓縮顯示）===
@@ -535,15 +598,16 @@ def render_markdown(target_date: str, results: dict[str, list[dict]]) -> str:
         md += [
             f"## 一般命中（無老師指名/非常勝軍，量比降冪前 30）",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 |",
-            f"|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|",
         ]
         for h in general_hits[:30]:
             sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
             d = h.get('dist_ma10_pct')
             d_str = f"{d:+.1f}%" if d is not None else '—'
             md.append(f"| {h['ticker']} | {h['name']} | {h['scanner_name']} | "
-                      f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | {d_str} |")
+                      f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | {d_str} | "
+                      f"{_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
     md += [

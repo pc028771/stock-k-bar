@@ -31,7 +31,12 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
         sys.path.insert(0, _p)
 
 from zhuli.entry.small_structure.detector import detect
-from zhuli.entry.small_structure.watchlist import run_watchlist, format_watchlist_report
+from zhuli.entry.small_structure.watchlist import (
+    run_watchlist,
+    format_watchlist_report,
+    run_post_attack_watchlist,
+    format_post_attack_report,
+)
 
 
 def _all_tickers(con: sqlite3.Connection) -> list[str]:
@@ -118,14 +123,19 @@ def run_watchlist_mode(args) -> None:
     # 為了 sector_week universe 過濾，傳整個合併 df
     combined = pd.concat(all_dfs, ignore_index=True)
 
-    wl = run_watchlist(combined, universe=universe, target_date=target_date, ticker_col='ticker')
-
-    # 加名稱
-    if not wl.empty and 'ticker' in wl.columns:
-        wl['name'] = wl['ticker'].map(lambda t: info.get(t, ''))
-
-    report = format_watchlist_report(wl, universe=universe, target_date=target_date)
-    print("\n" + report)
+    tier = getattr(args, 'tier', None)
+    if tier == 'post_attack_consol':
+        # 攻擊後盤整模式
+        wl = run_post_attack_watchlist(combined, universe=universe, target_date=target_date, ticker_col='ticker')
+        report = format_post_attack_report(wl, stock_info=info, target_date=target_date, universe=universe)
+        print("\n" + report)
+    else:
+        wl = run_watchlist(combined, universe=universe, target_date=target_date, ticker_col='ticker')
+        # 加名稱
+        if not wl.empty and 'ticker' in wl.columns:
+            wl['name'] = wl['ticker'].map(lambda t: info.get(t, ''))
+        report = format_watchlist_report(wl, universe=universe, target_date=target_date)
+        print("\n" + report)
 
 
 def run_validate_mode(args) -> None:
