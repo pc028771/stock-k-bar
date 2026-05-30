@@ -31,7 +31,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
         sys.path.insert(0, _p)
 
 from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
-from zhuli.entry.small_structure import detect as detect_small_structure  # noqa
+from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
@@ -119,8 +119,85 @@ def load_stock_info(db_path: Path) -> dict[str, dict]:
     return {r[0]: {"name": r[1], "industry": r[2] or ""} for r in rows}
 
 
+def _build_hit_dict(
+    t: str,
+    df: pd.DataFrame,
+    scanner_name: str,
+    stock_info: dict,
+    target_date: str,
+    vol_ratio_min: float,
+    exit_strategy: str,
+) -> dict | None:
+    """單 ticker + scanner 命中後建立 hit dict，回傳 None 表示過濾掉."""
+    last_row = df.iloc[-1]
+    last_close = last_row['close']
+    last_vol_ratio = float(last_row['vol_ratio_20']) if pd.notna(last_row.get('vol_ratio_20')) else 0
+
+    if last_vol_ratio < vol_ratio_min:
+        return None
+
+    info = stock_info.get(t, {"name": "", "industry": ""})
+    teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+
+    ma10 = float(last_row['ma10']) if pd.notna(last_row.get('ma10')) else None
+    if scanner_name in ('w_bottom_launch', 'shakeout_strong') and ma10:
+        stop_note = f"MA10停利 ~{ma10:.2f}"
+    else:
+        stop_px = round(float(df.iloc[-6:-1]['close'].min()), 2)
+        stop_note = f"守底{stop_px:.2f}"
+
+    dist_ma10 = None
+    if ma10 and ma10 > 0:
+        dist_ma10 = round((float(last_close) - ma10) / ma10 * 100, 1)
+
+    teacher_tier = TEACHER_TIER.get(t, '')
+    days_since = None
+    if t in TEACHER_FIRST:
+        days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+    tier = '一般'
+    timing_bonus = ''
+    if scanner_name == 'w_bottom_launch':
+        if t in TIER_A_WBOTTOM:
+            tier = '🔥 Tier-A'
+        elif teacher_tier in ('core', 'frequent'):
+            tier = '⭐ Tier-B'
+        if days_since is not None and 8 <= days_since <= 30:
+            timing_bonus = ' ✨黃金期'
+    elif scanner_name == 'small_structure':
+        if t in TIER_A_SMALLSTR:
+            tier = '🔥 Tier-A'
+        elif teacher_tier in ('core', 'frequent'):
+            tier = '⭐ Tier-B'
+        if days_since is not None and days_since > 30:
+            timing_bonus = ' ✨二波期'
+    elif scanner_name == 'shakeout_strong':
+        tier = '➕ 加碼用'
+
+    return {
+        'ticker': t,
+        'name': info['name'],
+        'industry': info['industry'],
+        'teacher_sectors': teacher_sectors,
+        'close': float(last_close),
+        'vol_ratio': round(last_vol_ratio, 1),
+        'stop_note': stop_note,
+        'exit_strategy': exit_strategy,
+        'tier': tier,
+        'timing_bonus': timing_bonus,
+        'teacher_tier': teacher_tier,
+        'days_since_first_mention': days_since,
+        'dist_ma10_pct': dist_ma10,
+    }
+
+
 def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
-    """跑三個 scanner 並回傳每個的命中清單."""
+    """跑三個 scanner 並回傳每個的命中清單.
+
+    small_structure 改用 run_scan(combined_df, universe='sector_week')，
+    由 watchlist.py 統一處理族群過濾 + tier 分類。
+    shakeout_strong + w_bottom_launch 維持原有 per-ticker 邏輯。
+    """
     con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
     stock_info = load_stock_info(db_path)
 
@@ -133,26 +210,26 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     ]
 
     results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': []}
+
     # ⚠️ 只放已驗證門檻的 scanner
-    # 加入新 scanner 前必須先跑 5/20→5/21 回測確認上漲率 + 平均漲幅合理
-    scanners = {
-        'w_bottom_launch':  detect_wbottom,         # 84% 上漲、平均 +2.54%（已驗證）
-        'small_structure':  detect_small_structure,  # 77% 上漲、平均 +1.99%（已驗證）
-        'shakeout_strong':  detect_shakeout,         # 3/3 案例命中（已驗證，需 overhead 特徵）
-    }
-    # 量比門檻：小結構是縮量整理型態，訊號日本身不需要爆量，用較低門檻
-    # 回測：w_bottom ≥2.0 → 78% 上漲/3% 停損；small_structure ≥1.0 → 72% 上漲/9% 停損
     VOL_RATIO_MIN = {
         'w_bottom_launch': 2.0,
-        'small_structure': 1.0,
         'shakeout_strong': 2.0,
     }
-    # 出場策略拆分：爆量突破型追 MA5；縮量整理型守整理底
     EXIT_STRATEGY = {
         'w_bottom_launch': 'ma5_trail',
         'small_structure': 'structural_low',
         'shakeout_strong': 'ma5_trail',
     }
+
+    # ── shakeout_strong + w_bottom_launch：維持 per-ticker 邏輯 ─────────────
+    per_ticker_scanners = {
+        'w_bottom_launch': detect_wbottom,   # 84% 上漲、平均 +2.54%（已驗證）
+        'shakeout_strong': detect_shakeout,  # 3/3 案例命中（已驗證，需 overhead 特徵）
+    }
+
+    # 同時載入 df，供 small_structure combined df 使用
+    ticker_dfs: dict[str, pd.DataFrame] = {}
 
     for t in all_tickers:
         df = pd.read_sql("""
@@ -177,78 +254,103 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         df['ma5_slope_5d'] = df['ma5'].diff(5)
         df['volume_ratio'] = df['vol_ratio_20']  # alias
 
-        last_close = df.iloc[-1]['close']
-        info = stock_info.get(t, {"name": "", "industry": ""})
-        teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])  # 老師族群（可能跨多個）
+        ticker_dfs[t] = df
 
-        last_vol_ratio = float(df.iloc[-1]['vol_ratio_20']) if pd.notna(df.iloc[-1]['vol_ratio_20']) else 0
-
-        for name, fn in scanners.items():
+        for scanner_name, fn in per_ticker_scanners.items():
             try:
                 sig = fn(df)
                 if hasattr(sig, 'iloc') and sig.iloc[-1]:
-                    if last_vol_ratio < VOL_RATIO_MIN[name]:
-                        continue
-                    # 停損參考：W底/shakeout 用 MA10 trail，小結構維持守底
-                    last_row = df.iloc[-1]
-                    ma10 = float(last_row['ma10']) if pd.notna(last_row.get('ma10')) else None
-                    if name in ('w_bottom_launch', 'shakeout_strong') and ma10:
-                        stop_note = f"MA10停利 ~{ma10:.2f}"
-                    else:
-                        stop_px = round(float(df.iloc[-6:-1]['close'].min()), 2)
-                        stop_note = f"守底{stop_px:.2f}"
-
-                    # 距 MA10 — 用來判斷「是否已起漲過頭」
-                    dist_ma10 = None
-                    if ma10 and ma10 > 0:
-                        dist_ma10 = round((float(last_close) - ma10) / ma10 * 100, 1)
-
-                    # 老師指名分級 + 首提後天數
-                    teacher_tier = TEACHER_TIER.get(t, '')
-                    days_since = None
-                    if t in TEACHER_FIRST:
-                        days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
-
-                    # Tier 評分
-                    tier = '一般'
-                    timing_bonus = ''
-                    if name == 'w_bottom_launch':
-                        if t in TIER_A_WBOTTOM:
-                            tier = '🔥 Tier-A'
-                        elif teacher_tier in ('core', 'frequent'):
-                            tier = '⭐ Tier-B'
-                        if days_since is not None and 8 <= days_since <= 30:
-                            timing_bonus = ' ✨黃金期'
-                    elif name == 'small_structure':
-                        if t in TIER_A_SMALLSTR:
-                            tier = '🔥 Tier-A'
-                        elif teacher_tier in ('core', 'frequent'):
-                            tier = '⭐ Tier-B'
-                        if days_since is not None and days_since > 30:
-                            timing_bonus = ' ✨二波期'
-                    elif name == 'shakeout_strong':
-                        tier = '➕ 加碼用'  # 加碼判斷在 render 階段做（跨 scanner 比對）
-
-                    hit = {
-                        'ticker': t,
-                        'name': info['name'],
-                        'industry': info['industry'],
-                        'teacher_sectors': teacher_sectors,
-                        'close': float(last_close),
-                        'vol_ratio': round(last_vol_ratio, 1),
-                        'stop_note': stop_note,
-                        'exit_strategy': EXIT_STRATEGY[name],
-                        'tier': tier,
-                        'timing_bonus': timing_bonus,
-                        'teacher_tier': teacher_tier,
-                        'days_since_first_mention': days_since,
-                        'dist_ma10_pct': dist_ma10,
-                    }
-                    results[name].append(hit)
+                    hit = _build_hit_dict(
+                        t, df, scanner_name, stock_info, target_date,
+                        VOL_RATIO_MIN[scanner_name], EXIT_STRATEGY[scanner_name],
+                    )
+                    if hit is not None:
+                        results[scanner_name].append(hit)
             except Exception:
                 pass
 
     con.close()
+
+    # ── small_structure：改用 run_scan(combined_df, universe='sector_week') ──
+    # run_scan 在 watchlist_mode=True 時呼叫 run_watchlist，
+    # 內部處理 sector_week 過濾 + 條件命中分 tier，不再需要 per-ticker iteration。
+    print(f"  [small_structure] 使用 run_scan(universe='sector_week')...")
+    try:
+        if ticker_dfs:
+            combined_df = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            ss_wl = small_structure_scan(
+                combined_df,
+                target_date=target_date,
+                universe='sector_week',
+                watchlist_mode=True,
+            )
+        else:
+            ss_wl = pd.DataFrame()
+
+        if ss_wl is None or (hasattr(ss_wl, 'empty') and ss_wl.empty):
+            print("  [small_structure] sector_week 無主推族群或無命中 → 候選數 0")
+            ss_wl = pd.DataFrame()
+
+        # 將 watchlist DataFrame 轉成與其他 scanner 相同格式的 hit dict list
+        for _, row in ss_wl.iterrows():
+            t = row.get('ticker', '')
+            if not t:
+                continue
+            df_t = ticker_dfs.get(t)
+            if df_t is None or df_t.empty:
+                # 沒有載入此 ticker 的 df（可能 <100 筆被過濾），用 row 欄位補
+                last_close = row.get('close', 0)
+                ma10_val = None
+                last_vol_ratio = 0.0
+                stop_note = '—'
+                dist_ma10 = None
+            else:
+                last_row = df_t.iloc[-1]
+                last_close = last_row['close']
+                last_vol_ratio = float(last_row['vol_ratio_20']) if pd.notna(last_row.get('vol_ratio_20')) else 0
+                ma10_val = float(last_row['ma10']) if pd.notna(last_row.get('ma10')) else None
+                stop_px = round(float(df_t.iloc[-6:-1]['close'].min()), 2)
+                stop_note = f"守底{stop_px:.2f}"
+                dist_ma10 = round((float(last_close) - ma10_val) / ma10_val * 100, 1) if ma10_val else None
+
+            info = stock_info.get(t, {"name": "", "industry": ""})
+            teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+            teacher_tier = TEACHER_TIER.get(t, '')
+            days_since = None
+            if t in TEACHER_FIRST:
+                days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+            # Tier mapping：watchlist tier → daily_scanner_job tier
+            wl_tier = row.get('tier', '')
+            if wl_tier == '🔥 高機率':
+                tier = '🔥 Tier-A' if t in TIER_A_SMALLSTR else ('⭐ Tier-B' if teacher_tier in ('core', 'frequent') else '一般')
+            elif wl_tier == '⚠️ 中機率':
+                tier = '⭐ Tier-B' if teacher_tier in ('core', 'frequent') else '一般'
+            else:
+                tier = '一般'
+
+            timing_bonus = ' ✨二波期' if (days_since is not None and days_since > 30) else ''
+
+            hit = {
+                'ticker': t,
+                'name': info['name'],
+                'industry': info['industry'],
+                'teacher_sectors': teacher_sectors,
+                'close': float(last_close),
+                'vol_ratio': round(last_vol_ratio, 1),
+                'stop_note': stop_note,
+                'exit_strategy': EXIT_STRATEGY['small_structure'],
+                'tier': tier,
+                'timing_bonus': timing_bonus,
+                'teacher_tier': teacher_tier,
+                'days_since_first_mention': days_since,
+                'dist_ma10_pct': dist_ma10,
+            }
+            results['small_structure'].append(hit)
+
+    except Exception as e:
+        print(f"  [small_structure] run_scan 失敗: {e}（小結構候選數 0）")
+
     return results
 
 
