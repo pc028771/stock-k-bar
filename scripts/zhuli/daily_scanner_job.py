@@ -33,6 +33,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
 from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
 from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_attack_report  # noqa
+from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
@@ -210,7 +211,7 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         ).fetchall()
     ]
 
-    results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': []}
+    results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [], 'ma5_pivot': []}
 
     # ⚠️ 只放已驗證門檻的 scanner
     VOL_RATIO_MIN = {
@@ -380,6 +381,80 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     except Exception as e:
         print(f"  [post_attack] 失敗: {e}")
 
+    # ── ma5_pivot_breakout：攻擊→平台→攻擊型長線多頭 ─────────────────────────
+    # 用 sector_week universe 過濾 (跟 small_structure 一致)
+    print(f"  [ma5_pivot] 掃描 MA5 pivot 突破 (MA60/120/240 全🟢、sector_week 過濾)...")
+    try:
+        from zhuli.entry.small_structure.watchlist import (
+            _parse_sector_timeline, _get_week_sectors,
+            _load_sector_tickers_json, _sectors_to_tickers,
+        )
+        _timeline = _parse_sector_timeline()
+        _week_sectors = _get_week_sectors(target_date, _timeline)
+        _sector_map = _load_sector_tickers_json()
+        _sector_week_universe = _sectors_to_tickers(_week_sectors, _sector_map)
+        if not _sector_week_universe:
+            print("  [ma5_pivot] sector_week 無主推族群、跳過")
+            results['ma5_pivot'] = []
+            raise StopIteration
+    except (ImportError, StopIteration):
+        _sector_week_universe = set()
+
+    try:
+        con2 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        for t in all_tickers:
+            # sector_week 過濾
+            if _sector_week_universe and t not in _sector_week_universe:
+                continue
+            # 需要 ma60/ma240 + 自算 ma120 (rolling 120)
+            # 需要較長歷史 (500天) 確保 ma120/ma240 穩定
+            df_p = pd.read_sql("""
+                SELECT trade_date, close, ma5, ma60, ma240
+                FROM standard_daily_bar
+                WHERE ticker=? AND trade_date >= date(?, '-500 days') AND trade_date <= ?
+                ORDER BY trade_date
+            """, con2, params=(t, target_date, target_date))
+            if len(df_p) < 130:
+                continue
+            try:
+                sig = detect_ma5_pivot(df_p)
+                if hasattr(sig, 'iloc') and sig.iloc[-1]:
+                    last_row = df_p.iloc[-1]
+                    info = stock_info.get(t, {"name": "", "industry": ""})
+                    teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+                    ma10_val = None
+                    # get ma10 from ticker_dfs if available
+                    if t in ticker_dfs:
+                        last_main = ticker_dfs[t].iloc[-1]
+                        ma10_val = float(last_main['ma10']) if pd.notna(last_main.get('ma10')) else None
+                    dist_ma10 = round((float(last_row['close']) - ma10_val) / ma10_val * 100, 1) if ma10_val else None
+                    teacher_tier = TEACHER_TIER.get(t, '')
+                    days_since = None
+                    if t in TEACHER_FIRST:
+                        days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+                    # MA5 slope % of close (平台深度 proxy)
+                    ma5_slope_today = float(df_p['ma5'].diff().iloc[-1])
+                    ma5_slope_pct = round(abs(ma5_slope_today) / float(last_row['close']) * 100, 3)
+
+                    results['ma5_pivot'].append({
+                        'ticker': t,
+                        'name': info['name'],
+                        'industry': info['industry'],
+                        'teacher_sectors': teacher_sectors,
+                        'close': float(last_row['close']),
+                        'ma5_slope_pct': ma5_slope_pct,
+                        'dist_ma10_pct': dist_ma10,
+                        'teacher_tier': teacher_tier,
+                        'days_since_first_mention': days_since,
+                    })
+            except Exception:
+                pass
+        con2.close()
+        print(f"  [ma5_pivot] 找到 {len(results['ma5_pivot'])} 檔")
+    except Exception as e:
+        print(f"  [ma5_pivot] 失敗: {e}")
+
     return results
 
 
@@ -436,8 +511,9 @@ def _format_hit_row(h: dict, show_scanner=False) -> str:
 
 def render_markdown(target_date: str, results: dict) -> str:
     """產出 Tier-based 打擊區候選 markdown."""
-    # 分離 post_attack_watchlist (DataFrame) vs 其他 scanner (list[dict])
+    # 分離 post_attack_watchlist (DataFrame) + ma5_pivot (list) vs 其他 scanner (list[dict])
     pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
+    ma5_pivot_hits = results.pop('ma5_pivot', [])
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
@@ -580,6 +656,43 @@ def render_markdown(target_date: str, results: dict) -> str:
             f"> {target_date} 無符合標的",
             f"",
         ]
+
+    # === MA5 Pivot Breakout ===
+    md += [
+        f"## 🎯 MA5 Pivot Breakout（今日翻正、長線多頭確認）",
+        f"",
+        f"> 條件：MA60/MA120/MA240 全🟢 + MA5 slope 今日翻正（昨日≤0→今日>0）+ 過去 60 天有平台期",
+        f"> MA5 slope% = 今日 MA5 斜率 / 收盤價，反映突破力道",
+        f"> 隔日確認：next day open > today close → ✓；否則 ✗；尚未開盤 → 等明日 open 確認",
+        f"",
+    ]
+    if ma5_pivot_hits:
+        # Sort: teacher_tier core/frequent first, then by dist_ma10_pct
+        def _pivot_sort_key(h):
+            tt = h.get('teacher_tier', '')
+            rank = 0 if tt in ('core', 'frequent') else 1
+            d = h.get('dist_ma10_pct') or 999
+            return (rank, d)
+
+        sorted_pivot_hits = sorted(ma5_pivot_hits, key=_pivot_sort_key)
+        md += [
+            f"| Ticker | 名稱 | 族群 | 收盤 | MA5 slope% | 距MA10 | 老師 | 隔日確認 |",
+            f"|---|---|---|---|---|---|---|---|",
+        ]
+        for h in sorted_pivot_hits:
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            slope_pct = h.get('ma5_slope_pct', 0)
+            md.append(
+                f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
+                f"{slope_pct:.3f}% | {d_str} | {tt} | 等明日 open 確認 |"
+            )
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無 MA5 Pivot 命中", f""]
 
     # === 老師 core 但 scanner 未抓到 ===
     md += [

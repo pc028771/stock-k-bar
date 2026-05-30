@@ -29,6 +29,7 @@ from zhuli.entry.small_structure.detector import detect, detect_with_diagnostics
 from zhuli.entry.small_structure.watchlist import run_watchlist, run_post_attack_watchlist, format_post_attack_report
 from zhuli.entry.small_structure.post_attack_filter import is_post_attack_consolidating, get_post_attack_info
 from zhuli.entry.small_structure.lifecycle_classifier import classify_lifecycle_label, LIFECYCLE_DISPLAY
+from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot
 
 __all__ = [
     "detect",
@@ -41,6 +42,7 @@ __all__ = [
     "classify_lifecycle_label",
     "LIFECYCLE_DISPLAY",
     "run_scan",
+    "detect_ma5_pivot",
 ]
 
 
