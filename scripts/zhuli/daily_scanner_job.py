@@ -34,6 +34,7 @@ from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
 from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
 from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_attack_report  # noqa
 from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot  # noqa
+from zhuli.entry.small_structure.glued_ma5_platform import detect_glued_ma5_series as detect_glued_ma5  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
@@ -211,7 +212,7 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         ).fetchall()
     ]
 
-    results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [], 'ma5_pivot': []}
+    results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [], 'ma5_pivot': [], 'glued_ma5': []}
 
     # ⚠️ 只放已驗證門檻的 scanner
     VOL_RATIO_MIN = {
@@ -455,6 +456,68 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     except Exception as e:
         print(f"  [ma5_pivot] 失敗: {e}")
 
+    # ── glued_ma5_platform：黏 MA5 平台中（watchlist，等突破）─────────────────
+    # 跟 ma5_pivot 互補：此為「平台中」、ma5_pivot 為「突破當下」
+    print(f"  [glued_ma5] 掃描黏 MA5 平台 (sector_week 過濾)...")
+    try:
+        con3 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        for t in all_tickers:
+            if _sector_week_universe and t not in _sector_week_universe:
+                continue
+            # 需要 600 天歷史確保 MA240 穩定（自算）
+            df_g = pd.read_sql("""
+                SELECT trade_date, close, ma5, ma10
+                FROM standard_daily_bar
+                WHERE ticker=? AND trade_date >= date(?, '-600 days') AND trade_date <= ?
+                ORDER BY trade_date
+            """, con3, params=(t, target_date, target_date))
+            if len(df_g) < 250:  # 至少 240 天歷史
+                continue
+            try:
+                sig = detect_glued_ma5(df_g)
+                if hasattr(sig, 'iloc') and sig.iloc[-1]:
+                    last_row = df_g.iloc[-1]
+                    info = stock_info.get(t, {"name": "", "industry": ""})
+                    teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+                    teacher_tier = TEACHER_TIER.get(t, '')
+                    days_since = None
+                    if t in TEACHER_FIRST:
+                        days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+                    # 計算黏 MA5 天數 streak
+                    from zhuli.entry.small_structure.glued_ma5_platform import get_streak_length
+                    streak_ser = get_streak_length(df_g)
+                    streak_days = int(streak_ser.iloc[-1]) if not streak_ser.empty else 0
+
+                    # 平均距 MA5（最近 streak 天）
+                    dist_ma5_now = abs(float(last_row['close']) - float(last_row['ma5'])) / float(last_row['ma5']) * 100
+
+                    # 距 MA10
+                    ma10_val = None
+                    if t in ticker_dfs:
+                        last_main = ticker_dfs[t].iloc[-1]
+                        ma10_val = float(last_main['ma10']) if pd.notna(last_main.get('ma10')) else None
+                    dist_ma10_g = round((float(last_row['close']) - ma10_val) / ma10_val * 100, 1) if ma10_val else None
+
+                    results['glued_ma5'].append({
+                        'ticker': t,
+                        'name': info['name'],
+                        'industry': info['industry'],
+                        'teacher_sectors': teacher_sectors,
+                        'close': float(last_row['close']),
+                        'streak_days': streak_days,
+                        'dist_ma5_pct': round(dist_ma5_now, 2),
+                        'dist_ma10_pct': dist_ma10_g,
+                        'teacher_tier': teacher_tier,
+                        'days_since_first_mention': days_since,
+                    })
+            except Exception:
+                pass
+        con3.close()
+        print(f"  [glued_ma5] 找到 {len(results['glued_ma5'])} 檔")
+    except Exception as e:
+        print(f"  [glued_ma5] 失敗: {e}")
+
     return results
 
 
@@ -511,9 +574,10 @@ def _format_hit_row(h: dict, show_scanner=False) -> str:
 
 def render_markdown(target_date: str, results: dict) -> str:
     """產出 Tier-based 打擊區候選 markdown."""
-    # 分離 post_attack_watchlist (DataFrame) + ma5_pivot (list) vs 其他 scanner (list[dict])
+    # 分離 post_attack_watchlist (DataFrame) + ma5_pivot/glued_ma5 (list) vs 其他 scanner (list[dict])
     pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
     ma5_pivot_hits = results.pop('ma5_pivot', [])
+    glued_ma5_hits = results.pop('glued_ma5', [])
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
@@ -574,6 +638,8 @@ def render_markdown(target_date: str, results: dict) -> str:
         md.append(f"| {s} | {len(hits)} |")
     pa_count = len(pa_wl) if pa_wl is not None and not pa_wl.empty else 0
     md.append(f"| post_attack_watchlist | {pa_count} |")
+    md.append(f"| ma5_pivot | {len(ma5_pivot_hits)} |")
+    md.append(f"| glued_ma5_platform | {len(glued_ma5_hits)} |")
     md.append(f"| **可進場** (Tier-A/B 距MA10≤10%) | **{len(entry_hits)}** |")
     md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
     md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
@@ -693,6 +759,43 @@ def render_markdown(target_date: str, results: dict) -> str:
         md.append(f"")
     else:
         md += [f"> {target_date} 無 MA5 Pivot 命中", f""]
+
+    # === 黏 MA5 平台 Watchlist ===
+    md += [
+        f"## 📊 黏 MA5 平台 watchlist（人力觀察 + 等突破）",
+        f"",
+        f"> 條件: close 連續 N 天距 MA5 ≤ 2% + 不破 MA10 + 三長線全🟢 + 過去有攻擊段",
+        f"> sector_week universe 過濾",
+        f"> 跟 ma5_pivot 互補：此為「平台中」、ma5_pivot 為「突破當下」",
+        f"",
+    ]
+    if glued_ma5_hits:
+        # Sort: teacher_tier core/frequent first
+        def _glued_sort_key(h):
+            tt = h.get('teacher_tier', '')
+            rank = 0 if tt in ('core', 'frequent') else 1
+            return (rank, -(h.get('streak_days') or 0))
+
+        sorted_glued = sorted(glued_ma5_hits, key=_glued_sort_key)
+        md += [
+            f"| Ticker | 名稱 | 族群 | 收盤 | 黏MA5天數 | 平均距MA5 | 距MA10 | 老師 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|",
+        ]
+        for h in sorted_glued:
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            streak = h.get('streak_days', 0)
+            dist_ma5 = h.get('dist_ma5_pct', 0)
+            md.append(
+                f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
+                f"{streak}天 | {dist_ma5:.2f}% | {d_str} | {tt} | {_wantgoo_link(ticker)} |"
+            )
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無黏 MA5 平台命中", f""]
 
     # === 老師 core 但 scanner 未抓到 ===
     md += [
