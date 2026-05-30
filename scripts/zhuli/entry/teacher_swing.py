@@ -183,6 +183,211 @@ def _compute_monthly_ma(con: sqlite3.Connection, ticker: str, target_date: str) 
     }
 
 
+# ── Info Layer：扣抵值 / 均線糾纏 ────────────────────────────────────────────
+
+def compute_kou_value(close_today: float, close_n_days_ago: float | None) -> dict | None:
+    """計算扣抵值：今日 close vs N+1 日前 close，預判明日 MA 方向.
+
+    Parameters
+    ----------
+    close_today      : 今日收盤價
+    close_n_days_ago : N+1 日前收盤價（即今日會被踢出 MA 計算的那筆）
+
+    Returns
+    -------
+    dict 或 None（缺資料時回 None）
+    """
+    if close_n_days_ago is None or close_n_days_ago == 0:
+        return None
+    diff_pct = (close_today - close_n_days_ago) / close_n_days_ago * 100
+    if diff_pct > 0.5:
+        return {"direction": "🟢", "tomorrow_ma": "up", "diff_pct": round(diff_pct, 2)}
+    elif diff_pct < -0.5:
+        return {"direction": "🔴", "tomorrow_ma": "down", "diff_pct": round(diff_pct, 2)}
+    else:
+        return {"direction": "🟡", "tomorrow_ma": "flat", "diff_pct": round(diff_pct, 2)}
+
+
+def compute_kou_block(
+    bars_df: pd.DataFrame,
+    target_date: str,
+    periods: list[int] | None = None,
+) -> dict:
+    """對 bars_df 計算 4 條 MA 的扣抵值資訊.
+
+    Parameters
+    ----------
+    bars_df     : 已按 trade_date 排序的日 K DataFrame（含 close 欄位）
+    target_date : 'YYYY-MM-DD'
+    periods     : [5, 10, 20, 60]
+
+    Returns
+    -------
+    {
+        "ma5":  {"扣抵_date": "...", "扣抵_close": float, "today_close": float,
+                 "direction": "🟢/🟡/🔴", "diff_pct": float} | None,
+        "ma10": ...,
+        "ma20": ...,
+        "ma60": ...,
+    }
+    """
+    if periods is None:
+        periods = [5, 10, 20, 60]
+
+    # 取目標日之前（含當日）的收盤序列，按時間升冪
+    hist = bars_df[bars_df["trade_date"] <= target_date][["trade_date", "close"]].copy()
+    hist = hist.sort_values("trade_date").reset_index(drop=True)
+
+    result: dict = {}
+    today_row = hist[hist["trade_date"] == target_date]
+    if today_row.empty:
+        for n in periods:
+            result[f"ma{n}"] = None
+        return result
+
+    close_today = float(today_row.iloc[-1]["close"])
+    # hist 最後一列 = today；往前 n 個位置 = N+1 日前
+    today_idx = today_row.index[-1]
+
+    for n in periods:
+        kou_idx = today_idx - n  # N trading days before today (0-based)
+        if kou_idx < 0 or kou_idx >= len(hist):
+            result[f"ma{n}"] = None
+            continue
+
+        kou_row = hist.iloc[kou_idx]
+        kou_close = float(kou_row["close"]) if pd.notna(kou_row["close"]) else None
+        kou_date  = str(kou_row["trade_date"])
+
+        kv = compute_kou_value(close_today, kou_close)
+        if kv is None:
+            result[f"ma{n}"] = None
+        else:
+            result[f"ma{n}"] = {
+                "扣抵_date":  kou_date,
+                "扣抵_close": round(kou_close, 2) if kou_close else None,
+                "today_close": round(close_today, 2),
+                **kv,
+            }
+
+    return result
+
+
+def compute_ma_state(
+    ma5: float | None,
+    ma10: float | None,
+    ma20: float | None,
+    close: float,
+) -> dict:
+    """計算 MA5/10/20 均線糾纏狀態.
+
+    Returns
+    -------
+    {
+        "spread_pct": float,          # (max - min) / close × 100
+        "label": "緊糾纏/鬆糾纏/已分開",
+        "is_coil": bool,              # spread_pct < 2%
+        "ma_values": {"ma5": ..., "ma10": ..., "ma20": ...}
+    }
+    """
+    vals = {k: v for k, v in [("ma5", ma5), ("ma10", ma10), ("ma20", ma20)] if v is not None}
+
+    if len(vals) < 3 or close <= 0:
+        return {
+            "spread_pct": None,
+            "label": "資料不足",
+            "is_coil": False,
+            "ma_values": {"ma5": ma5, "ma10": ma10, "ma20": ma20},
+        }
+
+    spread = max(vals.values()) - min(vals.values())
+    spread_pct = spread / close * 100
+
+    if spread_pct < 1.5:
+        label = "緊糾纏"
+    elif spread_pct < 3.0:
+        label = "鬆糾纏"
+    else:
+        label = "已分開"
+
+    return {
+        "spread_pct": round(spread_pct, 2),
+        "label": label,
+        "is_coil": spread_pct < 2.0,
+        "ma_values": {k: round(v, 2) for k, v in vals.items()},
+    }
+
+
+def compute_signal_combo(
+    close: float,
+    ma20: float | None,
+    ma60: float | None,
+    ma_state: dict,
+    kou_block: dict,
+    ma5: float | None = None,
+    ma10: float | None = None,
+) -> dict:
+    """組合 label（純 info，不作 filter）.
+
+    Returns
+    -------
+    {
+        "trend_confirmed": bool,
+        "pre_launch_coil": bool,
+        "reversal_zone": bool,
+        "label": str,
+    }
+    """
+    # 多頭排列判斷
+    bull_array = (
+        ma5 is not None and ma10 is not None and ma20 is not None and ma60 is not None
+        and ma5 > ma10 > ma20 > ma60
+    )
+    above_ma20 = (ma20 is not None and close > ma20)
+    above_ma60 = (ma60 is not None and close > ma60)
+
+    kou_ma20 = kou_block.get("ma20")
+    kou_ma60 = kou_block.get("ma60")
+    ma20_kou_green = kou_ma20 is not None and kou_ma20.get("direction") == "🟢"
+    ma60_kou_green = kou_ma60 is not None and kou_ma60.get("direction") == "🟢"
+
+    is_coil = ma_state.get("is_coil", False)
+
+    # 趨勢確認：多頭排列 + 收盤 > MA20 + MA20 扣抵 🟢
+    trend_confirmed = bool(bull_array and above_ma20 and ma20_kou_green)
+
+    # 起漲前打擊區：糾纏 + MA20 扣抵 🟢 + (MA60 扣抵 🟢 或 收盤 > MA60)
+    pre_launch_coil = bool(is_coil and ma20_kou_green and (ma60_kou_green or above_ma60))
+
+    # 反轉打擊區：MA20 🟢 + MA60 🟢 + 收盤 > MA60
+    reversal_zone = bool(ma20_kou_green and ma60_kou_green and above_ma60)
+
+    # 決定 label（優先級依序）
+    if trend_confirmed and is_coil:
+        label = "趨勢確認+打擊區"
+    elif trend_confirmed:
+        label = "趨勢確認"
+    elif pre_launch_coil:
+        label = "起漲前打擊區"
+    elif reversal_zone:
+        label = "反轉打擊區"
+    elif is_coil:
+        label = "普通整理(糾纏)"
+    elif ma20_kou_green and ma60_kou_green:
+        label = "雙均線向上"
+    elif kou_ma20 is not None and kou_ma20.get("direction") == "🔴":
+        label = "警告(MA20↓)"
+    else:
+        label = "普通整理"
+
+    return {
+        "trend_confirmed": trend_confirmed,
+        "pre_launch_coil": pre_launch_coil,
+        "reversal_zone": reversal_zone,
+        "label": label,
+    }
+
+
 # ── 核心 detect 函式 ──────────────────────────────────────────────────────────
 
 def detect(
@@ -381,12 +586,17 @@ def run_scan(
     target_date: str,
     db_path: Path = _DB,
     cfg: dict | None = None,
+    with_kou: bool = True,
+    with_coil: bool = True,
 ) -> list[dict]:
     """掃描全市場，回傳通過所有條件的 ticker 清單.
 
     每筆 hit dict 額外包含:
-        name      : 股票名稱
-        industry  : 產業別
+        name         : 股票名稱
+        industry     : 產業別
+        kou_value    : 扣抵值資訊（4 條 MA），with_kou=True 時計算
+        ma_state     : 均線糾纏狀態，with_coil=True 時計算
+        signal_combo : 組合 label，兩者都開啟時計算
     """
     if cfg is None:
         cfg = DEFAULT_CFG
@@ -432,7 +642,7 @@ def run_scan(
                    if r[0].isdigit()}
 
     for ticker in pre_tickers:
-        # 讀取近 200 日 bars
+        # 讀取近 200 日 bars（扣抵值最多需 61 個交易日，200 日足夠）
         bars_df = pd.read_sql("""
             SELECT trade_date, open, high, low, close, volume,
                    ma5, ma10, ma20, ma60
@@ -466,6 +676,38 @@ def run_scan(
         for h in hits:
             h["name"]     = stock_names.get(ticker, "")
             h["industry"] = ""  # stock_info 無 industry_category 欄位時留空
+
+            # ── Info Layer 1：扣抵值 ─────────────────────────────────────
+            if with_kou:
+                h["kou_value"] = compute_kou_block(bars_df, target_date)
+            else:
+                h["kou_value"] = None
+
+            # ── Info Layer 2：均線糾纏 ───────────────────────────────────
+            if with_coil:
+                h["ma_state"] = compute_ma_state(
+                    ma5=h.get("ma5"),
+                    ma10=h.get("ma10"),
+                    ma20=h.get("ma20"),
+                    close=h["close"],
+                )
+            else:
+                h["ma_state"] = None
+
+            # ── Info Layer 3：組合 label ─────────────────────────────────
+            if with_kou and with_coil and h["kou_value"] and h["ma_state"]:
+                h["signal_combo"] = compute_signal_combo(
+                    close=h["close"],
+                    ma20=h.get("ma20"),
+                    ma60=h.get("ma60"),
+                    ma_state=h["ma_state"],
+                    kou_block=h["kou_value"],
+                    ma5=h.get("ma5"),
+                    ma10=h.get("ma10"),
+                )
+            else:
+                h["signal_combo"] = None
+
             results.append(h)
 
     con.close()
@@ -476,6 +718,50 @@ def run_scan(
 
 
 # ── 輸出格式 ──────────────────────────────────────────────────────────────────
+
+def _fmt_kou(kv: dict | None) -> str:
+    """單一扣抵值 dict → 簡短字串."""
+    if kv is None:
+        return "—"
+    return f"{kv['direction']} {kv['diff_pct']:+.1f}%"
+
+
+def _render_kou_section(h: dict) -> list[str]:
+    """回傳扣抵值 + 均線糾纏的顯示行."""
+    lines: list[str] = []
+    kv = h.get("kou_value")
+    ms = h.get("ma_state")
+    sc = h.get("signal_combo")
+
+    if kv:
+        ma5k  = _fmt_kou(kv.get("ma5"))
+        ma10k = _fmt_kou(kv.get("ma10"))
+        ma20k = _fmt_kou(kv.get("ma20"))
+        ma60k = _fmt_kou(kv.get("ma60"))
+        lines.append(
+            f"  扣抵: MA5={ma5k}  MA10={ma10k}  MA20={ma20k}  MA60={ma60k}"
+        )
+        # 顯示扣抵日期（MA20/60 較有參考價值）
+        if kv.get("ma20"):
+            lines.append(
+                f"  扣抵日: MA20={kv['ma20']['扣抵_date']}({kv['ma20']['扣抵_close']})  "
+                f"MA60={kv['ma60']['扣抵_date']}({kv['ma60']['扣抵_close']})"
+                if kv.get("ma60") else
+                f"  扣抵日: MA20={kv['ma20']['扣抵_date']}({kv['ma20']['扣抵_close']})"
+            )
+
+    if ms and ms.get("spread_pct") is not None:
+        coil_flag = "⭐" if ms["is_coil"] else ""
+        lines.append(
+            f"  均線糾纏: {ms['label']}{coil_flag}  spread={ms['spread_pct']:.2f}%  "
+            f"MA5={ms['ma_values'].get('ma5', '—')}  MA10={ms['ma_values'].get('ma10', '—')}  MA20={ms['ma_values'].get('ma20', '—')}"
+        )
+
+    if sc:
+        lines.append(f"  組合訊號: 【{sc['label']}】")
+
+    return lines
+
 
 def _render_markdown(hits: list[dict], target_date: str, cfg: dict) -> str:
     """產生 markdown table 輸出."""
@@ -516,6 +802,15 @@ def _render_markdown(hits: list[dict], target_date: str, cfg: dict) -> str:
             f"| {int(h['max_vol_5d_lots']):,} |"
         )
 
+    # 扣抵值 + 均線糾纏詳情（每檔一區塊）
+    has_info = any(h.get("kou_value") or h.get("ma_state") for h in hits)
+    if has_info:
+        lines.append("")
+        lines.append("### 扣抵值 & 均線糾纏（Info Layer）")
+        for h in hits:
+            lines.append(f"\n**{h['ticker']} {h.get('name', '')}**  收盤={h['close']:.2f}")
+            lines.extend(_render_kou_section(h))
+
     return "\n".join(lines)
 
 
@@ -547,6 +842,13 @@ def _parse_args() -> argparse.Namespace:
                    help="自訂5日量峰門檻（張），預設 10000")
     p.add_argument("--debug", action="store_true",
                    help="顯示每檔詳細診斷（通過條件）")
+
+    # ── Info Layer flags ──
+    p.add_argument("--with-kou", action=argparse.BooleanOptionalAction, default=True,
+                   help="計算扣抵值（預設開啟）")
+    p.add_argument("--with-coil", action=argparse.BooleanOptionalAction, default=True,
+                   help="計算均線糾纏（預設開啟）")
+
     return p.parse_args()
 
 
@@ -595,7 +897,16 @@ def main() -> None:
     print(f"模式: {mode_label}")
     print()
 
-    hits = run_scan(target_date=target_date, db_path=db_path, cfg=cfg)
+    with_kou  = getattr(args, "with_kou",  True)
+    with_coil = getattr(args, "with_coil", True)
+
+    hits = run_scan(
+        target_date=target_date,
+        db_path=db_path,
+        cfg=cfg,
+        with_kou=with_kou,
+        with_coil=with_coil,
+    )
 
     print(_render_markdown(hits, target_date, cfg))
 
