@@ -761,16 +761,26 @@ def render_markdown(target_date: str, results: dict) -> str:
         md += [f"> {target_date} 無 MA5 Pivot 命中", f""]
 
     # === 黏 MA5 平台 Watchlist ===
+    def _consolidation_stage(days: int) -> str:
+        """整理階段分類（依黏 MA5 天數）."""
+        if days <= 4:    return "🟡 早期"
+        elif days <= 7:  return "🟢 中期"
+        elif days <= 14: return "🔵 末期"
+        else:            return "🟣 長平台"
+
     md += [
         f"## 📊 黏 MA5 平台 watchlist（人力觀察 + 等突破）",
         f"",
         f"> 條件: close 連續 N 天距 MA5 ≤ 2% + 不破 MA10 + 三長線全🟢 + 過去有攻擊段",
         f"> sector_week universe 過濾",
         f"> 跟 ma5_pivot 互補：此為「平台中」、ma5_pivot 為「突破當下」",
+        f">",
+        f"> 整理階段: 🟡 早期 (3-4 天、剛攻擊完、觀察) / 🟢 中期 (5-7 天、打擊區、進 watchlist)",
+        f">           🔵 末期 (8-14 天、突破壓力累積、ma5_pivot trigger 進場) / 🟣 長平台 (15+ 天、textbook、準備重壓)",
         f"",
     ]
     if glued_ma5_hits:
-        # Sort: teacher_tier core/frequent first
+        # Sort: teacher_tier core/frequent first, then by streak_days desc (longer platforms first)
         def _glued_sort_key(h):
             tt = h.get('teacher_tier', '')
             rank = 0 if tt in ('core', 'frequent') else 1
@@ -778,8 +788,8 @@ def render_markdown(target_date: str, results: dict) -> str:
 
         sorted_glued = sorted(glued_ma5_hits, key=_glued_sort_key)
         md += [
-            f"| Ticker | 名稱 | 族群 | 收盤 | 黏MA5天數 | 平均距MA5 | 距MA10 | 老師 | wantgoo |",
-            f"|---|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 黏MA5天數 | 整理階段 | 平均距MA5 | 距MA10 | 老師 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in sorted_glued:
             ticker = h['ticker']
@@ -788,10 +798,11 @@ def render_markdown(target_date: str, results: dict) -> str:
             d_str = f"{d:+.1f}%" if d is not None else '—'
             tt = h.get('teacher_tier') or '—'
             streak = h.get('streak_days', 0)
+            stage = _consolidation_stage(streak)
             dist_ma5 = h.get('dist_ma5_pct', 0)
             md.append(
                 f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
-                f"{streak}天 | {dist_ma5:.2f}% | {d_str} | {tt} | {_wantgoo_link(ticker)} |"
+                f"{streak}天 | {stage} | {dist_ma5:.2f}% | {d_str} | {tt} | {_wantgoo_link(ticker)} |"
             )
         md.append(f"")
     else:
