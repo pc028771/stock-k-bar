@@ -44,38 +44,46 @@ DB = Path.home() / ".four_seasons" / "data.sqlite"
 # 已進場部位 (Phase 2 P&L 監控): (tk, name, entry, shares, stop)
 HELD = [
     ('6285', '啟碁', 315.0, 1000, 307.4),
-    ('2485', '兆赫', 73.4,  5000, 70.0),
+    ('2485', '兆赫', 73.4,  5000, 73.4),  # 6/2 plan: 結構破、開盤 ≥73.4 全出守成本
     ('1605', '華新', 40.1,  8000, 38.75),
 ]
 
 # 已實現 (今日累計)
-REALIZED = -21388  # 3016 嘉晶
+REALIZED = 0  # 6/2 新一天歸零
 
 # 鎖定主候選 (Phase 1 開盤 entry screening): (tk, name, target_shares, stop, 理由)
-# = 你 23:00 鎖定的 plan 3 檔
 PLAN_PRIMARY = [
-    # 6/1 已進場、若 6/2 plan 改、編輯這裡
-    # 範例: ('1605', '華新', 8000, 38.75, 'Tier-S 子弟兵'),
+    ('4722', '國精化', 3000, 268.0, '🔒A 處置第 5 天切入 + 三軸乾淨 (特化)'),
 ]
 
-# 備案 (Phase 1 主候選被 skip 時遞補): (tk, name, target_shares, stop_pct, 理由)
+# 備案 (Phase 1 主候選被 skip 時遞補): (tk, name, target_shares, stop, 理由)
 PLAN_BACKUP = [
-    # 範例: ('3149', '正達', 3000, 0.07, '老師台股康寧'),
+    ('8046', '南電', 1000, 848.0, '6/1 V 轉 + 籌碼雙轉買、跳空 ≤+3% 才進'),
+    ('6207', '雷科', 2000, 100.0, '6/1 V 轉 + core AI 探針、跳空 ≤+3% 才進'),
 ]
 
 # 已 SKIP 的監控 (萬一回穩): (tk, name, ref_close, stop, kind)
 WATCH = [
-    ('5425', '台半', 116.5, 113.0, 'SKIP'),
-    ('2481', '強茂', 162.5, 178.5, 'SKIP'),
-    ('3675', '德微', 413.0, 454.0, 'SKIP'),
-    ('3016', '嘉晶', 138.0, 133.5, 'SOLD'),
+    ('3189', '景碩', 774.0, None, '🔒C 處置出貨倒貨'),
+    ('8021', '尖點', 464.0, None, '🔒C 第 2 次過高 + 雙頂'),
+    ('4958', '臻鼎', 548.0, None, '🔒A 但 🔴 外資強賣 + 距 MA10 +10%'),
+    ('3037', '欣興', 1050.0, None, 'last-mile 退潮 + 5/28 大黑包覆'),
+    ('1717', '長興', 81.5, None, '外資高位爆賣 -8.6K'),
 ]
 
 # ─────────────────────────────────────────────────────────────────────────
 
 class C:
     R = '\033[91m'; G = '\033[92m'; Y = '\033[93m'; B = '\033[94m'
-    BOLD = '\033[1m'; DIM = '\033[2m'; END = '\033[0m'; CLR = '\033[H\033[J'
+    BOLD = '\033[1m'; DIM = '\033[2m'; END = '\033[0m'
+    # 無閃爍 frame: cursor home (不清螢幕)、每行用 EOL 清殘字
+    HOME = '\033[H'         # 游標回左上
+    EOL  = '\033[K'         # 清除到行尾 (蓋掉前一 frame 殘字)
+    ALT_ON  = '\033[?1049h'  # 進 alt screen (退出後還原原 terminal 內容)
+    ALT_OFF = '\033[?1049l'
+    HIDE = '\033[?25l'       # 隱藏游標
+    SHOW = '\033[?25h'
+    CLR = HOME              # 向後相容、舊用法直接等於 HOME
 
 
 def notify_mac(title: str, msg: str):
@@ -290,41 +298,61 @@ def main():
     prev_prices = {}
     notified = set()
 
-    while True:
-        try:
-            now = datetime.now()
-            now_str = now.strftime('%H:%M:%S')
-            h, m = now.hour, now.minute
+    # 進 alt screen + 隱藏游標（退出時還原）
+    use_alt = not args.no_clear
+    if use_alt:
+        sys.stdout.write(C.ALT_ON + C.HIDE)
+        sys.stdout.flush()
 
-            # 自動判斷階段
-            in_phase1 = h == 9 and m <= 25
-            if args.force_phase == '1':
-                in_phase1 = True
-            elif args.force_phase == '2':
-                in_phase1 = False
+    def _emit(line: str):
+        # 每行尾接 EOL 清殘字、避免新 frame 內容比舊 frame 短時留鬼影
+        sys.stdout.write(line + C.EOL + '\n')
 
-            if not args.no_clear:
-                print(C.CLR, end='')
+    try:
+        while True:
+            try:
+                now = datetime.now()
+                now_str = now.strftime('%H:%M:%S')
+                h, m = now.hour, now.minute
 
-            print(f"{C.BOLD}{C.B}=== 即時 monitor (interval {args.interval}s) ==={C.END}")
-            print()
+                # 自動判斷階段
+                in_phase1 = h == 9 and m <= 25
+                if args.force_phase == '1':
+                    in_phase1 = True
+                elif args.force_phase == '2':
+                    in_phase1 = False
 
-            if in_phase1:
-                for line in render_phase1_screener(client, now_str):
-                    print(line)
-            else:
-                for line in render_phase2_holdings(client, now_str, prev_prices, notified):
-                    print(line)
+                if use_alt:
+                    # 只回左上、不清螢幕 → 無閃爍
+                    sys.stdout.write(C.HOME)
 
-            print()
-            print(f"{C.DIM}下次 {args.interval}s | Ctrl+C 結束{C.END}")
-            time.sleep(args.interval)
-        except KeyboardInterrupt:
-            print(f"\n{C.B}結束{C.END}")
-            break
-        except Exception as e:
-            print(f"[ERROR] {e}")
-            time.sleep(5)
+                _emit(f"{C.BOLD}{C.B}=== 即時 monitor (interval {args.interval}s)  {now_str} ==={C.END}")
+                _emit("")
+
+                if in_phase1:
+                    for line in render_phase1_screener(client, now_str):
+                        _emit(line)
+                else:
+                    for line in render_phase2_holdings(client, now_str, prev_prices, notified):
+                        _emit(line)
+
+                _emit("")
+                _emit(f"{C.DIM}下次 {args.interval}s | Ctrl+C 結束{C.END}")
+                # 清剩餘螢幕（蓋掉舊 frame 殘留行）
+                sys.stdout.write('\033[J')
+                sys.stdout.flush()
+                time.sleep(args.interval)
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                _emit(f"[ERROR] {e}")
+                sys.stdout.flush()
+                time.sleep(5)
+    finally:
+        if use_alt:
+            sys.stdout.write(C.SHOW + C.ALT_OFF)
+            sys.stdout.flush()
+        print(f"{C.B}結束{C.END}")
 
 
 if __name__ == '__main__':

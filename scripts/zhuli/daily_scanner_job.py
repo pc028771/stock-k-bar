@@ -91,6 +91,155 @@ def _load_teacher_picks() -> tuple[dict[str, str], dict[str, str], dict[str, str
 
 TEACHER_TIER, TEACHER_NAME, TEACHER_FIRST = _load_teacher_picks()
 
+
+# ── 法人籌碼批次查詢 ─────────────────────────────────────────────────────────────
+
+class MissingChipDataError(RuntimeError):
+    """籌碼資料缺失 — strict 模式禁止 fallback / 靜默補值."""
+
+
+def _load_institutional_chip(tickers: list[str], target_date: str, db_path: Path) -> dict[str, dict]:
+    """批次查詢 institutional_investors 近 5 個交易日外資/投信淨買（單位：張）.
+
+    Strict mode: 任一 ticker 沒 row、或 foreign_net/sitc_net 為 NULL → raise.
+    """
+    if not tickers:
+        return {}
+
+    db_uri = f"file:{db_path}?mode=ro"
+    con = sqlite3.connect(db_uri, uri=True, timeout=10)
+    ph = ",".join("?" * len(tickers))
+    rows = con.execute(
+        f"""SELECT ticker, SUM(foreign_net) AS f5d, SUM(sitc_net) AS s5d
+            FROM institutional_investors
+            WHERE ticker IN ({ph})
+              AND trade_date >= date(?, '-7 days')
+              AND trade_date <= ?
+            GROUP BY ticker""",
+        tickers + [target_date, target_date],
+    ).fetchall()
+    con.close()
+
+    result: dict[str, dict] = {}
+    for ticker, f5d, s5d in rows:
+        if f5d is None or s5d is None:
+            raise MissingChipDataError(
+                f"institutional NULL for {ticker} @ {target_date} (f5d={f5d}, s5d={s5d})"
+            )
+        f5d = float(f5d)
+        s5d = float(s5d)
+        result[ticker] = {
+            "foreign_5d": round(f5d),
+            "sitc_5d": round(s5d),
+            "tag": _chip_tag(f5d, s5d),
+        }
+
+    missing = set(tickers) - set(result.keys())
+    if missing:
+        raise MissingChipDataError(
+            f"institutional 缺 {len(missing)} 檔 @ {target_date}: {sorted(missing)}"
+        )
+    return result
+
+
+def _chip_tag(foreign_5d: float, sitc_5d: float) -> str:
+    """依外資/投信 5 日淨買（張）計算籌碼 tag."""
+    if foreign_5d >= 2000 and sitc_5d >= 0:
+        return "🟢 外資強買"
+    if 500 <= foreign_5d < 2000 and sitc_5d >= 0:
+        return "🟡 外資中買"
+    if foreign_5d < 0 and sitc_5d >= 200:
+        return "🟡 投信買"
+    if foreign_5d < -2000:
+        return "🔴 外資強賣"
+    return "⚪ 中性"
+
+
+def _fmt_chip_cols(chip: dict) -> tuple[str, str, str]:
+    """回傳 (外資5d, 投信5d, tag) 三個欄位字串. Strict: chip 必須是 dict."""
+    f = chip["foreign_5d"]
+    s = chip["sitc_5d"]
+    tag = chip["tag"]
+    broker_tag = chip.get("broker_tag", "")
+    if broker_tag:
+        tag = f"{tag} {broker_tag}"
+    return f"{f:+,}", f"{s:+,}", tag
+
+
+# ── 老師分點 tier 1 快取掃描 ──────────────────────────────────────────────────
+
+_BROKER_CACHE_DIR = Path.home() / ".zhuli_cache" / "broker"
+
+# 老師分點 patterns（與 teacher_broker_signal.py 對齊，加入 5/31 新分點）
+_TEACHER_BROKER_PATTERNS: dict[str, str] = {
+    "站前哥（凱基站前）": r"凱基.*站前",
+    "管錢哥（元大館前）": r"元大.*館前",
+    "永豐金惠利":         r"永豐.*惠利",
+    "永豐金潮州":         r"永豐.*潮州",
+    "永豐金屏東":         r"永豐.*屏東",
+    "台新屏東":           r"台新.*屏東",
+    "富邦新店":           r"富邦.*新店",    # 5/31 影片新加
+    "富邦南港":           r"富邦.*南港",    # 5/31 影片新加
+}
+
+# Tier 1: 站前哥/管錢哥 (老師原話「非常厲害」)
+_BROKER_TIER1_LABELS = frozenset(["站前哥（凱基站前）", "管錢哥（元大館前）"])
+
+
+def _load_broker_chip(tickers: list[str], target_date: str) -> dict[str, str]:
+    """從磁碟快取查 ticker 是否有老師分點 tier 1 在 target_date 買入.
+
+    Strict mode:
+      - 快取目錄不存在 → raise
+      - 該 ticker target_date 沒檔案 → raise (沒 fallback)
+      - 壞 json → raise
+      - 檔案存在但無 tier 命中 → "" (合法零訊號)
+    """
+    import json
+    import re as _re
+
+    if not _BROKER_CACHE_DIR.exists():
+        raise MissingChipDataError(f"broker cache dir 不存在: {_BROKER_CACHE_DIR}")
+
+    result: dict[str, str] = {}
+    for ticker in tickers:
+        cache = _BROKER_CACHE_DIR / f"{ticker}_{target_date}.json"
+        if not cache.exists():
+            raise MissingChipDataError(f"broker cache 缺 {ticker} @ {target_date}: {cache}")
+        data = json.loads(cache.read_text())
+
+        broker_net: dict[str, int] = {}
+        for row in data:
+            name = row.get("securities_trader", "")
+            buy  = row.get("buy", 0) or 0
+            sell = row.get("sell", 0) or 0
+            net  = (buy - sell) // 1000
+            broker_net[name] = broker_net.get(name, 0) + net
+
+        tier1_hits = []
+        tier2_hits = []
+        for label, pattern in _TEACHER_BROKER_PATTERNS.items():
+            for name, net_lots in broker_net.items():
+                if _re.search(pattern, name) and net_lots > 0:
+                    if label in _BROKER_TIER1_LABELS:
+                        tier1_hits.append((label, net_lots))
+                    else:
+                        tier2_hits.append((label, net_lots))
+
+        if tier1_hits:
+            tier1_hits.sort(key=lambda x: -x[1])
+            top = tier1_hits[0][0].split("（")[0]  # "站前哥"
+            result[ticker] = f"⭐ {top}"
+        elif tier2_hits:
+            tier2_hits.sort(key=lambda x: -x[1])
+            top = tier2_hits[0][0]
+            result[ticker] = f"🔸 {top}"
+        else:
+            result[ticker] = ""
+
+    return result
+
+
 # Tier-A ticker 清單（從 cross_reference.py 統計：老師指名 × P90+ rate ≥30%, n≥2）
 TIER_A_WBOTTOM = {
     '3016', '3037', '3189', '3481', '4919', '8027', '6173',
@@ -572,7 +721,111 @@ def _format_hit_row(h: dict, show_scanner=False) -> str:
     return '| ' + ' | '.join(parts) + ' |'
 
 
-def render_markdown(target_date: str, results: dict) -> str:
+def _run_disposal_check(
+    all_tickers: list[str],
+    target_date: str,
+    db_path: Path,
+) -> dict[str, dict]:
+    """對所有候選 ticker 跑處置股分型（--enable-disposal 啟用時呼叫）.
+
+    Returns:
+        dict[ticker, classify_result]  （只含處置中的 ticker）
+    """
+    from zhuli.extras.disposal_data_source import fetch_disposal_list
+    from zhuli.disposal_framework import classify_disposal
+
+    try:
+        disposal_list = fetch_disposal_list(target_date)
+    except Exception as exc:
+        print(f"  [disposal] ⚠️ TWSE API 失敗，跳過: {exc}", flush=True)
+        return {}
+
+    print(f"  [disposal] 處置中股票共 {len(disposal_list)} 檔", flush=True)
+
+    result: dict[str, dict] = {}
+    # 只對候選 ticker 分型（避免對全市場跑 DB 查詢）
+    candidates_in_disposal = [t for t in all_tickers if t in disposal_list]
+    print(f"  [disposal] 候選 ticker 中有 {len(candidates_in_disposal)} 檔處置中", flush=True)
+
+    for ticker in candidates_in_disposal:
+        try:
+            cl = classify_disposal(ticker, target_date, db_path, disposal_list[ticker])
+            result[ticker] = cl
+        except Exception as exc:
+            result[ticker] = {
+                "type": None,
+                "label": "🔒? 需人工判定",
+                "reason": f"分型失敗: {exc}",
+                "pre_high": None, "disposal_max": None, "pullback_pct": None,
+                "times": 0, "disposal_day": 0, "days_to_end": 0,
+                "entry_hint": "—",
+                "start_date": "", "end_date": "",
+                "name": disposal_list[ticker].get("name", ""),
+            }
+
+    return result
+
+
+def _render_disposal_section(
+    disposal_map: dict[str, dict],
+    all_hits: list[dict],
+) -> list[str]:
+    """產出 ## 🔒 處置股專區 markdown 段落."""
+    # 找所有候選 ticker 中處置中的
+    candidate_tickers = {h['ticker'] for h in all_hits}
+    disposal_candidates = {t: v for t, v in disposal_map.items() if t in candidate_tickers}
+
+    if not disposal_candidates:
+        return [
+            "## 🔒 處置股專區",
+            "",
+            "> 今日候選中無處置股",
+            "",
+        ]
+
+    md = [
+        "## 🔒 處置股專區",
+        "",
+        "| Ticker | 名稱 | 型態 | 處置前高 | 期間最高 | 回落% | 第幾次 | 第N天 | 出關前 | 進場時機 | 處置期間 |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+
+    # 排序：C 優先顯示（警示），然後 A，然後 B，然後 None
+    def _sort_key(item):
+        t, v = item
+        order = {"C": 0, "A": 1, "B": 2, None: 3}
+        return order.get(v.get("type"), 3)
+
+    for ticker, cl in sorted(disposal_candidates.items(), key=_sort_key):
+        label = cl.get("label") or "🔒?"
+        pre_high = cl.get("pre_high")
+        disposal_max = cl.get("disposal_max")
+        pullback = cl.get("pullback_pct")
+        times = cl.get("times", "?")
+        day = cl.get("disposal_day", "?")
+        to_end = cl.get("days_to_end", "?")
+        entry_hint = cl.get("entry_hint", "—")
+        start_date = cl.get("start_date", "")
+        end_date = cl.get("end_date", "")
+        name = cl.get("name", "")
+
+        pre_high_str = f"{pre_high:.1f}" if pre_high else "—"
+        disp_max_str = f"{disposal_max:.1f}" if disposal_max else "—"
+        pullback_str = f"{pullback:.1f}%" if pullback is not None else "—"
+        period_str = f"{start_date} → {end_date}" if start_date else "—"
+
+        md.append(
+            f"| **{ticker}** | {name} | {label} | "
+            f"{pre_high_str} | {disp_max_str} | {pullback_str} | "
+            f"第{times}次 | D+{day} | 前{to_end}天 | "
+            f"{entry_hint} | {period_str} |"
+        )
+
+    md.append("")
+    return md
+
+
+def render_markdown(target_date: str, results: dict, db_path: Path | None = None, allow_missing_broker: bool = False, allow_missing_institutional: bool = False, disposal_map: dict | None = None) -> str:
     """產出 Tier-based 打擊區候選 markdown."""
     # 分離 post_attack_watchlist (DataFrame) + ma5_pivot/glued_ma5 (list) vs 其他 scanner (list[dict])
     pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
@@ -586,6 +839,86 @@ def render_markdown(target_date: str, results: dict) -> str:
             h = dict(h)
             h['scanner_name'] = scanner
             all_hits.append(h)
+
+    # ── 處置股標記（--enable-disposal 啟用時）──────────────────────────────────
+    # disposal_map 已由 main() 傳入；這裡只做標記和備用空 dict
+    if disposal_map is None:
+        disposal_map = {}
+    # 把 disposal label 注入 all_hits（ticker 後面加標記）
+    for h in all_hits:
+        t = h['ticker']
+        if t in disposal_map:
+            cl = disposal_map[t]
+            dtype = cl.get('type')
+            if dtype == 'A':
+                h['disposal_label'] = '🔒A'
+            elif dtype == 'B':
+                h['disposal_label'] = '🔒B'
+            elif dtype == 'C':
+                h['disposal_label'] = '🔒C'
+            else:
+                h['disposal_label'] = '🔒?'
+        else:
+            h['disposal_label'] = ''
+
+    # ── 法人籌碼批次查詢 ────────────────────────────────────────────────────────
+    all_chip_tickers = (
+        [h['ticker'] for h in all_hits]
+        + [h['ticker'] for h in ma5_pivot_hits]
+        + [h['ticker'] for h in glued_ma5_hits]
+    )
+    pa_tickers = []
+    if pa_wl is not None and not pa_wl.empty and 'ticker' in pa_wl.columns:
+        pa_tickers = pa_wl['ticker'].tolist()
+    all_chip_tickers = list(set(all_chip_tickers + pa_tickers))
+
+    chip_map: dict[str, dict] = {}
+    if db_path and all_chip_tickers:
+        print(f"  [chip] 查詢 {len(all_chip_tickers)} 檔法人籌碼 5d...", flush=True)
+        try:
+            chip_map = _load_institutional_chip(all_chip_tickers, target_date, db_path)
+        except MissingChipDataError as exc:
+            if allow_missing_institutional:
+                print(f"  [chip] ⚠️ institutional 缺、--allow-missing-institutional 容忍: {exc}", flush=True)
+                # 取得有資料的部分；缺的 ticker 從候選清單剔除
+                import re as _re
+                m = _re.search(r"缺 \d+ 檔.*?: \[(.*?)\]", str(exc))
+                missing_tickers = set()
+                if m:
+                    missing_tickers = {t.strip().strip("'\"") for t in m.group(1).split(",")}
+                all_chip_tickers = [t for t in all_chip_tickers if t not in missing_tickers]
+                chip_map = _load_institutional_chip(all_chip_tickers, target_date, db_path)
+                # 把 hits / ma5_pivot / glued_ma5 / pa_wl 內 missing ticker 也過濾掉
+                all_hits = [h for h in all_hits if h['ticker'] not in missing_tickers]
+                ma5_pivot_hits = [h for h in ma5_pivot_hits if h['ticker'] not in missing_tickers]
+                glued_ma5_hits = [h for h in glued_ma5_hits if h['ticker'] not in missing_tickers]
+                if isinstance(pa_wl, pd.DataFrame) and not pa_wl.empty and 'ticker' in pa_wl.columns:
+                    pa_wl = pa_wl[~pa_wl['ticker'].isin(missing_tickers)].reset_index(drop=True)
+            else:
+                raise
+        tag_counts: dict[str, int] = {}
+        for v in chip_map.values():
+            tag_counts[v['tag']] = tag_counts.get(v['tag'], 0) + 1
+        print(f"  [chip] tag 分布: {tag_counts}", flush=True)
+
+        # 老師分點快取掃描（只讀磁碟快取，不呼叫 API）
+        try:
+            broker_tags = _load_broker_chip(all_chip_tickers, target_date)
+        except MissingChipDataError as exc:
+            if allow_missing_broker:
+                print(f"  [chip] ⚠️ broker cache 缺、--allow-missing-broker 容忍: {exc}", flush=True)
+                broker_tags = {t: "" for t in all_chip_tickers}
+            else:
+                raise
+        broker_hit_count = sum(1 for v in broker_tags.values() if v)
+        print(f"  [chip] 老師分點命中（快取內）: {broker_hit_count} 檔", flush=True)
+        # 把 broker_tag 合併進 chip_map (strict: broker ticker 必須在 chip_map 內)
+        for ticker, btag in broker_tags.items():
+            if ticker not in chip_map:
+                raise MissingChipDataError(
+                    f"broker 有 {ticker} 但 institutional chip_map 無此 ticker"
+                )
+            chip_map[ticker]["broker_tag"] = btag
 
     # 加碼判斷：shakeout 命中且該 ticker 30 天內有 W底/小結構訊號 → 標 ➕
     prior_entries = set()
@@ -650,18 +983,23 @@ def render_markdown(target_date: str, results: dict) -> str:
         md += [
             f"## 🎯 可進場 — Tier-A/B 候選（距 MA10 ≤ 10%）",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 | wantgoo |",
-            f"|---|---|---|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in entry_hits:
             tier_label = h.get('tier', '') + h.get('timing_bonus', '')
             sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
             days = h.get('days_since_first_mention')
             days_str = f"{days}d" if days is not None else '—'
-            md.append(f"| **{h['ticker']}** {tier_label} | {h['name']} | {h['scanner_name']} | "
+            chip = chip_map[h['ticker']]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
+            disposal_label = h.get('disposal_label', '')
+            ticker_display = f"**{h['ticker']}**{(' ' + disposal_label) if disposal_label else ''}"
+            md.append(f"| {ticker_display} {tier_label} | {h['name']} | {h['scanner_name']} | "
                       f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
                       f"{h.get('dist_ma10_pct', 0):+.1f}% | {days_str} | "
                       f"{h.get('teacher_tier') or '—'} | {h.get('stop_note', '—')} | "
+                      f"{f_str} | {s_str} | {tag} | "
                       f"{_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
@@ -672,16 +1010,18 @@ def render_markdown(target_date: str, results: dict) -> str:
             f"",
             f"> 等回測 MA10 附近再進場；現在追進場潛在虧損 = 距 MA10",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 距MA10 | 老師 | 備註 | wantgoo |",
-            f"|---|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 距MA10 | 老師 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in extended_hits:
             tier_label = h.get('tier', '') + h.get('timing_bonus', '')
+            chip = chip_map[h['ticker']]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(f"| {h['ticker']} {tier_label} | {h['name']} | {h['scanner_name']} | "
                       f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
                       f"{h['close']:.2f} | {h.get('dist_ma10_pct', 0):+.1f}% | "
                       f"{h.get('teacher_tier') or '—'} | "
-                      f"距 MA10 太遠，等回測 | {_wantgoo_link(h['ticker'])} |")
+                      f"{f_str} | {s_str} | {tag} | {_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
     # === 加碼候選 ===
@@ -692,14 +1032,17 @@ def render_markdown(target_date: str, results: dict) -> str:
             f"> 30 天內已有進場訊號的 ticker 出現 shakeout（主力洗盤後爆量）= 加碼確認",
             f"> 沒持倉者不要當第一次進場用（Shakeout 冷進場效果差）",
             f"",
-            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 距MA10 | wantgoo |",
-            f"|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 量比 | 距MA10 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in add_position_hits:
+            chip = chip_map[h['ticker']]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(f"| {h['ticker']} | {h['name']} | "
                       f"{'/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')} | "
                       f"{h['close']:.2f} | {h.get('vol_ratio', '—')}x | "
-                      f"{h.get('dist_ma10_pct', 0):+.1f}% | {_wantgoo_link(h['ticker'])} |")
+                      f"{h.get('dist_ma10_pct', 0):+.1f}% | "
+                      f"{f_str} | {s_str} | {tag} | {_wantgoo_link(h['ticker'])} |")
         md.append(f"")
 
     # === 攻擊後盤整早期追蹤 ===
@@ -742,8 +1085,8 @@ def render_markdown(target_date: str, results: dict) -> str:
 
         sorted_pivot_hits = sorted(ma5_pivot_hits, key=_pivot_sort_key)
         md += [
-            f"| Ticker | 名稱 | 族群 | 收盤 | MA5 slope% | 距MA10 | 老師 | 隔日確認 |",
-            f"|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | MA5 slope% | 距MA10 | 老師 | 外資5d | 投信5d | 籌碼 | 隔日確認 |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in sorted_pivot_hits:
             ticker = h['ticker']
@@ -752,9 +1095,11 @@ def render_markdown(target_date: str, results: dict) -> str:
             d_str = f"{d:+.1f}%" if d is not None else '—'
             tt = h.get('teacher_tier') or '—'
             slope_pct = h.get('ma5_slope_pct', 0)
+            chip = chip_map[ticker]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(
                 f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
-                f"{slope_pct:.3f}% | {d_str} | {tt} | 等明日 open 確認 |"
+                f"{slope_pct:.3f}% | {d_str} | {tt} | {f_str} | {s_str} | {tag} | 等明日 open 確認 |"
             )
         md.append(f"")
     else:
@@ -788,8 +1133,8 @@ def render_markdown(target_date: str, results: dict) -> str:
 
         sorted_glued = sorted(glued_ma5_hits, key=_glued_sort_key)
         md += [
-            f"| Ticker | 名稱 | 族群 | 收盤 | 黏MA5天數 | 整理階段 | 平均距MA5 | 距MA10 | 老師 | wantgoo |",
-            f"|---|---|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | 族群 | 收盤 | 黏MA5天數 | 整理階段 | 平均距MA5 | 距MA10 | 老師 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in sorted_glued:
             ticker = h['ticker']
@@ -800,9 +1145,12 @@ def render_markdown(target_date: str, results: dict) -> str:
             streak = h.get('streak_days', 0)
             stage = _consolidation_stage(streak)
             dist_ma5 = h.get('dist_ma5_pct', 0)
+            chip = chip_map[ticker]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(
                 f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
-                f"{streak}天 | {stage} | {dist_ma5:.2f}% | {d_str} | {tt} | {_wantgoo_link(ticker)} |"
+                f"{streak}天 | {stage} | {dist_ma5:.2f}% | {d_str} | {tt} | "
+                f"{f_str} | {s_str} | {tag} | {_wantgoo_link(ticker)} |"
             )
         md.append(f"")
     else:
@@ -825,17 +1173,24 @@ def render_markdown(target_date: str, results: dict) -> str:
         md += [
             f"## 一般命中（無老師指名/非常勝軍，量比降冪前 30）",
             f"",
-            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | wantgoo |",
-            f"|---|---|---|---|---|---|---|---|",
+            f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in general_hits[:30]:
             sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
             d = h.get('dist_ma10_pct')
             d_str = f"{d:+.1f}%" if d is not None else '—'
+            chip = chip_map[h['ticker']]
+            f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(f"| {h['ticker']} | {h['name']} | {h['scanner_name']} | "
                       f"{sectors_str} | {h['close']:.2f} | {h.get('vol_ratio', '—')}x | {d_str} | "
+                      f"{f_str} | {s_str} | {tag} | "
                       f"{_wantgoo_link(h['ticker'])} |")
         md.append(f"")
+
+    # === 處置股專區（--enable-disposal 啟用時）===
+    if disposal_map:
+        md += _render_disposal_section(disposal_map, all_hits)
 
     md += [
         f"---",
@@ -856,6 +1211,16 @@ def main():
     ap.add_argument("--date", default=None, help="目標收盤日（預設今天）")
     ap.add_argument("--db", default=str(_DB))
     ap.add_argument("--output-dir", default="/tmp")
+    ap.add_argument("--allow-missing-broker", action="store_true",
+                    help="broker cache 缺也通過 (13:45 跑時 broker 還沒釋出用)")
+    ap.add_argument("--allow-missing-institutional", action="store_true",
+                    help="institutional 缺也通過 (KY 股等結構性缺資料用)")
+    ap.add_argument("--disable-disposal", action="store_true",
+                    help=(
+                        "停用處置股分型（預設 ON）。"
+                        "TWSE API 端 down 時可用此 flag 跳過、不擋主流程。"
+                        "標記：🔒A 主升續攻 / 🔒B 反彈段 / 🔒C ❌ 不可進 / 🔒? 需人工"
+                    ))
     args = ap.parse_args()
 
     target_date = args.date or date.today().isoformat()
@@ -865,6 +1230,10 @@ def main():
     print(f"=== Daily Scanner Job ===")
     print(f"目標日期: {target_date}")
     print(f"DB: {db_path}")
+    if (not args.disable_disposal):
+        print(f"處置股分型: ✅ 啟用 (default)")
+    else:
+        print(f"處置股分型: ❌ 停用 (--disable-disposal)")
     print()
 
     results = run_scanners(target_date, db_path)
@@ -873,7 +1242,29 @@ def main():
     for s, hits in results.items():
         print(f"  {s}: {len(hits)} 檔")
 
-    md = render_markdown(target_date, results)
+    # 處置股分型（--enable-disposal 啟用時）
+    disposal_map: dict = {}
+    if (not args.disable_disposal):
+        print(f"\n[disposal] 開始處置股分型...", flush=True)
+        # 收集所有候選 ticker
+        all_candidate_tickers = list({
+            h['ticker']
+            for scanner_hits in results.values()
+            if isinstance(scanner_hits, list)
+            for h in scanner_hits
+        })
+        disposal_map = _run_disposal_check(all_candidate_tickers, target_date, db_path)
+        disposal_cnt = len(disposal_map)
+        type_counts = {}
+        for v in disposal_map.values():
+            t = v.get('type') or '?'
+            type_counts[t] = type_counts.get(t, 0) + 1
+        print(f"[disposal] 候選中處置股: {disposal_cnt} 檔，分型: {type_counts}", flush=True)
+
+    md = render_markdown(target_date, results, db_path=db_path,
+                         allow_missing_broker=args.allow_missing_broker,
+                         allow_missing_institutional=args.allow_missing_institutional,
+                         disposal_map=disposal_map if (not args.disable_disposal) else None)
 
     out_md = out_dir / f"scanner_candidates_{target_date}.md"
     out_md.write_text(md, encoding="utf-8")
