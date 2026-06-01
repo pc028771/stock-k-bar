@@ -34,24 +34,17 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["prev_high"] = g["high"].shift(1)
     df["prev_low"] = g["low"].shift(1)
 
-    # Rolling prior highs/lows (exclude today via shift)
-    df["prior_high_60"] = (
-        g["high"].shift(1).rolling(60, min_periods=60).max().reset_index(level=0, drop=True)
-    )
-    df["prior_high_20"] = (
-        g["high"].shift(1).rolling(20, min_periods=20).max().reset_index(level=0, drop=True)
-    )
-    df["prior_low_60"] = (
-        g["low"].shift(1).rolling(60, min_periods=60).min().reset_index(level=0, drop=True)
-    )
-    df["prior_low_20"] = (
-        g["low"].shift(1).rolling(20, min_periods=20).min().reset_index(level=0, drop=True)
-    )
+    # Rolling prior highs/lows (exclude today via shift).
+    # NOTE: must use transform to keep rolling WITHIN each ticker.
+    # Earlier `g["x"].shift(1).rolling(N)` rolled across ticker boundaries
+    # because the rolling ran on a flat Series after the groupwise shift.
+    df["prior_high_60"] = g["high"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).max())
+    df["prior_high_20"] = g["high"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).max())
+    df["prior_low_60"] = g["low"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).min())
+    df["prior_low_20"] = g["low"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).min())
 
-    # Avg volume (excluding today)
-    df["avg_volume_20"] = (
-        g["volume"].shift(1).rolling(20, min_periods=20).mean().reset_index(level=0, drop=True)
-    )
+    # Avg volume (excluding today) — same cross-ticker fix.
+    df["avg_volume_20"] = g["volume"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).mean())
     df["volume_ratio"] = df["volume"] / df["avg_volume_20"].replace(0, np.nan)
 
     # OHLC-derived
@@ -73,14 +66,9 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Scoring input: consecutive days closing above MA60 prior to today, capped at 20.
     above_ma60 = (df["close"] > df["ma60"]).fillna(False).astype(int)
     df["pre_breakout_trend_days"] = (
-        above_ma60.groupby(df["ticker"])
-        .shift(1)
-        .fillna(0)
-        .groupby(df["ticker"])
-        .rolling(20, min_periods=1)
-        .sum()
-        .reset_index(level=0, drop=True)
-        .astype(int)
+        above_ma60.groupby(df["ticker"]).transform(
+            lambda s: s.shift(1).fillna(0).rolling(20, min_periods=1).sum()
+        ).astype(int)
     )
 
     # Scoring input: count of swing-high peaks above current close in trailing 240 days.
@@ -94,10 +82,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         past_high = g["high"].shift(lag).to_numpy()
         past_max5 = (
             g["high"]
-            .shift(lag)
-            .rolling(5, min_periods=5)
-            .max()
-            .reset_index(level=0, drop=True)
+            .transform(lambda s: s.shift(lag).rolling(5, min_periods=5).max())
             .to_numpy()
         )
         is_peak = (past_high == past_max5) & ~np.isnan(past_max5)
@@ -239,8 +224,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     #   - Triangle pattern: ceiling is the same throughout → spread ≈ 0
     #   - Trending stock: early-half max << late-half max → spread is large
     prior_high_30_early = (
-        g["high"].shift(31).rolling(30, min_periods=30).max()
-        .reset_index(level=0, drop=True)
+        g["high"].transform(lambda s: s.shift(31).rolling(30, min_periods=30).max())
     )
     upper_band_spread = (
         (df["prior_high_60"] - prior_high_30_early) / df["prior_high_60"].replace(0, np.nan)

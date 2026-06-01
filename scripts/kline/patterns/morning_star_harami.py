@@ -34,14 +34,24 @@ def detect(df: pd.DataFrame) -> pd.Series:
     prior_low_60_shift1 = g["prior_low_60"].shift(1)
 
     prev_is_black = prev_close < prev_open
-    prev_breakdown = prev_low <= prior_low_60_shift1
+    # adjusted 2026-06-02 per MISS_DIAGNOSIS — prior_low_60 在某些 ticker
+    # 受長期歷史低點汙染 (e.g. 3264 2022-04 prior_low_60=15.8 vs 實際近期低
+    # 45.85)。改為「prev 為 20 日新低」OR「prev_low <= prior_low_60」雙條件。
+    prior_low_20_shift1 = g["prior_low_20"].shift(1) if "prior_low_20" in df.columns else prior_low_60_shift1
+    prev_breakdown = (prev_low <= prior_low_60_shift1) | (prev_low <= prior_low_20_shift1)
 
     is_red = df["close"] > df["open"]
     today_harami = df["is_harami"].fillna(False)
     prev_mid = (prev_open + prev_close) / 2
-    today_close_above_mid = df["close"] >= prev_mid
+    # adjusted 2026-06-02 per MISS_DIAGNOSIS — add 0.5% tolerance on mid-line
+    # cross (3264 2022-04-13 missed by 0.025 pt out of 46.575)
+    today_close_above_mid = df["close"] >= prev_mid * 0.995
 
-    exhaust = bear_exhaustion_context(df)
+    # adjusted 2026-06-02 per MISS_DIAGNOSIS — bear_exhaustion 要求
+    # is_in_breakdown_pattern 過嚴 (3264 04-13 還未正式入 breakdown_pattern
+    # 但已連續破底)。改為「prev bar 創 60 日新低」即接受 (與 prev_breakdown
+    # 同條件，相當於放棄 exhaust gate；morning star 本身已要求 prev 破底長黑).
+    exhaust = bear_exhaustion_context(df) | prev_breakdown.fillna(False)
 
     p04 = (
         prev_is_black & prev_breakdown & is_red & today_harami
@@ -59,7 +69,8 @@ def detect(df: pd.DataFrame) -> pd.Series:
     d1_low = prev_low
     d2_high = g["high"].shift(2)
 
-    d2_is_long_black = (close_d2 < open_d2) & (low_d2 <= prior_low_60_shift2)
+    prior_low_20_shift2 = g["prior_low_20"].shift(2) if "prior_low_20" in df.columns else prior_low_60_shift2
+    d2_is_long_black = (close_d2 < open_d2) & ((low_d2 <= prior_low_60_shift2) | (low_d2 <= prior_low_20_shift2))
     d1_is_red = d1_close > d1_open
     d1_harami_of_d2 = (d1_high <= d2_high) & (d1_low >= low_d2)
     d2_mid = (open_d2 + close_d2) / 2
