@@ -9,6 +9,11 @@
    + 過去有平台期（動態 platform，≥1 天 MA5 slope ≤ 0）
    → 發出警示
 
+9:20 大盤預估量警示:
+- 每日 9:20 自動拉 TWSE 官方 API 大盤當日預估成交金額
+- 依閾值分級 (🟢/🟡/🟠/🔴/🚨) 推播 iMessage
+- fetch 失敗 → log + 繼續、不影響主 monitor loop
+
 紅線保護:
 - 09:00 前不跑（sleep 等開盤）
 - 09:00–09:10 跑但印警告「前 10 分鐘不切入」
@@ -24,6 +29,7 @@ Usage:
   python scripts/zhuli/intraday_ma5_pivot_monitor.py --interval 60
   python scripts/zhuli/intraday_ma5_pivot_monitor.py --until 13:30
   python scripts/zhuli/intraday_ma5_pivot_monitor.py --notify-imessage
+  python scripts/zhuli/intraday_ma5_pivot_monitor.py --no-volume-alert
   python scripts/zhuli/intraday_ma5_pivot_monitor.py --backtest --date 2026-05-21 --tickers 3481
 """
 from __future__ import annotations
@@ -32,9 +38,11 @@ import argparse
 import sqlite3
 import sys
 import time
+import urllib.request
+import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -300,6 +308,271 @@ def send_imessage(msg: str) -> None:
         print(f"  [WARN] iMessage 通知失敗: {e}")
 
 
+# ── 大盤預估量警示 ────────────────────────────────────────────────────────────
+
+def fetch_estimated_volume() -> Optional[float]:
+    """拉 TWSE 官方 MI_INDEX 取大盤當日成交金額 (億元).
+
+    TWSE endpoint: https://www.twse.com.tw/exchangeReport/MI_INDEX
+    資料來自 tables[6] "大盤統計資訊"，欄位 "成交金額(元)"，
+    取合計列（一般股票 + 其他）或直接取第一列。
+    盤中為當日累積量（即「預估量」）。
+    失敗時回傳 None，不 raise。
+    """
+    today_str = date.today().strftime("%Y%m%d")
+    url = (
+        f"https://www.twse.com.tw/exchangeReport/MI_INDEX"
+        f"?response=json&date={today_str}&type=ALL"
+    )
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/120.0.0.0 Safari/537.36"
+                ),
+                "Referer": "https://www.twse.com.tw/",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8")
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"  [WARN] TWSE MI_INDEX fetch 失敗: {e}", flush=True)
+        return None
+
+    if data.get("stat") != "OK":
+        print(f"  [WARN] MI_INDEX stat={data.get('stat')!r} (非交易日或資料未更新)", flush=True)
+        return None
+
+    # 找 "大盤統計資訊" table
+    tables = data.get("tables", [])
+    stat_table = None
+    for t in tables:
+        if "大盤統計資訊" in t.get("title", ""):
+            stat_table = t
+            break
+
+    if stat_table is None:
+        print(f"  [WARN] MI_INDEX 找不到大盤統計資訊 table（tables={[t.get('title','') for t in tables]}）", flush=True)
+        return None
+
+    fields = stat_table.get("fields", [])
+    rows = stat_table.get("data", [])
+
+    # 找 "成交金額" 欄位索引
+    amt_idx = None
+    for i, f in enumerate(fields):
+        if "成交金額" in f:
+            amt_idx = i
+            break
+
+    if amt_idx is None or not rows:
+        print(f"  [WARN] MI_INDEX 大盤統計資訊欄位異常: fields={fields}", flush=True)
+        return None
+
+    # 使用「1.一般股票」列（index 0）= 加權指數核心成交金額
+    # 老師提的「預估量」= 台股加權成交金額，不含認購權證 / ETF 等
+    try:
+        first_row = rows[0]
+        amt_str = first_row[amt_idx].replace(",", "")
+        amt_億 = float(amt_str) / 1e8
+        return round(amt_億, 2)
+    except (ValueError, IndexError) as e:
+        print(f"  [WARN] MI_INDEX 成交金額解析失敗: {e}, row={rows[0]}", flush=True)
+        return None
+
+
+def fetch_20day_avg_volume() -> Optional[float]:
+    """回傳過去 20 個交易日大盤「一般股票」平均日成交金額 (億元)。失敗回 None.
+
+    優先從 TWSE MI_INDEX API 拉歷史各交易日資料，
+    跳過非交易日（stat != 'OK'），累積到 20 筆為止。
+    回溯最多 40 個日曆日（通常含足夠交易日）。
+    """
+    results: list[float] = []
+    today = date.today()
+    max_lookback = 60  # 最多往回掃 60 個日曆日
+
+    for delta in range(1, max_lookback + 1):
+        if len(results) >= 20:
+            break
+        target = today - timedelta(days=delta)
+        date_str = target.strftime("%Y%m%d")
+        url = (
+            f"https://www.twse.com.tw/exchangeReport/MI_INDEX"
+            f"?response=json&date={date_str}&type=ALL"
+        )
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                    "Referer": "https://www.twse.com.tw/",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            print(f"  [WARN] fetch_20day_avg_volume {date_str} 失敗: {e}", flush=True)
+            time.sleep(0.3)
+            continue
+
+        if data.get("stat") != "OK":
+            # 非交易日，跳過
+            time.sleep(0.2)
+            continue
+
+        stat_table = None
+        for t in data.get("tables", []):
+            if "大盤統計資訊" in t.get("title", ""):
+                stat_table = t
+                break
+
+        if stat_table is None:
+            time.sleep(0.2)
+            continue
+
+        for row in stat_table.get("data", []):
+            if row[0] == "1.一般股票":
+                try:
+                    amt_億 = float(row[1].replace(",", "")) / 1e8
+                    results.append(amt_億)
+                except (ValueError, IndexError):
+                    pass
+                break
+
+        time.sleep(0.3)  # 避免打爆 TWSE API
+
+    if len(results) == 0:
+        print("  [WARN] fetch_20day_avg_volume 無法取得任何歷史資料", flush=True)
+        return None
+
+    avg = sum(results) / len(results)
+    print(f"  [INFO] 20日均量計算：取 {len(results)} 天，avg={avg:.0f} 億", flush=True)
+    return round(avg, 2)
+
+
+def classify_volume(today_億: float, avg20_億: Optional[float]) -> Tuple[str, str, str]:
+    """依相對於 20 日均量的 ratio 分級，回傳 (label, emoji_msg, severity).
+
+    若 avg20_億 為 None → fallback 用 15000 億作 baseline。
+    severity: 'info' | 'warn' | 'alert' | 'critical'
+    """
+    baseline = avg20_億 if (avg20_億 and avg20_億 > 0) else 15000.0
+    ratio = today_億 / baseline
+
+    avg_str = f"{baseline:.0f} 億" if avg20_億 else "15,000 億（fallback）"
+
+    if ratio < 0.7:
+        return (
+            "量縮",
+            f"🟢 量縮 ({ratio*100:.0f}% vs 20日均 {avg_str})、可正常進場",
+            "info",
+        )
+    elif ratio < 1.0:
+        return (
+            "偏縮",
+            f"🟡 偏縮 ({ratio*100:.0f}% vs 20日均 {avg_str})、繼續觀察",
+            "info",
+        )
+    elif ratio < 1.3:
+        return (
+            "正常",
+            f"🟢 正常量 ({ratio*100:.0f}% vs 20日均 {avg_str})",
+            "info",
+        )
+    elif ratio < 1.6:
+        return (
+            "偏多",
+            f"🟠 偏多 ({ratio*100:.0f}% vs 20日均 {avg_str})、留意",
+            "warn",
+        )
+    elif ratio < 2.0:
+        return (
+            "爆量",
+            f"🔴 爆量 ({ratio*100:.0f}% vs 20日均 {avg_str})、老師可能降水位、建議 skip",
+            "alert",
+        )
+    else:
+        return (
+            "失控爆量",
+            f"🚨 失控爆量 ({ratio*100:.0f}% vs 20日均 {avg_str})、絕對 skip 整天、留現金",
+            "critical",
+        )
+
+
+def build_volume_alert_msg(
+    est_vol: float,
+    avg20: Optional[float],
+    label: str,
+    emoji_msg: str,
+) -> str:
+    """組 iMessage 推播訊息 (老師 5/31 SOP 格式)."""
+    baseline = avg20 if (avg20 and avg20 > 0) else 15000.0
+    ratio = est_vol / baseline
+    avg_label = f"{baseline:.0f} 億" if avg20 else "15,000 億（fallback）"
+    icon = "🚨" if "爆量" in label else "⚠️"
+    lines = [
+        f"{icon} 大盤 9:20 預估量警示",
+        "",
+        f"  預估量:  {est_vol:,.0f} 億",
+        f"  20日均: {avg_label} ({ratio*100:.0f}%)",
+        f"  等級:    {label}",
+        "",
+        f"  {emoji_msg}",
+    ]
+    if "爆量" in label or "偏多" in label:
+        lines.append("")
+        lines.append("  老師 5/31 SOP: 預估量爆 = 可能降水位")
+        lines.append("  建議: 提高警覺、降水位或 skip 整天")
+    lines.append("")
+    lines.append("  (老師 5/31 SOP)")
+    return "\n".join(lines)
+
+
+def run_volume_alert(notify_imessage: bool) -> None:
+    """9:20 觸發一次：fetch 預估量 + 20日均量 + 印 console + 推 iMessage (若開啟)."""
+    print(flush=True)
+    print("─" * 60, flush=True)
+    print(f"[{datetime.now():%H:%M:%S}] 📊 大盤 9:20 預估量偵測中...", flush=True)
+
+    est_vol = fetch_estimated_volume()
+    if est_vol is None:
+        print("  [WARN] 預估量 fetch 失敗，跳過本次警示（不影響 MA5 監控）", flush=True)
+        print("─" * 60, flush=True)
+        print(flush=True)
+        return
+
+    print(f"  今日預估成交金額: {est_vol:.0f} 億", flush=True)
+    print(f"  正在拉 20 日均量...", flush=True)
+
+    avg20 = fetch_20day_avg_volume()
+    if avg20 is not None:
+        print(f"  20 日均量: {avg20:.0f} 億", flush=True)
+    else:
+        print("  [WARN] 20 日均量 fetch 失敗，使用 fallback baseline 15000 億", flush=True)
+
+    label, emoji_msg, severity = classify_volume(est_vol, avg20)
+
+    print(f"  等級: {emoji_msg}", flush=True)
+
+    if severity in ("alert", "critical"):
+        print(f"  ⚠️  老師 5/31 SOP: 爆量日降水位 / skip 整天", flush=True)
+    print("─" * 60, flush=True)
+    print(flush=True)
+
+    if notify_imessage:
+        msg = build_volume_alert_msg(est_vol, avg20, label, emoji_msg)
+        send_imessage(msg)
+
+
 # ── 核心 monitor loop ─────────────────────────────────────────────────────────
 
 def run_monitor(
@@ -309,6 +582,7 @@ def run_monitor(
     notify_imessage: bool,
     db_path: Path,
     verbose: bool = False,
+    volume_alert: bool = True,
 ) -> None:
     print(f"=== Intraday MA5 Pivot Monitor ===", flush=True)
     print(f"監控標的: {', '.join(tickers)}", flush=True)
@@ -337,6 +611,8 @@ def run_monitor(
     print(flush=True)
 
     loop_count = 0
+    volume_alert_sent = False  # 每日 9:20 只推一次
+
     while True:
         now = datetime.now()
 
@@ -363,6 +639,17 @@ def run_monitor(
             break
 
         in_caution = (now < caution_end)
+
+        # ── 9:20 大盤預估量警示（每日一次）──────────────────────────────────
+        if (volume_alert
+                and not volume_alert_sent
+                and now.hour == 9 and now.minute >= 20):
+            try:
+                run_volume_alert(notify_imessage)
+            except Exception as e:
+                print(f"  [WARN] 大盤預估量警示異常: {e}", flush=True)
+            finally:
+                volume_alert_sent = True  # 不論成敗都標記，避免重複
 
         # ── 每個標的偵測 ─────────────────────────────────────────────────────
         loop_count += 1
@@ -599,6 +886,10 @@ def main() -> None:
         help="印出每個 ticker 的診斷資訊（不只印觸發）"
     )
     ap.add_argument(
+        "--no-volume-alert", action="store_true",
+        help="關閉 9:20 大盤預估量警示（預設啟用）"
+    )
+    ap.add_argument(
         "--db", default=str(_DB),
         help="DB 路徑"
     )
@@ -645,6 +936,7 @@ def main() -> None:
             notify_imessage=args.notify_imessage,
             db_path=db_path,
             verbose=args.verbose,
+            volume_alert=not args.no_volume_alert,
         )
 
 
