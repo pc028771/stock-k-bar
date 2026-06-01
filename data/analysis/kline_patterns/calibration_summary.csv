@@ -1,0 +1,13 @@
+actual_slug,n,hits,hit_rate_pct
+evening_star_island_reversal,1,False,0.0
+gap_fill_up,1,False,0.0
+meeting,4,0,0.0
+morning_star_harami,2,0,0.0
+piercing_line,2,0,0.0
+biting,4,1,25.0
+morning_star_island_reversal,2,1,50.0
+neutral_engulfing,4,2,50.0
+rising_falling,2,1,50.0
+trapped,2,1,50.0
+embracing,3,2,66.7
+rebound,1,True,100.0
