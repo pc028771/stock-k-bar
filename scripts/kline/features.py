@@ -424,4 +424,47 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         | (df["high"] > df["prior_high_60"])
     ).fillna(False)
 
+    # === Pattern-layer derived columns (多空轉折組合 K 線 patterns/) ===
+    # Course source: 多空轉折組合K線 26 篇 + PATTERN_DEFINITIONS.md.
+    # These are simple structural facts (no proxy numbers) reused by many
+    # patterns. Added at the END to keep backward compatibility — no existing
+    # column is touched.
+
+    # 日落 (sunset) — high < prev_high AND low < prev_low. Mirror of is_sunrise_bar
+    # used inside attack_intensity above. Used by hanging_man (P05), bear_single_day (P16).
+    df["is_sunset_bar"] = (df["high"] < df["prev_high"]) & (df["low"] < df["prev_low"])
+
+    # 孕線 / 懷抱 (harami) — high <= prev_high AND low >= prev_low (today fully
+    # inside prev day's range). Used by morning_star (P04, P06), harami_neutral (P21),
+    # internal_trap (P24).
+    df["is_harami"] = (df["high"] <= df["prev_high"]) & (df["low"] >= df["prev_low"])
+
+    # K 棒中值 — (open + close) / 2. Course明示 (第 03 篇). Used by morning_star,
+    # enemy_at_gate, evening_star, piercing.
+    df["midpoint"] = (df["open"] + df["close"]) / 2
+
+    # 跳空 (gap up / gap down) — strict K-line gap definition (no overlap with prev range).
+    df["is_gap_up_today"] = df["low"] > df["prev_high"]
+    df["is_gap_down_today"] = df["high"] < df["prev_low"]
+
+    # body_pct percentile rank over trailing 20 days (excluding today).
+    # Used by is_power_bar Option B (currently OFF — see patterns/_common.py).
+    # We rank today's body_pct against the prior 20-bar window.
+    def _pct_rank(s):
+        if s.isna().all() or len(s) < 2:
+            return float("nan")
+        # rank today's value within the prior window
+        prior = s.iloc[:-1].dropna()
+        today = s.iloc[-1]
+        if pd.isna(today) or len(prior) == 0:
+            return float("nan")
+        return (prior < today).sum() / len(prior)
+
+    df["body_pct_pct_rank_20d"] = (
+        df.groupby("ticker")["body_pct"]
+        .rolling(21, min_periods=10)
+        .apply(_pct_rank, raw=False)
+        .reset_index(level=0, drop=True)
+    )
+
     return df

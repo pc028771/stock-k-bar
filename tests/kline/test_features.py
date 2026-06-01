@@ -631,6 +631,37 @@ def test_attack_intensity_zero_in_flat_trend():
     assert (df["attack_intensity"] == 0).all()
 
 
+def test_new_pattern_features_columns_present():
+    """Pattern-layer derived columns from features.py 末尾必須存在 + 合理."""
+    rows = [
+        # bar 0: setup
+        {"open": 100, "high": 105, "low": 99, "close": 104, "volume": 1000.0},
+        # bar 1: sunset (high<prev_high, low<prev_low)
+        {"open": 103, "high": 104, "low": 98, "close": 99, "volume": 1000.0},
+        # bar 2: harami inside bar 1 (high<=104, low>=98)
+        {"open": 100, "high": 102, "low": 99, "close": 101, "volume": 1000.0},
+        # bar 3: gap up (low > prev_high=102)
+        {"open": 104, "high": 108, "low": 103, "close": 107, "volume": 1000.0},
+        # bar 4: gap down (high < prev_low=103)
+        {"open": 100, "high": 102, "low": 98, "close": 99, "volume": 1000.0},
+    ]
+    df = add_features(make_bars(rows))
+    for col in ["is_sunset_bar", "is_harami", "midpoint",
+                "is_gap_up_today", "is_gap_down_today",
+                "body_pct_pct_rank_20d"]:
+        assert col in df.columns, f"missing pattern feature column: {col}"
+    # bar 1 should be sunset
+    assert df.loc[1, "is_sunset_bar"]
+    # bar 2 harami of bar 1
+    assert df.loc[2, "is_harami"]
+    # midpoint of bar 0 = (100+104)/2 = 102
+    assert df.loc[0, "midpoint"] == 102.0
+    # bar 3 gap up
+    assert df.loc[3, "is_gap_up_today"]
+    # bar 4 gap down
+    assert df.loc[4, "is_gap_down_today"]
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),
