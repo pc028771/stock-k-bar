@@ -149,9 +149,9 @@ def render_phase1_screener(client, now_str: str) -> list[str]:
         lines.append(f"{C.BOLD}📊 已持倉開盤健康度{C.END}")
         for tk, name, entry, shares, stop in HELD:
             try:
-                snap = client.get_realtime_snapshot(tk)
-                o = float(snap.get('open', 0))
-                c = float(snap.get('close', 0))
+                snap = client.get_realtime_snapshot(tk) or {}
+                o = float(snap.get('open') or 0)
+                c = float(snap.get('close') or 0)
                 prev = load_prev_close(tk)
                 level, msg, sev = classify_open(o, prev) if prev else ('?','no prev','unknown')
                 # entry vs open: 你進的價跟開盤比、有沒有買在好點
@@ -182,9 +182,9 @@ def render_phase1_screener(client, now_str: str) -> list[str]:
     skipped = []
     for tk, name, shares, stop, reason in PLAN_PRIMARY:
         try:
-            snap = client.get_realtime_snapshot(tk)
-            o = float(snap.get('open', 0))
-            c = float(snap.get('close', 0))
+            snap = client.get_realtime_snapshot(tk) or {}
+            o = float(snap.get('open') or 0)
+            c = float(snap.get('close') or 0)
             prev = load_prev_close(tk)
             level, msg, sev = classify_open(o, prev) if prev else ('?', '無前收', 'unknown')
             chg_open = (o - prev)/prev*100 if prev else 0
@@ -204,9 +204,9 @@ def render_phase1_screener(client, now_str: str) -> list[str]:
         backup_evaluated = []
         for tk, name, shares, stop_pct, reason in PLAN_BACKUP:
             try:
-                snap = client.get_realtime_snapshot(tk)
-                o = float(snap.get('open', 0))
-                c = float(snap.get('close', 0))
+                snap = client.get_realtime_snapshot(tk) or {}
+                o = float(snap.get('open') or 0)
+                c = float(snap.get('close') or 0)
                 prev = load_prev_close(tk)
                 level, msg, sev = classify_open(o, prev) if prev else ('?','no prev','unknown')
                 chg_open = (o-prev)/prev*100 if prev else 0
@@ -238,14 +238,19 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict, notified: se
     else:
         for tk, name, entry, shares, stop in HELD:
             try:
-                snap = client.get_realtime_snapshot(tk)
-                c = float(snap.get('close', 0))
+                snap = client.get_realtime_snapshot(tk) or {}
+                c = float(snap.get('close') or 0)
+                pre_market = c == 0
+                if pre_market:
+                    # 盤前：用 DB 昨收當參考
+                    c = load_prev_close(tk) or entry
                 prev = prev_prices.get(tk)
                 prev_prices[tk] = c
                 pnl = (c - entry) * shares
                 pnl_pct = (c - entry)/entry*100 if entry else 0
                 dist = (c - stop)/c*100 if c else 0
-                total_pnl += pnl
+                if not pre_market:
+                    total_pnl += pnl
 
                 # 停損 alert
                 key = f"{tk}_break"
@@ -257,9 +262,12 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict, notified: se
                 else:
                     notified.discard(key)
 
-                tag = '🔴破!' if dist<0 else ('⚠️緊' if dist<1 else '🟢')
+                if pre_market:
+                    tag = f"{C.DIM}盤前{C.END}"
+                else:
+                    tag = '🔴破!' if dist<0 else ('⚠️緊' if dist<1 else '🟢')
                 lines.append(f"  {tk} {name:6} 入${entry:.1f}×{shares}股 | "
-                            f"現${c:.1f} | P&L {fmt_pnl(pnl, pnl_pct):>30} | 距停{fmt_dist(dist)} {tag}")
+                            f"{'昨' if pre_market else '現'}${c:.1f} | P&L {fmt_pnl(pnl, pnl_pct):>30} | 距停{fmt_dist(dist)} {tag}")
             except Exception as e:
                 lines.append(f"  {tk} {name}: err {e}")
 
@@ -273,11 +281,16 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict, notified: se
         lines.append(f"{C.DIM}Watchlist (SKIP){C.END}")
         for tk, name, ref, stop, kind in WATCH:
             try:
-                snap = client.get_realtime_snapshot(tk)
-                c = float(snap.get('close', 0))
+                snap = client.get_realtime_snapshot(tk) or {}
+                c = float(snap.get('close') or 0)
+                if c == 0:
+                    c = load_prev_close(tk) or ref
+                    pre = True
+                else:
+                    pre = False
                 chg = (c-ref)/ref*100 if ref else 0
-                dist = (c-stop)/c*100 if c else 0
-                tag = '🔴弱' if dist<0 else '🟡守'
+                dist = (c-stop)/c*100 if (c and stop) else 0
+                tag = f"{C.DIM}盤前{C.END}" if pre else ('🔴弱' if (stop and dist<0) else '🟡守')
                 chg_color = C.R if chg<0 else C.G
                 lines.append(f"  {tk} {name:6} ${c:.1f} ({chg_color}{chg:+.1f}%{C.END}) 距停 {fmt_dist(dist)} {tag}")
             except Exception:
