@@ -29,45 +29,25 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
       下降一階: 反相.
     """
-    g = df.groupby("ticker")
     N = NARROW_CONSOLIDATION_BARS
+    g = df.groupby("ticker")
 
-    past_high_max = (
-        g["high"].shift(1).rolling(N, min_periods=N)
-        .max().reset_index(level=0, drop=True)
-    )
-    past_low_min = (
-        g["low"].shift(1).rolling(N, min_periods=N)
-        .min().reset_index(level=0, drop=True)
-    )
-    past_close_mean = (
-        g["close"].shift(1).rolling(N, min_periods=N)
-        .mean().reset_index(level=0, drop=True)
-    )
+    past_high_max = g["high"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).max())
+    past_low_min = g["low"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).min())
+    past_close_mean = g["close"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).mean())
     narrow = (past_high_max - past_low_min) / past_close_mean.replace(0, float("nan")) < NARROW_CONSOLIDATION_RANGE_MAX
 
     # 過去 PRIOR_POWER_LOOKBACK 天內存在「力量型」紅 / 黑 K (用 body_pct_pct_rank_20d ≥ 0.7 + 顏色)
     pr = df["body_pct_pct_rank_20d"].fillna(0)
-    power_red_today = df["is_red"].fillna(False) & (pr >= 0.7)
-    power_black_today = df["is_black"].fillna(False) & (pr >= 0.7)
-    prior_power_red = (
-        power_red_today.astype(int).groupby(df["ticker"])
-        .shift(N + 1).fillna(0)
-        .groupby(df["ticker"])
-        .rolling(PRIOR_POWER_LOOKBACK, min_periods=1)
-        .max()
-        .reset_index(level=0, drop=True)
-        > 0
-    )
-    prior_power_black = (
-        power_black_today.astype(int).groupby(df["ticker"])
-        .shift(N + 1).fillna(0)
-        .groupby(df["ticker"])
-        .rolling(PRIOR_POWER_LOOKBACK, min_periods=1)
-        .max()
-        .reset_index(level=0, drop=True)
-        > 0
-    )
+    power_red_today = (df["is_red"].fillna(False) & (pr >= 0.7)).astype(int)
+    power_black_today = (df["is_black"].fillna(False) & (pr >= 0.7)).astype(int)
+    L = PRIOR_POWER_LOOKBACK
+    prior_power_red = power_red_today.groupby(df["ticker"]).transform(
+        lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
+    ) > 0
+    prior_power_black = power_black_today.groupby(df["ticker"]).transform(
+        lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
+    ) > 0
 
     is_red = df["close"] > df["open"]
     is_black = df["close"] < df["open"]

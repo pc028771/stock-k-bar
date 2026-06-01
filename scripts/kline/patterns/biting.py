@@ -26,22 +26,13 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
       空方咬定: 反相 — 今日黑 K + close < 整理區低點.
     """
-    g = df.groupby("ticker")
     N = NARROW_CONSOLIDATION_BARS
+    g = df.groupby("ticker")
 
-    # 過去 N 天 (D-N .. D-1) 的 high/low/close
-    past_high_max = (
-        g["high"].shift(1).rolling(N, min_periods=N)
-        .max().reset_index(level=0, drop=True)
-    )
-    past_low_min = (
-        g["low"].shift(1).rolling(N, min_periods=N)
-        .min().reset_index(level=0, drop=True)
-    )
-    past_close_mean = (
-        g["close"].shift(1).rolling(N, min_periods=N)
-        .mean().reset_index(level=0, drop=True)
-    )
+    # 過去 N 天 (D-N .. D-1) 的 high/low/close — transform 保留 df.index 對齊
+    past_high_max = g["high"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).max())
+    past_low_min = g["low"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).min())
+    past_close_mean = g["close"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).mean())
     narrow = (past_high_max - past_low_min) / past_close_mean.replace(0, float("nan")) < NARROW_CONSOLIDATION_RANGE_MAX
 
     is_red = df["close"] > df["open"]
