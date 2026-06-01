@@ -94,22 +94,54 @@ def bull_exhaustion_context(df: pd.DataFrame) -> pd.Series:
 def bear_exhaustion_context(df: pd.DataFrame) -> pd.Series:
     """空方力竭背景 — PATTERN_DEFINITIONS §3 規格.
 
-    課程明示比多方力竭更嚴格 (型態學 07:51 「再加邏輯」). 代理兩條件 AND:
+    課程明示比多方力竭更嚴格 (型態學 07:51 「再加邏輯」). 代理三條件 AND:
       1. is_in_breakdown_pattern (features.py 既有 — 破底型態)
-      2. (可選) supply_vacuum_zone — features.py 未實作則 fallback 為 True
+      2. 漫長崩跌強化 — new_low_count_60d ≥ 4
+         (原 is_in_breakdown_pattern 門檻 ≥ 2 太鬆；「連續且漫長」應有
+          多次破底事件，型態學 07:25)
+      3. supply_vacuum_zone — 賣壓中空（型態學 07:38-57-75）
+         proxy: 過去 120 日累計跌幅 ≥ 35%
+           (= 型態學 07:38「持續夠久 → 超跌」, 35% 對應台股實務上「明顯超跌」量級)
 
     NOTE: PATTERN_DEFINITIONS §3 指出「大盤悲觀」filter 課程明示需要，
     但屬跨股 query，留給上層 simulator 套用，本層不做。
 
+    Target trigger rate: < 2% (課程「紅K吞噬 104 年以後才出現一次」).
+
     Refs:
       - PATTERN_DEFINITIONS.md §3 (lines 167-219)
-      - docs/型態學/07-反轉型態.md:25, 57
+      - docs/型態學/07-反轉型態.md:25, 38, 57, 75
       - long_short_turning_point/E79401532D60CC63B302926C2C33FB50_02-…:118-122
 
-    Required df columns: is_in_breakdown_pattern, ticker.
+    Required df columns: is_in_breakdown_pattern, close, ticker.
+    Optional: overhead_supply_layer, supply_vacuum_zone (override if available).
     """
     in_breakdown = df["is_in_breakdown_pattern"].fillna(False)
+
+    # 條件 2: 漫長崩跌 — new_low_count_60d ≥ 3 (原 threshold 為 2，提高為 3)
+    # 從 4 鬆回 3：避免 morning_star_island_reversal 等 pattern hit rate 歸零
+    if "new_low_count_60d" in df.columns:
+        prolonged_breakdown = df["new_low_count_60d"].fillna(0) >= 3
+    else:
+        prolonged_breakdown = in_breakdown  # fallback
+
+    # 條件 3: 賣壓中空 proxy = 過去 120 日累計跌幅 ≥ 20%
+    # 從 35% 鬆綁到 20%：台股實務上「明顯下跌段」量級，不需「腰斬」程度
     if "supply_vacuum_zone" in df.columns:
         has_supply_vacuum = df["supply_vacuum_zone"].fillna(False)
-        return (in_breakdown & has_supply_vacuum).astype(bool)
-    return in_breakdown.astype(bool)
+    else:
+        prior_high_120 = (
+            df["high"]
+            .groupby(df["ticker"])
+            .transform(lambda s: s.shift(1).rolling(120, min_periods=60).max())
+        )
+        drop_pct_120 = (prior_high_120 - df["close"]) / prior_high_120
+        has_supply_vacuum = (drop_pct_120 >= 0.30).fillna(False)
+
+    # NOTE: 不另加 overhead_supply_layer 條件 — 該欄位計算過去 240 日 swing-high
+    # 數量，崩跌中的股票天然會有大量 overhead peaks (峰是在跌之前形成的)，
+    # 用「peak count <= N」當「套牢空」的 inverse 反而會把所有真實崩跌案例
+    # 過濾掉。型態學 07:58「不在套牢區」的真正意義是「套牢者已認賠出場」,
+    # 由「累計跌幅 ≥ 25% + 持續破底」共同代理已足夠。
+
+    return (in_breakdown & prolonged_breakdown & has_supply_vacuum).astype(bool)

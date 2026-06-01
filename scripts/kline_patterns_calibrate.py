@@ -12,12 +12,52 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import sqlite3
 from pathlib import Path
 
 import pandas as pd
 
 from kline.bars import load_bars
 from kline.features import add_features
+
+BACKFILL_DB = Path("data/analysis/kline_patterns/historical_backfill.sqlite")
+
+
+def load_bars_union(date_threshold: str = "2022-01-01") -> pd.DataFrame:
+    """Union main DB (2022+) with historical backfill (pre-2022 NO_OHLCV cases).
+
+    Main DB is authoritative for 2022+; backfill covers pre-2022 course examples.
+    Overlap is resolved by dropping backfill rows >= date_threshold.
+    """
+    main = load_bars()
+
+    if not BACKFILL_DB.exists():
+        return main
+
+    try:
+        with sqlite3.connect(str(BACKFILL_DB)) as conn:
+            extra = pd.read_sql("SELECT * FROM standard_daily_bar", conn)
+    except Exception as e:
+        print(f"Warning: could not load backfill DB: {e}")
+        return main
+
+    if extra.empty:
+        return main
+
+    extra["trade_date"] = pd.to_datetime(extra["trade_date"], errors="coerce")
+    # Drop overlap: only keep backfill rows strictly before threshold
+    extra = extra[extra["trade_date"] < pd.to_datetime(date_threshold)].copy()
+
+    # Align columns to what load_bars() returns (add missing cols as None/NaN)
+    main_cols = main.columns.tolist()
+    for col in main_cols:
+        if col not in extra.columns:
+            extra[col] = None
+    extra = extra[main_cols]
+
+    union = pd.concat([main, extra], ignore_index=True)
+    union = union.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
+    return union
 
 CASE_CSV = Path("docs/kline_course/long_short_turning_point/CASE_INDEX.csv")
 OUT_DIR = Path("data/analysis/kline_patterns")
@@ -53,9 +93,34 @@ SLUG_MAP = {
 
 
 def load_cases(path: Path) -> pd.DataFrame:
+    """Load calibration cases.
+
+    Includes:
+    - DB_OK cases: already validated in main DB
+    - NO_OHLCV cases with backfill data in historical_backfill.sqlite
+    """
     df = pd.read_csv(path)
     df["approx_date"] = pd.to_datetime(df["approx_date"], errors="coerce")
-    db_ok = df[df["notes"].fillna("").str.contains("DB_OK")].copy()
+    notes = df["notes"].fillna("")
+    db_ok = df[notes.str.contains("DB_OK")].copy()
+
+    # Include NO_OHLCV cases that now have backfill data
+    if BACKFILL_DB.exists():
+        try:
+            with sqlite3.connect(str(BACKFILL_DB)) as conn:
+                backfill_tickers = set(
+                    pd.read_sql("SELECT DISTINCT ticker FROM standard_daily_bar", conn)["ticker"].tolist()
+                )
+        except Exception:
+            backfill_tickers = set()
+
+        no_ohlcv = df[notes.str.contains("NO_OHLCV")].copy()
+        no_ohlcv["ticker"] = no_ohlcv["ticker"].astype(str)
+        backfilled = no_ohlcv[no_ohlcv["ticker"].isin(backfill_tickers)].copy()
+        if not backfilled.empty:
+            print(f"Including {len(backfilled)} NO_OHLCV cases now covered by backfill DB")
+            db_ok = pd.concat([db_ok, backfilled], ignore_index=True)
+
     return db_ok
 
 
@@ -86,10 +151,10 @@ def main():
     cases = load_cases(Path(args.cases))
     print(f"DB-validated cases: {len(cases)}")
 
-    # Load all bars 2021+ to be safe
+    # Load all bars (2015+) — union of main DB and historical backfill
     print("Loading bars + features (one pass) ...")
-    df = load_bars()
-    df = df[df["trade_date"] >= "2021-01-01"].copy()
+    df = load_bars_union()
+    df = df[df["trade_date"] >= "2015-01-01"].copy()
     df = add_features(df)
 
     # Pre-compute every detect() signal once (expensive but reusable)

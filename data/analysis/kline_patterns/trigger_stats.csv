@@ -1,5 +1,5 @@
 name,triggers,rate_pct,unique_tickers
-_bear_exhaustion_context,592154,50.228,2270
+_bear_exhaustion_context,349217,29.622,2146
 embracing,108967,9.243,2320
 gap_fill_up,45845,3.889,2186
 gap_under_pressure_reversal,45178,3.832,2244
@@ -9,14 +9,14 @@ biting,35520,3.013,2015
 rising_falling,32519,2.758,1973
 meeting,22785,1.933,2251
 rebound,15650,1.327,2227
-breakout_double_star,13116,1.113,1929
-morning_star_harami,11170,0.947,2209
-morning_star_island_reversal,11139,0.945,1933
+morning_star_harami,10781,0.914,2208
+breakout_double_star,6811,0.578,1609
 two_crow_gap,6374,0.541,1778
+morning_star_island_reversal,6272,0.532,1605
 neutral_engulfing,5756,0.488,1902
 three_red_dadi_dangqian,5610,0.476,1791
-bull_engulfing,3096,0.263,1517
 trapped,2266,0.192,1403
+bull_engulfing,2027,0.172,1140
 piercing_line,1501,0.127,1059
 evening_star_abandoned,1020,0.087,608
 dark_double_star_anye,834,0.071,453
