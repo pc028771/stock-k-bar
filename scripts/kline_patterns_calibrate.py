@@ -62,6 +62,9 @@ def load_bars_union(date_threshold: str = "2022-01-01") -> pd.DataFrame:
 CASE_CSV_V2 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v2.csv")
 CASE_CSV_V1 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX.csv")
 CASE_CSV = CASE_CSV_V2 if CASE_CSV_V2.exists() else CASE_CSV_V1
+# NOTE: v3 (autocorrect_dates.py output) intentionally not used as calibration source —
+# autocorrect can shift hit dates outside calibrate's ±max(unc,10) window and *reduce*
+# hit rate. v3 still serves as the source of `real_miss` flagging for Phase 2 logic refinement.
 OUT_DIR = Path("data/analysis/kline_patterns")
 
 # Map Opus agent's pattern_slug → actual scripts/kline/patterns/*.py slug.
