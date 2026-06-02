@@ -59,7 +59,9 @@ def load_bars_union(date_threshold: str = "2022-01-01") -> pd.DataFrame:
     union = union.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
     return union
 
-CASE_CSV = Path("docs/kline_course/long_short_turning_point/CASE_INDEX.csv")
+CASE_CSV_V2 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v2.csv")
+CASE_CSV_V1 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX.csv")
+CASE_CSV = CASE_CSV_V2 if CASE_CSV_V2.exists() else CASE_CSV_V1
 OUT_DIR = Path("data/analysis/kline_patterns")
 
 # Map Opus agent's pattern_slug → actual scripts/kline/patterns/*.py slug.
@@ -100,7 +102,11 @@ def load_cases(path: Path) -> pd.DataFrame:
     - NO_OHLCV cases with backfill data in historical_backfill.sqlite
     """
     df = pd.read_csv(path)
-    df["approx_date"] = pd.to_datetime(df["approx_date"], errors="coerce")
+    # v2 has `corrected_approx_date`; use it if present, else fall back to approx_date.
+    if "corrected_approx_date" in df.columns:
+        df["approx_date"] = pd.to_datetime(df["corrected_approx_date"], errors="coerce")
+    else:
+        df["approx_date"] = pd.to_datetime(df["approx_date"], errors="coerce")
     notes = df["notes"].fillna("")
     db_ok = df[notes.str.contains("DB_OK")].copy()
 
@@ -208,15 +214,29 @@ def main():
     out.to_csv(out_path, index=False)
     print(f"\nWrote {out_path}")
 
-    # Summary by pattern (positive cases only)
-    pos = out[out["expected_detect"] == True]
+    # case_kind aware summary (if column present in v2 CSV).
+    if "case_kind" in out.columns:
+        # confirmed_signal subset → standard hit rate
+        confirmed = out[(out["case_kind"] == "confirmed_signal") & (out["expected_detect"] == True)]
+        setup = out[out["case_kind"] == "setup_only"]
+        context = out[out["case_kind"] == "context_only"]
+        print(f"\n=== case_kind summary ===")
+        print(f"  confirmed_signal active: {len(confirmed)}  hits={int(confirmed['hit'].sum())}  rate={confirmed['hit'].mean()*100:.1f}%")
+        # setup_only: detect SHOULD NOT trigger; if it does that's a false positive
+        if len(setup):
+            fp_rate = setup["hit"].mean() * 100
+            print(f"  setup_only:              {len(setup)}  false-positive triggers={int(setup['hit'].sum())}  FP rate={fp_rate:.1f}%")
+        print(f"  context_only (excluded): {len(context)}")
+        pos = confirmed
+    else:
+        pos = out[out["expected_detect"] == True]
     summary = pos.groupby("actual_slug").agg(
         n=("hit", "size"),
         hits=("hit", "sum"),
     )
     summary["hit_rate_pct"] = (summary["hits"] / summary["n"] * 100).round(1)
     summary = summary.sort_values("hit_rate_pct")
-    print("\n=== Hit rate per pattern (positive cases) ===")
+    print("\n=== Hit rate per pattern (confirmed_signal cases) ===")
     print(summary.to_string())
 
     sum_path = out_dir / "calibration_summary.csv"
