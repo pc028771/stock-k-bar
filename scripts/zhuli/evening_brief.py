@@ -41,6 +41,10 @@ from zhuli.broker_dage_tracker import (
     get_dage_daily_action, cross_reference_holdings, write_brief,
     _HOLDINGS_JSON,
 )
+from zhuli.framework_daily_scan import (
+    load_latest_framework, scan_framework, generate_framework_report,
+    _DB as _SCAN_DB,
+)
 
 
 # ── 輔助函式 ──────────────────────────────────────────────────────────────────
@@ -534,6 +538,41 @@ def generate_evening_brief(target_date: str, dage_mode: str = "extended",
                        if str(info.get(k, "")) == "TODO"]
             lines.append(f"| {t} | {info.get('name', '')} | {', '.join(missing)} |")
         lines.append(f"")
+
+    # ═══════════════════════════════════════════════════════
+    # Section 7: 框架內標的全掃
+    # ═══════════════════════════════════════════════════════
+    try:
+        print("[evening] 執行框架內標的全掃...", flush=True)
+        framework   = load_latest_framework()
+        scan_result = scan_framework(framework, _SCAN_DB)
+        framework_md = generate_framework_report(scan_result, framework)
+        lines += [
+            f"---",
+            f"",
+            framework_md,
+        ]
+        print(
+            f"[evening] 框架掃描完成："
+            f"領頭 {len(scan_result.get('leaders', []))}"
+            f" 中段 {len(scan_result.get('middle', []))}"
+            f" 落後 {len(scan_result.get('laggards', []))}"
+            f" 新進 {len(scan_result.get('stage1', []))}"
+            f" 排除 {len(scan_result.get('avoid', []))}",
+            flush=True,
+        )
+    except Exception as _fw_err:
+        lines += [
+            f"---",
+            f"",
+            f"## 框架內標的全掃（失敗）",
+            f"",
+            f"> 錯誤：{_fw_err}",
+            f"",
+        ]
+        import traceback
+        print(f"[WARN] 框架掃描失敗：{_fw_err}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
     lines += [
         f"---",

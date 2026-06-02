@@ -252,9 +252,64 @@ TIER_A_SMALLSTR = {
 # 老師 core 但回測未抓到的 ticker（單獨觀察清單）
 CORE_UNCOVERED = ['1605', '6664', '6217', '6207', '1785']
 
-# 進場可行性門檻（距 MA10）
-MA10_DIST_ENTRY_OK = 5.0    # ≤5% 距 MA10 = 最佳進場
-MA10_DIST_RISKY = 10.0      # 5-10% = 可考慮、>10% = 已起漲、移至觀察
+# 距 MA10 score (6/3 校正、不再 hard rule、改為「籌碼優先 → 距離次之」)
+# 來源: 老師「離軍線很遠不追」(5/19 line 676) + Ch5-2「離 MA20 <30%」
+# 規則 (見 feedback_trading_discipline_checklist):
+#   Step 1 看籌碼:
+#     雙籌碼 (外資 + 投信都加) → 忽略距 MA10
+#     單籌碼                    → 距 MA10 當提醒、不擋
+#     無籌碼                    → 進入 Step 2 score
+#   Step 2 score (僅在無籌碼時):
+MA10_DIST_SCORE_TIERS = [
+    (5,   '🥇',  '打擊區'),
+    (10,  '🥈',  '健康延續'),
+    (15,  '🥉',  '偏遠、配合族群評估'),
+    (25,  '⚠️',  '右上角第 3-4 段、慎入'),
+    (999, '❌',  '末段、不追'),
+]
+# 籌碼門檻 (5d 累計)
+FOREIGN_BUY_THRESHOLD = 1000   # 外資 5d ≥ +1000 張 = 有買盤
+SITC_BUY_THRESHOLD = 200       # 投信 5d ≥ +200 張 = 有買盤
+
+# Backward compat (其他段落仍引用)
+MA10_DIST_ENTRY_OK = 5.0    # 🥇 打擊區門檻
+MA10_DIST_RISKY = 15.0      # 改為 15、舊版 10 太嚴、配合 score 化
+# 老師明示族群續強 (夜盤訊號) 時、可放寬到 +20% (見 feedback_night_session_signal_relative_value)
+MA10_DIST_OVERRIDE_RELAXED = 20.0
+
+
+def evaluate_dist_ma10(dist_pct, foreign_5d=None, sitc_5d=None):
+    """
+    籌碼優先評估距 MA10.
+    回傳 (level, icon, label):
+      level: 'ignore' / 'remind' / 'score'
+      雙籌碼 → ignore 距 MA10
+      單籌碼 → remind (僅顯示、不擋)
+      無籌碼 → score (打擊區 / 健康 / 偏遠 / 慎入 / 末段)
+    """
+    if dist_pct is None:
+        return ('score', '—', '無 MA10')
+    has_foreign = foreign_5d is not None and foreign_5d >= FOREIGN_BUY_THRESHOLD
+    has_sitc = sitc_5d is not None and sitc_5d >= SITC_BUY_THRESHOLD
+    if has_foreign and has_sitc:
+        return ('ignore', '🟢', f'雙籌碼 (外+{foreign_5d:,}/投+{sitc_5d:,})、距 MA10 忽略')
+    if has_foreign or has_sitc:
+        return ('remind', '🟡', f'單籌碼、距 MA10 {dist_pct:+.1f}% 提醒')
+    # 無籌碼、進入 score
+    for threshold, icon, label in MA10_DIST_SCORE_TIERS:
+        if dist_pct <= threshold:
+            return ('score', icon, label)
+    return ('score', '❌', '末段')
+
+
+def dist_ma10_score(dist_pct):
+    """舊 API、不考慮籌碼、僅 score (向後相容)"""
+    if dist_pct is None:
+        return ('—', '無資料')
+    for threshold, icon, label in MA10_DIST_SCORE_TIERS:
+        if dist_pct <= threshold:
+            return (icon, label)
+    return ('❌', '末段')
 
 
 def _db_uri(path: Path) -> str:
@@ -931,15 +986,27 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         else:
             h['has_prior_entry'] = False
 
-    # 分組
+    # 分組 (6/3 校正、籌碼優先)
     def in_section(h, section):
         d = h.get('dist_ma10_pct')
         tier = h.get('tier', '一般')
-        # 進場區：Tier-A/B 且距 MA10 ≤ MA10_DIST_RISKY
+        # 查籌碼: 雙籌碼 / 單籌碼 → 進場區、無籌碼 → score
+        chip = chip_map.get(h['ticker'], {})
+        f5d = chip.get('foreign_5d')
+        s5d = chip.get('sitc_5d')
+        level, _icon, _label = evaluate_dist_ma10(d, f5d, s5d)
         if section == 'entry':
-            return tier in ('🔥 Tier-A', '⭐ Tier-B') and (d is None or d <= MA10_DIST_RISKY)
-        if section == 'extended':  # 已起漲（後續觀察）
-            return tier in ('🔥 Tier-A', '⭐ Tier-B') and d is not None and d > MA10_DIST_RISKY
+            if tier not in ('🔥 Tier-A', '⭐ Tier-B'):
+                return False
+            # 有籌碼 (ignore/remind) → 一律進場
+            if level in ('ignore', 'remind'):
+                return True
+            # 無籌碼、看距離 score (≤ 15% = 🥇🥈🥉、進場)
+            return d is None or d <= MA10_DIST_RISKY
+        if section == 'extended':  # 已起漲（後續觀察、無籌碼且距離 >15）
+            if tier not in ('🔥 Tier-A', '⭐ Tier-B'):
+                return False
+            return level == 'score' and d is not None and d > MA10_DIST_RISKY
         if section == 'add_position':
             return h['scanner_name'] == 'shakeout_strong' and h.get('has_prior_entry')
         if section == 'general':
@@ -973,7 +1040,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     md.append(f"| post_attack_watchlist | {pa_count} |")
     md.append(f"| ma5_pivot | {len(ma5_pivot_hits)} |")
     md.append(f"| glued_ma5_platform | {len(glued_ma5_hits)} |")
-    md.append(f"| **可進場** (Tier-A/B 距MA10≤10%) | **{len(entry_hits)}** |")
+    md.append(f"| **可進場** (Tier-A/B 距MA10≤15%) | **{len(entry_hits)}** |")
     md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
     md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
     md += [f""]
@@ -981,7 +1048,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     # === 可進場區 ===
     if entry_hits:
         md += [
-            f"## 🎯 可進場 — Tier-A/B 候選（距 MA10 ≤ 10%）",
+            f"## 🎯 可進場 — Tier-A/B 候選（距 MA10 ≤ 15%、6/3 校正放寬）",
             f"",
             f"| Ticker | 名稱 | Scanner | 族群 | 收盤 | 量比 | 距MA10 | 首提後 | 老師 | 停損 | 外資5d | 投信5d | 籌碼 | wantgoo |",
             f"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
