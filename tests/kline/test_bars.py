@@ -25,7 +25,7 @@ def test_load_bars_returns_required_columns(tmp_path: Path):
                 ('1101','2025-01-03',101,103,100,102,1100,100,100,100,1000,1.1,0,0,1)
         """)
         conn.commit()
-    df = bars.load_bars(db_path=db)
+    df = bars.load_bars(db_path=db, fill_from_backfill=False)
     required = {"ticker", "trade_date", "open", "high", "low", "close",
                 "volume", "ma60", "ma20", "ma240", "is_usable"}
     assert required.issubset(df.columns)
@@ -53,5 +53,5 @@ def test_load_bars_filters_unusable(tmp_path: Path):
                 ('1101','2025-01-03',null,103,100,102,1100,100,100,100,1000,1.1,0,0,1)
         """)
         conn.commit()
-    df = bars.load_bars(db_path=db)
+    df = bars.load_bars(db_path=db, fill_from_backfill=False)
     assert len(df) == 1  # row with null open filtered out

@@ -466,22 +466,19 @@ def test_embracing_negative_flat():
 
 # ---------------- P22 meeting ----------------
 def test_meeting_positive():
-    rows = [
-        {"open": 100, "high": 102, "low": 98, "close": 100, "volume": 1000.0, "ma60": 100.0}
-        for _ in range(20)
-    ]
-    # D-1 with gap (high < prev_prev_low=98 → impossible from flat).
-    # Force prev day to gap down: rebuild with one priming low at 110 then drop:
+    # Pattern: downtrend → black K → red K with close ≈ prev_close.
+    # 2026-06-02 update: meeting.detect requires close materially off ma20
+    # (略顯跌勢 / 漲勢 context). Set ma20 above close for downtrend signal.
     rows = []
     for _ in range(20):
         rows.append({"open": 110, "high": 112, "low": 108, "close": 110,
-                     "volume": 1000.0, "ma60": 100.0})
-    # D-1: gap down (high < 108), black K
+                     "volume": 1000.0, "ma20": 110.0, "ma60": 110.0})
+    # D-1: black K dropping to 101 (start of downtrend)
     rows.append({"open": 105, "high": 106, "low": 100, "close": 101,
-                 "volume": 1000.0, "ma60": 100.0})
-    # D-0: red K, close ≈ prev_close (101), opposite color
+                 "volume": 1000.0, "ma20": 109.6, "ma60": 110.0})
+    # D-0: red K, close ≈ prev_close (101), ma20 still well above (down-context)
     rows.append({"open": 99, "high": 102, "low": 98.5, "close": 101.05,
-                 "volume": 1000.0, "ma60": 100.0})
+                 "volume": 1000.0, "ma20": 109.1, "ma60": 110.0})
     df = add_features(make_bars(rows))
     sig = meeting.detect(df)
     assert sig.iloc[-1]

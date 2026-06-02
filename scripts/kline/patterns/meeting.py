@@ -12,37 +12,35 @@ from ..course_proxy_constants import BITE_CLOSE_EQUAL_TOLERANCE
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
-    """遭遇型態 — 前日帶跳空力量 K + 今日收盤 ≈ 前日收盤 (缺口封閉).
+    """遭遇型態 — 收盤相同的抵抗（跌勢或漲勢中）.
 
-    Conditions (PATTERN_INVENTORY P22):
-      1. 前一日帶跳空 (open-gap or body-gap relative to prev_prev close/high/low)
-      2. 今日收盤 ≈ 前日收盤 (BITE_CLOSE_EQUAL_TOLERANCE)
+    Course definition (article 4A2519... line 10):
+      「定義：在略顯跌勢後出現的黑K，隔日遇到紅K的抵抗，收盤價與前一天的
+       收盤價『相同』；或者是漲勢後的紅K，隔日遇到黑K的抵抗，收盤價與前
+       一天的紅K收盤價『相同』。」
 
-    NOTE per MISS_DIAGNOSIS calibration (2026-06-02): 原本第 3 條「顏色相反」
-    過嚴。課程明示「最後一天是平盤作收」(article 4A2519...) — 今日只要 close
-    ≈ prev close 即成立，不論 doji 或反色。6556 2022-02-10 即為此型 (今日為
-    open=close 平盤 K)。改為允許今日為任何顏色。
+    Conditions:
+      1. 今日 close ≈ 前日 close (BITE_CLOSE_EQUAL_TOLERANCE)
+      2. 「跌勢」or「漲勢」context — 用 ma20 走向代理
+         (course: 「略顯跌勢 / 漲勢」 是 setup background)
 
-    Gap relaxation: 原本要求 prev 整根 K 跳空 (high<prev_prev_low OR
-    low>prev_prev_high)。但課程定義「攻擊缺口的封口」涵蓋 open-gap (今日
-    開盤就跳空)。改為前日 open 或 low/high 任一證實跳空即可。
+    Earlier (2026-06-02) the impl required prev_was_gap, but course never
+    mentions gap as a defining condition; it only mentions「攻擊缺口的封口」
+    as one of several POST-hoc interpretations. Removed gap requirement
+    after 康舒 6282 2022-01-19 case (close 34.10→34.10 with no gap) was
+    confirmed by user as legitimate course example.
     """
     g = df.groupby("ticker")
     prev_close = g["close"].shift(1)
-    prev_open = g["open"].shift(1)
-    prev_high_v = g["high"].shift(1)
-    prev_low_v = g["low"].shift(1)
-    prev_prev_close = g["close"].shift(2)
-    prev_prev_low = g["low"].shift(2)
-    prev_prev_high = g["high"].shift(2)
-
-    # adjusted 2026-06-02 per MISS_DIAGNOSIS calibration — 放寬為 open-gap 或 body-gap
-    prev_gap_down = (prev_high_v < prev_prev_low) | (prev_open < prev_prev_close) & (prev_high_v < prev_prev_close)
-    prev_gap_up = (prev_low_v > prev_prev_high) | ((prev_open > prev_prev_close) & (prev_low_v > prev_prev_close))
-    prev_was_gap = prev_gap_down | prev_gap_up
 
     close_eq = (df["close"] - prev_close).abs() / prev_close.replace(0, float("nan")) < BITE_CLOSE_EQUAL_TOLERANCE
 
-    # adjusted 2026-06-02 per MISS_DIAGNOSIS — drop strict opposite color
-    # (course: 「最後一天是平盤作收」allows doji/flat today)
-    return (prev_was_gap & close_eq).fillna(False)
+    # 跌勢 OR 漲勢 — course says「略顯」(slight). Use position vs ma20 as
+    # primary indicator: close materially above/below ma20 implies trend.
+    # Avoids over-strict slope check (-0.5%/3d originally proposed missed
+    # 康舒 6282 2022-01-19 case which had ma20 sliding gently -0.4%/3d).
+    in_uptrend = df["close"] > df["ma20"] * 1.005  # close ≥ 0.5% above ma20
+    in_downtrend = df["close"] < df["ma20"] * 0.995  # close ≥ 0.5% below ma20
+    in_trend = in_uptrend | in_downtrend
+
+    return (close_eq & in_trend).fillna(False)

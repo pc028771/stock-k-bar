@@ -23,41 +23,9 @@ from kline.features import add_features
 BACKFILL_DB = Path("data/analysis/kline_patterns/historical_backfill.sqlite")
 
 
-def load_bars_union(date_threshold: str = "2022-01-01") -> pd.DataFrame:
-    """Union main DB (2022+) with historical backfill (pre-2022 NO_OHLCV cases).
-
-    Main DB is authoritative for 2022+; backfill covers pre-2022 course examples.
-    Overlap is resolved by dropping backfill rows >= date_threshold.
-    """
-    main = load_bars()
-
-    if not BACKFILL_DB.exists():
-        return main
-
-    try:
-        with sqlite3.connect(str(BACKFILL_DB)) as conn:
-            extra = pd.read_sql("SELECT * FROM standard_daily_bar", conn)
-    except Exception as e:
-        print(f"Warning: could not load backfill DB: {e}")
-        return main
-
-    if extra.empty:
-        return main
-
-    extra["trade_date"] = pd.to_datetime(extra["trade_date"], errors="coerce")
-    # Drop overlap: only keep backfill rows strictly before threshold
-    extra = extra[extra["trade_date"] < pd.to_datetime(date_threshold)].copy()
-
-    # Align columns to what load_bars() returns (add missing cols as None/NaN)
-    main_cols = main.columns.tolist()
-    for col in main_cols:
-        if col not in extra.columns:
-            extra[col] = None
-    extra = extra[main_cols]
-
-    union = pd.concat([main, extra], ignore_index=True)
-    union = union.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
-    return union
+def load_bars_union() -> pd.DataFrame:
+    """Backwards-compat wrapper. load_bars now unions backfill internally."""
+    return load_bars()
 
 CASE_CSV_V4 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v4.csv")
 CASE_CSV_V2 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v2.csv")
