@@ -49,14 +49,28 @@ from clients.finmind_client import get_price  # noqa: E402 — must be after env
 # --- Step 1: Extract ticker ranges from NO_OHLCV cases ---
 
 def get_ticker_ranges() -> dict[str, tuple[str, str]]:
+    """Compute per-ticker fetch windows.
+
+    Window:
+      - start = earliest approx_date − 400 calendar days (~270 trading days,
+        enough to populate ma240 + prior_high_60 + attack_intensity before the
+        first case date)
+      - end   = latest approx_date + 60 calendar days (~40 trading days buffer
+        for detect() confirmation lookahead)
+
+    Note: covers ALL course-cited tickers (including those whose main DB has
+    only post-2022 history), not just NO_OHLCV cases. This is because the
+    four_seasons main DB starts ~2022-01 for many tickers, so even DB_OK
+    cases on 2022-02-18 have ≤ 27 trading days of pre-context — insufficient
+    for ma240 / prior_high_60 / exhaust_context features.
+    """
     df = pd.read_csv(CASE_CSV)
-    no_ohlcv = df[df["notes"].fillna("").str.contains("NO_OHLCV")].copy()
-    no_ohlcv["approx_date"] = pd.to_datetime(no_ohlcv["approx_date"])
+    df["approx_date"] = pd.to_datetime(df["approx_date"])
 
     ranges: dict[str, tuple[str, str]] = {}
-    for ticker, g in no_ohlcv.groupby("ticker"):
-        start = (g["approx_date"].min() - timedelta(days=90)).strftime("%Y-%m-%d")
-        end = (g["approx_date"].max() + timedelta(days=30)).strftime("%Y-%m-%d")
+    for ticker, g in df.groupby("ticker"):
+        start = (g["approx_date"].min() - timedelta(days=400)).strftime("%Y-%m-%d")
+        end = (g["approx_date"].max() + timedelta(days=60)).strftime("%Y-%m-%d")
         ranges[str(ticker)] = (start, end)
     return ranges
 
