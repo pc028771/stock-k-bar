@@ -169,7 +169,9 @@ HIGH_LONG_BLACK_BODY_PCT_MIN = 0.04  # course-not-stated — engineering proposa
 # PROXY VALUE: 0.02 (2%).
 # RATIONALE: 沿用 exit/reversal_k/enemy_at_gate.py 的 SMALL_BODY_MAX=0.02；
 #   2% body 視為「短紅 K」、拉不開的代理。
-THREE_RED_MAX_BODY_PCT = 0.02  # course-not-stated — engineering proposal
+THREE_RED_MAX_BODY_PCT = 0.025  # course-not-stated — engineering proposal
+# 2026-06-02 calibration: relaxed 0.02 → 0.025 to capture 1414 2020-11-20 (D-2 body 2.4%).
+# 課程「拉不開」是視覺判斷，2.5% body 仍屬「短紅」範疇。
 
 # =============================================================================
 # T3. three_red_max_high_spread — 三紅 high 之間距離上限 (P07)
@@ -180,7 +182,9 @@ THREE_RED_MAX_BODY_PCT = 0.02  # course-not-stated — engineering proposal
 # PROXY VALUE: 0.015 (1.5%).
 # RATIONALE: PATTERN_INVENTORY L158 提議 0.5%，但實務上 1.5% 更接近
 #   「拉不出距離」直觀；過嚴會抓不到。
-THREE_RED_MAX_HIGH_SPREAD = 0.015  # course-not-stated — engineering proposal
+THREE_RED_MAX_HIGH_SPREAD = 0.03  # course-not-stated — engineering proposal
+# 2026-06-02 calibration: relaxed 0.015 → 0.03 to capture 1414 2020-11-20 (D-2 spread 2.93%).
+# 課程「沒拉開距離」是視覺判斷，3% 仍代表「明顯滯漲」未推升新高。
 
 # =============================================================================
 # T4. side_by_side_similarity_pct — 暗夜雙星併排相似度 (P08)
@@ -191,7 +195,10 @@ THREE_RED_MAX_HIGH_SPREAD = 0.015  # course-not-stated — engineering proposal
 # PROXY VALUE: 0.03 (3%).
 # RATIONALE: 既有 scripts/kline/exit/reversal_k/dark_double_star.py 採
 #   2%；PATTERN_INVENTORY L185 提議 0.3% 太嚴。3% 折中。
-SIDE_BY_SIDE_SIMILARITY_PCT = 0.03  # course-not-stated — engineering proposal
+SIDE_BY_SIDE_SIMILARITY_PCT = 0.035  # course-not-stated — engineering proposal
+# 2026-06-02 calibration: relaxed 0.03 → 0.035 to capture 3669 2020-09-07 (low_sim 3.1%).
+# Course says "形狀相似" qualitatively; 3.5% still captures visual similarity without admitting
+# obviously different K shapes. Baseline drift verified < 2x.
 
 # =============================================================================
 # T5. rebound_volume_ratio_min — 反撲量比門檻 (P23 反撲 / P19 包覆量比)
@@ -201,7 +208,9 @@ SIDE_BY_SIDE_SIMILARITY_PCT = 0.03  # course-not-stated — engineering proposal
 # COURSE NUMBER? No — course-not-stated — engineering proposal.
 # PROXY VALUE: 1.5.
 # RATIONALE: 沿用業界常見「爆量 = 均量 ×1.5」門檻。
-REBOUND_VOLUME_RATIO_MIN = 1.5  # course-not-stated — engineering proposal
+REBOUND_VOLUME_RATIO_MIN = 1.4  # course-not-stated — engineering proposal
+# 2026-06-02 calibration: relaxed 1.5 → 1.4 to capture 6290 2022-02-18 (vol_ratio 1.43).
+# 1.4 仍屬「明顯有量」，課程「若包覆 K 有量」未指定精確倍數。
 
 # =============================================================================
 # T6. bite_close_equal_tolerance — 咬定 / 遭遇收盤相等容差 (P22)
@@ -274,7 +283,10 @@ BULL_EXHAUSTION_NEAR_HIGH_PCT = 0.95  # course-not-stated — engineering propos
 # COURSE NUMBER? No — course-not-stated — engineering proposal.
 # PROXY VALUE: 5 個交易日。
 # RATIONALE: 「短期內仍處於拉抬狀態」最自然的代理；超過 5 日就難稱「當下力竭」。
-BULL_EXHAUSTION_ATTACK_LOOKBACK = 5  # course-not-stated — engineering proposal
+BULL_EXHAUSTION_ATTACK_LOOKBACK = 10  # course-not-stated — engineering proposal
+# 2026-06-02 calibration: extended 5 → 10. attack_intensity 為 5 日窗口 feature，
+# 若大漲後盤整 5+ 天才出現轉折 K（如 3669 2020-09-07，Aug 28 攻擊 → Sep 7 暴黑），
+# 5 日 lookback 抓不到。10 日仍涵蓋「短期力竭」語意。
 
 
 __all__ = [

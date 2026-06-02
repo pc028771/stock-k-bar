@@ -31,11 +31,16 @@ def detect(df: pd.DataFrame) -> pd.Series:
     prior_high_60_s = g["prior_high_60"].shift(1)
     prior_low_60_s = g["prior_low_60"].shift(1)
 
-    ma60_rising = df["ma60_slope_5d"].fillna(0) > 0
-    bull_trend = (df["close"] > df["ma60"]) & ma60_rising
-
     prev_red = prev_close > prev_open
     prev_new_high = prev_close > prior_high_60_s
+    prev_black = prev_close < prev_open
+    prev_new_low = prev_low_v <= prior_low_60_s
+
+    # 2026-06-02 fallback: ma60 NaN（backfill pre-context 不足）時，用 prev_new_high /
+    # prev_new_low 代理「多方/空方狀態」。課程「多方狀態」字面上就是「創新高」之意。
+    ma60_nan = df["ma60"].isna()
+    ma60_rising = df["ma60_slope_5d"].fillna(0) > 0
+    bull_trend = ((df["close"] > df["ma60"]) & ma60_rising) | (ma60_nan & prev_new_high.fillna(False))
 
     is_black = df["close"] < df["open"]
     open_high = df["open"] > prev_close
@@ -45,10 +50,7 @@ def detect(df: pd.DataFrame) -> pd.Series:
     dark_cloud = bull_trend & prev_red & prev_new_high & is_black & open_high & breaks_mid & not_engulf
 
     ma60_falling = df["ma60_slope_5d"].fillna(0) < 0
-    bear_trend = (df["close"] < df["ma60"]) & ma60_falling
-
-    prev_black = prev_close < prev_open
-    prev_new_low = prev_low_v <= prior_low_60_s
+    bear_trend = ((df["close"] < df["ma60"]) & ma60_falling) | (ma60_nan & prev_new_low.fillna(False))
 
     is_red = df["close"] > df["open"]
     open_low = df["open"] < prev_close

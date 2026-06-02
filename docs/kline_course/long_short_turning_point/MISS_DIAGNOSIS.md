@@ -227,3 +227,72 @@ Post-features-fix 後 `_bear_exhaustion_context` trigger rate = **50.228%**（59
 建議：CASE_INDEX 未來補欄位 `case_kind = setup_only | confirmed_signal`，calibration 只算 `confirmed_signal` 類。本輪不動。
 
 剩餘 ~10-15 個 misses 為 C1 殘餘（如 8088 2019-12 的 ma240 lookback 仍短 — backfill 只到 2018-12 開始，240 個交易日要到 2019-12 才填滿，但 case date 就在 2019-12-23 — borderline 邊緣）+ 課程案例本身屬「形狀可見但力量不足」的反例邊緣。
+
+---
+
+## 第四輪精修 (2026-06-02) — 24 real_miss cases
+
+### 24 case fail 原因分類
+
+| Category | Count | Cases |
+|---|---|---|
+| C1 - bull_exh near_high too tight | 4 | 3669 09-07 / 2388 04-09 / 4908 12-11 gap_reversal + outside_three_black (last failed for other reason) |
+| C1 - bull_exh attack_lookback too short | 1 | 3669 09-07 (also needed lookback 5→10) |
+| C1 - SIDE_BY_SIDE 3% too tight | 1 | 3669 09-07 (low_sim 3.1%) |
+| C1 - REBOUND_VOLUME 1.5 too tight | 1 | 6290 (vol_ratio 1.43) |
+| C1 - THREE_RED body 2% / spread 1.5% too tight | 1 | 1414 (body 2.4%, spread 2.93%) |
+| L1 - piercing_line ma60-NaN fallback | 1+1 | 3036 (dark_cloud), 1316 (skipped — no_bars_in_window) |
+| D1 false_alarm (approx_date 對不上、案例邊緣) | ~15 | 3669 12-18 / 2388 04-17 / 2481 03-25 / 3338 / 4916 / 8182 / 8996 / 3515 / 1316 / 8454 (biting) / 3017 / 6278 / 2614 / 4967 / 6788 / 4908 (outside_three_black) / 4908 (2021-01-15) |
+| D2 - 無 bars (主 DB ticker 起始時間晚於 case) | 1 | 1316 2022-02-18 (ticker 從 2021-01-14 才有資料但仍 no_bars_in_window — 推測 dedup/format issue) |
+
+### 修改清單
+
+**course_proxy_constants.py**:
+- `BULL_EXHAUSTION_ATTACK_LOOKBACK` 5 → 10
+- `SIDE_BY_SIDE_SIMILARITY_PCT` 0.03 → 0.035
+- `REBOUND_VOLUME_RATIO_MIN` 1.5 → 1.4
+- `THREE_RED_MAX_BODY_PCT` 0.02 → 0.025
+- `THREE_RED_MAX_HIGH_SPREAD` 0.015 → 0.03
+
+**patterns/_common.py**:
+- `bull_exhaustion_context.near_high` 改用 `max(close 5d)` 取代 today's close — context check 不該被 bear-reversal 當天的暴跌否決
+
+**patterns/piercing_line.py**:
+- ma60 NaN 時用 `prev_new_high` / `prev_new_low` 作 trend fallback（解 3036 文曄 NaN 問題）
+
+### Before / After
+
+| 階段 | hit rate |
+|---|---|
+| 第三輪 baseline | 17/47 = 36.2% |
+| + bull_exh near_high recent_max fix | 19/47 = 40.4% |
+| + 4 constant relax + piercing ma60 fallback | 23/47 = 48.9% |
+| + BULL_EXHAUSTION_ATTACK_LOOKBACK 5→10 | **25/47 = 53.2%** |
+
+未達 60% 目標 — 主因是 24 cases 中約 15 個（62%）為 D1 false_alarm（approx_date 指向課程引用日，非實際 detect 觸發日），無法靠 logic 修正解決。
+
+### 守門驗證
+
+- **53 patterns tests**: ✅ 全綠（pytest 4.59s）
+- **2026 sanity**: ⚠ 環境問題 — disk I/O error（iCloud-synced 1.1GB DB + 主 disk 98% 滿）阻擋執行，**user 需手動釋放磁碟後重跑** `scripts/kline_patterns_2026_sanity.py` 驗證 trigger drift
+- **calibrate**: 已於上面驗證；最後一次 25/47 hit 之後 disk 滿才失敗
+
+### 仍 miss 的 case + 為何放棄
+
+D1 false_alarm 群（不修）：
+- 3669 12-18 / 2388 04-17 / 2481 03-25：圖示是「暗夜雙星」但 OHLCV 顯示為純空方延續，無 side-by-side 結構
+- 3338 / 4916 / 8182 / 8996 / 3515 / 8454 / 3017 / 6278 / 2614 / 4967 / 6788 / 4908(outside) / 4908(2021-01-15)：approx_date 與課程描述的觸發日不對齊，多半是文章發布日或圖中討論的某根 K 棒形成日
+
+D2（無解）：
+- 1316 2022-02-18：DB 中該 ticker 從 2021-01-14 起有資料，window ±10 天內理應有資料，但 `df["ticker"] == "1316"` 在 union 後 empty — 可能 dedup 路徑或型別 issue，需另案排查
+
+### baseline 變動最大評估
+
+未跑 baseline diff（2026 sanity 環境 issue），但理論影響：
+- `BULL_EXHAUSTION_ATTACK_LOOKBACK` 5→10：bull_exh trigger rate 預估 +30~60%；下游所有 bull_exh-gated patterns（dark_double_star_anye / evening_star_abandoned / evening_star_island_reversal / gap_reversal / high_hanging_man）trigger 率會提升，可能 1.5~2x baseline
+- `near_high` recent_max：拓寬 bull_exh window，類似量級
+- `SIDE_BY_SIDE` 3%→3.5%：dark_double_star trigger +~30%
+- `THREE_RED` 兩條鬆綁：three_red_dadi_dangqian trigger 預估 2~3x
+- `REBOUND_VOLUME` 1.5→1.4：neutral_engulfing/rebound trigger +~15%
+
+⚠ **建議 user 釋放磁碟後跑 `kline_patterns_validate.py` + `kline_patterns_2026_sanity.py` 確認沒有 pattern 變 0 或 drift > 3x**。若 dark_double_star_anye / gap_reversal trigger 爆量，需考慮 BULL_EXHAUSTION_ATTACK_LOOKBACK 退回 7 折中。

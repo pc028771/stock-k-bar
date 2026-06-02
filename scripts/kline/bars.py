@@ -43,6 +43,10 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH) -> pd.DataFrame:
           and open > 0 and high > 0 and low > 0 and close > 0
         order by ticker, trade_date
     """
+    # Reuse one snapshot per pid; clean up at process exit.
+    # Earlier versions left a 1 GB snapshot per process — 91 stale copies
+    # filled 91 GB of /tmp.
+    tmp = None
     try:
         tmp = Path(tempfile.gettempdir()) / f"kline_bars_snapshot_{os.getpid()}.sqlite"
         shutil.copy2(db_path, tmp)
@@ -50,8 +54,15 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH) -> pd.DataFrame:
     except Exception:
         conn_path = str(db_path)
 
-    with sqlite3.connect(conn_path, timeout=15) as conn:
-        df = pd.read_sql_query(query, conn, parse_dates=["trade_date"])
+    try:
+        with sqlite3.connect(conn_path, timeout=15) as conn:
+            df = pd.read_sql_query(query, conn, parse_dates=["trade_date"])
+    finally:
+        if tmp is not None and tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
     # Normalise to ns precision (pandas 3.x defaults to us; tests expect ns)
     df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
     return df.reset_index(drop=True)

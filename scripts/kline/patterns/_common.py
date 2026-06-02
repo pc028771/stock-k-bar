@@ -86,7 +86,19 @@ def bull_exhaustion_context(df: pd.DataFrame) -> pd.Series:
         > 0
     )
 
-    near_high = df["close"] >= df["prior_high_60"] * BULL_EXHAUSTION_NEAR_HIGH_PCT
+    # near_high — context check: we are in high zone (close stays close to prior_high_60).
+    # 2026-06-02 fix: bear-reversal day itself may close far below high (e.g. 高檔長黑 -10%).
+    # Use max(close over last 5 bars) instead of today's close — context is "recent high"
+    # not "today's close". This preserves the "we WERE just at the high" interpretation
+    # while allowing today's reversal bar to itself drop.
+    recent_close_max = (
+        df["close"]
+        .groupby(df["ticker"])
+        .rolling(BULL_EXHAUSTION_ATTACK_LOOKBACK, min_periods=1)
+        .max()
+        .reset_index(level=0, drop=True)
+    )
+    near_high = recent_close_max >= df["prior_high_60"] * BULL_EXHAUSTION_NEAR_HIGH_PCT
 
     return (in_attack_recent & was_breakout_60d & near_high).fillna(False)
 
