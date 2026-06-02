@@ -17,7 +17,11 @@ import pandas as pd
 
 # --- Path setup ---
 WORKTREE = Path("/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power")
-CASE_CSV = WORKTREE / "docs/kline_course/long_short_turning_point/CASE_INDEX.csv"
+# Prefer v4 (Sonnet vision re-extracted dates); fall back to v2/v1 if absent.
+_CASE_V4 = WORKTREE / "docs/kline_course/long_short_turning_point/CASE_INDEX_v4.csv"
+_CASE_V2 = WORKTREE / "docs/kline_course/long_short_turning_point/CASE_INDEX_v2.csv"
+_CASE_V1 = WORKTREE / "docs/kline_course/long_short_turning_point/CASE_INDEX.csv"
+CASE_CSV = _CASE_V4 if _CASE_V4.exists() else (_CASE_V2 if _CASE_V2.exists() else _CASE_V1)
 OUT_DB = WORKTREE / "data/analysis/kline_patterns/historical_backfill.sqlite"
 
 # Add stock-analysis-system to path so we can import the throttled client
@@ -65,12 +69,21 @@ def get_ticker_ranges() -> dict[str, tuple[str, str]]:
     for ma240 / prior_high_60 / exhaust_context features.
     """
     df = pd.read_csv(CASE_CSV)
-    df["approx_date"] = pd.to_datetime(df["approx_date"])
+    # Use the most-corrected date column available (v4 → v2 → original).
+    if "corrected_approx_date_v4" in df.columns:
+        date_col = "corrected_approx_date_v4"
+    elif "corrected_approx_date" in df.columns:
+        date_col = "corrected_approx_date"
+    else:
+        date_col = "approx_date"
+    df["_use_date"] = pd.to_datetime(df[date_col], errors="coerce")
+    # Fall back to approx_date for rows where the corrected column is NaT.
+    df["_use_date"] = df["_use_date"].fillna(pd.to_datetime(df["approx_date"], errors="coerce"))
 
     ranges: dict[str, tuple[str, str]] = {}
     for ticker, g in df.groupby("ticker"):
-        start = (g["approx_date"].min() - timedelta(days=400)).strftime("%Y-%m-%d")
-        end = (g["approx_date"].max() + timedelta(days=60)).strftime("%Y-%m-%d")
+        start = (g["_use_date"].min() - timedelta(days=400)).strftime("%Y-%m-%d")
+        end = (g["_use_date"].max() + timedelta(days=60)).strftime("%Y-%m-%d")
         ranges[str(ticker)] = (start, end)
     return ranges
 

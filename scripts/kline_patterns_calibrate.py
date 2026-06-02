@@ -59,12 +59,11 @@ def load_bars_union(date_threshold: str = "2022-01-01") -> pd.DataFrame:
     union = union.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
     return union
 
+CASE_CSV_V4 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v4.csv")
 CASE_CSV_V2 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX_v2.csv")
 CASE_CSV_V1 = Path("docs/kline_course/long_short_turning_point/CASE_INDEX.csv")
-CASE_CSV = CASE_CSV_V2 if CASE_CSV_V2.exists() else CASE_CSV_V1
-# NOTE: v3 (autocorrect_dates.py output) intentionally not used as calibration source —
-# autocorrect can shift hit dates outside calibrate's ±max(unc,10) window and *reduce*
-# hit rate. v3 still serves as the source of `real_miss` flagging for Phase 2 logic refinement.
+CASE_CSV = CASE_CSV_V4 if CASE_CSV_V4.exists() else (CASE_CSV_V2 if CASE_CSV_V2.exists() else CASE_CSV_V1)
+# v3 intentionally skipped (autocorrect-only); v4 = Sonnet vision re-extracted dates.
 OUT_DIR = Path("data/analysis/kline_patterns")
 
 # Map Opus agent's pattern_slug → actual scripts/kline/patterns/*.py slug.
@@ -105,9 +104,14 @@ def load_cases(path: Path) -> pd.DataFrame:
     - NO_OHLCV cases with backfill data in historical_backfill.sqlite
     """
     df = pd.read_csv(path)
-    # v2 has `corrected_approx_date`; use it if present, else fall back to approx_date.
-    if "corrected_approx_date" in df.columns:
-        df["approx_date"] = pd.to_datetime(df["corrected_approx_date"], errors="coerce")
+    # v4 has `corrected_approx_date_v4` (vision-corrected); v2 has `corrected_approx_date`.
+    # NOTE: format='mixed' is required — v4 column has both 'YYYY-MM-DD' and
+    # 'YYYY-MM-DD 00:00:00' strings (copied from upstream v3 column). Without
+    # mixed, pandas guesses one format and NaT-s the other.
+    if "corrected_approx_date_v4" in df.columns:
+        df["approx_date"] = pd.to_datetime(df["corrected_approx_date_v4"], format="mixed", errors="coerce")
+    elif "corrected_approx_date" in df.columns:
+        df["approx_date"] = pd.to_datetime(df["corrected_approx_date"], format="mixed", errors="coerce")
     else:
         df["approx_date"] = pd.to_datetime(df["approx_date"], errors="coerce")
     notes = df["notes"].fillna("")
