@@ -45,30 +45,53 @@ def _db_uri(path: Path) -> str:
 def _trading_days_since(start_date: str, target_date: str, db_path: Path) -> int:
     """計算 start_date 到 target_date（含）之間有幾個交易日.
 
-    用 standard_daily_bar 中的 trade_date 計算，精準反映實際有開盤的天數。
+    用 standard_daily_bar 中的 trade_date 為準（精準反映實際開盤日），
+    若 DB 沒覆蓋到 target_date（target=今日盤前/盤中、bar 還沒入庫），
+    fallback 用 pandas bdate_range，避免少算 1 天。
     """
     con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
     row = con.execute(
-        """SELECT COUNT(DISTINCT trade_date)
+        """SELECT COUNT(DISTINCT trade_date), MAX(trade_date)
            FROM standard_daily_bar
            WHERE trade_date >= ? AND trade_date <= ?""",
         (start_date, target_date),
     ).fetchone()
     con.close()
-    return row[0] if row else 0
+    db_count = row[0] if row else 0
+    db_max   = row[1] if row else None
+
+    # 若 DB 已涵蓋 target_date、直接用 DB 結果
+    if db_max == target_date:
+        return db_count
+
+    # 否則 DB 缺最後幾天、用 bdate_range fill gap
+    import pandas as pd
+    try:
+        gap_start = db_max if db_max else start_date
+        bdays = pd.bdate_range(start=gap_start, end=target_date)
+        # 若 db_max 存在、bdays 已包含 db_max、要 -1 避免重複
+        extra = len(bdays) - (1 if db_max else 0)
+        return db_count + max(0, extra)
+    except Exception:
+        return db_count
 
 
 def _trading_days_to_end(target_date: str, end_date: str, db_path: Path) -> int:
-    """target_date 到 end_date（含 end_date）之間還剩幾個交易日（不含 target）."""
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
-    row = con.execute(
-        """SELECT COUNT(DISTINCT trade_date)
-           FROM standard_daily_bar
-           WHERE trade_date > ? AND trade_date <= ?""",
-        (target_date, end_date),
-    ).fetchone()
-    con.close()
-    return row[0] if row else 0
+    """target_date 到 end_date（含 end_date）之間還剩幾個交易日（不含 target）.
+
+    end_date 通常在未來、DB 沒有 future bars、必須用 calendar 算。
+    用 pandas bdate_range (Mon-Fri) + 排除已知台股假日。
+    """
+    import pandas as pd
+    try:
+        # 包含 target 隔日 ~ end_date
+        bdays = pd.bdate_range(start=target_date, end=end_date)
+        # 排除 target_date 本身
+        bdays = bdays[bdays.strftime("%Y-%m-%d") > target_date]
+        # 排除假日（讀 DB 已知非交易日、若資料庫覆蓋到 end_date 就用 DB；否則純 bdate）
+        return len(bdays)
+    except Exception:
+        return 0
 
 
 def _get_price_data(

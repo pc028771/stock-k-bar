@@ -98,13 +98,13 @@ PLAN_PRIMARY = [
         'reason': '🟢 EOD Trigger 1 確認 (外資 +16k + 管錢 +1067)、加 1 張',
     },
     {
-        'ticker': '4722', 'name': '國精化',
-        'shares': 1000, 'stop': 268.0,
-        'tactic': '題材', 'priority': 1,
-        'source': '自己抓',
-        'sector': '化工',
-        'note': 'A 處置 D+6、三軸 🟢、流動性差 sizing 1 張試水',
-        'reason': '🔒A 處置 D+6、三軸 🟢、流動性差 sizing 1 張試水、停損 268',
+        'ticker': '4958', 'name': '臻鼎-KY',
+        'shares': 1000, 'stop': 486.0,
+        'tactic': '題材', 'priority': 3,
+        'source': '處置框架 + scanner',
+        'sector': 'ABF載板/PCB',
+        'note': '🔒A D+4 老師「第 4-5 天最愛切入」、core、⭐站前哥、距 MA10 +2.1%',
+        'reason': '🔒A 處置 D+4 + 老師最愛切入時機 + core tier + 站前哥、停損 486 (結構底)',
     },
 ]
 
@@ -223,6 +223,39 @@ WATCH = [
         'source': '老師明示',
         'sector': 'ABF',
         'note': '🔴 老師「ABF 需要洗牌」、MA5/10/20 全破、外資 -3,125'
+    },
+    # 6/3 scanner 新增 (Tier-B 打擊區、籌碼/型態符合)
+    {
+        'ticker': '1717', 'name': '長興',
+        'ref_close': 78.70, 'stop': 75.50,
+        'tactic': '短打', 'priority': 2,
+        'source': 'scanner (small_structure)',
+        'sector': '封測/特化',
+        'note': '🟡 投信 5d +1,726 + ⭐管錢哥、距 MA10 -2.7% 打擊區、首提後 79d (二波期)'
+    },
+    {
+        'ticker': '4722', 'name': '國精化',
+        'ref_close': 279.0, 'stop': 268.0,
+        'tactic': '題材', 'priority': 2,
+        'source': '處置框架',
+        'sector': '化工',
+        'note': '🔒A D+6 觀察中、出關前 4 天、等 6/5 (D-2 出關前 2 天) 切入時機'
+    },
+    {
+        'ticker': '4526', 'name': '東台',
+        'ref_close': 42.15, 'stop': 40.16,
+        'tactic': '短打', 'priority': 2,
+        'source': 'scanner (w_bottom_launch)',
+        'sector': '電機機械',
+        'note': '🟢 W底 + 量比 2.2x + ⭐站前哥、距 MA10 +5.0%、MA10 停利 ~40.16'
+    },
+    {
+        'ticker': '4540', 'name': '全球傳動',
+        'ref_close': 77.30, 'stop': 70.84,
+        'tactic': '題材', 'priority': 2,
+        'source': 'scanner (w_bottom_launch)',
+        'sector': '機器人',
+        'note': '🟢 機器人主流 + W底 量比 2.0x、距 MA10 +9.1%、MA10 停利 ~70.84'
     },
 ]
 

@@ -24,6 +24,7 @@
 """
 from __future__ import annotations
 
+import os
 import re
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -34,6 +35,63 @@ import requests
 _TWSE_URL = "https://www.twse.com.tw/rwd/zh/announcement/punish"
 _TIMEOUT = 10  # seconds
 _MAX_RETRIES = 3
+
+# FinMind fallback (sponsor tier)
+_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
+_FINMIND_DATASET = "TaiwanStockDispositionSecuritiesPeriod"
+
+_CHINESE_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+
+
+def _parse_times_from_measure(measure: str) -> int:
+    """從 '第二次處置' / '第一次處置' 解出整數."""
+    m = re.search(r"第([一二三四五六七八九]|\d+)次", measure or "")
+    if not m:
+        return 1
+    s = m.group(1)
+    if s.isdigit():
+        return int(s)
+    return _CHINESE_NUM.get(s, 1)
+
+
+def _fetch_finmind_raw(start_date: str, end_date: str) -> list[dict]:
+    """從 FinMind 抓處置股 (TWSE fallback).
+
+    Returns: list of normalized dicts (same shape as _fetch_twse_raw output).
+    Raises RuntimeError on failure.
+    """
+    token = os.environ.get("FINMIND_TOKEN", "")
+    params = {
+        "dataset": _FINMIND_DATASET,
+        "start_date": start_date,
+        "end_date":   end_date,
+        "token": token,
+    }
+    try:
+        resp = requests.get(_FINMIND_URL, params=params, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise RuntimeError(f"FinMind 處置股 API 失敗: {exc}")
+
+    if data.get("status") != 200:
+        raise RuntimeError(f"FinMind status != 200: {data.get('status')} {data.get('msg')}")
+
+    rows = []
+    for row in data.get("data", []):
+        try:
+            rows.append({
+                "announce_date": row["date"],
+                "ticker":        str(row["stock_id"]).strip(),
+                "name":          str(row.get("stock_name", "")).strip(),
+                "times":         _parse_times_from_measure(row.get("measure", "")),
+                "reason":        str(row.get("condition", "")).strip(),
+                "start_date":    row["period_start"],
+                "end_date":      row["period_end"],
+            })
+        except Exception:
+            continue
+    return rows
 
 
 def _roc_to_iso(roc_date_str: str) -> str:
@@ -144,7 +202,17 @@ def fetch_disposal_list(
     start_query = (target - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
     end_query   = target.strftime("%Y-%m-%d")
 
-    raw_rows = _fetch_twse_raw(start_query, end_query)
+    # 先試 TWSE、失敗 fallback 到 FinMind
+    source = "TWSE"
+    try:
+        raw_rows = _fetch_twse_raw(start_query, end_query)
+    except RuntimeError as twse_exc:
+        try:
+            raw_rows = _fetch_finmind_raw(start_query, end_query)
+            source = "FinMind"
+            print(f"  [disposal] ⚠️ TWSE 失敗、改用 FinMind fallback ({len(raw_rows)} rows): {twse_exc}")
+        except RuntimeError as fm_exc:
+            raise RuntimeError(f"TWSE + FinMind 都失敗: TWSE={twse_exc} | FinMind={fm_exc}")
 
     result: dict[str, dict] = {}
     for row in raw_rows:
@@ -178,7 +246,7 @@ def fetch_disposal_list(
             "t_minus_1":     t_minus_1,
             "times":         row["times"],
             "reason":        row["reason"],
-            "source":        "TWSE",
+            "source":        source,
         }
 
     return result
