@@ -44,12 +44,12 @@ DB = Path.home() / ".four_seasons" / "data.sqlite"
 # 已進場部位 (Phase 2 P&L 監控): (tk, name, entry, shares, stop)
 HELD = [
     ('6285', '啟碁', 315.0, 1000, 307.4),
-    ('2485', '兆赫', 73.4,  5000, 73.4),  # 6/2 plan: 結構破、開盤 ≥73.4 全出守成本
+    # 2485 兆赫 6/2 開盤賣 @ 73.5、實現 -$894
     ('1605', '華新', 40.1,  8000, 38.75),
 ]
 
 # 已實現 (今日累計)
-REALIZED = 0  # 6/2 新一天歸零
+REALIZED = -894  # 2485 兆赫 賣 73.5 守成本 (含手續費 + 證交稅)
 
 # 鎖定主候選 (Phase 1 開盤 entry screening): (tk, name, target_shares, stop, 理由)
 PLAN_PRIMARY = [
@@ -236,21 +236,31 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict, notified: se
     if not HELD:
         lines.append(f"{C.DIM}未進場、無持倉監控{C.END}")
     else:
+        from datetime import datetime as _dt
+        _now = _dt.now()
+        _market_open = (_now.hour, _now.minute) >= (9, 0) and (_now.hour, _now.minute) < (13, 30)
         for tk, name, entry, shares, stop in HELD:
             try:
-                snap = client.get_realtime_snapshot(tk) or {}
-                c = float(snap.get('close') or 0)
-                pre_market = c == 0
-                if pre_market:
-                    # 盤前：用 DB 昨收當參考
+                snap = client.get_realtime_snapshot(tk)
+                no_data = snap is None or not snap.get('close')
+                if no_data:
+                    if _market_open:
+                        # 盤中卻沒資料 = Fubon API 接不到
+                        data_status = f"{C.R}❌ API err{C.END}"
+                    else:
+                        data_status = f"{C.DIM}盤前{C.END}"
                     c = load_prev_close(tk) or entry
+                else:
+                    data_status = f"{C.G}LIVE{C.END}"
+                    c = float(snap['close'])
                 prev = prev_prices.get(tk)
                 prev_prices[tk] = c
                 pnl = (c - entry) * shares
                 pnl_pct = (c - entry)/entry*100 if entry else 0
                 dist = (c - stop)/c*100 if c else 0
-                if not pre_market:
+                if not no_data:
                     total_pnl += pnl
+                pre_market = no_data  # 向後相容
 
                 # 停損 alert
                 key = f"{tk}_break"
@@ -262,12 +272,12 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict, notified: se
                 else:
                     notified.discard(key)
 
-                if pre_market:
-                    tag = f"{C.DIM}盤前{C.END}"
+                if no_data:
+                    tag = data_status
                 else:
                     tag = '🔴破!' if dist<0 else ('⚠️緊' if dist<1 else '🟢')
                 lines.append(f"  {tk} {name:6} 入${entry:.1f}×{shares}股 | "
-                            f"{'昨' if pre_market else '現'}${c:.1f} | P&L {fmt_pnl(pnl, pnl_pct):>30} | 距停{fmt_dist(dist)} {tag}")
+                            f"{'昨' if no_data else '現'}${c:.1f} | P&L {fmt_pnl(pnl, pnl_pct):>30} | 距停{fmt_dist(dist)} {tag}")
             except Exception as e:
                 lines.append(f"  {tk} {name}: err {e}")
 
