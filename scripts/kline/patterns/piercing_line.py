@@ -48,21 +48,22 @@ def detect(df: pd.DataFrame) -> pd.Series:
     bull_trend = ((df["close"] > df["ma60"]) & ma60_rising) | (ma60_nan & (df["close"] >= g["prior_high_60"].shift(1) * 0.95).fillna(False))
     bear_trend = ((df["close"] < df["ma60"]) & ma60_falling) | (ma60_nan & (df["close"] <= g["prior_low_60"].shift(1) * 1.05).fillna(False))
 
-    # not_engulf: course says「長度尚未包覆整個黑K」. Apply 1% tolerance for
-    # boundary cases (case #2 華景電 6788 2022-01-24: close 201 vs prev_open
-    # 200 = +0.5% over). The pattern still meets piercing structure: gap-down
-    # open + recovery above midpoint; the $1 overshoot is within reading
-    # noise on a chart that doesn't render to pixel precision.
+    # Boundary tolerance — chart reading is not pixel-precise; course
+    # description「貫穿中值」/「未包覆整個黑K」are inherently visual.
+    # Apply 1% slack on both:
+    #   - not_engulf (case #2 華景電 6788 2022-01-24): close $1 (0.5%) over
+    #   - breaks_mid / above_mid (case #3 上曜 1316 2022-01-20): close 0.6%
+    #     above mid still reads as「跌穿」on the chart
     is_black = df["close"] < df["open"]
     open_high = df["open"] > prev_close
-    breaks_mid = df["close"] < prev_mid
+    breaks_mid = df["close"] < prev_mid * 1.01  # close within 1% above mid OK
     not_engulf = df["close"] > prev_open * 0.99  # within 1% below prev_open
 
     dark_cloud = bull_trend & prev_red & is_black & open_high & breaks_mid & not_engulf
 
     is_red = df["close"] > df["open"]
     open_low = df["open"] < prev_close
-    above_mid = df["close"] > prev_mid
+    above_mid = df["close"] > prev_mid * 0.99  # close within 1% below mid OK
     not_engulf_bull = df["close"] < prev_open * 1.01  # within 1% above prev_open
 
     piercing = bear_trend & prev_black & is_red & open_low & above_mid & not_engulf_bull
