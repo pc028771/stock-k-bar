@@ -7,7 +7,7 @@ course_sources:
     article_id: "2BA211D9CB1514E34D087249F9D627B7"
     quote: "Signal Class: context_only；沒有力竭背景，不是轉折訊號"
   - source: "PATTERN_DEFINITIONS §3 無力竭背景吞噬"
-    quote: "主力大會把這視為短期力量轉變，需配合分點才有意義"
+    quote: "無力竭背景的包覆不構成轉折訊號，僅代表短期力量轉變"
 
 branches:
   - id: B1_next_day_direction_continuation
@@ -21,7 +21,7 @@ branches:
       course_citation:
         source: "PATTERN_INVENTORY P19 包覆型態 context_only"
         article_id: "2BA211D9CB1514E34D087249F9D627B7"
-        quote: "Signal Class: context_only；主力大會把這視為短期力量轉變，需配合分點才有意義"
+        quote: "Signal Class: context_only；無力竭背景的包覆僅代表短期力量轉變，不是進出場訊號"
       notes: []
     next_branch_ids: []
 

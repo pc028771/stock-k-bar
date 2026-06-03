@@ -58,7 +58,6 @@ branches:
         quote: "今日 close < 前日 close（漲停鎖住價）→ 短線出場；與 attack_assumption_break 並存"
       notes:
         - "短線專用 — 本訊號對應『短線價差交易者』，不適用於核心波段持倉"
-        - "主力大 context: 若 broker_tier1_buy 仍強，可在出場後觀察是否重建攻擊"
     next_branch_ids: []
 
   # B3 — 跳空攻擊確認（B1 後繼）

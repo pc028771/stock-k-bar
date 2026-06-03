@@ -5,7 +5,7 @@ setup:
 course_sources:
   - source: "PATTERN_INVENTORY P25 咬定型態 determined_break"
     article_id: "A5C5E3F242DCE38F0E9061E3FBC85B81"
-    quote: "Signal Class: context_only / entry-support；多方咬定可作為主力大整理完突破訊號"
+    quote: "Signal Class: context_only / entry-support；多方咬定代表整理完畢後突破力量延續"
   - source: "PATTERN_DEFINITIONS §3 咬定型態"
     quote: "今日突破整理區高點（空方：跌破整理區低點）"
 
@@ -17,11 +17,11 @@ branches:
     next_day_n: 1
     action:
       type: context_only_signal
-      description: "咬定突破後隔日繼續站上，整理完後的力量延續；可作為主力大整合訊號的輔助"
+      description: "咬定突破後隔日繼續站上，整理完後的力量延續；代表 K線力量方向確立"
       course_citation:
         source: "PATTERN_INVENTORY P25 咬定型態"
         article_id: "A5C5E3F242DCE38F0E9061E3FBC85B81"
-        quote: "Signal Class: context_only / entry-support；多方咬定可作為主力大整理完突破訊號"
+        quote: "Signal Class: context_only / entry-support；多方咬定代表整理完畢後突破力量延續"
       notes: []
     next_branch_ids: []
 

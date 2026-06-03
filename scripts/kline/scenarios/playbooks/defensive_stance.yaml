@@ -39,7 +39,6 @@ branches:
         quote: "大盤穩定當日 → 該股應出現攻擊企圖（跳空或推升攻擊）"
       notes:
         - "[STUB-NEED-USER] S2: 「大盤悲觀期間」條件數字（大盤跌幅 Y%）老師未明示，currently 使用人工判斷觸發此 playbook"
-        - "主力大 context: broker_tier1_buy 強烈背書時此訊號更可靠（feedback_zhanqian_overrides）"
     next_branch_ids: []
 
   # B2 — 大盤回穩日，隔日收盤推升攻擊（日K退化版）
@@ -94,7 +93,7 @@ branches:
         article_id: "EF7308E2336BF7BCE94142944DB580B1"
         quote: "防守低點守住，等大盤穩定時應出現攻擊企圖"
       notes:
-        - "主力大 context: 若站前哥/管錢哥此時買盤，可提前關注進場時機"
+        - "防守期間觀察：ma60 多頭排列維持中、low_higher_than_prev 結構未破，則等待攻擊企圖出現"
     next_branch_ids: ["B1_market_stable_gap_up", "B2_market_stable_push_attack", "B3_break_defensive_low"]
 
 relevant_lights: []

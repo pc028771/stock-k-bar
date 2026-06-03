@@ -23,8 +23,7 @@ course_sources:
   - source: "明日 K 線 §46 空頭買在趨勢改變（續）"
     article_id: "37BCA73C79C3970B05E6AC9A17FAE417"
     quote: "多方轉折組合出現（母子晨星、紅K吞噬、孤島型態、母子雙星）+ 基本面 filter"
-  - source: "MEMORY project_zhuli_hitting_zone_philosophy"
-    quote: "打擊區出現大口吃肉；此型態為長線打擊區入場"
+
 
 branches:
   # B1 — 多方轉折組合出現後隔日跳空確認（最強訊號）
@@ -97,7 +96,6 @@ branches:
         quote: "再破底（close < 多方轉折組合的最低點）才出場"
       notes:
         - "[EXTRAS] 此 playbook 為投資目的（非短線），持有期較長"
-        - "主力大 context: broker_tier1_buy 強烈買盤加分（不用於 branch 觸發，僅 notes）"
     next_branch_ids: []
 
 relevant_lights: []
