@@ -21,6 +21,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 # Path setup
@@ -460,6 +461,31 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         df['prev_low'] = df['low'].shift(1)
         df['ma5_slope_5d'] = df['ma5'].diff(5)
         df['volume_ratio'] = df['vol_ratio_20']  # alias
+
+        # ── shakeout_strong 需要的衍生欄位 ──────────────────────────────────
+        # prior_high_60：過去 60 根 K 棒最高點（不含當日），突破基準
+        df['prior_high_60'] = df['high'].rolling(60, min_periods=20).max().shift(1)
+        # breakout_strength_pct：突破幅度（%）
+        df['breakout_strength_pct'] = (
+            df['close'] / df['prior_high_60'].replace(0, float('nan')) - 1
+        ) * 100
+        # breakout_next_low_open：次日開低（次日開盤 < 今日收盤）
+        df['breakout_next_low_open'] = (df['open'].shift(-1) < df['close']).fillna(False)
+        # overhead_supply_layer：過去 240 根中仍在當日收盤以上的 swing-high 峰數
+        # 使用簡化向量化計算（等效 features.py 邏輯，但 per-ticker df 不需 groupby）
+        LOOKBACK = 240
+        _n = len(df)
+        _peak_count = np.zeros(_n, dtype=float)
+        _close_arr = df['close'].to_numpy()
+        _high_arr = df['high'].to_numpy()
+        for _lag in range(1, LOOKBACK + 1):
+            _past_high = pd.Series(_high_arr).shift(_lag).to_numpy()
+            _past_max5 = pd.Series(_high_arr).shift(_lag).rolling(5, min_periods=5).max().to_numpy()
+            _is_peak = (_past_high == _past_max5) & ~np.isnan(_past_max5)
+            _peak_count += ((_past_high > _close_arr) & _is_peak).astype(float)
+        _has_history = np.arange(_n) >= 20
+        df['overhead_supply_layer'] = np.where(_has_history, _peak_count, np.nan)
+        # ────────────────────────────────────────────────────────────────────
 
         ticker_dfs[t] = df
 
