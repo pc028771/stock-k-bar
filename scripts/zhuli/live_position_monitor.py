@@ -73,11 +73,11 @@ HELD = [
     },
     {
         'ticker': '1605', 'name': '華新',
-        'cost': 40.1, 'shares': 8000, 'stop': 38.75,
+        'cost': 40.23, 'shares': 12000, 'stop': 38.75,
         'tactic': '核心', 'priority': 3,
         'source': '老師重壓',
         'sector': '紅海第二棒',
-        'note': '6/2 EOD Trigger 1 確認、外資 +16k'
+        'note': '6/2 8 張 @ $40.1 + 6/3 加 4 張 @ $40.5、均 $40.23'
     },
     {
         'ticker': '2885', 'name': '元大金',
