@@ -265,6 +265,15 @@ WATCH = [
         'sector': '機器人',
         'note': '🟢 機器人主流 + W底 量比 2.0x、距 MA10 +9.1%、MA10 停利 ~70.84'
     },
+    # 6/3 加 — 過去 5d shakeout 補進候選
+    {
+        'ticker': '6906', 'name': '微邦',
+        'ref_close': 103.5, 'stop': 95.0,
+        'tactic': '短打', 'priority': 2,
+        'source': 'shakeout_strong (5/26 confirmed)',
+        'sector': '電子小型',
+        'note': '🟢 5/26 shakeout 確認、距 MA10 +5%、6/3 紅 K +2.5% 反轉、漲幅初期'
+    },
 ]
 
 # 老師 6/2 明示族群框架 (大方向、scanner 命中後加分):
