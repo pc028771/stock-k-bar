@@ -741,13 +741,13 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 else:
                     entry_tag = f"{C.DIM}入價貼開盤{C.END}"
                 pnl = (c - entry)*shares
+                trig_compact = fmt_trigger(trig_key, trig_reason)
                 lines.append(
-                    f"  {level} {stars(pri):3} {tactic:8} {tk} {name:6}  "
-                    f"前${prev or 0:.1f}→開${o:.1f}→現${c:.1f}  入${entry:.1f}  [{sector}]"
+                    f"  {level} {stars(pri):3} {tk} {name:6}  "
+                    f"開${o:.1f}→${c:.1f} 入${entry:.1f} {fmt_pnl(pnl)}  "
+                    f"{C.DIM}停${stop} | {trig_compact}{C.END}"
                 )
-                lines.append(f"      {msg}")
-                lines.append(f"      {entry_tag} | 帳面 {fmt_pnl(pnl)} | 停損 ${stop}")
-                lines.append(f"      Trigger: {fmt_trigger(trig_key, trig_reason)}")
+                lines.append(f"      {msg} | {entry_tag}")
             except Exception as e:
                 lines.append(f"  {tk} err: {e}")
         lines.append("")
@@ -779,13 +779,13 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
             level, msg, sev = classify_open(o, prev) if prev else ('?', '無前收', 'unknown')
             chg_open = (o - prev)/prev*100 if prev else 0
             cost = o * shares
+            trig_compact = fmt_trigger(trig_key, trig_reason)
             lines.append(
-                f"  {level} {stars(pri):3} {tactic:8} {tk} {name:6}  "
-                f"前${prev or 0:.1f}→開${o:.1f} ({chg_open:+.1f}%)  現${c:.1f}  [{sector}]"
+                f"  {level} {stars(pri):3} {tk} {name:6}  "
+                f"前${prev or 0:.1f}→開${o:.1f} ({chg_open:+.1f}%) 現${c:.1f}  "
+                f"{C.DIM}停${stop} | {trig_compact}{C.END}"
             )
-            lines.append(f"      {msg}")
-            lines.append(f"      sizing: {shares} 股 ≈ ${cost:,.0f}、停損 ${stop}、{reason}")
-            lines.append(f"      Trigger: {fmt_trigger(trig_key, trig_reason)}")
+            lines.append(f"      {msg} | sizing {shares}股 ${cost:,.0f} | {reason[:60]}")
             if sev in ('skip', 'warn'):
                 skipped.append(tk)
         except Exception as e:
