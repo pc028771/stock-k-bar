@@ -1,0 +1,43 @@
+pattern: neutral_engulfing
+setup:
+  name: context_only_no_exhaustion
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P19 包覆型態 engulfing_pattern_neutral"
+    article_id: "2BA211D9CB1514E34D087249F9D627B7"
+    quote: "Signal Class: context_only；沒有力竭背景，不是轉折訊號"
+  - source: "PATTERN_DEFINITIONS §3 無力竭背景吞噬"
+    quote: "主力大會把這視為短期力量轉變，需配合分點才有意義"
+
+branches:
+  - id: B1_next_day_direction_continuation
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "無力竭背景的包覆，隔日方向延續；僅代表短期力量轉變，不是進出場訊號"
+      course_citation:
+        source: "PATTERN_INVENTORY P19 包覆型態 context_only"
+        article_id: "2BA211D9CB1514E34D087249F9D627B7"
+        quote: "Signal Class: context_only；主力大會把這視為短期力量轉變，需配合分點才有意義"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_reversal
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "無力竭背景的包覆後方向反轉，短期力量再度轉變；仍屬 context_only"
+      course_citation:
+        source: "PATTERN_INVENTORY P19 包覆型態 context_only"
+        article_id: "2BA211D9CB1514E34D087249F9D627B7"
+        quote: "Signal Class: context_only；包覆者必須是力量型K線"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

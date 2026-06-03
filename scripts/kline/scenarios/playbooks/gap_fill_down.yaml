@@ -1,0 +1,43 @@
+pattern: gap_fill_down
+setup:
+  name: context_only_downward_gap_filled
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P27 下缺口被回補 gap_fill_pattern"
+    article_id: "5CB9CD820B2BEF0AC861FFEDB89CD6B0"
+    quote: "向下缺口被回補（空方力量消失）；今日close > 缺口頂"
+  - source: "PATTERN_DEFINITIONS §3 缺口回補型態"
+    quote: "Signal Class: context_only"
+
+branches:
+  - id: B1_next_day_continues_higher_after_fill
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "向下跳空缺口回補後隔日繼續上漲，空方力量消失確認"
+      course_citation:
+        source: "PATTERN_INVENTORY P27 向下缺口被回補"
+        article_id: "5CB9CD820B2BEF0AC861FFEDB89CD6B0"
+        quote: "向下缺口被回補（空方力量消失）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_falls_back
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "回補缺口後隔日又跌破，缺口回補訊號失效，空方力量可能恢復"
+      course_citation:
+        source: "PATTERN_INVENTORY P27 缺口回補型態"
+        article_id: "5CB9CD820B2BEF0AC861FFEDB89CD6B0"
+        quote: "N通常≤5（短期內回補才有意義）；後續再破則失效"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

@@ -1,0 +1,10 @@
+light_id: pessimistic_stock_structural
+trigger_condition:
+  all:
+    - "today.close": "< prior_low_60"
+    - "context.ma20_will_rise": false
+severity: warn
+course_citation:
+  source: "明日 K 線 §27 明日股價不樂觀的個股 K 線"
+  quote: "結構性弱勢：跌破 60 日低點且均線走弱，不樂觀的個股特徵"
+recommendation_text: "股價創 60 日新低且 MA20 下彎，符合結構性弱勢盤點特徵。此類個股明日走勢不樂觀，多方不宜進場，空手者觀望，持多者審慎評估停損位置。"

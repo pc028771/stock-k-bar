@@ -1,0 +1,59 @@
+pattern: piercing_line
+setup:
+  name: context_only_piercing_pattern
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P20 貫穿型態 piercing_pattern"
+    article_id: "53E0BA326CBB753118E3F8C6232F7F0F"
+    quote: "Signal Class: context_only；烏雲罩頂/曙光乍現，注意：沒到吞噬程度"
+  - source: "PATTERN_DEFINITIONS §3 貫穿型態"
+    quote: "烏雲罩頂：收盤跌破D-1中值但未達吞噬；曙光乍現：收盤站上D-1中值但未達吞噬"
+
+branches:
+  - id: B1_next_day_confirms_penetration_direction
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "貫穿型態後方向繼續，中值貫穿的力量訊號延續；context_only，不足以構成進出場依據"
+      course_citation:
+        source: "PATTERN_INVENTORY P20 貫穿型態 context_only"
+        article_id: "53E0BA326CBB753118E3F8C6232F7F0F"
+        quote: "Signal Class: context_only；烏雲罩頂：收盤跌破D-1中值"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_full_reversal_engulfing
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "後續達到吞噬程度（超過前日高點），貫穿型態升格；原貫穿意義被更強訊號取代"
+      course_citation:
+        source: "PATTERN_INVENTORY P20 貫穿型態"
+        article_id: "53E0BA326CBB753118E3F8C6232F7F0F"
+        quote: "注意：沒到吞噬程度（close > prev_open）；若達吞噬則升格為吞噬型態"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_stalls
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "貫穿後整理，方向仍待確認；等待後續 K 線"
+      course_citation:
+        source: "PATTERN_INVENTORY P20 貫穿型態 context_only 觀察"
+        article_id: "53E0BA326CBB753118E3F8C6232F7F0F"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

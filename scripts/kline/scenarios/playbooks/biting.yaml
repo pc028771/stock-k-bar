@@ -1,0 +1,43 @@
+pattern: biting
+setup:
+  name: context_only_determined_break
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P25 咬定型態 determined_break"
+    article_id: "A5C5E3F242DCE38F0E9061E3FBC85B81"
+    quote: "Signal Class: context_only / entry-support；多方咬定可作為主力大整理完突破訊號"
+  - source: "PATTERN_DEFINITIONS §3 咬定型態"
+    quote: "今日突破整理區高點（空方：跌破整理區低點）"
+
+branches:
+  - id: B1_next_day_breakout_holds
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "咬定突破後隔日繼續站上，整理完後的力量延續；可作為主力大整合訊號的輔助"
+      course_citation:
+        source: "PATTERN_INVENTORY P25 咬定型態"
+        article_id: "A5C5E3F242DCE38F0E9061E3FBC85B81"
+        quote: "Signal Class: context_only / entry-support；多方咬定可作為主力大整理完突破訊號"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_falls_back
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "突破後隔日回到整理區以下，咬定意義失效"
+      course_citation:
+        source: "PATTERN_INVENTORY P25 咬定型態"
+        article_id: "A5C5E3F242DCE38F0E9061E3FBC85B81"
+        quote: "今日突破整理區高點；後續回落則失效"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

@@ -1,0 +1,59 @@
+pattern: morning_star_harami
+setup:
+  name: bear_exhaustion_harami_reversal
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P04 母子晨星 morning_star_harami"
+    article_id: "978854A6B0757492FB6A99F8E92A41EC"
+    quote: "Signal Class: exit（空單回補）；今日收盤站在前日黑K中值之上"
+  - source: "PATTERN_INVENTORY P06 母子雙星 harami_double_star"
+    article_id: "8303539A2CA4AC0E8FEB24E68BABF933"
+    quote: "強烈訊號變體：第3日open > prev_high（向上跳空），缺口越大力量越強"
+
+branches:
+  - id: B1_next_day_gap_up_attack
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "向上跳空確認母子晨星力竭，課程說明缺口越大力量越強；空單回補，非多方進場"
+      course_citation:
+        source: "PATTERN_INVENTORY P06 強烈訊號變體"
+        article_id: "8303539A2CA4AC0E8FEB24E68BABF933"
+        quote: "強烈訊號變體：第3日open > prev_high（向上跳空），缺口越大力量越強"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_close_above_midpoint
+    when:
+      "next_day.close": "> prev.close"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "隔日收盤進一步站上，母子晨星力竭意義維持；繼續觀察，不是進場訊號"
+      course_citation:
+        source: "PATTERN_INVENTORY P04 母子晨星"
+        article_id: "978854A6B0757492FB6A99F8E92A41EC"
+        quote: "今日收盤站在前日黑K中值之上"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_drops_to_new_low
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日再創新低，母子晨星型態失效，空方走勢繼續"
+      course_citation:
+        source: "PATTERN_INVENTORY P04 低檔判斷"
+        article_id: "978854A6B0757492FB6A99F8E92A41EC"
+        quote: "空方力竭背景：股價先空頭+創新低（黑K是破底長黑）"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

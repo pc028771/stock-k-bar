@@ -1,0 +1,11 @@
+light_id: top_formation_three_criteria
+trigger_condition:
+  all:
+    - "today.close": "< prev_high_60"
+    - "today.close": "< prev.close"
+    - "context.ma60_will_rise": false
+severity: critical
+course_citation:
+  source: "明日 K 線 §17 頭部成型"
+  quote: "頭部三要件：大盤走弱、基本面轉差、是否被拉過頭"
+recommendation_text: "警示：股價跌破 60 日高點、收黑 K 且 MA60 轉向下彎，頭部三要件已有兩個滿足。需確認基本面是否同步走弱，若三要件全中則頭部成型，多單應嚴格執行停損。"

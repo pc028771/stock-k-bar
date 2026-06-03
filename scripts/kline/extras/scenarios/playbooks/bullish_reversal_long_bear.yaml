@@ -1,0 +1,103 @@
+# B08 [EXTRAS]: 空頭買在趨勢改變 (entry — 投資目的，非短線)
+# Source: INVENTORY B08 §45 §46
+#         C160510B27C815265E2B0DD319101A7A / 37BCA73C79C3970B05E6AC9A17FAE417
+#
+# ⚠️ EXTRAS — 預設 OFF；需 --extras 啟用
+# 理由：需要基本面資料（EPS、本益比），屬課程外條件（CLAUDE.md 課程外條件隔離規則）
+#
+# required_context notes:
+#   [STUB-NEED-USER] S5: 「空頭已超過 3 個月」精確計算老師未明示
+#   [STUB-NEED-USER] S8: 基本面 filter（EPS/本益比低於應有價值）數字老師未明示
+# 上述 STUB 未補 → advisor 仍可載入此 playbook，但在 notes 標 warn 並建議人工確認
+
+pattern: bullish_reversal_long_bear
+
+setup:
+  name: extras_bullish_reversal_long_bear
+  required_context: []
+
+course_sources:
+  - source: "明日 K 線 §45 空頭買在趨勢改變"
+    article_id: "C160510B27C815265E2B0DD319101A7A"
+    quote: "背景條件：大盤已走空 ≥ 3 個月（or 個股已走空 ≥ 3 個月）"
+  - source: "明日 K 線 §46 空頭買在趨勢改變（續）"
+    article_id: "37BCA73C79C3970B05E6AC9A17FAE417"
+    quote: "多方轉折組合出現（母子晨星、紅K吞噬、孤島型態、母子雙星）+ 基本面 filter"
+  - source: "MEMORY project_zhuli_hitting_zone_philosophy"
+    quote: "打擊區出現大口吃肉；此型態為長線打擊區入場"
+
+branches:
+  # B1 — 多方轉折組合出現後隔日跳空確認（最強訊號）
+  - id: B1_reversal_pattern_gap_up_confirm
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "空頭走勢中多方轉折組合隔日跳空確認，趨勢轉折訊號最強；可進場（投資目的）"
+      course_citation:
+        source: "明日 K 線 §45 §46 空頭多方轉折 + 跳空確認"
+        article_id: "C160510B27C815265E2B0DD319101A7A"
+        quote: "多方轉折組合出現 → 隔日跳空確認趨勢改變"
+      notes:
+        - "[EXTRAS] 此訊號需搭配基本面 filter（EPS/本益比）— 課程外條件，需人工確認"
+        - "[STUB-NEED-USER] S5: 「空頭已超過 3 個月」精確計算老師未明示；需人工確認背景條件"
+        - "[STUB-NEED-USER] S8: 基本面 filter 數字老師未明示（排除本質非常爛的公司）"
+        - "多方轉折組合來源：母子晨星、紅K吞噬、孤島型態、母子雙星（已實作於 patterns/）"
+    next_branch_ids: ["B3_hold_stop_loss_watch"]
+
+  # B2 — 多方轉折組合出現後隔日收盤延續（次強訊號）
+  - id: B2_reversal_pattern_close_above_today_high
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "空頭走勢中多方轉折組合隔日收盤突破今日高點，趨勢轉折訊號確認"
+      course_citation:
+        source: "明日 K 線 §45 §46 空頭多方轉折確認"
+        article_id: "37BCA73C79C3970B05E6AC9A17FAE417"
+        quote: "多方轉折組合出現 → 隔日 close 超過轉折組合高點"
+      notes:
+        - "[EXTRAS] 此訊號需搭配基本面 filter — 課程外條件，需人工確認"
+        - "[STUB-NEED-USER] S5: 空頭背景條件（≥ 3 個月）需人工確認"
+    next_branch_ids: ["B3_hold_stop_loss_watch"]
+
+  # B3 — 失效（停損）：再破底
+  - id: B3_stop_loss_new_low
+    when:
+      "next_day.close": "< prior_low_60"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: stop_loss_trigger
+      description: "再度破底（close < 多方轉折組合最低點），失效停損出清"
+      course_citation:
+        source: "明日 K 線 §46 空頭轉折失效停損"
+        article_id: "37BCA73C79C3970B05E6AC9A17FAE417"
+        quote: "失效（停損）：再破底（close < 多方轉折組合的最低點）"
+      notes:
+        - "收盤確認原則：以收盤為準，不以盤中低點判斷"
+    next_branch_ids: []
+
+  # B4 — 持有觀察期（B1/B2 後繼）
+  - id: B3_hold_stop_loss_watch
+    when:
+      "next_day.close": ">= today.low"
+    confirm_at: next_close
+    next_day_n: 2
+    action:
+      type: watch_only
+      description: "進場後守在轉折組合低點以上，持有觀察；停損條件為收盤跌破轉折組合最低點"
+      course_citation:
+        source: "明日 K 線 §46 空頭轉折後持有觀察"
+        article_id: "37BCA73C79C3970B05E6AC9A17FAE417"
+        quote: "再破底（close < 多方轉折組合的最低點）才出場"
+      notes:
+        - "[EXTRAS] 此 playbook 為投資目的（非短線），持有期較長"
+        - "主力大 context: broker_tier1_buy 強烈買盤加分（不用於 branch 觸發，僅 notes）"
+    next_branch_ids: []
+
+relevant_lights: []

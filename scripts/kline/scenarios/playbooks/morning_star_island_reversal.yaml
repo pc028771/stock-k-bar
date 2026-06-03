@@ -1,0 +1,58 @@
+pattern: morning_star_island_reversal
+setup:
+  name: bear_exhaustion_island_reversal_bull
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P14 晨星+島狀反轉 island_reversal_bull"
+    article_id: "29F3734E9FE458A7138B770EB29C29F8"
+    quote: "Signal Class: exit（空單回補）— 課程明示不是進場訊號"
+  - source: "PATTERN_DEFINITIONS §3 晨星島狀反轉"
+    quote: "右缺口隔天又被回補則失敗"
+
+branches:
+  - id: B1_next_day_gap_holds_no_fill
+    when:
+      "next_day.gap_down": false
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "右側向上跳空缺口隔日未被回補，晨星島狀反轉意義保留；空單回補，非多方進場"
+      course_citation:
+        source: "PATTERN_INVENTORY P14 失敗條件"
+        article_id: "29F3734E9FE458A7138B770EB29C29F8"
+        quote: "右缺口隔天又被回補（close < gap_open）→失敗"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_gap_filled
+    when:
+      "next_day.fills_gap": true
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "右側向上跳空缺口被回補，課程明示此為失敗條件，空方力竭意義消失"
+      course_citation:
+        source: "PATTERN_INVENTORY P14 失敗條件"
+        article_id: "29F3734E9FE458A7138B770EB29C29F8"
+        quote: "右缺口隔天又被回補（close < gap_open）→ 失敗"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_encounters_overhead_supply
+    when:
+      "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "跳空後遇上方套牢區壓力，課程提示此為另一失敗場景；觀察能否化解壓力"
+      course_citation:
+        source: "PATTERN_INVENTORY P14 失敗條件"
+        article_id: "29F3734E9FE458A7138B770EB29C29F8"
+        quote: "上去馬上遇到套牢區（overhead_supply_layer > 0 after gap）→ 失敗"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

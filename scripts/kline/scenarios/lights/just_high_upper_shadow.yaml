@@ -1,0 +1,11 @@
+light_id: just_high_upper_shadow
+trigger_condition:
+  all:
+    - "today.high": ">= prev_high_60"
+    - "today.close": "< today.high"
+    - "today.close": "> prev.close"
+severity: info
+course_citation:
+  source: "明日 K 線 §10 剛創新高上影線高點"
+  quote: "剛創新高出現上影線，明日預期需攻擊企圖確認"
+recommendation_text: "今日剛創 60 日新高但收盤出現上影線。明日需觀察是否出現攻擊企圖（跳空攻擊或推升攻擊），若明日收盤仍無法突破今日高點則遇壓意義顯現。"

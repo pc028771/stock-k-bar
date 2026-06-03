@@ -1,0 +1,10 @@
+light_id: high_black_k_warning
+trigger_condition:
+  all:
+    - "today.close": "< today.open"
+    - "today.high": ">= prev_high_60"
+severity: warn
+course_citation:
+  source: "明日 K 線 §11 當黑 K 出現的時候"
+  quote: "高檔黑 K 後需判斷是否為主力自演抵抗或真正轉弱"
+recommendation_text: "高檔位置出現黑 K，需確認明日是否繼續走弱。若為高點附近的黑 K，須判斷是抵抗意義（短線）或趨勢轉弱（中期）；明日若再出現黑 K 且跌破今日低點，多方轉弱訊號增強。"

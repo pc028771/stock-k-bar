@@ -1,0 +1,59 @@
+pattern: bear_engulfing
+setup:
+  name: bull_exhaustion_after_engulfing
+  required_context: []
+course_sources:
+  - source: "PATTERN_DEFINITIONS §2 空頭吞噬規則"
+    article_id: "E79401532D60CC63B302926C2C33FB50"
+    quote: "黑包紅包覆線，這根黑K更強，自然是轉折意義更大"
+  - source: "PATTERN_INVENTORY P02 bear_engulfing"
+    quote: "Signal Class: exit（多單出場）/ context_only"
+
+branches:
+  - id: B1_next_day_weak_close_below_today_low
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "空頭吞噬後隔日繼續下跌，多方力竭意義確認；多單持有者應留意出場"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §2 空頭吞噬"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+        quote: "空頭吞噬 Signal Class: exit（多單出場）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_rally_above_today_high
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "力竭意義失效：後續收盤突破空頭吞噬 K 高點，原轉折意義消失"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §2 失效條件"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+        quote: "若股價再次突破，原轉折意義消失（subsequent close > engulfing_bar_high 後失效）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_consolidation
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日整理於今日範圍內，力竭方向仍待確認；不追空，持續觀察"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §2 空頭吞噬觀察期"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

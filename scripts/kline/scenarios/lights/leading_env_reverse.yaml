@@ -1,0 +1,10 @@
+light_id: leading_env_reverse
+trigger_condition:
+  all:
+    - "today.close": "< prev.close"
+    - "context.sector_consensus_direction": "== bull"
+severity: warn
+course_citation:
+  source: "明日 K 線 §35 領先環境出現趨勢反向"
+  quote: "大盤領先個股趨勢，或個股獨自反向環境：兩者都是異常訊號"
+recommendation_text: "族群/大盤方向偏多但個股今日收黑，出現領先反向特徵。需辨別是個股獨自走弱（籌碼問題）還是大盤領先訊號尚未反映。個股若持續反向環境走勢，多方力量存疑。"

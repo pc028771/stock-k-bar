@@ -1,0 +1,10 @@
+light_id: limit_up_next_day_stats
+trigger_condition:
+  all:
+    - "today.close": ">= prev.close"
+    - "today.high": ">= prev_high_60"
+severity: info
+course_citation:
+  source: "明日 K 線 §12 漲停板後再漲機率"
+  quote: "漲停板隔日統計觀念：非所有漲停都有連漲機率"
+recommendation_text: "今日出現強勢上漲並站上 60 日新高。需以統計觀念看待漲停後隔日走勢，攻擊力量是否延續取決於是否有主力意圖支撐，不可一概認為漲停後必然續漲。"

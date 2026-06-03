@@ -1,0 +1,11 @@
+light_id: lowprice_first_pull_exit
+trigger_condition:
+  all:
+    - "today.close": "< prev.close"
+    - "today.close": "< prev_high_60"
+    - "today.close": "> prior_low_60"
+severity: warn
+course_citation:
+  source: "明日 K 線 §09 低價股的處理節奏"
+  quote: "第一次的拉抬結束就離場；箱型誤謬不適用低價股"
+recommendation_text: "低價股出現回檔，可能已是第一次拉抬結束的訊號。低價股不適用箱型區間操作邏輯，第一次拉抬結束應果斷離場，不宜等待第二次。"

@@ -1,0 +1,11 @@
+light_id: weak_bull_trendline_only
+trigger_condition:
+  all:
+    - "today.close": "> prev.close"
+    - "today.close": "< prev_high_60"
+    - "context.ma5_will_rise": true
+severity: info
+course_citation:
+  source: "明日 K 線 §05 微弱多方趨勢"
+  quote: "不得已才用短期趨勢線；股價小紅但無攻擊力量"
+recommendation_text: "目前僅有微弱多方趨勢（MA5 向上＋小紅 K），無轉折組合佐證。不得已才使用短期趨勢線判斷，持有需克制『想賣』的心理。"

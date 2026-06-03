@@ -1,0 +1,43 @@
+pattern: meeting
+setup:
+  name: context_only_meeting_lines
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P22 遭遇型態 meeting_lines"
+    article_id: "4A2519730555027A6612FC9C77BE51FB"
+    quote: "Signal Class: context_only；今日收盤≈前日收盤（缺口封閉），顏色相反"
+  - source: "PATTERN_DEFINITIONS §3 遭遇型態"
+    quote: "實際意義：缺口封閉（attack gap filled）"
+
+branches:
+  - id: B1_next_day_continues_same_direction
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "遭遇型態後方向延續，缺口封閉意義已消化；觀察後續攻擊是否成立"
+      course_citation:
+        source: "PATTERN_INVENTORY P22 遭遇型態"
+        article_id: "4A2519730555027A6612FC9C77BE51FB"
+        quote: "Signal Class: context_only；實際意義：缺口封閉（attack gap filled）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_reversal
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "遭遇型態後方向反轉，攻擊缺口封閉後原方向力量弱化"
+      course_citation:
+        source: "PATTERN_INVENTORY P22 遭遇型態 context"
+        article_id: "4A2519730555027A6612FC9C77BE51FB"
+        quote: "前一日是力量型K線（長紅或長黑），且帶跳空缺口"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

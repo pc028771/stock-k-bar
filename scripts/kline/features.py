@@ -451,4 +451,140 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index(level=0, drop=True)
     )
 
+    # =====================================================================
+    # Task 2.4 additions — 明日 K 線 INVENTORY C03 / C04 / C05 / C07
+    # Added at the END; no existing column is modified.
+    # =====================================================================
+
+    # === C03: 攻擊意圖區 / 攻擊企圖區 boundary features ===
+    # Course source: 明日 K 線 INVENTORY.md §C03 (第 23、32 篇)
+    #
+    # 攻擊意圖區 = 從低檔往上靠近前高、賣壓化解的區段（突破前高之前）
+    # 攻擊企圖區 = 突破前高之後的價位區段（突破點往上，不可跌回意圖區）
+    #
+    # Columns:
+    #   attack_intent_zone_high — 意圖區上緣（突破前高當日的高點）
+    #                             = prior_high_60 at the breakout bar
+    #                             Implementation: rolling window max of
+    #                             (high on bars where close > prior_high_60),
+    #                             using a 20-bar lookback.
+    #
+    #   attack_intent_zone_low  — 意圖區下緣（突破前高之前 N 日的最低 close）
+    #                             退化值 [STUB-NEED-USER S6]:
+    #                             min(close) over the 20 bars before breakout.
+    #                             Implementation: rolling 20-bar prior min close.
+    #
+    #   intent_zone_break       — 今日 close 跌回攻擊意圖區（跌破意圖區上緣）
+    #                             = today_close < attack_intent_zone_high
+    #
+    # Note on attack_intent_zone_high:
+    #   We track the most recent prior_high_60 value among bars where a breakout
+    #   occurred in the trailing 20 days. If no breakout occurred, we fall back
+    #   to the current prior_high_60 as the "potential" intent zone ceiling.
+    #
+    # [STUB-NEED-USER S6]: 意圖區下緣（賣壓化解起點）的精確計算需 user 確認。
+    #   退化值：過去 20 日最低收盤，作為賣壓化解區段的下緣估算。
+
+    # 攻擊意圖區上緣：找過去 20 天內最近一次突破前高的當日 prior_high_60
+    # Vectorized: on each day, look back up to 20 bars for a breakout bar
+    # (close > prior_high_60) and pick the prior_high_60 of that bar.
+    # For simplicity / efficiency: roll 20-bar max of (prior_high_60 * breakout_flag).
+    # When no breakout in window, returns NaN.
+    breakout_ph60 = df["prior_high_60"].where(
+        (df["close"] > df["prior_high_60"]).fillna(False)
+    )
+    df["attack_intent_zone_high"] = (
+        g["close"]
+        .transform(lambda _s: breakout_ph60.reindex(_s.index)
+                   .rolling(20, min_periods=1).apply(
+                       lambda x: x.dropna().iloc[-1] if x.dropna().shape[0] > 0 else float("nan"),
+                       raw=False,
+                   ))
+    )
+
+    # 攻擊意圖區下緣：過去 20 日收盤最低值（退化值 STUB S6）
+    df["attack_intent_zone_low"] = g["close"].transform(
+        lambda s: s.shift(1).rolling(20, min_periods=1).min()
+    )
+
+    # 跌回攻擊意圖區 flag
+    df["intent_zone_break"] = (
+        df["close"] < df["attack_intent_zone_high"].fillna(df["prior_high_60"])
+    ).fillna(False)
+
+    # === C04: 剛創新高 label ===
+    # Course source: 明日 K 線 INVENTORY.md §C04 (第 03、10、24、40 篇)
+    #
+    # 「剛創新高」= 今日或前 1~2 日的高點 == 當時的 60 日前高（prior_high_60）
+    # 用途：合併十字線、攻擊成本、防守姿態等多個明日 K 線劇本都需要此位置條件。
+    #
+    # Definition (from INVENTORY §C04):
+    #   is_just_broke_high = (today.high >= prior_high_60)
+    #                      OR (prev.high >= prev.prior_high_60)
+    #                      OR (prev_prev.high >= prev_prev.prior_high_60)
+    #
+    # "≥" is used (not "==") because a gap-up breakout bar may close above
+    # prior_high_60 while the high itself exceeds it. The INVENTORY wording
+    # "(high == prior_high_60)" is a course-level conceptual shorthand for
+    # "touched or broke the 60-day prior high".
+
+    prev_high_ph60_match = (
+        g["high"].shift(1) >= g["prior_high_60"].shift(1)
+    ).fillna(False)
+    prev2_high_ph60_match = (
+        g["high"].shift(2) >= g["prior_high_60"].shift(2)
+    ).fillna(False)
+
+    df["is_just_broke_high"] = (
+        (df["high"] >= df["prior_high_60"])
+        | prev_high_ph60_match
+        | prev2_high_ph60_match
+    ).fillna(False)
+
+    # === C05: 漲停鎖住 flag ===
+    # Course source: 明日 K 線 INVENTORY.md §C05 (第 20、28 篇)
+    #
+    # 漲停鎖住 = 收盤在漲停價 + 全天最高 == 收盤（沒有上影線）+ 全天最低 ≥ 前日收盤
+    #
+    # Taiwan market: 漲停 = prev_close * 1.10（無條件截到 tick 0.1）
+    # Proxy: use close >= prev_close * 1.095 to avoid tick-rounding precision issues.
+    # (INVENTORY definition uses exact == ; 0.095 threshold matches zhuli/entry usage.)
+    #
+    # Conditions (all AND):
+    #   1. close >= prev_close * 1.095   — 收盤達漲停（含 tick 容差）
+    #   2. high == close                 — 無上影線（鎖住，無賣壓突破）
+    #   3. low >= prev_close             — 全天最低 ≥ 參考價（從不跌回昨收）
+    _limit_up_threshold = 1.095  # proxy for +10% limit; see zhuli/entry/open_signal_filter.py
+    df["is_limit_up_locked"] = (
+        (df["close"] >= df["prev_close"] * _limit_up_threshold)
+        & (df["high"] == df["close"])
+        & (df["low"] >= df["prev_close"])
+    ).fillna(False)
+
+    # === C07: 異常放量 flag ===
+    # Course source: 明日 K 線 INVENTORY.md §C07 (第 40 篇)
+    #
+    # 「明顯放量」= 本來無量，突然出現的大量（老師定性描述，無數字）
+    #
+    # [STUB-NEED-USER S1]:
+    #   K (vol_ma_60 multiplier) = 2.0
+    #   J (vol_max_60 multiplier) = 1.5
+    #   退化公式（INVENTORY §C07 退化值）:
+    #     vol > vol_ma_60 * 2 AND vol > vol_max_60.shift(1) * 1.5
+    #   上述數字待 user 拍板；替換時只需改 _ANOMALOUS_VOL_MA_K / _ANOMALOUS_VOL_MAX_J。
+    _ANOMALOUS_VOL_MA_K = 2.0    # [STUB-NEED-USER S1] vol vs 60d avg multiplier
+    _ANOMALOUS_VOL_MAX_J = 1.5   # [STUB-NEED-USER S1] vol vs 60d rolling max multiplier
+
+    vol_ma_60 = g["volume"].transform(
+        lambda s: s.shift(1).rolling(60, min_periods=60).mean()
+    )
+    vol_max_60_prev = g["volume"].transform(
+        lambda s: s.shift(1).rolling(60, min_periods=60).max()
+    )
+
+    df["is_anomalous_volume"] = (
+        (df["volume"] > vol_ma_60 * _ANOMALOUS_VOL_MA_K)
+        & (df["volume"] > vol_max_60_prev * _ANOMALOUS_VOL_MAX_J)
+    ).fillna(False)
+
     return df

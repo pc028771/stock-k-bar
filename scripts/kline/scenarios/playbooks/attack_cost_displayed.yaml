@@ -1,0 +1,98 @@
+# B01 + B02: 攻擊成本顯現日 + 跌破 (exit)
+# Source: INVENTORY B01 §20 / B44741FE824D0798CC91C1521D5B0FF7
+#         INVENTORY B02 §20 §28 / E4383C1F106A64F729CAD12E0D4B25F2
+#
+# required_context notes:
+#   is_limit_up_locked — [STUB-NEED-USER] S3: 漲停鎖住 feature (features.py C05)
+#   is_just_broke_high — [STUB-NEED-USER] S3: 剛創新高 feature (features.py C04)
+#   is_anomalous_volume — [STUB-NEED-USER] S1: 異常放量 K/J 數字待拍板 (features.py C07)
+# 若以上任一 feature 為 None，advisor 自動略過並在 notes 標 warn。
+
+pattern: attack_cost_displayed
+
+setup:
+  name: attack_cost_entry_and_break
+  required_context:
+    - is_limit_up_locked
+    - is_just_broke_high
+    - is_anomalous_volume
+
+course_sources:
+  - source: "明日 K 線 §20 攻擊成本顯現日"
+    article_id: "B44741FE824D0798CC91C1521D5B0FF7"
+    quote: "突破前高當日鎖漲停，最大量就在漲停板價位 — 這就是攻擊成本"
+  - source: "明日 K 線 §28 突破後明日不攻擊"
+    article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+    quote: "隔天跌破攻擊成本，代表主力不打算繼續攻擊，短線出場"
+
+branches:
+  # B1 — 隔日未跌破攻擊成本 → 持有，等待跳空或推升攻擊
+  - id: B1_next_day_holds_attack_cost
+    when:
+      "next_day.low": ">= attack_cost"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日最低未跌破攻擊成本（今日漲停鎖住價），持有等待跳空攻擊或推升攻擊"
+      course_citation:
+        source: "明日 K 線 §20 攻擊成本顯現日持有邏輯"
+        article_id: "B44741FE824D0798CC91C1521D5B0FF7"
+        quote: "隔天沒跌破攻擊成本 → 持續持有，等待跳空攻擊 / 推升攻擊"
+      notes:
+        - "[STUB-NEED-USER] S3: 攻擊成本 = 漲停鎖住價 (is_limit_up_locked)，tick 級最大量確認降格為日K退化版"
+    next_branch_ids: ["B3_gap_attack", "B4_push_attack"]
+
+  # B2 — 隔日跌破攻擊成本 → 短線出場訊號 (B02)
+  - id: B2_next_day_breaks_attack_cost
+    when:
+      "next_day.close": "< attack_cost"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: "隔日收盤跌破攻擊成本，主力放棄攻擊意圖，短線價差交易者出場"
+      course_citation:
+        source: "明日 K 線 §20 §28 攻擊成本跌破出場"
+        article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+        quote: "今日 close < 前日 close（漲停鎖住價）→ 短線出場；與 attack_assumption_break 並存"
+      notes:
+        - "短線專用 — 本訊號對應『短線價差交易者』，不適用於核心波段持倉"
+        - "主力大 context: 若 broker_tier1_buy 仍強，可在出場後觀察是否重建攻擊"
+    next_branch_ids: []
+
+  # B3 — 跳空攻擊確認（B1 後繼）
+  - id: B3_gap_attack
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 2
+    action:
+      type: entry_signal
+      description: "跳空攻擊確認：第二日開盤跳空向上，突破意圖延續，可加碼或持有（需已持有 ≥10% 才考慮加碼）"
+      course_citation:
+        source: "明日 K 線 §20 跳空攻擊"
+        article_id: "B44741FE824D0798CC91C1521D5B0FF7"
+        quote: "等待跳空攻擊 / 推升攻擊"
+      notes:
+        - "加碼須符合 feedback_add_position_rule：已脫離成本 ≥10% 才可加碼"
+    next_branch_ids: []
+
+  # B4 — 推升攻擊確認（B1 後繼，日K退化版）
+  - id: B4_push_attack
+    when:
+      "next_day.close": "> prev_high_60"
+    confirm_at: next_close
+    next_day_n: 2
+    action:
+      type: entry_signal
+      description: "推升攻擊確認（日K退化版）：第二日收盤超過前高，攻擊意圖延續"
+      course_citation:
+        source: "明日 K 線 §20 推升攻擊（日K退化版）"
+        article_id: "B44741FE824D0798CC91C1521D5B0FF7"
+        quote: "盤中推升攻擊：high > 早盤第一個高點；日K退化版用 close > prev_high"
+      notes:
+        - "原課程要求盤中第一個高點（09:00~09:15），日K退化版用收盤超前高；需文件化"
+    next_branch_ids: []
+
+relevant_lights: []

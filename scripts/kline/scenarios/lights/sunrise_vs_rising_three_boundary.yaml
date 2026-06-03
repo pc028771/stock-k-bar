@@ -1,0 +1,10 @@
+light_id: sunrise_vs_rising_three_boundary
+trigger_condition:
+  all:
+    - "today.close": "> prev.close"
+    - "today.close": ">= prev_high_60"
+severity: info
+course_citation:
+  source: "明日 K 線 §16 日出攻擊結束與上升三法判斷矛盾"
+  quote: "老師釐清日出攻擊結束（出場）與上升三法（持有）的邊界"
+recommendation_text: "股價強攻新高，需辨別當前是日出攻擊結束還是上升三法持續。日出攻擊以轉折力竭為出場依據；上升三法中繼整理不出場。兩者邊界在於是否仍維持低點越來越高的結構。"

@@ -1,0 +1,11 @@
+light_id: manipulator_distribution_warning
+trigger_condition:
+  all:
+    - "today.close": "< prev_high_60"
+    - "today.close": "< prev.close"
+    - "today.close": "< today.open"
+severity: critical
+course_citation:
+  source: "明日 K 線 §31 主力出貨的秘密"
+  quote: "箱型區間誤謬、五檔買單假象；主力出順變一座山，出不順變箱型"
+recommendation_text: "警示：股價跌破前高且收黑 K，符合主力出貨高風險特徵。切勿套用箱型底部買進邏輯，五檔買單可能為假象。出貨若順利股價將成一座山；持多者應確認停損位置。"
