@@ -79,6 +79,14 @@ HELD = [
         'sector': '紅海第二棒',
         'note': '6/2 EOD Trigger 1 確認、外資 +16k'
     },
+    {
+        'ticker': '2885', 'name': '元大金',
+        'cost': 58.0, 'shares': 10000, 'stop': 55.71,
+        'tactic': '配置', 'priority': 1,
+        'source': '配置部位',
+        'sector': '金融',
+        'note': '6/2 收 $59.60 (+$16k 浮動)、停損 $55.71 結構底'
+    },
 ]
 
 # 已實現 (今日累計、每日歸零)
@@ -1257,7 +1265,7 @@ def main():
     kb_thread.start()
 
     def _emit(line: str):
-        sys.stdout.write(line + C.EOL + '\n')
+        sys.stdout.write(line + C.EOL + '\r\n')
 
     try:
         while not _quit_flag[0]:
