@@ -43,6 +43,7 @@ from ._schema import (
     Scenario,
 )
 from .condition import UnknownTokenError, evaluate
+from .context import build_context_snapshot as _build_context_snapshot_external
 from .loader import LoaderError, load_lights, load_playbooks
 
 # ---------------------------------------------------------------------------
@@ -438,7 +439,15 @@ def analyze(
     # ------------------------------------------------------------------
     # 4. Build ContextSnapshot
     # ------------------------------------------------------------------
-    ctx = _build_context_snapshot(today_row, context_overrides, notes)
+    # Delegate to context.py (Task 1.5 extract).
+    # Pass a single-row df (ticker_df filtered to today) so context.py can
+    # do its own ticker/date validation — but we already validated above,
+    # so this won't raise.  We pass ticker_df (full ticker history) so
+    # context.py can locate today's row itself.
+    ctx, ctx_warns = _build_context_snapshot_external(
+        ticker_df, today_date, ticker, overrides=context_overrides
+    )
+    notes.extend(ctx_warns)
 
     # ------------------------------------------------------------------
     # 5. Collect fired patterns (loop over PATTERN_REGISTRY)

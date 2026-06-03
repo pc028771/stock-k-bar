@@ -23,7 +23,9 @@ from ._schema import (
 )
 from .advisor import analyze
 from .condition import UnknownTokenError, evaluate, evaluate_vectorized
+from .context import build_context_snapshot
 from .loader import LoaderError, load_lights, load_playbooks
+from .persistence import load_runs, save, update_branch_outcome
 
 __all__ = [
     "Action",
@@ -42,8 +44,12 @@ __all__ = [
     "Severity",
     "UnknownTokenError",
     "analyze",
+    "build_context_snapshot",
     "evaluate",
     "evaluate_vectorized",
     "load_lights",
     "load_playbooks",
+    "load_runs",
+    "save",
+    "update_branch_outcome",
 ]
