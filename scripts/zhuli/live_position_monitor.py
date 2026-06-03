@@ -798,6 +798,103 @@ def r_change_pct(chg: float) -> Text:
 # DB helper
 # ─────────────────────────────────────────────────────────────────────────
 
+def load_5d_avg_volume(ticker: str) -> float | None:
+    """5d 平均日成交量 (張)。讀 standard_daily_bar 近 5 日 (排除今天)。
+
+    cache: 同個 ticker 不重複查 DB。
+    """
+    cached = _avg_vol_cache.get(ticker)
+    if cached is not None:
+        return cached
+    try:
+        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+        rows = con.execute(
+            "SELECT volume FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date < date('now', 'localtime') "
+            "ORDER BY trade_date DESC LIMIT 5",
+            (ticker,)
+        ).fetchall()
+        con.close()
+        if not rows:
+            _avg_vol_cache[ticker] = None
+            return None
+        # DB volume 是股、轉張 (÷1000)
+        vols_lots = [r[0] / 1000.0 for r in rows if r[0]]
+        if not vols_lots:
+            _avg_vol_cache[ticker] = None
+            return None
+        avg = sum(vols_lots) / len(vols_lots)
+        _avg_vol_cache[ticker] = avg
+        return avg
+    except Exception:
+        _avg_vol_cache[ticker] = None
+        return None
+
+
+def _session_elapsed_ratio(now: datetime | None = None) -> float:
+    """09:00-13:30 session 已過比例 (0.0 ~ 1.0)。盤前=0、盤後=1。"""
+    now = now or datetime.now()
+    h, m = now.hour, now.minute
+    minutes = h * 60 + m
+    open_min  = 9 * 60      # 540
+    close_min = 13 * 60 + 30  # 810
+    if minutes <= open_min:
+        return 0.0
+    if minutes >= close_min:
+        return 1.0
+    return (minutes - open_min) / (close_min - open_min)
+
+
+def compute_vol_ratio(ticker: str, total_volume_lots: float | None,
+                      now: datetime | None = None) -> float | None:
+    """量比 = 今日截至現在累積量 / (5d 日均 × session 已過比例)。
+
+    回 None 表示資料不夠 (盤前 / 無 DB 5d avg)。
+    """
+    if not total_volume_lots or total_volume_lots <= 0:
+        return None
+    elapsed = _session_elapsed_ratio(now)
+    if elapsed <= 0:
+        return None
+    avg5d = load_5d_avg_volume(ticker)
+    if not avg5d or avg5d <= 0:
+        return None
+    expected_so_far = avg5d * elapsed
+    if expected_so_far <= 0:
+        return None
+    return total_volume_lots / expected_so_far
+
+
+def fmt_vol_ratio(ratio: float | None) -> Text:
+    """量比 → rich Text、依倍數上色 + emoji。"""
+    if ratio is None:
+        return Text("—", style="dim")
+    if ratio >= 3.0:
+        return Text(f"🚀 {ratio:.1f}x", style="bold red")
+    if ratio >= 2.0:
+        return Text(f"🟢 {ratio:.1f}x", style="bold green")
+    if ratio >= 1.5:
+        return Text(f"🟡 {ratio:.1f}x", style="yellow")
+    if ratio >= 0.5:
+        return Text(f"⚪ {ratio:.1f}x", style="dim")
+    return Text(f"❄ {ratio:.1f}x", style="dim cyan")
+
+
+def fmt_open_to_now_pct(o: float, c: float) -> Text:
+    """開→現 漲跌%、上色。0 = 灰 / +n = 綠 / -n = 紅。"""
+    if not o or not c:
+        return Text("", style="dim")
+    pct = (c - o) / o * 100
+    if abs(pct) < 0.05:
+        return Text(" (0.0%)", style="dim")
+    if pct > 0:
+        return Text(f" (+{pct:.1f}%)", style="green")
+    return Text(f" ({pct:.1f}%)", style="red")
+
+
+_avg_vol_cache: dict[str, float | None] = {}
+
+
 def load_prev_close(ticker: str) -> float | None:
     try:
         con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
@@ -964,7 +1061,8 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         t_held.add_column("⭐", no_wrap=True)
         t_held.add_column("Ticker", no_wrap=True)
         t_held.add_column("Name", no_wrap=True)
-        t_held.add_column("開→現", no_wrap=True)
+        t_held.add_column("開→現 (%)", no_wrap=True)
+        t_held.add_column("量比", no_wrap=True)
         t_held.add_column("入", justify="right", no_wrap=True)
         t_held.add_column("P&L", justify="right", no_wrap=True)
         t_held.add_column("停", justify="right", no_wrap=True)
@@ -1000,19 +1098,24 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 detail.append(msg, style="dim")
                 detail.append(" | ")
                 detail.append_text(entry_tag)
+                vol_lots = snap.get('total_volume')
+                vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
+                open_to_now = Text(f"{o:.1f}→{c:.1f}")
+                open_to_now.append_text(fmt_open_to_now_pct(o, c))
                 t_held.add_row(
                     level,
                     stars(pri),
                     tk,
                     name,
-                    f"{o:.1f}→{c:.1f}",
+                    open_to_now,
+                    fmt_vol_ratio(vol_ratio),
                     f"{entry:.1f}",
                     r_pnl(pnl, pnl_pct),
                     f"{stop}",
                     detail,
                 )
             except Exception as e:
-                t_held.add_row("?", "", tk, name, "err", "", Text(str(e), style="red"), "", "")
+                t_held.add_row("?", "", tk, name, "err", "", "", Text(str(e), style="red"), "", "")
         renderables.append(t_held)
 
     # 待進場主候選
@@ -1027,8 +1130,8 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         t_plan.add_column("⭐", no_wrap=True)
         t_plan.add_column("Ticker", no_wrap=True)
         t_plan.add_column("Name", no_wrap=True)
-        t_plan.add_column("前→開 (%)", no_wrap=True)
-        t_plan.add_column("現", justify="right", no_wrap=True)
+        t_plan.add_column("前→開 (%) →現 (%)", no_wrap=True)
+        t_plan.add_column("量比", no_wrap=True)
         t_plan.add_column("停", justify="right", no_wrap=True)
         t_plan.add_column("Sizing", no_wrap=True)
         t_plan.add_column("Trigger / 評語 / reason")
@@ -1059,13 +1162,25 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 if reason:
                     detail.append(" | ")
                     detail.append(reason[:50], style="dim")
+                vol_lots = snap.get('total_volume')
+                vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
+                # 前→開 (跳空%) →現 (盤中%)
+                chg_pct_str = Text(f"{prev or 0:.1f}→{o:.1f} ")
+                if chg_open > 0:
+                    chg_pct_str.append(f"({chg_open:+.1f}%)", style="green")
+                elif chg_open < 0:
+                    chg_pct_str.append(f"({chg_open:+.1f}%)", style="red")
+                else:
+                    chg_pct_str.append("(0.0%)", style="dim")
+                chg_pct_str.append(f" →{c:.1f}")
+                chg_pct_str.append_text(fmt_open_to_now_pct(o, c))
                 t_plan.add_row(
                     level,
                     stars(pri),
                     tk,
                     name,
-                    f"{prev or 0:.1f}→{o:.1f} ({chg_open:+.1f}%)",
-                    f"{c:.1f}",
+                    chg_pct_str,
+                    fmt_vol_ratio(vol_ratio),
                     f"{stop}",
                     f"{shares}股 ${cost:,.0f}",
                     detail,
@@ -1108,8 +1223,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
             t_bk.add_column("Lv")
             t_bk.add_column("Ticker")
             t_bk.add_column("Name")
-            t_bk.add_column("前→開")
-            t_bk.add_column("現", justify="right")
+            t_bk.add_column("前→開 (%) →現 (%)")
             t_bk.add_column("停", justify="right")
             t_bk.add_column("Sizing")
             t_bk.add_column("評語")
@@ -1117,10 +1231,19 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 sev, _, tk, name, shares, prev, o, c, level, msg, reason, stop = bitem
                 chg_open = (o - (prev or 1))/(prev or 1)*100
                 cost = o * shares
+                bk_str = Text(f"{prev or 0:.1f}→{o:.1f} ")
+                if chg_open > 0:
+                    bk_str.append(f"({chg_open:+.1f}%)", style="green")
+                elif chg_open < 0:
+                    bk_str.append(f"({chg_open:+.1f}%)", style="red")
+                else:
+                    bk_str.append("(0.0%)", style="dim")
+                bk_str.append(f" →{c:.1f}")
+                bk_str.append_text(fmt_open_to_now_pct(o, c))
                 t_bk.add_row(
                     level, tk, name,
-                    f"{prev or 0:.1f}→{o:.1f} ({chg_open:+.1f}%)",
-                    f"{c:.1f}", f"{stop}",
+                    bk_str,
+                    f"{stop}",
                     f"{shares}股 ${cost:,.0f}",
                     Text(f"{msg} | {reason[:40]}", style="dim"),
                 )
@@ -1145,9 +1268,12 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 dist = (c - stop)/c*100 if (c and stop) else 999
                 trig_key, trig_reason = check_trigger_inline(tk, tactic)
                 maybe_notify_trigger(tk, item.get('name', tk), trig_key, trig_reason, do_notify)
+                vol_lots = snap.get('total_volume')
+                vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 watch_live[tk] = {
                     'c': c, 'pnl_pct': chg, 'dist_to_stop': dist,
                     'trigger': trig_key, 'trigger_reason': trig_reason,
+                    'vol_ratio': vol_ratio,
                 }
             except Exception:
                 watch_live[tk] = {}
@@ -1293,7 +1419,9 @@ def render_watch_sectioned(
         t = Table(title="🎯 WATCH 可進場 (confirmed)",
                   title_style="bold green", box=box.SIMPLE, expand=True)
         t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
-        t.add_column("現", justify="right"); t.add_column("距停", justify="right")
+        t.add_column("現", justify="right")
+        t.add_column("量比", no_wrap=True)
+        t.add_column("距停", justify="right")
         t.add_column("Trigger"); t.add_column("族群")
         for item, d in confirmed:
             pri = item.get('priority', 1)
@@ -1304,7 +1432,9 @@ def render_watch_sectioned(
             price_s = f"{c:.1f}" if c else "—"
             t.add_row(
                 stars(pri), item['ticker'], item['name'],
-                price_s, dist_t,
+                price_s,
+                fmt_vol_ratio(d.get('vol_ratio')),
+                dist_t,
                 r_trigger(trig, reason, short=40),
                 item.get('sector', '?'),
             )
@@ -1315,6 +1445,7 @@ def render_watch_sectioned(
                   title_style="bold", box=box.SIMPLE, expand=True)
         t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
         t.add_column("現", justify="right"); t.add_column("漲跌", justify="right")
+        t.add_column("量比", no_wrap=True)
         t.add_column("Trigger"); t.add_column("Note")
         for item, d in watching:
             pri = item.get('priority', 1)
@@ -1325,6 +1456,7 @@ def render_watch_sectioned(
             t.add_row(
                 stars(pri), item['ticker'], item['name'],
                 price_s, r_change_pct(chg),
+                fmt_vol_ratio(d.get('vol_ratio')),
                 trig_t,
                 Text(item.get('note', '')[:28], style="dim"),
             )
@@ -1416,7 +1548,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
         t_h.add_column("⭐", no_wrap=True)
         t_h.add_column("Ticker", no_wrap=True)
         t_h.add_column("Name", no_wrap=True)
-        t_h.add_column("現", justify="right", no_wrap=True)
+        t_h.add_column("開→現 (%)", no_wrap=True)
+        t_h.add_column("量比", no_wrap=True)
         t_h.add_column("P&L", justify="right", no_wrap=True)
         t_h.add_column("距停", justify="right", no_wrap=True)
         t_h.add_column("Trigger")
@@ -1434,7 +1567,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             if 'error' in d:
                 t_h.add_row(tactic, stars(pri), tk, name,
                             Text(f"err {d['error']}", style="red"),
-                            "", "", "", sector, "?")
+                            "", "", "", "", sector, "?")
                 continue
             c        = d.get('c', entry)
             pnl      = d.get('pnl', 0)
@@ -1455,11 +1588,21 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 notified.discard(key)
 
             stop_tag = '🔴' if dist < 0 else ('⚠️' if dist < 1 else '🟢')
-            # 欄位本身已是「現」、無 WS 資料才特別標「昨」、平常不加前綴
-            price_label = (f"昨{c:.1f}" if no_data else f"{c:.1f}")
+            # 取 open + volume 算 開→現% + 量比
+            snap2 = client.get_realtime_snapshot(tk) or {}
+            o = float(snap2.get('open') or 0)
+            vol_lots = snap2.get('total_volume')
+            vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
+            if no_data:
+                open_cell = Text(f"昨{c:.1f}", style="dim")
+            else:
+                open_cell = Text(f"{o:.1f}→{c:.1f}") if o else Text(f"{c:.1f}")
+                if o:
+                    open_cell.append_text(fmt_open_to_now_pct(o, c))
             t_h.add_row(
                 tactic, stars(pri), tk, name,
-                Text(price_label, style="dim" if no_data else ""),
+                open_cell,
+                fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
                 r_trigger(trig_key, trig_reason, short=30),
@@ -1508,9 +1651,12 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 dist = (c - stop)/c*100 if (c and stop) else 999
                 trig_key, trig_reason = check_trigger_inline(tk, tactic)
                 maybe_notify_trigger(tk, item.get('name', tk), trig_key, trig_reason, do_notify)
+                vol_lots = snap.get('total_volume')
+                vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 live_data[tk] = {
                     'c': c, 'pnl_pct': chg, 'dist_to_stop': dist,
                     'pre': pre, 'trigger': trig_key, 'trigger_reason': trig_reason,
+                    'vol_ratio': vol_ratio,
                 }
             except Exception:
                 live_data[tk] = {}
@@ -1524,6 +1670,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             t_w.add_column("⭐"); t_w.add_column("戰術")
             t_w.add_column("Ticker"); t_w.add_column("Name")
             t_w.add_column("現", justify="right"); t_w.add_column("漲跌", justify="right")
+            t_w.add_column("量比", no_wrap=True)
             t_w.add_column("距停", justify="right")
             t_w.add_column("Trigger"); t_w.add_column("族群"); t_w.add_column("狀")
             for item in sort_items(watch_enriched, sort_mode, live_data):
@@ -1542,10 +1689,14 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 trig_key    = d.get('trigger', 'none')
                 trig_reason = d.get('trigger_reason', '')
                 wall_tag = '盤前' if pre else ('🔴' if (stop and dist < 0) else '🟡')
+                snap_w = client.get_realtime_snapshot(tk) or {}
+                vol_lots = snap_w.get('total_volume')
+                vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 t_w.add_row(
                     stars(pri), tactic, tk, name,
                     f"{c:.1f}" if c else "—",
                     r_change_pct(chg),
+                    fmt_vol_ratio(vol_ratio),
                     r_dist(dist),
                     r_trigger(trig_key, trig_reason, short=30),
                     sector,
@@ -1839,8 +1990,9 @@ class MockClient:
 
 
 def _mk_snap(prev: float, open_: float, close: float,
-             high: float | None = None, low: float | None = None) -> dict:
-    """生 snapshot dict、含 change_price/change_rate."""
+             high: float | None = None, low: float | None = None,
+             vol: int = 5000) -> dict:
+    """生 snapshot dict、含 change_price/change_rate + total_volume (張)."""
     h = high if high is not None else max(open_, close)
     l = low  if low  is not None else min(open_, close)
     chg_p = close - prev
@@ -1848,7 +2000,7 @@ def _mk_snap(prev: float, open_: float, close: float,
     return {
         'open': open_, 'close': close, 'high': h, 'low': l,
         'change_price': chg_p, 'change_rate': chg_r,
-        'total_volume': 5000,
+        'total_volume': vol,
     }
 
 
