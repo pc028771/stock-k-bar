@@ -6,29 +6,24 @@ Engineering proxy constants: SIDE_BY_SIDE_SIMILARITY_PCT.
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
-from ..course_proxy_constants import SIDE_BY_SIDE_SIMILARITY_PCT
-from ._common import bull_exhaustion_context
+from ._common import bull_exhaustion_context, is_similar_bars
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """暗夜雙星 — 多方力竭 + D-2/D-1 併排相似 K + D-0 長黑跌破兩根低點.
 
-    Conditions (PATTERN_INVENTORY P08):
-      1. 多方力竭背景
-      2. D-2, D-1: 兩根併排相似 K — |Δhigh|/high < 3% AND |Δlow|/low < 3%
+    Conditions (PATTERN_INVENTORY P08, refactored to use _common helpers):
+      1. 多方力竭背景 (bull_exhaustion_context)
+      2. D-2, D-1: 兩根併排相似 K (is_similar_bars lookback 1+2)
       3. D-0: 黑 K, close < min(low_{D-2}, low_{D-1})
     """
     g = df.groupby("ticker")
-    high_d2 = g["high"].shift(2)
     low_d2 = g["low"].shift(2)
-    high_d1 = g["high"].shift(1)
     low_d1 = g["low"].shift(1)
 
-    high_sim = (high_d1 - high_d2).abs() / high_d1.replace(0, np.nan) < SIDE_BY_SIDE_SIMILARITY_PCT
-    low_sim = (low_d1 - low_d2).abs() / low_d1.replace(0, np.nan) < SIDE_BY_SIDE_SIMILARITY_PCT
+    similar_pair = is_similar_bars(df, lookback1=1, lookback2=2)
 
     is_black = df["close"] < df["open"]
     min_low = pd.concat([low_d2, low_d1], axis=1).min(axis=1)
@@ -36,4 +31,4 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
     exhaust = bull_exhaustion_context(df)
 
-    return (high_sim & low_sim & is_black & breaks_pair & exhaust).fillna(False)
+    return (similar_pair & is_black & breaks_pair & exhaust).fillna(False)

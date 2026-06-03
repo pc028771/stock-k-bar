@@ -51,10 +51,18 @@ def _build_breakdown_frame():
     return add_features(make_bars(rows))
 
 
-def test_is_power_bar_raises_not_implemented():
-    df = _build_bull_exhaust_frame()
-    with pytest.raises(NotImplementedError):
-        is_power_bar(df, "bull")
+def test_is_power_bar_filters_by_body_pct():
+    # 2026-06-03 refactor: is_power_bar is now implemented (body_pct >= 3% + color).
+    # Build a frame with a single bull power bar (body > 5%) — should detect.
+    rows = []
+    for _ in range(20):
+        rows.append({"open": 100, "high": 101, "low": 99, "close": 100.5, "volume": 1000.0, "ma60": 100.0})
+    # Bull power bar: open 100, close 106 → body +6%
+    rows.append({"open": 100, "high": 107, "low": 99, "close": 106, "volume": 1000.0, "ma60": 100.0})
+    df = add_features(make_bars(rows))
+    sig = is_power_bar(df, "bull")
+    assert sig.iloc[-1], "last bar should be classified as bull power bar"
+    assert not sig.iloc[:-1].any(), "flat bars should not be power bars"
 
 
 def test_bull_exhaustion_context_fires_in_rising_trend():

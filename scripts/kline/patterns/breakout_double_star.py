@@ -6,30 +6,25 @@ Engineering proxy constants: SIDE_BY_SIDE_SIMILARITY_PCT.
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
-from ..course_proxy_constants import SIDE_BY_SIDE_SIMILARITY_PCT
-from ._common import bear_exhaustion_context
+from ._common import bear_exhaustion_context, is_similar_bars
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """突破雙星 — 低檔整理 + D-3/D-2 併排 + D-1 紅 K 突破 + D-0 跳空向上確認.
 
-    Conditions (PATTERN_INVENTORY P11):
-      1. 空方力竭/低檔整理背景
-      2. D-3, D-2: 兩根併排 K (similar high/low)
+    Conditions (PATTERN_INVENTORY P11, refactored to use _common helpers):
+      1. 空方力竭/低檔整理背景 (bear_exhaustion_context)
+      2. D-3, D-2: 兩根併排 K (is_similar_bars lookback 2+3)
       3. D-1: 紅 K, close > max(high_{D-3}, high_{D-2})
       4. D-0: open > prev_high (跳空向上確認)
     """
     g = df.groupby("ticker")
     high_d3 = g["high"].shift(3)
-    low_d3 = g["low"].shift(3)
     high_d2 = g["high"].shift(2)
-    low_d2 = g["low"].shift(2)
 
-    high_sim = (high_d2 - high_d3).abs() / high_d2.replace(0, np.nan) < SIDE_BY_SIDE_SIMILARITY_PCT
-    low_sim = (low_d2 - low_d3).abs() / low_d2.replace(0, np.nan) < SIDE_BY_SIDE_SIMILARITY_PCT
+    similar_pair = is_similar_bars(df, lookback1=2, lookback2=3)
 
     open_d1 = g["open"].shift(1)
     close_d1 = g["close"].shift(1)
@@ -41,4 +36,4 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
     exhaust = bear_exhaustion_context(df)
 
-    return (high_sim & low_sim & d1_red & d1_breaks_pair & d0_gap_up & exhaust).fillna(False)
+    return (similar_pair & d1_red & d1_breaks_pair & d0_gap_up & exhaust).fillna(False)

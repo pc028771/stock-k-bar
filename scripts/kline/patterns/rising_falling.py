@@ -10,10 +10,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..course_proxy_constants import (
-    NARROW_CONSOLIDATION_BARS,
-    NARROW_CONSOLIDATION_RANGE_MAX,
-)
+from ..course_proxy_constants import NARROW_CONSOLIDATION_BARS
+from ._common import is_narrow_consolidation, is_power_bar
 
 PRIOR_POWER_LOOKBACK = 20  # course-not-stated — proxy 一個月內
 
@@ -21,26 +19,23 @@ PRIOR_POWER_LOOKBACK = 20  # course-not-stated — proxy 一個月內
 def detect(df: pd.DataFrame) -> pd.Series:
     """上升一階 OR 下降一階任一觸發.
 
-    Conditions (PATTERN_INVENTORY P26):
+    Conditions (PATTERN_INVENTORY P26, refactored to use _common helpers):
       上升一階:
-        1. 過去 20 日內出現過力量型紅 K (代理：紅 K 且 body_pct rank ≥ 0.7)
-        2. 接著有 N 天狹幅整理 (P25 同條件)
-        3. 今日再出現紅 K 突破整理區高點
+        1. 過去 PRIOR_POWER_LOOKBACK 天內出現過力量型紅 K (is_power_bar bull)
+        2. 接著有 N 天狹幅整理 (is_narrow_consolidation, close-level)
+        3. 今日再出現紅 K 突破整理區 close 最大值
 
       下降一階: 反相.
     """
     N = NARROW_CONSOLIDATION_BARS
-    g = df.groupby("ticker")
+    consol = is_narrow_consolidation(df, use_close=True)
+    narrow = consol["narrow"]
+    past_close_max = consol["past_close_max"]
+    past_close_min = consol["past_close_min"]
 
-    past_high_max = g["high"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).max())
-    past_low_min = g["low"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).min())
-    past_close_mean = g["close"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).mean())
-    narrow = (past_high_max - past_low_min) / past_close_mean.replace(0, float("nan")) < NARROW_CONSOLIDATION_RANGE_MAX
-
-    # 過去 PRIOR_POWER_LOOKBACK 天內存在「力量型」紅 / 黑 K (用 body_pct_pct_rank_20d ≥ 0.7 + 顏色)
-    pr = df["body_pct_pct_rank_20d"].fillna(0)
-    power_red_today = (df["is_red"].fillna(False) & (pr >= 0.7)).astype(int)
-    power_black_today = (df["is_black"].fillna(False) & (pr >= 0.7)).astype(int)
+    # 過去 PRIOR_POWER_LOOKBACK 天內出現過力量型 K — body_pct ≥ 3% (default)
+    power_red_today = is_power_bar(df, "bull").astype(int)
+    power_black_today = is_power_bar(df, "bear").astype(int)
     L = PRIOR_POWER_LOOKBACK
     prior_power_red = power_red_today.groupby(df["ticker"]).transform(
         lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
@@ -49,9 +44,7 @@ def detect(df: pd.DataFrame) -> pd.Series:
         lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
     ) > 0
 
-    is_red = df["close"] > df["open"]
-    is_black = df["close"] < df["open"]
-    bull_step = prior_power_red & narrow & is_red & (df["close"] > past_high_max)
-    bear_step = prior_power_black & narrow & is_black & (df["close"] < past_low_min)
+    bull_step = prior_power_red & narrow & is_power_bar(df, "bull") & (df["close"] > past_close_max)
+    bear_step = prior_power_black & narrow & is_power_bar(df, "bear") & (df["close"] < past_close_min)
 
     return (bull_step | bear_step).fillna(False)

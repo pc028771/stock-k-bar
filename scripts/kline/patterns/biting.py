@@ -2,43 +2,39 @@
 
 Course source: 第 24 篇《咬定型態》(A5C5E3F242DCE38F0E9061E3FBC85B81)
 Cross-course definition: PATTERN_INVENTORY P25.
-Engineering proxy constants: NARROW_CONSOLIDATION_BARS, NARROW_CONSOLIDATION_RANGE_MAX.
+Engineering proxy constants: via _common helpers.
 """
 from __future__ import annotations
 
 import pandas as pd
 
-from ..course_proxy_constants import (
-    NARROW_CONSOLIDATION_BARS,
-    NARROW_CONSOLIDATION_RANGE_MAX,
-)
+from ._common import is_narrow_consolidation, is_power_bar
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """多方咬定 OR 空方咬定 — 狹幅整理後力量型 K 突破/跌破.
 
-    Conditions (PATTERN_INVENTORY P25):
+    Conditions (PATTERN_INVENTORY P25, refactored to use _common helpers):
       多方咬定:
-        1. 過去 N 根 (NARROW_CONSOLIDATION_BARS) K 線狹幅整理:
-           (max(high) - min(low)) / mean(close) < 3%
-        2. 今日紅 K
-        3. close > 整理區高點
+        1. 過去 N 根狹幅整理 (is_narrow_consolidation, close-level range)
+        2. 今日紅 K + 力量型 (is_power_bar bull body ≥ 3%)
+        3. close > 過去 close 最高 (close-level breakout)
 
-      空方咬定: 反相 — 今日黑 K + close < 整理區低點.
+      空方咬定: 反相 — 今日黑 K + close < 過去 close 最低.
+
+    Case calibration:
+      - Case #5 奇鋐 3017 2022-02-17: body +7.1% ✓ red, breaks past close max
+      - Case #6 富邦媒 8454 2022-02-25: body -3.6% ✓ black, breaks past close min
     """
-    N = NARROW_CONSOLIDATION_BARS
-    g = df.groupby("ticker")
+    consol = is_narrow_consolidation(df, use_close=True)
+    narrow = consol["narrow"]
+    past_close_max = consol["past_close_max"]
+    past_close_min = consol["past_close_min"]
 
-    # 過去 N 天 (D-N .. D-1) 的 high/low/close — transform 保留 df.index 對齊
-    past_high_max = g["high"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).max())
-    past_low_min = g["low"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).min())
-    past_close_mean = g["close"].transform(lambda s: s.shift(1).rolling(N, min_periods=N).mean())
-    narrow = (past_high_max - past_low_min) / past_close_mean.replace(0, float("nan")) < NARROW_CONSOLIDATION_RANGE_MAX
+    bull_power = is_power_bar(df, direction="bull")
+    bear_power = is_power_bar(df, direction="bear")
 
-    is_red = df["close"] > df["open"]
-    is_black = df["close"] < df["open"]
-
-    bull_bite = narrow & is_red & (df["close"] > past_high_max)
-    bear_bite = narrow & is_black & (df["close"] < past_low_min)
+    bull_bite = narrow & bull_power & (df["close"] > past_close_max)
+    bear_bite = narrow & bear_power & (df["close"] < past_close_min)
 
     return (bull_bite | bear_bite).fillna(False)

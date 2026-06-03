@@ -20,36 +20,164 @@ import pandas as pd
 from ..course_proxy_constants import (
     BULL_EXHAUSTION_ATTACK_LOOKBACK,
     BULL_EXHAUSTION_NEAR_HIGH_PCT,
+    NARROW_CONSOLIDATION_BARS,
+    NARROW_CONSOLIDATION_RANGE_MAX,
+    SIDE_BY_SIDE_SIMILARITY_PCT,
 )
 
 
-def is_power_bar(df: pd.DataFrame, direction: str = "bull") -> pd.Series:
-    """力量型 K 線 — 雙軌設計，預設 NOT IMPLEMENTED.
+# =============================================================================
+# Shared "fuzzy" condition helpers
+# 模糊條件抽出共用，調整一處所有 pattern 跟著改
+# =============================================================================
 
-    PATTERN_DEFINITIONS §1 結論：課程內部矛盾 — 「形狀不重要」(行進ing
-    01:38 / 認知篇) vs 具體型態定義字面「長黑」「長紅」。
 
-    建議：detect() 預設不加 body 門檻，靠結構動作（摜破、跌破中值、實體
-    包覆）保證 K 棒夠強。本 helper 保留 Option B 雙軌設計但預設 raise，
-    避免被誤用。
+def is_power_bar(df: pd.DataFrame, direction: str = "bull", body_pct_min: float = 0.03) -> pd.Series:
+    """力量型 K 線 — body_pct >= body_pct_min + 顏色對齊.
 
-    Option B (commented OFF) 數字：
-        body_pct ≥ percentile_70(body_pct, 20d) AND body_pct ≥ 1.5%
+    PATTERN_DEFINITIONS §1 結論：課程內部矛盾 — 「形狀不重要」(行進ing 01:38)
+    vs 具體型態 (暗夜雙星 / 大敵當前 / 高檔長黑) 字面「長 K」。本 helper 提供
+    工程代理 — 採 body_pct 絕對門檻，由 caller 決定是否啟用。
 
-    Refs:
-      - PATTERN_DEFINITIONS.md §1 (lines 15-94)
-      - docs/K線行進ing/01-關鍵K線的定義與使用目的.md:38
-        「關鍵K線的形狀並不重要——並非長紅或長黑才算得上關鍵K線。」
+    Course direct references:
+      - 多空轉折 §24 咬定型態 line 12「眼前的這一根必須是力量型K線」
+      - 行進ing 16-黑K篇二「高檔長黑」獨立訊號
+
+    Args:
+        direction: 'bull' (要紅 K) / 'bear' (要黑 K) / 'either' (任一顏色)
+        body_pct_min: body_pct 最小值，預設 3%。Case-by-case 校準後得出。
+
+    Returns:
+        Series[bool] — power bar 滿足條件的 K 棒.
+
+    NOTE: PATTERN_DEFINITIONS §1 建議 detect() 不要硬綁 body 門檻、靠結構動作。
+    本 helper 僅供需「力量型 K」過濾噪音的 pattern (biting / dark_double_star /
+    three_red_dadi_dangqian 等) 引用。
     """
-    raise NotImplementedError(
-        "is_power_bar() is intentionally not implemented — PATTERN_DEFINITIONS §1 "
-        "結論建議靠結構動作判定力量，不靠 body 門檻。Option B 雙軌見 docstring。"
-    )
-    # --- Option B (kept commented for future audit) ---
-    # if "body_pct_pct_rank_20d" not in df.columns:
-    #     raise KeyError("body_pct_pct_rank_20d feature missing")
-    # color = df["is_red"] if direction == "bull" else df["is_black"]
-    # return color.fillna(False) & (df["body_pct_pct_rank_20d"] >= 0.7) & (df["body_pct"] >= 0.015)
+    body_ok = df["body_pct"].fillna(0) >= body_pct_min
+    if direction == "bull":
+        color_ok = df["close"] > df["open"]
+    elif direction == "bear":
+        color_ok = df["close"] < df["open"]
+    elif direction == "either":
+        color_ok = pd.Series(True, index=df.index)
+    else:
+        raise ValueError(f"direction must be 'bull' / 'bear' / 'either', got {direction!r}")
+    return (color_ok & body_ok).fillna(False)
+
+
+def is_narrow_consolidation(
+    df: pd.DataFrame,
+    n_bars: int = None,
+    max_range_pct: float = None,
+    use_close: bool = True,
+) -> pd.DataFrame:
+    """過去 N 根 K 線狹幅整理.
+
+    Course references:
+      - 多空轉折 §24 咬定型態 / §25 升降組合型態 line 12「一週以上的狹幅整理」
+
+    回傳一個 DataFrame 含：
+        narrow (bool):         過去 N 根是否狹幅整理
+        past_close_max (float): 過去 N 根 close 最大值
+        past_close_min (float): 過去 N 根 close 最小值
+        past_high_max (float):  過去 N 根 high 最大值
+        past_low_min (float):   過去 N 根 low 最小值
+
+    Args:
+        n_bars: 整理 K 棒數，預設讀 NARROW_CONSOLIDATION_BARS const.
+        max_range_pct: range 上限，預設讀 NARROW_CONSOLIDATION_RANGE_MAX.
+        use_close: True (default) 用 close-level range（推薦，過濾 wick 噪音）；
+                   False 用 high-low range（會被失敗突破的長影線干擾）。
+                   Case #5 奇鋐 3017 / Case #6 富邦媒 8454 驗證 close-level 正確。
+    """
+    if n_bars is None:
+        n_bars = NARROW_CONSOLIDATION_BARS
+    if max_range_pct is None:
+        max_range_pct = NARROW_CONSOLIDATION_RANGE_MAX
+    g = df.groupby("ticker")
+    past_high_max = g["high"].transform(lambda s: s.shift(1).rolling(n_bars, min_periods=n_bars).max())
+    past_low_min = g["low"].transform(lambda s: s.shift(1).rolling(n_bars, min_periods=n_bars).min())
+    past_close_max = g["close"].transform(lambda s: s.shift(1).rolling(n_bars, min_periods=n_bars).max())
+    past_close_min = g["close"].transform(lambda s: s.shift(1).rolling(n_bars, min_periods=n_bars).min())
+    past_close_mean = g["close"].transform(lambda s: s.shift(1).rolling(n_bars, min_periods=n_bars).mean())
+
+    if use_close:
+        range_band = past_close_max - past_close_min
+    else:
+        range_band = past_high_max - past_low_min
+    narrow = (range_band / past_close_mean.replace(0, np.nan)) < max_range_pct
+    return pd.DataFrame({
+        "narrow": narrow.fillna(False),
+        "past_close_max": past_close_max,
+        "past_close_min": past_close_min,
+        "past_high_max": past_high_max,
+        "past_low_min": past_low_min,
+    })
+
+
+def in_trend(
+    df: pd.DataFrame,
+    direction: str = "bull",
+    method: str = "close_vs_ma20",
+    threshold: float = 0.005,
+) -> pd.Series:
+    """「略顯漲勢」/「略顯跌勢」context 代理.
+
+    Course says「略顯趨勢」(slight trend) — 不要強趨勢、不要平盤。
+
+    Args:
+        direction: 'bull' (close 高於 ma) / 'bear' (close 低於 ma)
+        method:
+            'close_vs_ma20': close 偏離 ma20 ≥ threshold（推薦：簡單、寬容）
+                            Case #1 康舒 6282 用此（細微下滑跌勢都接受）。
+            'ma60_slope':    close vs ma60 + ma60_slope_5d 同向（嚴格、趨勢動）
+                            piercing_line.py 用此（強趨勢轉折）。
+        threshold: close 偏離 ma 的最小比例，預設 0.5%.
+    """
+    if method == "close_vs_ma20":
+        if direction == "bull":
+            return (df["close"] > df["ma20"] * (1 + threshold)).fillna(False)
+        elif direction == "bear":
+            return (df["close"] < df["ma20"] * (1 - threshold)).fillna(False)
+    elif method == "ma60_slope":
+        slope = df["ma60_slope_5d"].fillna(0)
+        if direction == "bull":
+            return ((df["close"] > df["ma60"]) & (slope > 0)).fillna(False)
+        elif direction == "bear":
+            return ((df["close"] < df["ma60"]) & (slope < 0)).fillna(False)
+    raise ValueError(f"invalid direction={direction!r} / method={method!r}")
+
+
+def is_similar_bars(
+    df: pd.DataFrame,
+    lookback1: int = 1,
+    lookback2: int = 2,
+    tolerance_pct: float = None,
+) -> pd.Series:
+    """兩根 K 棒「並排相似」(side-by-side similar).
+
+    Course references:
+      - 多空轉折 §07 暗夜雙星「兩根形狀相似的併排K線」
+      - 多空轉折 §10 突破雙星
+
+    判斷 lookback1 vs lookback2 兩天的 high 跟 low 是否都相近.
+    （並排 = 高低位置相近，不一定要同色）
+
+    Args:
+        lookback1, lookback2: shift 的天數，預設 (1, 2) = 前 1 / 前 2 日.
+        tolerance_pct: 相似度容差，預設讀 SIDE_BY_SIDE_SIMILARITY_PCT.
+    """
+    if tolerance_pct is None:
+        tolerance_pct = SIDE_BY_SIDE_SIMILARITY_PCT
+    g = df.groupby("ticker")
+    high_a = g["high"].shift(lookback1)
+    high_b = g["high"].shift(lookback2)
+    low_a = g["low"].shift(lookback1)
+    low_b = g["low"].shift(lookback2)
+    high_sim = ((high_a - high_b).abs() / high_a.replace(0, np.nan)) < tolerance_pct
+    low_sim = ((low_a - low_b).abs() / low_a.replace(0, np.nan)) < tolerance_pct
+    return (high_sim & low_sim).fillna(False)
 
 
 def bull_exhaustion_context(df: pd.DataFrame) -> pd.Series:

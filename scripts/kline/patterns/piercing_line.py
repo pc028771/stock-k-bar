@@ -40,13 +40,13 @@ def detect(df: pd.DataFrame) -> pd.Series:
     prev_black = prev_close < prev_open
 
     # bull / bear trend = course's「多方趨勢」/「空方趨勢」context.
-    # ma60 NaN fallback: when MA insufficient (early ticker history),
-    # fall back to close vs prior_high_60 / prior_low_60 as crude proxy.
+    # Use _common.in_trend(method='ma60_slope') — strict trend (close vs ma60
+    # + ma60_slope_5d same direction). ma60 NaN fallback: when MA insufficient
+    # (early ticker history), fall back to prior_high_60 / prior_low_60 proxy.
+    from ._common import in_trend
     ma60_nan = df["ma60"].isna()
-    ma60_rising = df["ma60_slope_5d"].fillna(0) > 0
-    ma60_falling = df["ma60_slope_5d"].fillna(0) < 0
-    bull_trend = ((df["close"] > df["ma60"]) & ma60_rising) | (ma60_nan & (df["close"] >= g["prior_high_60"].shift(1) * 0.95).fillna(False))
-    bear_trend = ((df["close"] < df["ma60"]) & ma60_falling) | (ma60_nan & (df["close"] <= g["prior_low_60"].shift(1) * 1.05).fillna(False))
+    bull_trend = in_trend(df, "bull", method="ma60_slope") | (ma60_nan & (df["close"] >= g["prior_high_60"].shift(1) * 0.95).fillna(False))
+    bear_trend = in_trend(df, "bear", method="ma60_slope") | (ma60_nan & (df["close"] <= g["prior_low_60"].shift(1) * 1.05).fillna(False))
 
     # Boundary tolerance — chart reading is not pixel-precise; course
     # description「貫穿中值」/「未包覆整個黑K」are inherently visual.

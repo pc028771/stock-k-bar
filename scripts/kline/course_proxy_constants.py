@@ -228,9 +228,13 @@ BITE_CLOSE_EQUAL_TOLERANCE = 0.001  # course-not-stated — engineering proposal
 # COURSE CONCEPT: 咬定 / 升降「過去 5 根 K 線狹幅整理」.
 # COURSE QUOTE: 多空轉折 第 24 / 25 篇 「至少一週」「狹幅整理」。
 # COURSE NUMBER? No — course-not-stated — engineering proposal.
-# PROXY VALUE: 5 根 K 線；range ≤ 3%。
-# RATIONALE: 「至少一週」≈ 5 個交易日；3% range 對應「沒拉開距離」。
-NARROW_CONSOLIDATION_BARS = 5     # course-not-stated — engineering proposal
+# PROXY VALUE: 3 根 K 線；range ≤ 3%。
+# RATIONALE: 老師「至少一週」字面 ≈ 5 個交易日，但實際 case (Case #6 富邦媒
+#   8454 2022-02-25) 真實 setup 是 02/22-24 三天 close 1005 + 02/25 黑K
+#   跌破。3 天是更實際的最短「狹幅整理」期；5 天 + 02/22 crash 會把窗口
+#   裡的整理破壞。3 天 range 3% 對應「沒拉開距離」。Case #5 奇鋐 3017
+#   2022-02-17 在 3 天 / 5 天都能 trigger，不傷既有 hit。
+NARROW_CONSOLIDATION_BARS = 3     # course-not-stated — engineering proposal (was 5, adjusted 2026-06-03 per case #6)
 NARROW_CONSOLIDATION_RANGE_MAX = 0.03  # course-not-stated — engineering proposal
 
 # =============================================================================
