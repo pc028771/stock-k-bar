@@ -327,6 +327,10 @@ _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
 _watch_limit: list[int] = [8]
 
+# Render request flag: kb / WS push set True、main loop 0.1s polling 立即重畫
+_render_request: list[bool] = [True]
+_last_ws_render_signal: list[float] = [0.0]
+
 # Demo mode 全域 state
 _demo_idx: list[int] = [0]
 _demo_paused: list[bool] = [True]  # 預設暫停 auto-cycle、手動切
@@ -557,6 +561,11 @@ class WSPriceCache:
                         pass
                 self.cache[symbol] = existing
                 self.last_update[symbol] = time.time()
+            # WS push 觸發 redraw、限速 100ms 避免太頻繁
+            _now = time.time()
+            if _now - _last_ws_render_signal[0] > 0.1:
+                _render_request[0] = True
+                _last_ws_render_signal[0] = _now
         except Exception:
             self.errors += 1
 
@@ -878,6 +887,63 @@ def fmt_vol_ratio(ratio: float | None) -> Text:
     if ratio >= 0.5:
         return Text(f"⚪ {ratio:.1f}x", style="dim")
     return Text(f"❄ {ratio:.1f}x", style="dim cyan")
+
+
+class DataCache:
+    """背景計算 + cache derived 資料 (trigger / vol_ratio)、render 純讀。
+
+    用 monkey-patch 把 check_trigger_inline / compute_vol_ratio 改成讀 cache,
+    所以既有 render 程式碼不用改、自然取到快取值 (背景 thread 更新)。
+    """
+
+    def __init__(self, tickers: list[str], client, tactic_map: dict[str, str]):
+        self.tickers = list(tickers)
+        self.client = client
+        self.tactic_map = tactic_map  # ticker → tactic (for trigger category)
+        self.triggers: dict[str, tuple[str, str]] = {}
+        self.vol_ratios: dict[str, float | None] = {}
+        self.lock = threading.Lock()
+        self.last_refresh: float = 0.0
+        self.errors: int = 0
+
+    def refresh_all(self, real_check, real_vol):
+        """單輪刷新所有 ticker (real_check / real_vol = 未 patch 的原函式)。"""
+        for tk in self.tickers:
+            try:
+                tactic = self.tactic_map.get(tk, '核心')
+                trig = real_check(tk, tactic)
+                snap = self.client.get_realtime_snapshot(tk) or {}
+                vol_lots = snap.get('total_volume')
+                vr = real_vol(tk, float(vol_lots) if vol_lots else None)
+                with self.lock:
+                    self.triggers[tk] = trig
+                    self.vol_ratios[tk] = vr
+            except Exception:
+                self.errors += 1
+        self.last_refresh = time.time()
+        # 資料更新完、請求 redraw
+        _render_request[0] = True
+
+    def get_trigger(self, ticker: str) -> tuple[str, str]:
+        with self.lock:
+            return self.triggers.get(ticker, ('none', ''))
+
+    def get_vol_ratio(self, ticker: str) -> float | None:
+        with self.lock:
+            return self.vol_ratios.get(ticker)
+
+
+def _data_refresh_thread(cache: 'DataCache', real_check, real_vol, interval: float):
+    """背景 thread: 每 interval 秒重算所有 ticker 的 trigger + vol_ratio。"""
+    # 啟動立刻跑一輪
+    cache.refresh_all(real_check, real_vol)
+    while not _quit_flag[0]:
+        end = time.time() + interval
+        while time.time() < end and not _quit_flag[0]:
+            time.sleep(0.2)
+        if _quit_flag[0]:
+            break
+        cache.refresh_all(real_check, real_vol)
 
 
 def fmt_open_to_now_pct(o: float, c: float) -> Text:
@@ -1733,11 +1799,13 @@ def _kb_listener(demo_mode: bool = False):
         total = _demo_total[0] or 1
         _demo_idx[0] = (_demo_idx[0] + delta) % total
         _demo_jump[0] = True
+        _render_request[0] = True
 
     def _advance_cheat(delta: int):
         total = len(CHEAT_SHEET_PAGES) or 1
         _cheat_idx[0] = (_cheat_idx[0] + delta) % total
         _cheat_jump[0] = True
+        _render_request[0] = True
 
     def _read_avail() -> str:
         """讀出 stdin 緩衝目前所有 bytes (避免 line-buffer 卡住 escape sequence)。"""
@@ -1758,9 +1826,11 @@ def _kb_listener(demo_mode: bool = False):
             elif ch3 == 'H':
                 _cheat_idx[0] = 0
                 _cheat_jump[0] = True
+                _render_request[0] = True
             elif ch3 == 'F':
                 _cheat_idx[0] = max(0, len(CHEAT_SHEET_PAGES) - 1)
                 _cheat_jump[0] = True
+                _render_request[0] = True
             return
         if not demo_mode:
             return
@@ -1771,17 +1841,20 @@ def _kb_listener(demo_mode: bool = False):
         elif ch3 == 'H':
             _demo_idx[0] = 0
             _demo_jump[0] = True
+            _render_request[0] = True
         elif ch3 == 'F':
             _demo_idx[0] = max(0, (_demo_total[0] or 1) - 1)
             _demo_jump[0] = True
+            _render_request[0] = True
 
     def _handle_char(ch: str):
-        """處理單字元 (非 escape sequence)。"""
+        """處理單字元 (非 escape sequence)。任何狀態改動都觸發 _render_request。"""
         if ch == 'q':
             if _cheat_mode[0]:
                 _cheat_mode[0] = False
                 if demo_mode:
                     _demo_jump[0] = True
+                _render_request[0] = True
                 return
             _quit_flag[0] = True
             return
@@ -1791,18 +1864,37 @@ def _kb_listener(demo_mode: bool = False):
                 _cheat_jump[0] = True
             elif demo_mode:
                 _demo_jump[0] = True
+            _render_request[0] = True
             return
         if demo_mode and not _cheat_mode[0]:
             if ch == ' ':
                 _demo_paused[0] = not _demo_paused[0]
                 _demo_jump[0] = True
+                _render_request[0] = True
                 return
             if ch == '0':
+                # demo 模式: 0 跳第一個 scenario
                 _demo_idx[0] = 0
                 _demo_jump[0] = True
+                _render_request[0] = True
+                return
+        # 主 monitor 模式 + 非 cheat sheet: +/-/0 調 watch-limit
+        if not demo_mode and not _cheat_mode[0]:
+            if ch in ('+', '='):  # `=` 是 `+` 無 shift
+                _watch_limit[0] = _watch_limit[0] + 1
+                _render_request[0] = True
+                return
+            if ch == '-':
+                _watch_limit[0] = max(0, _watch_limit[0] - 1)
+                _render_request[0] = True
+                return
+            if ch == '0':
+                _watch_limit[0] = 0  # 0 = 不限
+                _render_request[0] = True
                 return
         if ch in mode_map and not _cheat_mode[0]:
             _current_sort[0] = mode_map[ch]
+            _render_request[0] = True
 
     try:
         while not _quit_flag[0]:
@@ -2304,7 +2396,11 @@ def _run_demo(args):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('--interval',    type=int, default=30)
+    # --data-interval = 背景資料更新頻率 (預設 3s)、--interval 為向後相容 alias
+    p.add_argument('--data-interval', type=float, default=3.0,
+                   help='背景資料更新頻率秒 (預設 3s、跟畫面操作解耦)')
+    p.add_argument('--interval',    type=float, default=None,
+                   help='(deprecated) 等同 --data-interval')
     p.add_argument('--no-clear',    action='store_true')
     p.add_argument('--no-notify',   action='store_true')
     p.add_argument('--force-phase', choices=['1', '2'], help='強制階段、debug 用')
@@ -2316,8 +2412,13 @@ def main():
     p.add_argument('--demo', action='store_true',
                    help='Demo 模式: 循環顯示所有 mock scenarios、驗證 layout')
     p.add_argument('--watch-limit', type=int, default=8,
-                   help='WATCH 觀察可能段最多顯示 N 檔 (預設 8、超過 collapse、0=不限)')
+                   help='WATCH 觀察可能段最多顯示 N 檔 (預設 8、超過 collapse、0=不限、+/-/0 鍵即時調)')
     args = p.parse_args()
+    # backward compat: --interval 覆寫 --data-interval
+    if args.interval is not None:
+        args.data_interval = args.interval
+    else:
+        args.interval = args.data_interval  # 保留欄位給 demo 等用
     _watch_min_priority[0] = args.watch_min_priority
     _watch_limit[0] = args.watch_limit
 
@@ -2355,6 +2456,38 @@ def main():
 
     use_alt = not args.no_clear
 
+    # ─── Layer 1: Data Cache + 背景 refresh thread ───
+    # 收集 ticker → tactic map (給 trigger category 用)
+    tactic_map: dict[str, str] = {}
+    for src in [HELD, PLAN_PRIMARY, PLAN_BACKUP, WATCH]:
+        for it in src:
+            if isinstance(it, dict) and it.get('ticker'):
+                tactic_map[str(it['ticker'])] = it.get('tactic', '核心')
+
+    # Monkey-patch render-side functions → 純讀 cache (極快)
+    global check_trigger_inline, compute_vol_ratio
+    _real_check = check_trigger_inline
+    _real_vol = compute_vol_ratio
+
+    data_cache = DataCache(list(_all_tk), client, tactic_map)
+
+    def _cached_check(ticker: str, tactic: str = '核心') -> tuple[str, str]:
+        return data_cache.get_trigger(ticker)
+    def _cached_vol(ticker: str, total_volume_lots: float | None,
+                    now: datetime | None = None) -> float | None:
+        return data_cache.get_vol_ratio(ticker)
+    check_trigger_inline = _cached_check
+    compute_vol_ratio = _cached_vol
+
+    refresh_thread = threading.Thread(
+        target=_data_refresh_thread,
+        args=(data_cache, _real_check, _real_vol, args.data_interval),
+        daemon=True,
+    )
+    refresh_thread.start()
+    print(f"  Data refresh thread 啟動 (interval {args.data_interval}s)", flush=True)
+
+    # ─── Layer 2: Render loop 純讀 cache ───
     kb_thread = threading.Thread(target=_kb_listener, daemon=True)
     kb_thread.start()
 
@@ -2379,22 +2512,25 @@ def main():
 
         # Header
         header = Text()
-        header.append(f"=== 即時 monitor (interval {args.interval}s)  {now_str} === ",
+        header.append(f"=== 即時 monitor (data {args.data_interval}s)  {now_str} === ",
                       style="bold blue")
         if trigger_ok:
             header.append("StageTrigger OK", style="green")
         else:
             header.append("StageTrigger unavailable", style="red")
-        # WS cache stats
+        # WS cache stats + data cache stats
         try:
             tot, stale, errs = _cache.stats()
-            header.append(f"  [WS cache {tot}, stale {stale}, err {errs}]",
+            header.append(f"  [WS {tot}, stale {stale}, err {errs}]",
                           style="dim")
+            age = time.time() - data_cache.last_refresh if data_cache.last_refresh else -1
+            header.append(f"  [data age {age:.1f}s]", style="dim")
         except Exception:
             pass
 
         hint = Text(
-            "快捷鍵: 1=status(分段) 2=priority 3=risk 4=trigger 5=pnl 6=sector h=cheat sheet q=退出",
+            "1-6=排序 +/-=watch-limit 0=不限 h=cheat q=退出  "
+            f"(watch-limit={_watch_limit[0]})",
             style="dim",
         )
 
@@ -2406,48 +2542,48 @@ def main():
             )
 
         footer = Text(
-            f"下次 {args.interval}s | 排序 [{sort_mode}] | Ctrl+C 或 q 結束",
+            f"data refresh {args.data_interval}s | 排序 [{sort_mode}] | watch-limit {_watch_limit[0]} | "
+            "Ctrl+C 或 q 結束",
             style="dim",
         )
         return Group(header, hint, content, footer)
 
+    # ─── Render loop: 鍵盤事件 < 50ms redraw、資料背景 thread 更新 ───
+    RENDER_MIN_INTERVAL = 0.05      # 50ms cooldown 避免閃爍
+    FORCE_REDRAW_MAX = 1.0          # 1s 沒事件也強制 redraw (時鐘走 + age tag)
+    last_render = 0.0
+
     try:
-        # rich.Live: refresh_per_second 控制 render 頻率、screen=True 用 alt-screen
         with Live(
             _build_frame(),
             console=console,
             screen=use_alt,
-            refresh_per_second=2,
+            refresh_per_second=10,
             transient=False,
             redirect_stdout=False,
             redirect_stderr=False,
         ) as live:
             while not _quit_flag[0]:
                 try:
-                    live.update(_build_frame())
-                    # 細粒度 sleep、q 鍵 / sort 切換立即跳出
-                    _elapsed = 0.0
-                    _step = 0.3
-                    _prev_sort = _current_sort[0]
-                    _prev_cheat = _cheat_mode[0]
-                    while _elapsed < args.interval and not _quit_flag[0]:
-                        time.sleep(_step)
-                        _elapsed += _step
-                        if _current_sort[0] != _prev_sort:
-                            break
-                        # cheat sheet toggle or page change → 立刻 re-render
-                        if _cheat_mode[0] != _prev_cheat or _cheat_jump[0]:
-                            _cheat_jump[0] = False
-                            break
+                    now = time.time()
+                    elapsed_since_render = now - last_render
+                    need_redraw = (
+                        (_render_request[0] and elapsed_since_render >= RENDER_MIN_INTERVAL)
+                        or elapsed_since_render >= FORCE_REDRAW_MAX
+                    )
+                    if need_redraw:
+                        live.update(_build_frame())
+                        last_render = now
+                        _render_request[0] = False
+                    time.sleep(0.02)  # 20ms polling
                 except KeyboardInterrupt:
                     break
                 except Exception as e:
-                    # 錯誤直接 log 到 frame、不退出
                     try:
                         live.update(Text(f"[ERROR] {e}", style="red"))
                     except Exception:
                         pass
-                    time.sleep(5)
+                    time.sleep(2)
     finally:
         _quit_flag[0] = True
         print("結束")
