@@ -1071,20 +1071,15 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             live_data[tk] = {'error': str(e)}
             held_enriched.append(item)
 
-    # Priority panel
-    lines.append("")
+    # Priority panel (3 lines compact)
     lines.extend(render_priority_panel(held_enriched, watch, live_data))
     lines.append("")
 
-    # Held detail table
+    # Held detail table (no header row to save space — emoji 自帶語意)
     if not held_enriched:
         lines.append(f"{C.DIM}未進場、無持倉監控{C.END}")
     else:
-        lines.append(
-            f"{C.BOLD}  {'戰術':8}  ⭐  Ticker 名稱   "
-            f"現價      P&L            距停損   Trigger                   族群{C.END}"
-        )
-        lines.append(f"  {'─'*110}")
+        pass  # 直接列 held rows、省 2 行 header + separator
 
         for item in sort_items(held_enriched, sort_mode, live_data):
             tk     = item['ticker']
