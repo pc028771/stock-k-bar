@@ -45,6 +45,14 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+# rich: display 層 (取代手刻 ANSI + alt-screen)
+from rich.console import Console, Group
+from rich.live import Live
+from rich.table import Table
+from rich.panel import Panel
+from rich.text import Text
+from rich import box
+
 _REPO = Path(__file__).parent.parent.parent
 _SYS  = Path("/Users/howard/Repository/stock-analysis-system")
 for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
@@ -726,6 +734,55 @@ def stars(priority: int) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# rich helper (新 display 層)
+# ─────────────────────────────────────────────────────────────────────────
+
+def r_pnl(pnl: float, pct: float = 0) -> Text:
+    """rich 版的 fmt_pnl、回傳 Text。"""
+    style = 'green' if pnl >= 0 else 'red'
+    sign = '+' if pnl >= 0 else ''
+    if pct != 0:
+        return Text(f"{sign}{pnl:,.0f} ({sign}{pct:.1f}%)", style=style)
+    return Text(f"{sign}{pnl:,.0f}", style=style)
+
+
+def r_dist(dist: float) -> Text:
+    """距停損百分比、依危險度上色。"""
+    if dist >= 999:
+        return Text("—", style="dim")
+    if dist < 0:
+        return Text(f"{dist:+.1f}%", style="red")
+    if dist < 1:
+        return Text(f"{dist:+.1f}%", style="yellow")
+    return Text(f"{dist:+.1f}%", style="green")
+
+
+def r_trigger(trig_key: str, reason: str = '', short: int = 40) -> Text:
+    """Trigger label + reason、rich Text。"""
+    label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
+    if trig_key == 'Ch5-3':
+        style = 'yellow'
+    elif trig_key in ('T1', 'T2'):
+        style = 'green'
+    elif trig_key == 'TC':
+        style = 'red'
+    elif trig_key == 'T2_watch':
+        style = 'yellow'
+    else:
+        style = 'dim'
+    t = Text(label, style=style)
+    if reason and trig_key != 'none' and trig_key is not None:
+        t.append(f" ({reason[:short]})", style='dim')
+    return t
+
+
+def r_change_pct(chg: float) -> Text:
+    """漲跌幅 % 上色。"""
+    style = 'red' if chg < 0 else 'green'
+    return Text(f"{chg:+.1f}%", style=style)
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # DB helper
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -783,10 +840,8 @@ def fmt_trigger(trig_key: str, reason: str = '') -> str:
 # ─────────────────────────────────────────────────────────────────────────
 
 def render_priority_panel(held: list[dict], watch: list[dict],
-                          live_data: dict) -> list[str]:
-    """高/中/低優先級摘要 panel。"""
-    lines = []
-
+                          live_data: dict) -> Table:
+    """高/中/低優先級摘要 panel — rich.Table (3 列)。"""
     def group(items):
         p3 = [x for x in items if x.get('priority', 2) == 3]
         p2 = [x for x in items if x.get('priority', 2) == 2]
@@ -796,45 +851,55 @@ def render_priority_panel(held: list[dict], watch: list[dict],
     held_p3, held_p2, held_p1 = group(held)
     watch_p3, watch_p2, watch_p1 = group(watch)
 
-    # Trigger 觸發中的
-    triggered_map = {}
+    triggered_map: dict[str, str] = {}
     for x in held + watch:
         tk = x.get('ticker', '')
         trig = live_data.get(tk, {}).get('trigger', 'none')
         if trig in ('T1', 'T2', 'TC'):
             triggered_map[tk] = trig
 
-    # 警示 (距停損 < +1%)
-    warnings = []
+    warnings: list[str] = []
     for x in held:
         tk = x.get('ticker', '')
         dist = live_data.get(tk, {}).get('dist_to_stop', 999)
         if dist < 1:
             warnings.append(f"{tk}({dist:+.1f}%)")
 
-    def _render_group(label: str, h_list: list, w_list: list):
+    table = Table(show_header=False, box=box.SIMPLE, padding=(0, 1), expand=False)
+    table.add_column("優先級", style="bold", no_wrap=True)
+    table.add_column("數", justify="right", no_wrap=True)
+    table.add_column("持倉", no_wrap=False)
+    table.add_column("候選/觀察", no_wrap=False)
+    table.add_column("Trigger/警示", no_wrap=False)
+
+    def _row(label: str, h_list: list, w_list: list):
         all_list = h_list + w_list
+        if not all_list:
+            return
         h_tks = [x['ticker'] for x in h_list]
         w_tks = [x['ticker'] for x in w_list]
         all_tks = h_tks + w_tks
         trig_info = [f"{tk}({triggered_map[tk]})" for tk in all_tks if tk in triggered_map]
         warn_info = [w for w in warnings if any(w.startswith(x['ticker']) for x in h_list)]
-        if not all_list:
-            return
-        h_part = f"持{'/'.join(h_tks)}" if h_tks else ''
-        w_part = f"候{'/'.join(w_tks)}" if w_tks else ''
-        trig_part = f" {C.G}🟢{'/'.join(trig_info)}{C.END}" if trig_info else ''
-        warn_part = f" {C.R}⚠️{','.join(warn_info)}{C.END}" if warn_info else ''
-        parts = [p for p in (h_part, w_part) if p]
-        lines.append(
-            f"{C.BOLD}{label}{C.END} {len(all_list)}檔  {' / '.join(parts)}{trig_part}{warn_part}"
+        right = Text()
+        if trig_info:
+            right.append("🟢 " + "/".join(trig_info), style="green")
+        if warn_info:
+            if trig_info:
+                right.append("  ")
+            right.append("⚠️ " + ",".join(warn_info), style="red")
+        table.add_row(
+            label,
+            str(len(all_list)),
+            "/".join(h_tks),
+            "/".join(w_tks),
+            right,
         )
 
-    _render_group('🎯⭐⭐⭐', held_p3, watch_p3)
-    _render_group('⚠️ ⭐⭐',  held_p2, watch_p2)
-    _render_group('🟢⭐',    held_p1, watch_p1)
-
-    return lines
+    _row("🎯 P3", held_p3, watch_p3)
+    _row("⚠️  P2", held_p2, watch_p2)
+    _row("🟢 P1", held_p1, watch_p1)
+    return table
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -842,8 +907,8 @@ def render_priority_panel(held: list[dict], watch: list[dict],
 # ─────────────────────────────────────────────────────────────────────────
 
 def render_phase1_screener(client, now_str: str, sort_mode: str,
-                           do_notify: bool) -> list[str]:
-    """Phase 1 開盤 entry screening (9:00-9:25)."""
+                           do_notify: bool) -> Group:
+    """Phase 1 開盤 entry screening (9:00-9:25)、回傳 rich Group。"""
     held   = _normalize_held(HELD)
     plan   = _normalize_plan(PLAN_PRIMARY)
     backup = _normalize_plan(PLAN_BACKUP)
@@ -868,29 +933,102 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         except Exception:
             live_data[tk] = {}
 
-    lines = [
-        f"{C.BOLD}━━━ {now_str}  PHASE 1: 開盤 ENTRY SCREENING  "
-        f"(排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)}) ━━━{C.END}"
-    ]
-
-    # Priority panel
     watch_norm = _normalize_watch(WATCH)
-    lines.append("")
-    lines.extend(render_priority_panel(held, watch_norm, live_data))
-    lines.append("")
+
+    renderables: list = []
+    # Priority panel
+    renderables.append(render_priority_panel(held, watch_norm, live_data))
 
     # 已持倉開盤健康度
     if held:
-        lines.append(f"{C.BOLD}📊 已持倉開盤健康度{C.END}")
+        t_held = Table(
+            title="📊 已持倉開盤健康度",
+            title_style="bold",
+            box=box.SIMPLE,
+            expand=True,
+            show_lines=False,
+        )
+        t_held.add_column("Lv", no_wrap=True)
+        t_held.add_column("⭐", no_wrap=True)
+        t_held.add_column("Ticker", no_wrap=True)
+        t_held.add_column("Name", no_wrap=True)
+        t_held.add_column("開→現", no_wrap=True)
+        t_held.add_column("入", justify="right", no_wrap=True)
+        t_held.add_column("P&L", justify="right", no_wrap=True)
+        t_held.add_column("停", justify="right", no_wrap=True)
+        t_held.add_column("Trigger / 開盤評語")
         for item in sort_items(held, sort_mode, live_data):
             tk     = item['ticker']
             name   = item['name']
             entry  = item.get('cost', 0)
             shares = item.get('shares', 0)
             stop   = item.get('stop', 0)
-            tactic = item.get('tactic', '—')
             pri    = item.get('priority', 2)
-            sector = item.get('sector', '?')
+            d      = live_data.get(tk, {})
+            trig_key    = d.get('trigger', 'none')
+            trig_reason = d.get('trigger_reason', '')
+            try:
+                snap = client.get_realtime_snapshot(tk) or {}
+                o    = float(snap.get('open') or 0)
+                c    = float(snap.get('close') or 0)
+                prev = load_prev_close(tk)
+                level, msg, _sev = classify_open(o, prev) if prev else ('?', '無前收', 'unknown')
+                entry_vs_open = (entry - o)/o*100 if o else 0
+                if entry_vs_open < -1:
+                    entry_tag = Text(f"🎯 進得好 ({entry_vs_open:.1f}%)", style="green")
+                elif entry_vs_open > 1:
+                    entry_tag = Text(f"⚠️ 追高 ({entry_vs_open:+.1f}%)", style="yellow")
+                else:
+                    entry_tag = Text("入價貼開盤", style="dim")
+                pnl = (c - entry)*shares
+                pnl_pct = (c - entry)/entry*100 if entry else 0
+                detail = Text()
+                detail.append_text(r_trigger(trig_key, trig_reason, short=30))
+                detail.append("  ")
+                detail.append(msg, style="dim")
+                detail.append(" | ")
+                detail.append_text(entry_tag)
+                t_held.add_row(
+                    level,
+                    stars(pri),
+                    tk,
+                    name,
+                    f"{o:.1f}→{c:.1f}",
+                    f"{entry:.1f}",
+                    r_pnl(pnl, pnl_pct),
+                    f"{stop}",
+                    detail,
+                )
+            except Exception as e:
+                t_held.add_row("?", "", tk, name, "err", "", Text(str(e), style="red"), "", "")
+        renderables.append(t_held)
+
+    # 待進場主候選
+    if plan:
+        t_plan = Table(
+            title="🎯 待進場主候選",
+            title_style="bold",
+            box=box.SIMPLE,
+            expand=True,
+        )
+        t_plan.add_column("Lv", no_wrap=True)
+        t_plan.add_column("⭐", no_wrap=True)
+        t_plan.add_column("Ticker", no_wrap=True)
+        t_plan.add_column("Name", no_wrap=True)
+        t_plan.add_column("前→開 (%)", no_wrap=True)
+        t_plan.add_column("現", justify="right", no_wrap=True)
+        t_plan.add_column("停", justify="right", no_wrap=True)
+        t_plan.add_column("Sizing", no_wrap=True)
+        t_plan.add_column("Trigger / 評語 / reason")
+
+        skipped = []
+        for item in sort_items(plan, sort_mode, live_data):
+            tk     = item['ticker']
+            name   = item['name']
+            shares = item.get('shares', 0)
+            stop   = item.get('stop', 0)
+            reason = item.get('reason') or item.get('note', '')
+            pri    = item.get('priority', 2)
             d      = live_data.get(tk, {})
             trig_key    = d.get('trigger', 'none')
             trig_reason = d.get('trigger_reason', '')
@@ -900,100 +1038,88 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 c    = float(snap.get('close') or 0)
                 prev = load_prev_close(tk)
                 level, msg, sev = classify_open(o, prev) if prev else ('?', '無前收', 'unknown')
-                entry_vs_open = (entry - o)/o*100 if o else 0
-                if entry_vs_open < -1:
-                    entry_tag = f"{C.G}🎯 進得好 (低 open {entry_vs_open:.1f}%){C.END}"
-                elif entry_vs_open > 1:
-                    entry_tag = f"{C.Y}⚠️  追高了 (高 open {entry_vs_open:+.1f}%){C.END}"
-                else:
-                    entry_tag = f"{C.DIM}入價貼開盤{C.END}"
-                pnl = (c - entry)*shares
-                trig_compact = fmt_trigger(trig_key, trig_reason)
-                lines.append(
-                    f"  {level} {stars(pri):3} {tk} {name:6}  "
-                    f"開${o:.1f}→${c:.1f} 入${entry:.1f} {fmt_pnl(pnl)}  "
-                    f"{C.DIM}停${stop} | {trig_compact}{C.END}"
+                chg_open = (o - prev)/prev*100 if prev else 0
+                cost = o * shares
+                detail = Text()
+                detail.append_text(r_trigger(trig_key, trig_reason, short=25))
+                detail.append("  ")
+                detail.append(msg, style="dim")
+                if reason:
+                    detail.append(" | ")
+                    detail.append(reason[:50], style="dim")
+                t_plan.add_row(
+                    level,
+                    stars(pri),
+                    tk,
+                    name,
+                    f"{prev or 0:.1f}→{o:.1f} ({chg_open:+.1f}%)",
+                    f"{c:.1f}",
+                    f"{stop}",
+                    f"{shares}股 ${cost:,.0f}",
+                    detail,
                 )
-                lines.append(f"      {msg} | {entry_tag}")
+                if sev in ('skip', 'warn'):
+                    skipped.append(tk)
             except Exception as e:
-                lines.append(f"  {tk} err: {e}")
-        lines.append("")
+                t_plan.add_row("?", "", tk, name, "err", "", "", "", Text(str(e), style="red"))
+        renderables.append(t_plan)
 
-    if not plan:
-        if not held:
-            lines.append(f"{C.DIM}PLAN_PRIMARY 空、編輯腳本開頭設定{C.END}")
-        return lines
-
-    lines.append(f"{C.BOLD}🎯 待進場主候選{C.END}")
-    skipped = []
-    for item in sort_items(plan, sort_mode, live_data):
-        tk     = item['ticker']
-        name   = item['name']
-        shares = item.get('shares', 0)
-        stop   = item.get('stop', 0)
-        reason = item.get('reason') or item.get('note', '')
-        pri    = item.get('priority', 2)
-        tactic = item.get('tactic', '—')
-        sector = item.get('sector', '?')
-        d      = live_data.get(tk, {})
-        trig_key    = d.get('trigger', 'none')
-        trig_reason = d.get('trigger_reason', '')
-        try:
-            snap = client.get_realtime_snapshot(tk) or {}
-            o    = float(snap.get('open') or 0)
-            c    = float(snap.get('close') or 0)
-            prev = load_prev_close(tk)
-            level, msg, sev = classify_open(o, prev) if prev else ('?', '無前收', 'unknown')
-            chg_open = (o - prev)/prev*100 if prev else 0
-            cost = o * shares
-            trig_compact = fmt_trigger(trig_key, trig_reason)
-            lines.append(
-                f"  {level} {stars(pri):3} {tk} {name:6}  "
-                f"前${prev or 0:.1f}→開${o:.1f} ({chg_open:+.1f}%) 現${c:.1f}  "
-                f"{C.DIM}停${stop} | {trig_compact}{C.END}"
+        # 備案推薦
+        if skipped and backup:
+            sev_order = {'ok': 0, 'neutral': 1, 'warn': 2, 'weak': 3, 'skip': 4, 'unknown': 5}
+            backup_evaluated = []
+            for item in backup:
+                tk     = item['ticker']
+                name   = item['name']
+                shares = item.get('shares', 0)
+                stop   = item.get('stop', 0)
+                reason = item.get('reason') or item.get('note', '')
+                try:
+                    snap = client.get_realtime_snapshot(tk) or {}
+                    o    = float(snap.get('open') or 0)
+                    c    = float(snap.get('close') or 0)
+                    prev = load_prev_close(tk)
+                    level, msg, sev = classify_open(o, prev) if prev else ('?', 'no prev', 'unknown')
+                    chg_open = (o-prev)/prev*100 if prev else 0
+                    backup_evaluated.append(
+                        (sev, -chg_open, tk, name, shares, prev, o, c, level, msg, reason, stop)
+                    )
+                except Exception:
+                    pass
+            backup_evaluated.sort(key=lambda x: (sev_order.get(x[0], 9), x[1]))
+            t_bk = Table(
+                title=f"⚠️  {len(skipped)} 主候選 skip / 備案推薦",
+                title_style="bold yellow",
+                box=box.SIMPLE,
+                expand=True,
             )
-            lines.append(f"      {msg} | sizing {shares}股 ${cost:,.0f} | {reason[:60]}")
-            if sev in ('skip', 'warn'):
-                skipped.append(tk)
-        except Exception as e:
-            lines.append(f"  {tk} {name}: err {e}")
-
-    if skipped:
-        lines.append("")
-        lines.append(f"{C.BOLD}{C.Y}⚠️  {len(skipped)} 主候選 skip/警示、推薦備案 (按穩定強排序){C.END}")
-        sev_order = {'ok': 0, 'neutral': 1, 'warn': 2, 'weak': 3, 'skip': 4, 'unknown': 5}
-        backup_evaluated = []
-        for item in backup:
-            tk     = item['ticker']
-            name   = item['name']
-            shares = item.get('shares', 0)
-            stop   = item.get('stop', 0)
-            reason = item.get('reason') or item.get('note', '')
-            try:
-                snap = client.get_realtime_snapshot(tk) or {}
-                o    = float(snap.get('open') or 0)
-                c    = float(snap.get('close') or 0)
-                prev = load_prev_close(tk)
-                level, msg, sev = classify_open(o, prev) if prev else ('?', 'no prev', 'unknown')
-                chg_open = (o-prev)/prev*100 if prev else 0
-                backup_evaluated.append((sev, -chg_open, tk, name, shares, prev, o, c, level, msg, reason, stop))
-            except Exception:
-                pass
-        backup_evaluated.sort(key=lambda x: (sev_order.get(x[0], 9), x[1]))
-        for bitem in backup_evaluated[:3]:
-            sev, _, tk, name, shares, prev, o, c, level, msg, reason, stop = bitem
-            chg_open = (o - (prev or 1))/(prev or 1)*100
-            cost = o * shares
-            lines.append(f"  {level} {tk} {name:6}  前${prev or 0:.1f}→開${o:.1f} ({chg_open:+.1f}%)  現${c:.1f}")
-            lines.append(f"      {msg}")
-            lines.append(f"      sizing: {shares} 股 ≈ ${cost:,.0f}、停損 ${stop}、{reason}")
-    else:
-        lines.append(f"{C.G}✅ 主候選全部 OK、無需備案{C.END}")
+            t_bk.add_column("Lv")
+            t_bk.add_column("Ticker")
+            t_bk.add_column("Name")
+            t_bk.add_column("前→開")
+            t_bk.add_column("現", justify="right")
+            t_bk.add_column("停", justify="right")
+            t_bk.add_column("Sizing")
+            t_bk.add_column("評語")
+            for bitem in backup_evaluated[:3]:
+                sev, _, tk, name, shares, prev, o, c, level, msg, reason, stop = bitem
+                chg_open = (o - (prev or 1))/(prev or 1)*100
+                cost = o * shares
+                t_bk.add_row(
+                    level, tk, name,
+                    f"{prev or 0:.1f}→{o:.1f} ({chg_open:+.1f}%)",
+                    f"{c:.1f}", f"{stop}",
+                    f"{shares}股 ${cost:,.0f}",
+                    Text(f"{msg} | {reason[:40]}", style="dim"),
+                )
+            renderables.append(t_bk)
+        elif not skipped:
+            renderables.append(Text("✅ 主候選全部 OK、無需備案", style="green"))
+    elif not held:
+        renderables.append(Text("PLAN_PRIMARY 空、編輯腳本開頭設定", style="dim"))
 
     # Phase 1: WATCH 分段 (status mode 才顯示、避免干擾 entry focus)
     if sort_mode == 'status' and watch_norm:
-        lines.append("")
-        lines.append(f"{C.DIM}── WATCH (開盤後觸發才進) ──{C.END}")
         watch_live: dict = {}
         for item in watch_norm:
             tk     = item['ticker']
@@ -1013,7 +1139,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 }
             except Exception:
                 watch_live[tk] = {}
-        # 只顯示 confirmed + watching、Phase 1 不列 excluded 避免干擾
+
         confirmed_p1, watching_p1 = [], []
         for item in watch_norm:
             tk = item['ticker']
@@ -1028,28 +1154,44 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
             TRIGGER_RANK.get(x[1].get('trigger', 'none'), 6),
         ))
         watching_p1.sort(key=lambda x: -x[0].get('priority', 1))
+
         if confirmed_p1:
-            lines.append(f"{C.BOLD}{C.G}🎯 WATCH 可進場:{C.END}")
+            t_wc = Table(title="🎯 WATCH 可進場 (confirmed)",
+                         title_style="bold green", box=box.SIMPLE, expand=True)
+            t_wc.add_column("⭐"); t_wc.add_column("Ticker"); t_wc.add_column("Name")
+            t_wc.add_column("現", justify="right")
+            t_wc.add_column("Trigger")
             for item, d in confirmed_p1:
-                tk = item['ticker']; name = item['name']
                 trig = d.get('trigger', 'none'); reason = d.get('trigger_reason', '')
                 c = d.get('c', 0); pri = item.get('priority', 1)
-                lines.append(
-                    f"  {stars(pri):3} {tk} {name:6}  "
-                    f"${c:.1f}  {fmt_trigger(trig, reason[:50])}"
+                t_wc.add_row(
+                    stars(pri), item['ticker'], item['name'],
+                    f"{c:.1f}" if c else "—",
+                    r_trigger(trig, reason, short=50),
                 )
-        if watching_p1:
-            lines.append(f"{C.BOLD}🔍 WATCH 觀察:{C.END}")
-            for item, d in watching_p1:
-                tk = item['ticker']; name = item['name']
-                c = d.get('c', 0); pri = item.get('priority', 1)
-                note = item.get('note', '')[:35]
-                lines.append(
-                    f"  {stars(pri):3} {tk} {name:6}  "
-                    f"${c:.1f}  {C.DIM}{note}{C.END}"
-                )
+            renderables.append(t_wc)
 
-    return lines
+        if watching_p1:
+            t_ww = Table(title="🔍 WATCH 觀察中",
+                         title_style="bold", box=box.SIMPLE, expand=True)
+            t_ww.add_column("⭐"); t_ww.add_column("Ticker"); t_ww.add_column("Name")
+            t_ww.add_column("現", justify="right")
+            t_ww.add_column("Note")
+            for item, d in watching_p1:
+                c = d.get('c', 0); pri = item.get('priority', 1)
+                t_ww.add_row(
+                    stars(pri), item['ticker'], item['name'],
+                    f"{c:.1f}" if c else "—",
+                    Text(item.get('note', '')[:60], style="dim"),
+                )
+            renderables.append(t_ww)
+
+    panel = Panel(
+        Group(*renderables),
+        title=f"PHASE 1: 開盤 ENTRY SCREENING  {now_str}  (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})",
+        border_style="cyan",
+    )
+    return Group(panel)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1081,11 +1223,9 @@ def _pre_market_mode() -> bool:
 def render_watch_sectioned(
     watch_enriched: list[dict],
     live_data: dict,
-    lines: list[str],
-    emit_fn,
     sort_mode: str,
-) -> None:
-    """WATCH 分 3 段顯示 (status mode)。直接 append 到 lines。"""
+) -> list:
+    """WATCH 分 3 段顯示 (status mode)、回傳 rich renderables list。"""
     confirmed: list[tuple] = []
     watching:  list[tuple] = []
     excluded:  list[tuple] = []
@@ -1110,8 +1250,10 @@ def render_watch_sectioned(
     watching.sort(key=lambda x: -x[0].get('priority', 1))
     excluded.sort(key=lambda x: -x[0].get('priority', 1))
 
+    out: list = []
+
     if pre_mkt:
-        lines.append(f"  {C.DIM}⏳ 開盤前、5K 累積中 — Trigger 判定尚未啟動{C.END}")
+        out.append(Text("⏳ 開盤前、5K 累積中 — Trigger 判定尚未啟動", style="dim"))
 
     # --watch-min-priority 過濾 watching (confirmed 永遠顯示、不過濾)
     min_pri = _watch_min_priority[0]
@@ -1124,68 +1266,68 @@ def render_watch_sectioned(
         excluded = []  # 開盤前不顯示排除清單、開盤後再判
         if excluded_count or filtered_out:
             hidden = excluded_count + filtered_out
-            lines.append(f"  {C.DIM}({hidden} 檔低優先/排除暫不顯示){C.END}")
+            out.append(Text(f"({hidden} 檔低優先/排除暫不顯示)", style="dim"))
     elif filtered_out:
-        lines.append(f"  {C.DIM}({filtered_out} 檔 priority < {min_pri} 過濾){C.END}")
+        out.append(Text(f"({filtered_out} 檔 priority < {min_pri} 過濾)", style="dim"))
 
     if confirmed:
-        lines.append(f"{C.BOLD}{C.G}🎯 WATCH 可進場 (composite confirmed):{C.END}")
+        t = Table(title="🎯 WATCH 可進場 (confirmed)",
+                  title_style="bold green", box=box.SIMPLE, expand=True)
+        t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
+        t.add_column("現", justify="right"); t.add_column("距停", justify="right")
+        t.add_column("Trigger"); t.add_column("族群")
         for item, d in confirmed:
-            tk      = item['ticker']
-            name    = item['name']
-            pri     = item.get('priority', 1)
-            trig    = d.get('trigger', 'none')
-            reason  = d.get('trigger_reason', '')
-            c       = d.get('c', 0)
-            stop    = item.get('stop')
-            dist    = d.get('dist_to_stop', 999)
-            sector  = item.get('sector', '?')
-            dist_s  = fmt_dist(dist) if stop else f"{C.DIM}無停損設定{C.END}"
-            price_s = f"${c:.1f}" if c else f"{C.DIM}無報價{C.END}"
-            action  = reason[:50] if reason else ''
-            lines.append(
-                f"  {stars(pri):3} {tk} {name:6}  "
-                f"{price_s}  距停 {dist_s}  "
-                f"{fmt_trigger(trig, action)}  [{sector}]"
+            pri = item.get('priority', 1)
+            trig = d.get('trigger', 'none'); reason = d.get('trigger_reason', '')
+            c = d.get('c', 0); stop = item.get('stop')
+            dist = d.get('dist_to_stop', 999)
+            dist_t = r_dist(dist) if stop else Text("—", style="dim")
+            price_s = f"{c:.1f}" if c else "—"
+            t.add_row(
+                stars(pri), item['ticker'], item['name'],
+                price_s, dist_t,
+                r_trigger(trig, reason, short=40),
+                item.get('sector', '?'),
             )
-        lines.append("")
+        out.append(t)
 
     if watching:
-        lines.append(f"{C.BOLD}🔍 WATCH 觀察可能:{C.END}")
+        t = Table(title="🔍 WATCH 觀察可能",
+                  title_style="bold", box=box.SIMPLE, expand=True)
+        t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
+        t.add_column("現", justify="right"); t.add_column("漲跌", justify="right")
+        t.add_column("Trigger"); t.add_column("Note")
         for item, d in watching:
-            tk     = item['ticker']
-            name   = item['name']
-            pri    = item.get('priority', 1)
-            trig   = d.get('trigger', 'none')
-            c      = d.get('c', 0)
-            chg    = d.get('pnl_pct', 0)
-            sector = item.get('sector', '?')
-            note   = item.get('note', '')[:22]
-            price_s = f"${c:.1f}" if c else f"{C.DIM}—{C.END}"
-            chg_color = C.R if chg < 0 else C.G
-            trig_s = fmt_trigger(trig) if trig not in ('none', None) else f"{C.DIM}—{C.END}"
-            lines.append(
-                f"  {stars(pri):3} {tk} {name:6}  "
-                f"{price_s} ({chg_color}{chg:+.1f}%{C.END})  "
-                f"{trig_s} {C.DIM}{note}{C.END}"
+            pri = item.get('priority', 1)
+            trig = d.get('trigger', 'none')
+            c = d.get('c', 0); chg = d.get('pnl_pct', 0)
+            price_s = f"{c:.1f}" if c else "—"
+            trig_t = r_trigger(trig) if trig not in ('none', None) else Text("—", style="dim")
+            t.add_row(
+                stars(pri), item['ticker'], item['name'],
+                price_s, r_change_pct(chg),
+                trig_t,
+                Text(item.get('note', '')[:28], style="dim"),
             )
-        lines.append("")
+        out.append(t)
 
     if excluded:
-        lines.append(f"{C.DIM}⛔ WATCH 排除/低優先:{C.END}")
+        t = Table(title="⛔ WATCH 排除/低優先",
+                  title_style="dim", box=box.SIMPLE, expand=True)
+        t.add_column("Ticker"); t.add_column("Name"); t.add_column("原因")
         for item, d in excluded:
-            tk     = item['ticker']
-            name   = item['name']
-            trig   = d.get('trigger', 'none')
+            trig = d.get('trigger', 'none')
             reason_s = ''
             if trig == 'TC':
-                reason_s = ' - TC 結構壞'
+                reason_s = 'TC 結構壞'
             elif item.get('note', '').startswith('🔴'):
-                reason_s = ' - ' + item['note'][:30]
+                reason_s = item['note'][:30]
             elif item.get('priority', 1) == 1:
-                reason_s = ' - 低優先'
-            lines.append(f"  {C.DIM}{tk} {name}{reason_s}{C.END}")
-        lines.append("")
+                reason_s = '低優先'
+            t.add_row(item['ticker'], item['name'], Text(reason_s, style="dim"))
+        out.append(t)
+
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1194,15 +1336,10 @@ def render_watch_sectioned(
 
 def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                            notified: set, sort_mode: str,
-                           do_notify: bool) -> list[str]:
-    """Phase 2 持倉 P&L 監控 (9:25 後)."""
+                           do_notify: bool) -> Group:
+    """Phase 2 持倉 P&L 監控 (9:25 後)、回傳 rich Group。"""
     held  = _normalize_held(HELD)
     watch = _normalize_watch(WATCH)
-
-    lines = [
-        f"{C.BOLD}━━━ {now_str}  PHASE 2: 持倉 P&L  "
-        f"(排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)}) ━━━{C.END}"
-    ]
 
     from datetime import datetime as _dt
     _now = _dt.now()
@@ -1222,13 +1359,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             snap = client.get_realtime_snapshot(tk)
             no_data = snap is None or not snap.get('close')
             if no_data:
-                if _market_open:
-                    data_status = f"{C.R}❌ API err{C.END}"
-                else:
-                    data_status = f"{C.DIM}盤前{C.END}"
                 c = load_prev_close(tk) or entry
             else:
-                data_status = f"{C.G}LIVE{C.END}"
                 c = float(snap['close'])
             prev_prices[tk] = c
             pnl     = (c - entry) * shares
@@ -1236,13 +1368,11 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             dist    = (c - stop)/c*100 if c else 0
             if not no_data:
                 total_pnl += pnl
-            # Inline trigger check
             trig_key, trig_reason = check_trigger_inline(tk, tactic)
             maybe_notify_trigger(tk, item.get('name', tk), trig_key, trig_reason, do_notify)
             live_data[tk] = {
                 'c': c, 'pnl': pnl, 'pnl_pct': pnl_pct,
                 'dist_to_stop': dist, 'no_data': no_data,
-                'data_status': data_status,
                 'trigger': trig_key, 'trigger_reason': trig_reason,
             }
             held_enriched.append(item)
@@ -1250,28 +1380,37 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             live_data[tk] = {'error': str(e)}
             held_enriched.append(item)
 
-    # Priority panel (3 lines compact)
-    lines.extend(render_priority_panel(held_enriched, watch, live_data))
-    lines.append("")
+    renderables: list = []
+    renderables.append(render_priority_panel(held_enriched, watch, live_data))
 
-    # Held detail table (no header row to save space — emoji 自帶語意)
     if not held_enriched:
-        lines.append(f"{C.DIM}未進場、無持倉監控{C.END}")
+        renderables.append(Text("未進場、無持倉監控", style="dim"))
     else:
-        pass  # 直接列 held rows、省 2 行 header + separator
-
+        t_h = Table(title="📊 持倉", title_style="bold",
+                    box=box.SIMPLE, expand=True)
+        t_h.add_column("戰術", no_wrap=True)
+        t_h.add_column("⭐", no_wrap=True)
+        t_h.add_column("Ticker", no_wrap=True)
+        t_h.add_column("Name", no_wrap=True)
+        t_h.add_column("現", justify="right", no_wrap=True)
+        t_h.add_column("P&L", justify="right", no_wrap=True)
+        t_h.add_column("距停", justify="right", no_wrap=True)
+        t_h.add_column("Trigger")
+        t_h.add_column("族群")
+        t_h.add_column("狀", no_wrap=True)
         for item in sort_items(held_enriched, sort_mode, live_data):
             tk     = item['ticker']
             name   = item['name']
             entry  = item['cost']
-            shares = item['shares']
             stop   = item['stop']
             tactic = item.get('tactic', '—')
             pri    = item.get('priority', 2)
             sector = item.get('sector', '?')
             d = live_data.get(tk, {})
             if 'error' in d:
-                lines.append(f"  {tk} {name}: err {d['error']}")
+                t_h.add_row(tactic, stars(pri), tk, name,
+                            Text(f"err {d['error']}", style="red"),
+                            "", "", "", sector, "?")
                 continue
             c        = d.get('c', entry)
             pnl      = d.get('pnl', 0)
@@ -1291,29 +1430,31 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             else:
                 notified.discard(key)
 
-            stop_tag = '🔴破!' if dist < 0 else ('⚠️緊' if dist < 1 else '🟢')
-            trig_fmt = fmt_trigger(trig_key, trig_reason)
-
-            lines.append(
-                f"  {tactic:8}  {stars(pri):3}  {tk} {name:6}  "
-                f"{'昨' if no_data else '現'}${c:.1f}  "
-                f"{fmt_pnl(pnl, pnl_pct):>32}  "
-                f"{fmt_dist(dist):>16}  "
-                f"{trig_fmt}  [{sector}]  {stop_tag}"
+            stop_tag = '🔴' if dist < 0 else ('⚠️' if dist < 1 else '🟢')
+            price_label = ('昨' if no_data else '現') + f"{c:.1f}"
+            t_h.add_row(
+                tactic, stars(pri), tk, name,
+                Text(price_label, style="dim" if no_data else ""),
+                r_pnl(pnl, pnl_pct),
+                r_dist(dist),
+                r_trigger(trig_key, trig_reason, short=30),
+                sector,
+                stop_tag,
             )
+        renderables.append(t_h)
 
     today = total_pnl + REALIZED
-    lines.append("")
-    lines.append(f"  帳面 {fmt_pnl(total_pnl)} | 已實現 {fmt_pnl(REALIZED)} | 💰 今日 {fmt_pnl(today)}")
+    summary = Text()
+    summary.append("帳面 ")
+    summary.append_text(r_pnl(total_pnl))
+    summary.append(" | 已實現 ")
+    summary.append_text(r_pnl(REALIZED))
+    summary.append(" | 💰 今日 ")
+    summary.append_text(r_pnl(today))
+    renderables.append(summary)
 
     # Watchlist
     if watch:
-        lines.append("")
-        lines.append(
-            f"{C.DIM}── Watchlist (SKIP)  "
-            f"(排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)}) ──{C.END}"
-        )
-
         watch_enriched = []
         for item in watch:
             tk   = item['ticker']
@@ -1340,8 +1481,15 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             watch_enriched.append(item)
 
         if sort_mode == 'status':
-            render_watch_sectioned(watch_enriched, live_data, lines, None, sort_mode)
+            renderables.extend(render_watch_sectioned(watch_enriched, live_data, sort_mode))
         else:
+            t_w = Table(title=f"Watchlist (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})",
+                        title_style="dim", box=box.SIMPLE, expand=True)
+            t_w.add_column("⭐"); t_w.add_column("戰術")
+            t_w.add_column("Ticker"); t_w.add_column("Name")
+            t_w.add_column("現", justify="right"); t_w.add_column("漲跌", justify="right")
+            t_w.add_column("距停", justify="right")
+            t_w.add_column("Trigger"); t_w.add_column("族群"); t_w.add_column("狀")
             for item in sort_items(watch_enriched, sort_mode, live_data):
                 tk     = item['ticker']
                 name   = item['name']
@@ -1357,17 +1505,24 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 pre  = d.get('pre', True)
                 trig_key    = d.get('trigger', 'none')
                 trig_reason = d.get('trigger_reason', '')
-                chg_color = C.R if chg < 0 else C.G
-                wall_tag  = f"{C.DIM}盤前{C.END}" if pre else ('🔴弱' if (stop and dist < 0) else '🟡守')
-                trig_fmt  = fmt_trigger(trig_key, trig_reason)
-                lines.append(
-                    f"  {stars(pri):3} {tactic:6} {tk} {name:6}  "
-                    f"${c:.1f} ({chg_color}{chg:+.1f}%{C.END})  "
-                    f"距停 {fmt_dist(dist):>16}  "
-                    f"{trig_fmt}  [{sector}]  {wall_tag}"
+                wall_tag = '盤前' if pre else ('🔴' if (stop and dist < 0) else '🟡')
+                t_w.add_row(
+                    stars(pri), tactic, tk, name,
+                    f"{c:.1f}" if c else "—",
+                    r_change_pct(chg),
+                    r_dist(dist),
+                    r_trigger(trig_key, trig_reason, short=30),
+                    sector,
+                    wall_tag,
                 )
+            renderables.append(t_w)
 
-    return lines
+    panel = Panel(
+        Group(*renderables),
+        title=f"PHASE 2: 持倉 P&L  {now_str}  (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})",
+        border_style="magenta",
+    )
+    return Group(panel)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1450,73 +1605,95 @@ def main():
     notified:    set  = set()
 
     use_alt = not args.no_clear
-    if use_alt:
-        sys.stdout.write(C.ALT_ON + C.HIDE)
-        sys.stdout.flush()
 
     kb_thread = threading.Thread(target=_kb_listener, daemon=True)
     kb_thread.start()
 
-    def _emit(line: str):
-        sys.stdout.write(line + C.EOL + '\r\n')
+    console = Console()
+
+    def _build_frame() -> Group:
+        """組整個 frame: header + content panel + footer。"""
+        now = datetime.now()
+        now_str = now.strftime('%H:%M:%S')
+        h, m = now.hour, now.minute
+
+        in_phase1 = h == 9 and m <= 25
+        if args.force_phase == '1':
+            in_phase1 = True
+        elif args.force_phase == '2':
+            in_phase1 = False
+
+        sort_mode = _current_sort[0]
+
+        # Header
+        header = Text()
+        header.append(f"=== 即時 monitor (interval {args.interval}s)  {now_str} === ",
+                      style="bold blue")
+        if trigger_ok:
+            header.append("StageTrigger OK", style="green")
+        else:
+            header.append("StageTrigger unavailable", style="red")
+        # WS cache stats
+        try:
+            tot, stale, errs = _cache.stats()
+            header.append(f"  [WS cache {tot}, stale {stale}, err {errs}]",
+                          style="dim")
+        except Exception:
+            pass
+
+        hint = Text(
+            "快捷鍵: 1=status(分段) 2=priority 3=risk 4=trigger 5=pnl 6=sector q=退出",
+            style="dim",
+        )
+
+        if in_phase1:
+            content = render_phase1_screener(client, now_str, sort_mode, do_notify)
+        else:
+            content = render_phase2_holdings(
+                client, now_str, prev_prices, notified, sort_mode, do_notify
+            )
+
+        footer = Text(
+            f"下次 {args.interval}s | 排序 [{sort_mode}] | Ctrl+C 或 q 結束",
+            style="dim",
+        )
+        return Group(header, hint, content, footer)
 
     try:
-        while not _quit_flag[0]:
-            try:
-                now     = datetime.now()
-                now_str = now.strftime('%H:%M:%S')
-                h, m    = now.hour, now.minute
-
-                in_phase1 = h == 9 and m <= 25
-                if args.force_phase == '1':
-                    in_phase1 = True
-                elif args.force_phase == '2':
-                    in_phase1 = False
-
-                sort_mode = _current_sort[0]
-
-                if use_alt:
-                    sys.stdout.write(C.HOME)
-
-                trig_status = f"{C.G}StageTrigger OK{C.END}" if trigger_ok else f"{C.R}StageTrigger unavailable{C.END}"
-                _emit(f"{C.BOLD}{C.B}=== 即時 monitor (interval {args.interval}s)  {now_str} ===  {trig_status}{C.END}")
-                _emit(f"{C.DIM}快捷鍵: 1=status(分段) 2=priority 3=risk 4=trigger 5=pnl 6=sector q=退出{C.END}")
-                _emit("")
-
-                if in_phase1:
-                    for line in render_phase1_screener(client, now_str, sort_mode, do_notify):
-                        _emit(line)
-                else:
-                    for line in render_phase2_holdings(client, now_str, prev_prices,
-                                                       notified, sort_mode, do_notify):
-                        _emit(line)
-
-                _emit("")
-                _emit(f"{C.DIM}下次 {args.interval}s | 排序 [{sort_mode}] | Ctrl+C 或 q 結束{C.END}")
-                sys.stdout.write('\033[J')
-                sys.stdout.flush()
-                # 細粒度 sleep、q 鍵 / sort 切換可以更快響應
-                _elapsed = 0.0
-                _step = 0.3
-                _prev_sort = _current_sort[0]
-                while _elapsed < args.interval and not _quit_flag[0]:
-                    time.sleep(_step)
-                    _elapsed += _step
-                    # sort 鍵被按時、立即跳出 sleep 重新 render
-                    if _current_sort[0] != _prev_sort:
-                        break
-            except KeyboardInterrupt:
-                break
-            except Exception as e:
-                _emit(f"[ERROR] {e}")
-                sys.stdout.flush()
-                time.sleep(5)
+        # rich.Live: refresh_per_second 控制 render 頻率、screen=True 用 alt-screen
+        with Live(
+            _build_frame(),
+            console=console,
+            screen=use_alt,
+            refresh_per_second=2,
+            transient=False,
+            redirect_stdout=False,
+            redirect_stderr=False,
+        ) as live:
+            while not _quit_flag[0]:
+                try:
+                    live.update(_build_frame())
+                    # 細粒度 sleep、q 鍵 / sort 切換立即跳出
+                    _elapsed = 0.0
+                    _step = 0.3
+                    _prev_sort = _current_sort[0]
+                    while _elapsed < args.interval and not _quit_flag[0]:
+                        time.sleep(_step)
+                        _elapsed += _step
+                        if _current_sort[0] != _prev_sort:
+                            break
+                except KeyboardInterrupt:
+                    break
+                except Exception as e:
+                    # 錯誤直接 log 到 frame、不退出
+                    try:
+                        live.update(Text(f"[ERROR] {e}", style="red"))
+                    except Exception:
+                        pass
+                    time.sleep(5)
     finally:
         _quit_flag[0] = True
-        if use_alt:
-            sys.stdout.write(C.SHOW + C.ALT_OFF)
-            sys.stdout.flush()
-        print(f"{C.B}結束{C.END}")
+        print("結束")
 
 
 if __name__ == '__main__':
