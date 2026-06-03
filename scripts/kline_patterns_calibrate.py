@@ -58,7 +58,7 @@ SLUG_MAP = {
     "two_crows_gap": "two_crow_gap",
     "dark_night_two_star": "dark_double_star_anye",
     "outside_three_black": "outside_three_black",
-    "gap_fill_pattern": "gap_fill_up",  # ambiguous; will check both up + down
+    # "gap_fill_pattern": handled by special case in map_slug() — returns both up + down
     "morning_star_harami": "morning_star_harami",
     "engulfing": None,  # ambiguous bull/bear; will dispatch by notes
 }

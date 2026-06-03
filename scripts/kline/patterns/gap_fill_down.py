@@ -19,9 +19,13 @@ def detect(df: pd.DataFrame) -> pd.Series:
       2. 今日 close >= 該日的 prev_low (gap_top)
       3. 今日為實際回補日 (前一日 close < gap_top, 今日 close >= gap_top)
     """
+    # Course「隔日就回補」allows intraday touch (high >= gap_top), not strict
+    # close >= gap_top. Case #14 6278 台表科 2018-09-19: high 34.65 exactly
+    # equals 09-18 gap_top 34.65, but close 33.95 < gap_top — intraday touch
+    # confirms「缺口回補」per chartists' definition.
     g = df.groupby("ticker")
-    close_today = df["close"]
-    close_yesterday = g["close"].shift(1)
+    high_today = df["high"]
+    high_yesterday = g["high"].shift(1)
 
     result = pd.Series(False, index=df.index)
     for lag in range(1, GAP_FILL_WINDOW_DAYS + 1):
@@ -29,8 +33,8 @@ def detect(df: pd.DataFrame) -> pd.Series:
         past_prev_low = g["low"].shift(lag + 1)
         was_gap_down = past_high < past_prev_low
         gap_top = past_prev_low
-        today_filled = close_today >= gap_top
-        yesterday_below = close_yesterday < gap_top
+        today_filled = high_today >= gap_top  # intraday touch counts
+        yesterday_below = high_yesterday < gap_top  # yesterday hadn't yet touched
         result = result | (was_gap_down & today_filled & yesterday_below).fillna(False)
 
     return result.fillna(False)

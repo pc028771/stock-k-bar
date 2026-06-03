@@ -19,20 +19,19 @@ def detect(df: pd.DataFrame) -> pd.Series:
       2. 今日 close <= 該日的 prev_high (gap_bottom)
       3. 今日為實際回補日 (前一日 close > gap_bottom, 今日 close <= gap_bottom)
     """
+    # Symmetric to gap_fill_down: allow intraday low touch (low <= gap_bottom).
     g = df.groupby("ticker")
-    close_today = df["close"]
-    close_yesterday = g["close"].shift(1)
+    low_today = df["low"]
+    low_yesterday = g["low"].shift(1)
 
     result = pd.Series(False, index=df.index)
     for lag in range(1, GAP_FILL_WINDOW_DAYS + 1):
         past_low = g["low"].shift(lag)
         past_prev_high = g["high"].shift(lag + 1)
         was_gap_up = past_low > past_prev_high
-        # gap_bottom = past_prev_high (上邊界 of gap, 也是回補要破下的價位)
         gap_bottom = past_prev_high
-        # 今日剛被回補 (前日仍上方, 今日跌破)
-        today_filled = close_today <= gap_bottom
-        yesterday_above = close_yesterday > gap_bottom
+        today_filled = low_today <= gap_bottom  # intraday touch counts
+        yesterday_above = low_yesterday > gap_bottom
         result = result | (was_gap_up & today_filled & yesterday_above).fillna(False)
 
     return result.fillna(False)
