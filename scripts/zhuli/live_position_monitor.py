@@ -140,11 +140,11 @@ WATCH = [
     },
     {
         'ticker': '6770', 'name': '力積電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示',
+        'ref_close': 84.6, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/3 (觀察)',
         'sector': 'GT基底/成熟製程',
-        'note': '⭐ 老師「立即店」、GT 基底、距 MA10 +15% 偏遠等回測'
+        'note': '🔴 老師「立即店」、6/3 破 MA5 $85.4、看 6/4 紅 K 收復 MA5 才升等'
     },
     {
         'ticker': '3702', 'name': '大聯大',
@@ -161,6 +161,39 @@ WATCH = [
         'source': '老師明示 6/3',
         'sector': '半導體',
         'note': '⭐⭐⭐ 老師 6/3 圈起來、外資佈局「上櫃買這麼多不容易」、均線附近佈局'
+    },
+    # 老師 6/3 提到的個股 — 等 6/4 紅 K 收復所有均線才升等
+    {
+        'ticker': '6257', 'name': '矽格',
+        'ref_close': 230.0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/3 (觀察)',
+        'sector': '半導體封測',
+        'note': '🟢 6/3 已站全均線、看 6/4 守住 + 紅 K 即升等'
+    },
+    {
+        'ticker': '2451', 'name': '創見',
+        'ref_close': 358.0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/3 (觀察)',
+        'sector': '記憶體模組',
+        'note': '🟢 6/3 已站全均線、外資+融資進、6/4 守住紅 K 升等'
+    },
+    {
+        'ticker': '3042', 'name': '晶技',
+        'ref_close': 217.5, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/3 (觀察)',
+        'sector': '電子零組件',
+        'note': '🟢 6/3 已站全均線、6/4 守住紅 K 升等'
+    },
+    {
+        'ticker': '6239', 'name': '力成',
+        'ref_close': 343.0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/3 (觀察)',
+        'sector': '半導體封測',
+        'note': '🔒 處置 5/29-6/11、6/3 D+4 破 MA5、6/4 D+5 是最後機會、紅 K 收復 MA5 → 🔒A、否則降 🔒B/C'
     },
     {
         'ticker': '3036', 'name': '文曄',
