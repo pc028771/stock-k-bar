@@ -103,8 +103,8 @@ PLAN_PRIMARY = [
         'tactic': '題材', 'priority': 3,
         'source': '處置框架 + scanner',
         'sector': 'ABF載板/PCB',
-        'note': '🔒A D+4 老師「第 4-5 天最愛切入」、core、⭐站前哥、距 MA10 +2.1%',
-        'reason': '🔒A 處置 D+4 + 老師最愛切入時機 + core tier + 站前哥、停損 486 (結構底)',
+        'note': '🔒A D+5 老師「第 4-5 天最愛切入」最後一天、出關 6/10、core、⭐站前哥',
+        'reason': '🔒A 處置 D+5 (窗口最後一天) + 老師最愛切入 + core + 站前哥、停損 486 (結構底)',
     },
 ]
 
@@ -312,6 +312,7 @@ TRIGGER_RANK = {
 # 全域排序切換（快捷鍵 1-6 更新這個）
 _current_sort: list[str] = ['status']
 _quit_flag: list[bool] = [False]
+_watch_min_priority: list[int] = [2]
 
 # Trigger cooldown 避免重複通知 (key: "{ticker}_{T1/T2/TC}")
 _trigger_cooldown: dict[str, datetime] = {}
@@ -930,6 +931,13 @@ def render_watch_sectioned(
 
     if pre_mkt:
         lines.append(f"  {C.DIM}⏳ 開盤前、5K 累積中 — Trigger 判定尚未啟動{C.END}")
+        # 開盤前過濾 noise: 依 --watch-min-priority 篩
+        min_pri = _watch_min_priority[0]
+        watching = [(it, d) for (it, d) in watching if it.get('priority', 1) >= min_pri]
+        excluded_count = len(excluded)
+        excluded = []  # 開盤前不顯示排除清單、開盤後再判
+        if excluded_count:
+            lines.append(f"  {C.DIM}({excluded_count} 檔低優先暫不顯示、開盤後再評){C.END}")
 
     if confirmed:
         lines.append(f"{C.BOLD}{C.G}🎯 WATCH 可進場 (composite confirmed):{C.END}")
@@ -963,14 +971,14 @@ def render_watch_sectioned(
             c      = d.get('c', 0)
             chg    = d.get('pnl_pct', 0)
             sector = item.get('sector', '?')
-            note   = item.get('note', '')[:35]
+            note   = item.get('note', '')[:22]
             price_s = f"${c:.1f}" if c else f"{C.DIM}—{C.END}"
             chg_color = C.R if chg < 0 else C.G
-            trig_s = fmt_trigger(trig) if trig not in ('none', None) else f"{C.DIM}無訊號{C.END}"
+            trig_s = fmt_trigger(trig) if trig not in ('none', None) else f"{C.DIM}—{C.END}"
             lines.append(
                 f"  {stars(pri):3} {tk} {name:6}  "
                 f"{price_s} ({chg_color}{chg:+.1f}%{C.END})  "
-                f"{trig_s}  {C.DIM}{note}{C.END}"
+                f"{trig_s} {C.DIM}{note}{C.END}"
             )
         lines.append("")
 
@@ -1224,7 +1232,11 @@ def main():
     p.add_argument('--force-phase', choices=['1', '2'], help='強制階段、debug 用')
     p.add_argument('--sort', choices=SORT_MODES, default='status',
                    help='初始排序模式 (status/priority/risk/trigger/pnl/sector)')
+    p.add_argument('--watch-min-priority', type=int, default=2,
+                   choices=[1, 2, 3],
+                   help='開盤前 WATCH 顯示門檻 (1=全顯/2=預設/3=只看核心)')
     args = p.parse_args()
+    _watch_min_priority[0] = args.watch_min_priority
 
     _current_sort[0] = args.sort
     do_notify = not args.no_notify
