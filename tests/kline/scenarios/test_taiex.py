@@ -198,13 +198,7 @@ class TestT3S42ContextBuild:
         self._patch_taiex_context(taiex_db, ld_db)
         try:
             bars = _make_bars_df(today_date="2024-08-05")
-            overrides = {
-                "broker_tier1_buy": None,
-                "teacher_tier": None,
-                "broker_concentration": None,
-                "ch2_warning_score": None,
-                "sector_consensus_direction": None,
-            }
+            overrides: dict = {}
             snap, warns = build_context_snapshot(bars, "2024-08-05", "2330", overrides=overrides)
             assert snap.taiex_record_drop_point is True, (
                 f"Expected drop_point=True, got {snap.taiex_record_drop_point}"
@@ -235,12 +229,7 @@ class TestT3S42ContextBuild:
             # 2024-08-06 close=19800, prev (2024-08-05) close=19200 → rose, drop_point = negative
             # so taiex_record_drop_point should be False (not a record drop)
             bars = _make_bars_df(today_date="2024-08-06")
-            overrides = {
-                "broker_tier1_buy": None, "teacher_tier": None,
-                "broker_concentration": None, "ch2_warning_score": None,
-                "sector_consensus_direction": None,
-            }
-            snap, _ = build_context_snapshot(bars, "2024-08-06", "2330", overrides=overrides)
+            snap, _ = build_context_snapshot(bars, "2024-08-06", "2330")
             # 2024-08-06: close > prev_close (market bounced) → drop_point negative → False
             assert snap.taiex_record_drop_point is False, (
                 f"2024-08-06 is a rebound day, drop_point should be False, got {snap.taiex_record_drop_point}"
@@ -384,8 +373,6 @@ def _make_row(**kwargs) -> pd.Series:
 
 def _make_ctx(**kwargs) -> ContextSnapshot:
     defaults = {
-        "broker_tier1_buy": None, "teacher_tier": None,
-        "ch2_warning_score": None, "sector_consensus_direction": None,
         "ma5_will_rise": None, "ma10_will_rise": None,
         "ma20_will_rise": None, "ma60_will_rise": None,
         "attack_cost": None, "defensive_low": None,

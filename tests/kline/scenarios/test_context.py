@@ -94,19 +94,12 @@ def test_t152_overrides_beat_df():
     df = _make_df(extra_cols={"attack_cost": 50.0})  # df says 50.0
     overrides = {
         "attack_cost": 999.0,  # override says 999.0
-        "broker_tier1_buy": True,
-        "teacher_tier": "core",
-        "broker_concentration": 0.42,
-        "ch2_warning_score": 3,
-        "sector_consensus_direction": "bull",
+        "ma5_will_rise": True,
     }
     snapshot, warns = build_context_snapshot(df, _TODAY, _TICKER, overrides=overrides)
 
     assert snapshot.attack_cost == 999.0, "override must win over df value"
-    assert snapshot.broker_tier1_buy is True
-    assert snapshot.teacher_tier == "core"
-    assert snapshot.ch2_warning_score == 3
-    assert snapshot.sector_consensus_direction == "bull"
+    assert snapshot.ma5_will_rise is True
     # No warn for attack_cost since override provided it
     attack_warns = [w for w in warns if "attack_cost" in w]
     assert len(attack_warns) == 0, f"Should not warn for overridden field, got: {attack_warns}"
@@ -117,15 +110,9 @@ def test_t152_overrides_beat_df():
 # ---------------------------------------------------------------------------
 
 def test_t153_full_features_no_feature_warn():
-    """T1.5.3: 完整 features + all overrides → no WARN for feature fields."""
+    """T1.5.3: 完整 features → no WARN for feature fields."""
     df = _full_features_df()
-    overrides = {
-        "broker_tier1_buy": False,
-        "teacher_tier": "mention",
-        "broker_concentration": 0.1,
-        "ch2_warning_score": 0,
-        "sector_consensus_direction": "mixed",
-    }
+    overrides: dict = {}
     snapshot, warns = build_context_snapshot(df, _TODAY, _TICKER, overrides=overrides)
 
     # features.py fields should all be populated
@@ -179,16 +166,3 @@ def test_nan_treated_as_none():
     attack_warns = [w for w in warns if "attack_cost" in w]
     assert len(attack_warns) >= 1
 
-
-# ---------------------------------------------------------------------------
-# Extra: overrides-only fields (Phase 4 pending) emit warn when absent
-# ---------------------------------------------------------------------------
-
-def test_overrides_only_fields_warn_when_absent():
-    """Phase 4 overrides-only fields emit a warn when not provided."""
-    df = _make_df()
-    snapshot, warns = build_context_snapshot(df, _TODAY, _TICKER, overrides={})
-
-    broker_warns = [w for w in warns if "broker_tier1_buy" in w]
-    assert len(broker_warns) >= 1
-    assert snapshot.broker_tier1_buy is None

@@ -92,7 +92,7 @@ recommendation_text: "給人讀的提醒文字"
 | `today.*` | `open, high, low, close, volume` |
 | `prev.*` | `open, high, low, close` |
 | `next_day.*` | `open, high, low, close, gap_up, gap_down, fills_gap` |
-| `context.*` | `broker_tier1_buy, teacher_tier, ch2_warning_score, sector_consensus_direction, ma5/10/20/60_will_rise` |
+| `context.*` | `ma5/10/20/60_will_rise, taiex_record_drop_point, taiex_record_drop_pct, taiex_record_limit_down_count, taiex_record_any_criterion, taiex_no_new_low_next_day` |
 | 頂層 | `prev_high_60, prior_low_60, attack_cost, attack_intent_zone_high, attack_intent_zone_low, defensive_low, merged_high, merged_low` |
 
 **RHS 禁止運算式**（如 `prev_high_60 * 0.98`）——只接受數字常數或白名單欄位名稱。

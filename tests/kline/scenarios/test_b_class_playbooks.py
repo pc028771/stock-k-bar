@@ -212,10 +212,6 @@ def _make_row(**kwargs) -> pd.Series:
 def _make_ctx(**kwargs) -> ContextSnapshot:
     """Build a minimal ContextSnapshot for evaluate()."""
     defaults = {
-        "broker_tier1_buy": None,
-        "teacher_tier": None,
-        "ch2_warning_score": None,
-        "sector_consensus_direction": None,
         "ma5_will_rise": None,
         "ma10_will_rise": None,
         "ma20_will_rise": None,

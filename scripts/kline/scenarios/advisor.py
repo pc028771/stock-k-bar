@@ -90,8 +90,8 @@ def _build_context_snapshot(
     """Build a ContextSnapshot from today's enriched row + overrides.
 
     Fields that features.py does NOT produce (attack_cost, defensive_low,
-    ma*_will_rise, broker context, etc.) default to None unless provided via
-    overrides.  Each missing required field that a branch depends on is warned
+    ma*_will_rise, etc.) default to None unless provided via overrides.
+    Each missing required field that a branch depends on is warned
     at eval time (not here), per fail-loud principle.
 
     Parameters
@@ -127,13 +127,8 @@ def _build_context_snapshot(
 
     # Build the snapshot field by field.
     # Features.py does NOT produce ma*_will_rise, attack_cost, etc. —
-    # those must come from overrides (Phase 4 will wire real sources).
+    # those must come from overrides.
     snapshot = ContextSnapshot(
-        broker_tier1_buy=_get("broker_tier1_buy"),
-        teacher_tier=_get("teacher_tier"),
-        broker_concentration=_get("broker_concentration"),
-        ch2_warning_score=_get("ch2_warning_score"),
-        sector_consensus_direction=_get("sector_consensus_direction"),
         ma5_will_rise=_get("ma5_will_rise"),
         ma10_will_rise=_get("ma10_will_rise"),
         ma20_will_rise=_get("ma20_will_rise"),

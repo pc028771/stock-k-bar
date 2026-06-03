@@ -47,10 +47,6 @@ _TODAY_FIELDS = frozenset({"open", "high", "low", "close", "volume"})
 _PREV_FIELDS = frozenset({"open", "high", "low", "close"})
 _NEXT_DAY_FIELDS = frozenset({"open", "high", "low", "close", "gap_up", "gap_down", "fills_gap"})
 _CONTEXT_FIELDS = frozenset({
-    "broker_tier1_buy",
-    "teacher_tier",
-    "ch2_warning_score",
-    "sector_consensus_direction",
     "ma5_will_rise",
     "ma10_will_rise",
     "ma20_will_rise",
@@ -87,7 +83,6 @@ _BOOL_FIELDS = frozenset({
     "next_day.gap_up",
     "next_day.gap_down",
     "next_day.fills_gap",
-    "context.broker_tier1_buy",
     "context.ma5_will_rise",
     "context.ma10_will_rise",
     "context.ma20_will_rise",
@@ -162,7 +157,7 @@ def _parse_comparison_expr(expr: str) -> tuple[str, Any]:
             rhs = rhs_str  # field reference
         elif op in ("==", "!="):
             # Allow plain string literals for equality comparisons
-            # (e.g. context.teacher_tier == "core", sector_consensus_direction == "bull")
+            # (e.g. context.ma5_will_rise == true, taiex_record_any_criterion == true)
             rhs = rhs_str
         else:
             raise UnknownTokenError(
@@ -652,7 +647,7 @@ def evaluate_vectorized(
         feature columns (e.g. ``prev_high_60``) may also live here.
     ctx_df:
         A DataFrame with the same index as *df* containing context columns
-        (e.g. ``broker_tier1_buy``, ``ma5_will_rise``).  Missing columns
+        (e.g. ``ma5_will_rise``, ``taiex_record_any_criterion``).  Missing columns
         are treated as ``None`` → ``False`` in comparisons.
     next_day_n:
         Which future bar ``next_day.*`` resolves to via ``shift(-N)``

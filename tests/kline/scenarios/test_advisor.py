@@ -175,9 +175,9 @@ branches:
       type: context_only_signal
       description: 需要 context 欄位
       course_citation:
-        source: 主力大課程 §站前哥重大買盤判斷
+        source: K線力量課程 §MA扣抵狀態判斷
 course_sources:
-  - source: 主力大課程 §站前哥定義
+  - source: K線力量課程 §MA扣抵定義
 """
 
 
@@ -250,21 +250,6 @@ class TestAdvisorResultStructure:
 
 
 class TestContextOverrides:
-    def test_override_broker_tier1_buy(self, tmp_path):
-        """T1.4.2a: context_overrides['broker_tier1_buy'] = True shows up in snapshot."""
-        pb_dir, lt_dir = _mk_dirs(tmp_path)
-        df = _make_enriched_df()
-        result = analyze(
-            df,
-            "2026-06-01",
-            "2330",
-            context_overrides={"broker_tier1_buy": True},
-            playbook_dirs=[pb_dir],
-            light_dirs=[lt_dir],
-        )
-        assert result.context_snapshot is not None
-        assert result.context_snapshot.broker_tier1_buy is True
-
     def test_override_ma5_will_rise(self, tmp_path):
         """T1.4.2b: ma5_will_rise override injected into snapshot."""
         pb_dir, lt_dir = _mk_dirs(tmp_path)
@@ -294,7 +279,7 @@ class TestContextOverrides:
         assert result.context_snapshot.is_anomalous_volume is True
 
     def test_multiple_overrides(self, tmp_path):
-        """T1.4.2d: multiple context_overrides all applied."""
+        """T1.4.2d: multiple context_overrides (K線課程 fields) all applied."""
         pb_dir, lt_dir = _mk_dirs(tmp_path)
         df = _make_enriched_df()
         result = analyze(
@@ -302,17 +287,17 @@ class TestContextOverrides:
             "2026-06-01",
             "2330",
             context_overrides={
-                "broker_tier1_buy": True,
-                "teacher_tier": "core",
-                "ch2_warning_score": 3,
+                "ma5_will_rise": True,
+                "ma10_will_rise": False,
+                "is_anomalous_volume": True,
             },
             playbook_dirs=[pb_dir],
             light_dirs=[lt_dir],
         )
         ctx = result.context_snapshot
-        assert ctx.broker_tier1_buy is True
-        assert ctx.teacher_tier == "core"
-        assert ctx.ch2_warning_score == 3
+        assert ctx.ma5_will_rise is True
+        assert ctx.ma10_will_rise is False
+        assert ctx.is_anomalous_volume is True
 
 
 # ---------------------------------------------------------------------------
@@ -422,10 +407,10 @@ class TestMissingContextWarn:
         # Synthetic PatternHit for bull_engulfing
         hit = PatternHit(pattern="bull_engulfing", fired_at="2026-06-01")
 
-        # Minimal playbook requiring broker_tier1_buy
+        # Minimal playbook requiring ma5_will_rise
         playbook = Playbook(
             pattern="bull_engulfing",
-            setup=PlaybookSetup(name="req_broker", required_context=["broker_tier1_buy"]),
+            setup=PlaybookSetup(name="req_ma5", required_context=["ma5_will_rise"]),
             branches=[
                 Branch(
                     id="B1",
@@ -434,15 +419,15 @@ class TestMissingContextWarn:
                     action=Action(
                         type="context_only_signal",
                         description="test",
-                        course_citation=CourseCitation(source="主力大課程 §站前哥"),
+                        course_citation=CourseCitation(source="K線力量課程 §MA扣抵"),
                     ),
                 )
             ],
-            course_sources=[CourseCitation(source="主力大課程 §站前哥定義")],
+            course_sources=[CourseCitation(source="K線力量課程 §MA扣抵定義")],
         )
         playbooks_by_pattern = {"bull_engulfing": [playbook]}
 
-        # Context with broker_tier1_buy = None
+        # Context with ma5_will_rise = None
         ctx = ContextSnapshot()
         today_row = pd.Series({"open": 100.0, "high": 110.0, "low": 95.0, "close": 108.0, "volume": 1_000_000})
         notes: list[str] = []
@@ -451,29 +436,29 @@ class TestMissingContextWarn:
 
         # Playbook was skipped → scenarios empty
         assert scenarios == []
-        # WARN about missing broker_tier1_buy
-        warn_notes = [n for n in notes if "WARN" in n and "broker_tier1_buy" in n]
+        # WARN about missing ma5_will_rise
+        warn_notes = [n for n in notes if "WARN" in n and "ma5_will_rise" in n]
         assert len(warn_notes) >= 1, f"Expected WARN in notes; got: {notes}"
 
     def test_playbook_with_required_context_satisfied(self, tmp_path):
         """T1.4.5c: playbook required_context met via overrides → not skipped."""
         pb_dir, lt_dir = _mk_dirs(tmp_path)
-        (pb_dir / "bull_engulfing.yaml").write_text(_playbook_with_required_context("broker_tier1_buy"))
+        (pb_dir / "bull_engulfing.yaml").write_text(_playbook_with_required_context("ma5_will_rise"))
         df = _make_enriched_df()
 
-        # Override broker_tier1_buy = True → playbook not skipped
+        # Override ma5_will_rise = True → playbook not skipped
         result = analyze(
             df,
             "2026-06-01",
             "2330",
-            context_overrides={"broker_tier1_buy": True},
+            context_overrides={"ma5_will_rise": True},
             playbook_dirs=[pb_dir],
             light_dirs=[lt_dir],
         )
-        # No WARN about broker_tier1_buy being skipped
+        # No WARN about ma5_will_rise being skipped
         skip_warns = [
             n for n in result.notes
-            if "WARN" in n and "broker_tier1_buy" in n and "skipped" in n
+            if "WARN" in n and "ma5_will_rise" in n and "skipped" in n
         ]
         assert len(skip_warns) == 0
 

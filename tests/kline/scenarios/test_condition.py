@@ -6,7 +6,7 @@ Coverage plan:
   T1.3.3  next_day_n=2 correctly shifts -2
   T1.3.4  unknown field raises UnknownTokenError with field name in message
   T1.3.5  vectorized == scalar on fixture data (property-style consistency)
-  T1.3.6  context.broker_tier1_buy: true uses ContextSnapshot path
+  T1.3.6  context.ma5_will_rise: true uses ContextSnapshot path
   Extra:  between, gap_up/down, fills_gap, nesting > 2 raises,
           RHS arithmetic expression raises, unknown operator raises,
           not node, prev.* fields, context.ma*_will_rise
@@ -453,42 +453,12 @@ class TestVectorizedEqualsScalar:
 
 
 # ---------------------------------------------------------------------------
-# T1.3.6 — context.broker_tier1_buy: true uses ContextSnapshot path
+# T1.3.6 — K線課程 context fields (ma*_will_rise, taiex_*)
 # ---------------------------------------------------------------------------
 
 
 class TestContextFields:
-    """T1.3.6"""
-
-    def test_broker_tier1_buy_true_matches(self):
-        row = _make_row()
-        ctx = _empty_ctx(broker_tier1_buy=True)
-        when = {"context.broker_tier1_buy": True}
-        assert evaluate(when, row, ctx) is True
-
-    def test_broker_tier1_buy_false_no_match(self):
-        row = _make_row()
-        ctx = _empty_ctx(broker_tier1_buy=False)
-        when = {"context.broker_tier1_buy": True}
-        assert evaluate(when, row, ctx) is False
-
-    def test_broker_tier1_buy_none_returns_none(self):
-        row = _make_row()
-        ctx = _empty_ctx(broker_tier1_buy=None)
-        when = {"context.broker_tier1_buy": True}
-        assert evaluate(when, row, ctx) is None
-
-    def test_context_teacher_tier_equality(self):
-        row = _make_row()
-        ctx = _empty_ctx(teacher_tier="core")
-        when = {"context.teacher_tier": "== core"}
-        assert evaluate(when, row, ctx) is True
-
-    def test_ch2_warning_score_comparison(self):
-        row = _make_row()
-        ctx = _empty_ctx(ch2_warning_score=5)
-        when = {"context.ch2_warning_score": ">= 4"}
-        assert evaluate(when, row, ctx) is True
+    """T1.3.6 — K線課程 context fields (ma*_will_rise, taiex_*)"""
 
     def test_ma5_will_rise_true(self):
         row = _make_row()
@@ -502,12 +472,12 @@ class TestContextFields:
         when = {"context.ma10_will_rise": True}
         assert evaluate(when, row, ctx) is False
 
-    def test_context_fields_vectorized(self):
+    def test_context_ma5_will_rise_vectorized(self):
         df = _make_df(4)
         ctx_df = _empty_ctx_df(
-            4, broker_tier1_buy=[True, False, True, False]
+            4, ma5_will_rise=[True, False, True, False]
         )
-        when = {"context.broker_tier1_buy": True}
+        when = {"context.ma5_will_rise": True}
         result = evaluate_vectorized(when, df, ctx_df)
         assert result.tolist() == [True, False, True, False]
 
@@ -710,8 +680,8 @@ class TestPerformance:
         )
         ctx_df = pd.DataFrame(
             {
-                "broker_tier1_buy": rng.choice([True, False], n),
                 "ma5_will_rise": rng.choice([True, False], n),
+                "ma10_will_rise": rng.choice([True, False], n),
             },
             index=df.index,
         )
@@ -719,7 +689,7 @@ class TestPerformance:
             "all": [
                 {"any": [
                     {"next_day.close": "> today.high"},
-                    {"context.broker_tier1_buy": True},
+                    {"context.ma5_will_rise": True},
                 ]},
                 {"today.volume": ">= 1000000"},
             ]

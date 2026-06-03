@@ -6,9 +6,7 @@ Build a ``ContextSnapshot`` from a features-enriched DataFrame row + optional
 overrides dict.  This module is the single source of truth for:
 
 1. Which feature columns map to which ContextSnapshot fields.
-2. Which fields require ``overrides`` injection (broker / teacher / ch2 / sector
-   — Phase 4 will wire real sources; Phase 1 uses overrides only).
-3. Fail-loud behaviour for missing fields: each ``None`` field appended to
+2. Fail-loud behaviour for missing fields: each ``None`` field appended to
    ``warn_notes`` but does NOT crash (per feedback_no_silent_imputation,
    missing fields must be reported, not silently patched).
 
@@ -18,7 +16,7 @@ Public API
 
     snapshot, warn_notes = build_context_snapshot(bars_df, today_date, ticker)
     snapshot, warn_notes = build_context_snapshot(bars_df, today_date, ticker,
-                                                   overrides={"broker_tier1_buy": True})
+                                                   overrides={"ma5_will_rise": True})
 
 Notes
 -----
@@ -30,9 +28,8 @@ Notes
   ``feedback_no_silent_imputation``.
 - 大盤創紀錄跌點欄位（taiex_record_drop_point / taiex_record_drop_pct /
   taiex_record_limit_down_count / taiex_no_new_low_next_day）由
-  ``_TaiexContext`` 從 taiex_history.sqlite + limit_down_history.sqlite 讀取，
-  亦可透過 overrides 注入（測試用）。
-  若 DB 不存在，欄位為 None + warn（fail-loud，不 crash）。
+  ``_TaiexContext`` 從 taiex_history.sqlite + limit_down_history.sqlite 讀取；
+  亦可透過 overrides 注入（測試用）。若 DB 不存在，欄位為 None + warn（fail-loud，不 crash）。
 """
 
 from __future__ import annotations
@@ -207,19 +204,6 @@ _FEATURES_FIELDS: list[str] = [
 
 _MERGED_PREFIX = "merged_"
 
-# ---------------------------------------------------------------------------
-# Fields that MUST come from overrides in Phase 1
-# (broker / teacher / ch2 / sector — no features.py source yet)
-# ---------------------------------------------------------------------------
-
-_OVERRIDES_ONLY_FIELDS: list[str] = [
-    "broker_tier1_buy",
-    "teacher_tier",
-    "broker_concentration",
-    "ch2_warning_score",
-    "sector_consensus_direction",
-]
-
 
 def _scalar(val: object) -> object:
     """Convert numpy scalar / NaN → Python None; pass through other values."""
@@ -253,8 +237,7 @@ def build_context_snapshot(
         Ticker symbol.
     overrides:
         Optional dict of ``ContextSnapshot`` field → value.  These values
-        take priority over anything found in ``bars_df``.  Use this for
-        broker / teacher / ch2 / sector fields in Phase 1.
+        take priority over anything found in ``bars_df``.
 
     Returns
     -------
@@ -314,20 +297,6 @@ def build_context_snapshot(
         return val
 
     # ------------------------------------------------------------------
-    # 4. Resolve overrides-only fields (no warn when None — Phase 1 expected)
-    # ------------------------------------------------------------------
-    def _get_override_only(field: str) -> object:
-        """Phase 1 fields: only from overrides; no warn if absent."""
-        if field in overrides:
-            return overrides[field]
-        # Not in overrides → None, but warn so caller knows integration pending
-        warn_notes.append(
-            f"WARN: ContextSnapshot field '{field}' not provided via overrides "
-            f"(Phase 4 integration pending); set to None"
-        )
-        return None
-
-    # ------------------------------------------------------------------
     # 4b. Resolve taiex §30 fields (from DB or overrides)
     # ------------------------------------------------------------------
     _TAIEX_FIELDS = [
@@ -363,12 +332,6 @@ def build_context_snapshot(
     # 5. Build snapshot
     # ------------------------------------------------------------------
     snapshot = ContextSnapshot(
-        # --- Overrides-only fields (broker / teacher / ch2 / sector) ---
-        broker_tier1_buy=_get_override_only("broker_tier1_buy"),
-        teacher_tier=_get_override_only("teacher_tier"),
-        broker_concentration=_get_override_only("broker_concentration"),
-        ch2_warning_score=_get_override_only("ch2_warning_score"),
-        sector_consensus_direction=_get_override_only("sector_consensus_direction"),
         # --- MA 扣抵 (features.py columns, may be absent pre-Phase 3) ---
         ma5_will_rise=_get("ma5_will_rise"),
         ma10_will_rise=_get("ma10_will_rise"),

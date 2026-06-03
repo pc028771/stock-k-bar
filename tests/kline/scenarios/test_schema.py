@@ -271,14 +271,13 @@ class TestPlaybookRoundTrip:
 class TestContextSnapshot:
     def test_empty_snapshot_all_none(self):
         ctx = ContextSnapshot()
-        assert ctx.broker_tier1_buy is None
         assert ctx.attack_cost is None
         assert ctx.is_anomalous_volume is None
+        assert ctx.ma5_will_rise is None
 
     def test_partial_fill_passes(self):
-        ctx = ContextSnapshot(ma5_will_rise=True, ch2_warning_score=3)
+        ctx = ContextSnapshot(ma5_will_rise=True, ma10_will_rise=None)
         assert ctx.ma5_will_rise is True
-        assert ctx.ch2_warning_score == 3
         assert ctx.ma10_will_rise is None
 
 

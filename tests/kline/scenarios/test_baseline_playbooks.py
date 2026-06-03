@@ -250,8 +250,6 @@ class TestAdvisorAnalyzeRunsClean:
             today_date=today,
             ticker="2330",
             context_overrides={
-                "broker_tier1_buy": True,
-                "teacher_tier": "core",
                 "ma5_will_rise": True,
                 "ma20_will_rise": True,
             },

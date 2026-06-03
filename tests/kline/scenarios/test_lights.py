@@ -29,10 +29,10 @@ LIGHTS_DIR = Path(__file__).parents[3] / "scripts" / "kline" / "scenarios" / "li
 
 
 class TestLoadAllLights:
-    def test_load_lights_returns_20(self):
-        """T2.3.1a: loading lights dir returns exactly 20 lights."""
+    def test_load_lights_returns_19(self):
+        """T2.3.1a: loading lights dir returns exactly 19 lights (leading_env_reverse removed — 主力大 field)."""
         lights = load_lights([LIGHTS_DIR])
-        assert len(lights) == 20
+        assert len(lights) == 19
 
     def test_all_lights_have_severity(self):
         """T2.3.1b: every loaded light has a valid severity value."""
@@ -69,7 +69,7 @@ class TestLoadAllLights:
         assert len(lights) == len(set(lights.keys()))
 
     def test_expected_light_ids_present(self):
-        """T2.3.1f: spot-check that all 20 expected light_ids are present."""
+        """T2.3.1f: spot-check that all 19 expected light_ids are present (leading_env_reverse removed)."""
         expected_ids = {
             "pressure_meeting_unresolved",
             "weak_bull_trendline_only",
@@ -87,7 +87,6 @@ class TestLoadAllLights:
             "bottom_break_struggle",
             "pessimistic_stock_structural",
             "manipulator_distribution_warning",
-            "leading_env_reverse",
             "lack_of_power_distinction",
             "new_high_next_day_attack_required",
             "zhongshu_recency_bias",
@@ -96,14 +95,14 @@ class TestLoadAllLights:
         assert set(lights.keys()) == expected_ids
 
     def test_severity_distribution(self):
-        """T2.3.1g: expected critical/warn/info counts."""
+        """T2.3.1g: expected critical/warn/info counts (leading_env_reverse removed → warn=8)."""
         lights = load_lights([LIGHTS_DIR])
         severity_counts = {"info": 0, "warn": 0, "critical": 0}
         for light in lights.values():
             severity_counts[light.severity] += 1
-        # 2 critical, 9 warn, 9 info (per plan)
+        # 2 critical, 8 warn, 9 info (leading_env_reverse was warn, now removed)
         assert severity_counts["critical"] == 2
-        assert severity_counts["warn"] == 9
+        assert severity_counts["warn"] == 8
         assert severity_counts["info"] == 9
 
 
@@ -141,8 +140,6 @@ class TestTriggerConditionDSL:
             ma10_will_rise=True,
             ma20_will_rise=True,
             ma60_will_rise=True,
-            broker_tier1_buy=False,
-            sector_consensus_direction="bull",
         )
         defaults.update(kwargs)
         return ContextSnapshot(**defaults)
@@ -333,7 +330,6 @@ class TestAdvisorActiveLights:
             "ma5_will_rise": True,
             "ma20_will_rise": True,
             "ma60_will_rise": True,
-            "sector_consensus_direction": "bull",
         }
         result = analyze(
             bars_df=df,

@@ -242,13 +242,6 @@ class ContextSnapshot(BaseModel):
 
     model_config = ConfigDict(frozen=False, extra="forbid")
 
-    # K-line course features (features.py)
-    broker_tier1_buy: Optional[bool] = None
-    teacher_tier: Optional[str] = None  # "core" / "strong" / "mention" / "context"
-    broker_concentration: Optional[float] = None
-    ch2_warning_score: Optional[int] = None  # 0~6
-    sector_consensus_direction: Optional[Literal["bull", "bear", "mixed"]] = None
-
     # MA 扣抵狀態 (project_kouvalue_principle)
     ma5_will_rise: Optional[bool] = None
     ma10_will_rise: Optional[bool] = None

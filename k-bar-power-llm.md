@@ -381,10 +381,8 @@ result = analyze(
     bars_df=df,               # raw 或 features-enriched 均可（自動偵測）
     today_date="2026-06-03",  # 'YYYY-MM-DD'
     ticker="2330",
-    context_overrides={       # Phase 1: broker/teacher/ch2/sector 欄位從此注入
-        "broker_tier1_buy": True,
-        "teacher_tier": "core",
-        "ch2_warning_score": 3,
+    context_overrides={       # K線力量 fields 可透過 overrides 注入
+        "ma5_will_rise": True,
         "ma60_will_rise": True,
     },
     # playbook_dirs=[Path("my/playbooks")],  # 預設: scenarios/playbooks/
@@ -446,13 +444,13 @@ bool_series = evaluate_vectorized(
 | `today.*` | `today.open` / `today.high` / `today.low` / `today.close` / `today.volume` |
 | `prev.*` | `prev.open` / `prev.high` / `prev.low` / `prev.close` |
 | `next_day.*` | `next_day.open` / `next_day.high` / `next_day.gap_up` / `next_day.fills_gap` |
-| `context.*` | `context.broker_tier1_buy` / `context.ma60_will_rise` / `context.teacher_tier` |
+| `context.*` | `context.ma5/10/20/60_will_rise` / `context.taiex_record_any_criterion` |
 | top-level | `prev_high_60` / `attack_cost` / `attack_intent_zone_high` / `defensive_low` |
 
 **DSL 約束：**
 - RHS 禁止算式（如 `volume * 1.5`）— 嚴格 reject UnknownTokenError
 - 嵌套深度最多 2 層（`all` / `any` / `not`）
-- `context.teacher_tier == "core"` 這種字串比較用 `==` / `!=`
+- `context.taiex_record_any_criterion == true` 這種布林比較直接用 `true` / `false`
 
 ```yaml
 # YAML 範例：playbook branch when-condition
@@ -471,10 +469,10 @@ when:
 from scripts.kline.scenarios.context import build_context_snapshot
 
 snapshot, warn_notes = build_context_snapshot(
-    bars_df=enriched_df,
+    bars_df=enriched_df,  # features-enriched df
     today_date="2026-06-03",
     ticker="2330",
-    overrides={"broker_tier1_buy": True},
+    overrides={"ma5_will_rise": True},
 )
 # warn_notes 含每個 None 欄位的 "WARN:" 訊息 (fail-loud, 不靜默補值)
 ```
@@ -524,14 +522,11 @@ class AdvisorResult(BaseModel):
 
 ### ContextSnapshot（欄位說明）
 
+**K線力量課程專用 schema — 不含主力大欄位（broker/teacher/ch2/sector 移至 ZhuliContextSnapshot）。**
+
 | 欄位 | 型別 | 來源 | 說明 |
 |---|---|---|---|
-| broker_tier1_buy | bool | overrides | 主力一線券商淨買超 |
-| teacher_tier | str | overrides | "core" / "strong" / "mention" / "context" |
-| broker_concentration | float | overrides | 集中度 |
-| ch2_warning_score | int | overrides | 0~6，Ch2 警示累積分 |
-| sector_consensus_direction | str | overrides | "bull" / "bear" / "mixed" |
-| ma5/10/20/60_will_rise | bool | overrides / features | 明日 MA 是否上揚（扣抵值） |
+| ma5/10/20/60_will_rise | bool | features / overrides | 明日 MA 是否上揚（扣抵值） |
 | attack_cost | float | features | 攻擊成本（突破 K 的 close） |
 | defensive_low | float | features | 防守低點 |
 | attack_intent_zone_high | float | features | 攻擊意圖區上緣（C03） |
@@ -539,9 +534,11 @@ class AdvisorResult(BaseModel):
 | is_just_broke_high | bool | features | 剛創 60 日新高（C04） |
 | is_limit_up_locked | bool | features | 漲停鎖住（C05） |
 | is_anomalous_volume | bool | features | 異常放量（C07，STUB S1） |
-
-**注意：** broker / teacher / ch2 / sector 四類欄位為 Phase 1 = overrides only；
-Phase 4 才會 wire 真實資料源。不提供時 ContextSnapshot 欄位為 None，advisor 會在 notes 警告。
+| taiex_record_drop_point | bool | taiex DB | 今日加權跌點創歷史新高 |
+| taiex_record_drop_pct | bool | taiex DB | 今日加權跌幅創歷史新高 |
+| taiex_record_limit_down_count | bool | limit_down DB | 跌停家數創歷史新高 |
+| taiex_record_any_criterion | bool | computed | 上述三項任一成立（OR） |
+| taiex_no_new_low_next_day | bool | taiex DB | 隔日加權不再創新低（進場確認） |
 
 ### Playbook / Branch / Action / Light
 
@@ -625,11 +622,9 @@ from scripts.kline.scenarios.persistence import save
 df = load_bars()
 today = "2026-06-03"
 
-# 從外部系統取得 broker / teacher context（Phase 1 用 overrides）
+# K線力量 context fields（ma*_will_rise 可透過 overrides 注入；taiex 欄位自動從 DB 讀）
 overrides = {
-    "broker_tier1_buy": True,
-    "teacher_tier": "core",
-    "ch2_warning_score": 4,
+    "ma5_will_rise": True,
     "ma60_will_rise": True,
 }
 
