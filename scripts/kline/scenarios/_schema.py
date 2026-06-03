@@ -266,6 +266,16 @@ class ContextSnapshot(BaseModel):
     is_limit_up_locked: Optional[bool] = None
     is_anomalous_volume: Optional[bool] = None  # C07 — [STUB-NEED-USER] 數字待拍板
 
+    # 大盤創紀錄跌點 (明日 K 線 §30 / 77DC434EC71DB04553752A44C9354680)
+    # 老師原話：「歷史跌點、跌幅、跌停家數，只要有其中一項」— 三個欄位獨立判斷
+    taiex_record_drop_point: Optional[bool] = None   # 加權指數今日創歷史最大跌點（點數）
+    taiex_record_drop_pct: Optional[bool] = None     # 加權指數今日創歷史最大跌幅（百分比）
+    taiex_record_limit_down_count: Optional[bool] = None  # 跌停家數創歷史新高
+    # 三項任一成立的複合旗標（OR of above three, for required_context use）
+    taiex_record_any_criterion: Optional[bool] = None
+    # 進場確認條件（隔日）: 「不再創新低」
+    taiex_no_new_low_next_day: Optional[bool] = None  # 加權指數隔日不再創新低
+
 
 class AdvisorResult(BaseModel):
     """The full output of ``advisor.analyze()`` for one ticker × one date."""

@@ -1,11 +1,22 @@
 # B07: 創紀錄跌點之後不再破底 (entry)
 # Source: INVENTORY B07 §30 / 77DC434EC71DB04553752A44C9354680
 #
+# 老師原話 (line 16):
+#   「創下歷史新高之後…但是創紀錄的歷史跌點、跌幅、跌停家數呢？
+#     只要有其中一項，就是這一篇要討論的範圍。」
+# → 三個 context flag 獨立判斷：任一為 true 即觸發
+#
+# 老師原話 (line 52):
+#   「關於創新紀錄的跌點，隔日只剩下一個重點：『不再創新低』時…
+#     假如隔日又再破創紀錄K線的低點，就表示跌勢尚未結束。」
+# → taiex_no_new_low_next_day = true  隔日進場確認
+#   taiex_no_new_low_next_day = false 訊號失效
+#
 # required_context notes:
-#   [STUB-NEED-USER] S4: 「創紀錄跌點」定義 — 全市場歷史 max？近 5 年 max？老師未明示
-#     → 此 playbook 仍可寫；required_context 標出依賴
-#     → 觸發條件以人工或外部訊號確認「今日創紀錄跌點」，再走此劇本
-#   is_anomalous_volume — [STUB-NEED-USER] S1: 老師提到市場恐慌放量，proxy 用 is_anomalous_volume
+#   taiex_record_drop_point / taiex_record_drop_pct / taiex_record_limit_down_count
+#     → 由 context.py _TaiexContext 從 taiex_history.sqlite + limit_down_history.sqlite 讀取
+#     → 三項任一 true 即觸發此 playbook
+#   is_anomalous_volume — [STUB-NEED-USER] S1: 市場恐慌放量 proxy，老師未明示數字
 #
 # 適用：價值投資 / 短線抄底；對應「打擊區哲學」— 創紀錄跌點只出現幾次，打到就大
 # 注意：排除「本質非常爛的公司」（基本面 filter — 課程外，不實作，advisor 在 notes warn）
@@ -15,48 +26,54 @@ pattern: record_decline_rebound
 setup:
   name: record_decline_no_new_low_entry
   required_context:
-    - is_anomalous_volume
+    # 複合旗標：三項任一 true → taiex_record_any_criterion = true
+    # 「只要有其中一項，就是這一篇要討論的範圍」（老師 line 16）
+    - taiex_record_any_criterion
 
 course_sources:
   - source: "明日 K 線 §30 創紀錄跌點之後不再破底"
     article_id: "77DC434EC71DB04553752A44C9354680"
-    quote: "大盤（或個股）出現創紀錄跌點，隔日不再創新低，這是抄底時機"
+    quote: "創紀錄的歷史跌點、跌幅、跌停家數，只要有其中一項，就是這一篇要討論的範圍。"
+  - source: "明日 K 線 §30 進場確認條件"
+    article_id: "77DC434EC71DB04553752A44C9354680"
+    quote: "隔日只剩下一個重點：『不再創新低』時…假如隔日又再破創紀錄K線的低點，就表示跌勢尚未結束。"
   - source: "MEMORY project_zhuli_hitting_zone_philosophy"
     quote: "平常小錢耕耘、打擊區出現大口吃肉；創紀錄跌點只出現幾次，打到就大"
 
 branches:
-  # B1 — 隔日未破底（主要進場訊號）
-  - id: B1_next_day_no_new_low
+  # B1 — 隔日 TAIEX 未破底（主要進場確認）
+  - id: B1_taiex_no_new_low
     when:
-      "next_day.low": "> today.low"
+      "context.taiex_no_new_low_next_day": true
     confirm_at: next_close
     next_day_n: 1
     action:
       type: entry_signal
-      description: "創紀錄跌點隔日最低未再破底（today.low 守住），抄底進場訊號成立"
+      description: "大盤創紀錄跌點（跌點/跌幅/跌停家數三項任一），隔日加權指數不再創新低（taiex_no_new_low_next_day=true），抄底進場訊號成立"
       course_citation:
         source: "明日 K 線 §30 創紀錄跌點後不破底進場"
         article_id: "77DC434EC71DB04553752A44C9354680"
-        quote: "隔日不再創新低（隔日 low > 前日 low）→ 排除爛公司後可進場"
+        quote: "在『隔日不再創新低』的狀態下，是價值投資的好機會，或者短線進場的機會"
       notes:
-        - "[STUB-NEED-USER] S4: 「創紀錄跌點」定義（全市場歷史 max / 近 5 年 max）老師未明示，目前需人工確認觸發"
+        - "三個 context flag 觸發來源：taiex_record_drop_point OR taiex_record_drop_pct OR taiex_record_limit_down_count"
         - "基本面 filter（排除本質爛的公司）屬課程外條件，無法在此 playbook 實作；請人工確認"
+        - "[STUB-NEED-USER] S4: 跌停判定 threshold (0.901) 及「歷史最大」是否有年限，老師未明示"
         - "此訊號對應「打擊區哲學」— 大機率機會，確認後可大口進場"
     next_branch_ids: ["B3_hold_watch"]
 
-  # B2 — 隔日再度破底（訊號失效）
-  - id: B2_next_day_new_low
+  # B2 — 隔日 TAIEX 再度破底（訊號失效）
+  - id: B2_taiex_new_low
     when:
-      "next_day.low": "<= today.low"
+      "context.taiex_no_new_low_next_day": false
     confirm_at: next_close
     next_day_n: 1
     action:
       type: exhaust_invalid
-      description: "創紀錄跌點隔日仍再創新低，反彈訊號失效；不進場或已進場者停損"
+      description: "創紀錄跌點隔日加權指數仍再創新低（taiex_no_new_low_next_day=false），反彈訊號失效；不進場或已進場者停損"
       course_citation:
         source: "明日 K 線 §30 創紀錄跌點失效條件"
         article_id: "77DC434EC71DB04553752A44C9354680"
-        quote: "隔日再創新低 → 不再破底條件不成立，訊號無效"
+        quote: "假如隔日又再破創紀錄K線的低點，就表示跌勢尚未結束"
       notes:
         - "停損邏輯：結構底跌破（收盤確認），依課程框架出清"
     next_branch_ids: []
@@ -73,7 +90,7 @@ branches:
       course_citation:
         source: "明日 K 線 §30 創紀錄跌點後持有邏輯"
         article_id: "77DC434EC71DB04553752A44C9354680"
-        quote: "創紀錄跌點不再破底後，等待反彈"
+        quote: "重點在於『隔日起就不在創新低了。』"
       notes:
         - "停損條件：收盤跌破進場日最低（結構支撐跌破，CLAUDE.md 課程框架 §2）"
     next_branch_ids: []

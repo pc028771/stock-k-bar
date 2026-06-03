@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .patterns._common import is_anomalous_volume as _is_anomalous_volume
 from .course_proxy_constants import (
     ATTACK_HIGHER_HIGH_MIN_5DAY,
     ATTACK_HIGHER_LOW_MIN_5DAY,
@@ -567,24 +568,9 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # 「明顯放量」= 本來無量，突然出現的大量（老師定性描述，無數字）
     #
     # [STUB-NEED-USER S1]:
-    #   K (vol_ma_60 multiplier) = 2.0
-    #   J (vol_max_60 multiplier) = 1.5
-    #   退化公式（INVENTORY §C07 退化值）:
-    #     vol > vol_ma_60 * 2 AND vol > vol_max_60.shift(1) * 1.5
-    #   上述數字待 user 拍板；替換時只需改 _ANOMALOUS_VOL_MA_K / _ANOMALOUS_VOL_MAX_J。
-    _ANOMALOUS_VOL_MA_K = 2.0    # [STUB-NEED-USER S1] vol vs 60d avg multiplier
-    _ANOMALOUS_VOL_MAX_J = 1.5   # [STUB-NEED-USER S1] vol vs 60d rolling max multiplier
-
-    vol_ma_60 = g["volume"].transform(
-        lambda s: s.shift(1).rolling(60, min_periods=60).mean()
-    )
-    vol_max_60_prev = g["volume"].transform(
-        lambda s: s.shift(1).rolling(60, min_periods=60).max()
-    )
-
-    df["is_anomalous_volume"] = (
-        (df["volume"] > vol_ma_60 * _ANOMALOUS_VOL_MA_K)
-        & (df["volume"] > vol_max_60_prev * _ANOMALOUS_VOL_MAX_J)
-    ).fillna(False)
+    #   K (vol_ma_60 multiplier) = 2.0, J (vol_max_60 multiplier) = 1.5（退化預設值）
+    #   上述數字待 user 拍板；回測時可傳入不同 K/J 至 _common.is_anomalous_volume。
+    #   實作已抽到 patterns/_common.py — 調整 K/J 只需改該 helper 的參數。
+    df["is_anomalous_volume"] = _is_anomalous_volume(df)
 
     return df

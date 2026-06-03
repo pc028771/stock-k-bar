@@ -55,6 +55,12 @@ _CONTEXT_FIELDS = frozenset({
     "ma10_will_rise",
     "ma20_will_rise",
     "ma60_will_rise",
+    # 大盤創紀錄跌點 §30 (Task 3.S4)
+    "taiex_record_drop_point",
+    "taiex_record_drop_pct",
+    "taiex_record_limit_down_count",
+    "taiex_record_any_criterion",
+    "taiex_no_new_low_next_day",
 })
 _TOPLEVEL_FIELDS = frozenset({
     "prev_high_60",
@@ -86,6 +92,12 @@ _BOOL_FIELDS = frozenset({
     "context.ma10_will_rise",
     "context.ma20_will_rise",
     "context.ma60_will_rise",
+    # 大盤創紀錄跌點 §30 (Task 3.S4)
+    "context.taiex_record_drop_point",
+    "context.taiex_record_drop_pct",
+    "context.taiex_record_limit_down_count",
+    "context.taiex_record_any_criterion",
+    "context.taiex_no_new_low_next_day",
 })
 
 # Logical operator keys

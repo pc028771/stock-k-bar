@@ -127,13 +127,14 @@ class TestT221LoaderOK:
         assert len(pb.branches) == 4
 
     def test_record_decline_rebound_structure(self):
-        """record_decline_rebound has correct pattern + 3 branches."""
+        """record_decline_rebound has correct pattern + 3 branches + taiex required_context."""
         result = load_playbooks([PLAYBOOKS_DIR])
         pbs = result["record_decline_rebound"]
         assert len(pbs) == 1
         pb = pbs[0]
         assert pb.pattern == "record_decline_rebound"
         assert pb.setup.name == "record_decline_no_new_low_entry"
+        assert "taiex_record_any_criterion" in pb.setup.required_context
         assert len(pb.branches) == 3
 
     def test_bullish_reversal_long_bear_structure(self):
@@ -324,26 +325,28 @@ class TestT222BranchEvaluation:
     # ---- record_decline_rebound ----
 
     def test_record_decline_no_new_low_pending(self):
-        """B1_next_day_no_new_low: next_day.low pending in scalar mode."""
+        """B1_taiex_no_new_low: context.taiex_no_new_low_next_day is None → pending."""
         result = load_playbooks([PLAYBOOKS_DIR])
         pb = result["record_decline_rebound"][0]
-        branch = next(b for b in pb.branches if b.id == "B1_next_day_no_new_low")
+        # Updated branch id (Task 3.S4: now uses context.taiex_no_new_low_next_day)
+        branch = next(b for b in pb.branches if b.id == "B1_taiex_no_new_low")
 
         row = _make_row()
         ctx = _make_ctx()
         outcome = evaluate(branch.when, row, ctx)
-        assert outcome is None  # pending
+        assert outcome is None  # pending (taiex field is None → bool pending)
 
     def test_record_decline_new_low_pending(self):
-        """B2_next_day_new_low: next_day.low pending in scalar mode."""
+        """B2_taiex_new_low: context.taiex_no_new_low_next_day is None → pending."""
         result = load_playbooks([PLAYBOOKS_DIR])
         pb = result["record_decline_rebound"][0]
-        branch = next(b for b in pb.branches if b.id == "B2_next_day_new_low")
+        # Updated branch id (Task 3.S4)
+        branch = next(b for b in pb.branches if b.id == "B2_taiex_new_low")
 
         row = _make_row()
         ctx = _make_ctx()
         outcome = evaluate(branch.when, row, ctx)
-        assert outcome is None  # pending
+        assert outcome is None  # pending (taiex field is None → bool pending)
 
     # ---- bullish_reversal_long_bear (extras) ----
 
@@ -446,7 +449,8 @@ class TestT223StubFeatureMissing:
         """B07 record_decline_rebound has STUB-NEED-USER S4 documented in branch notes."""
         result = load_playbooks([PLAYBOOKS_DIR])
         pb = result["record_decline_rebound"][0]
-        b1 = next(b for b in pb.branches if b.id == "B1_next_day_no_new_low")
+        # Updated branch id (Task 3.S4)
+        b1 = next(b for b in pb.branches if b.id == "B1_taiex_no_new_low")
         notes_text = " ".join(b1.action.notes)
         assert "STUB" in notes_text or "S4" in notes_text, (
             "B07 entry branch should document STUB-NEED-USER S4 in notes"

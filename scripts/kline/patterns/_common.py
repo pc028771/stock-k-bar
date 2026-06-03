@@ -231,6 +231,45 @@ def bull_exhaustion_context(df: pd.DataFrame) -> pd.Series:
     return (in_attack_recent & was_breakout_60d & near_high).fillna(False)
 
 
+def is_anomalous_volume(
+    df: pd.DataFrame,
+    K: float = 2.0,
+    J: float = 1.5,
+) -> pd.Series:
+    """C07 異常放量 [STUB-NEED-USER S1] K/J 數字課程未明示。
+
+    退化代理: vol > vol_ma_60 * K AND vol > vol_max_60.shift(1) * J.
+
+    Args:
+        K: 60 日均量倍數門檻，預設 2.0（[STUB-NEED-USER S1]）。
+        J: 60 日滾動最大量倍數門檻，預設 1.5（[STUB-NEED-USER S1]）。
+
+    Refs: docs/kline_course/mingri_kline/INVENTORY.md §C07
+
+    Required df columns: volume, ticker.
+    """
+    if "vol_ma_60" in df.columns:
+        vol_ma_60 = df["vol_ma_60"]
+    else:
+        g = df.groupby("ticker")
+        vol_ma_60 = g["volume"].transform(
+            lambda s: s.shift(1).rolling(60, min_periods=60).mean()
+        )
+
+    if "vol_max_60_prev" in df.columns:
+        vol_max_60_prev = df["vol_max_60_prev"]
+    else:
+        g = df.groupby("ticker")
+        vol_max_60_prev = g["volume"].transform(
+            lambda s: s.shift(1).rolling(60, min_periods=60).max()
+        )
+
+    return (
+        (df["volume"] > vol_ma_60 * K)
+        & (df["volume"] > vol_max_60_prev * J)
+    ).fillna(False)
+
+
 def bear_exhaustion_context(df: pd.DataFrame) -> pd.Series:
     """空方力竭背景 — PATTERN_DEFINITIONS §3 規格.
 
