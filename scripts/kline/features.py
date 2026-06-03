@@ -573,4 +573,45 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     #   實作已抽到 patterns/_common.py — 調整 K/J 只需改該 helper 的參數。
     df["is_anomalous_volume"] = _is_anomalous_volume(df)
 
+    # =====================================================================
+    # Task 3.E additions — 明日 K 線 INVENTORY C12
+    # Added at the END; no existing column is modified.
+    # =====================================================================
+
+    # === C12: transition_inner_to_gap — 內困翻黑演進為向下跳空反轉 ===
+    # Course source: 明日 K 線 INVENTORY.md §C12 (第 13 篇)
+    #
+    # 「內困型態（孕線）翻黑後，若隔日向下跳空 → trigger 既有 gap_reversal
+    #   並標註是『內困演進』」 — 明日 K 線對 trapped.py + gap_reversal.py 的串接
+    #
+    # Definition:
+    #   D-2: 創新高紅 K（close > prior_high_60 AND is_red）
+    #   D-1: 孕線（high <= D-2 high AND low >= D-2 low）
+    #   D-0: 向下跳空（open < prev_low）— 無論是否回補，已視為 gap_reversal 演進
+    #
+    # 日 K 退化版：
+    #   D-0 open < prev_low 已是真實跳空（K-line gap），與 gap_reversal.py 一致。
+    #   「是否回補」不在此層判斷（留給 exit/gap_attack_filled.py）。
+    #
+    # Note: INVENTORY §C12 明示「標註是內困演進」，本欄位即提供此 label，
+    # 讓 playbook 或 advisor 知道這是 trapped → gap_reversal 的串接模式。
+    g3 = df.groupby("ticker")
+    open_d2 = g3["open"].shift(2)
+    close_d2 = g3["close"].shift(2)
+    high_d2 = g3["high"].shift(2)
+    low_d2 = g3["low"].shift(2)
+    prior_high_60_d2 = g3["prior_high_60"].shift(2)
+
+    high_d1 = g3["high"].shift(1)
+    low_d1 = g3["low"].shift(1)
+    d1_harami_in_d2 = (high_d1 <= high_d2) & (low_d1 >= low_d2)
+    d2_red_new_high = (close_d2 > open_d2) & (close_d2 > prior_high_60_d2)
+
+    # D-0 gap down open
+    d0_gap_down_open = df["open"] < df["prev_low"]
+
+    df["transition_inner_to_gap"] = (
+        d2_red_new_high & d1_harami_in_d2 & d0_gap_down_open
+    ).fillna(False)
+
     return df

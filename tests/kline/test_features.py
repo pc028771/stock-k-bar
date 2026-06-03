@@ -874,3 +874,46 @@ def test_t2_4_5_fixture_alignment_inventory_example():
     assert not bar["intent_zone_break"], (
         "C03: bar 60 just broke out — should NOT yet be intent_zone_break"
     )
+
+
+# ============================================================================
+# C12 — transition_inner_to_gap
+# ============================================================================
+
+def test_transition_inner_to_gap_fires_on_harami_then_gap_down():
+    """C12: D-2 創新高紅K, D-1 孕線, D-0 向下跳空 → transition_inner_to_gap=True."""
+    # We need 60+ bars for prior_high_60 to be valid
+    rows_prefix = [
+        {"open": float(90 + i), "high": float(91 + i),
+         "low": float(89 + i), "close": float(90 + i), "volume": 1000.0}
+        for i in range(60)
+    ]
+    # D-2 (index 60): 創新高紅K — close > prior_high_60 (≈149), close > open
+    rows_prefix.append({"open": 148.0, "high": 155.0, "low": 147.0, "close": 154.0, "volume": 2000.0})
+    # D-1 (index 61): 孕線 — high <= 155, low >= 147
+    rows_prefix.append({"open": 151.0, "high": 153.0, "low": 149.0, "close": 150.0, "volume": 1000.0})
+    # D-0 (index 62): 向下跳空 — open < prev_low (149)
+    rows_prefix.append({"open": 145.0, "high": 148.0, "low": 142.0, "close": 144.0, "volume": 1500.0})
+
+    df = add_features(make_bars(rows_prefix))
+    assert df.loc[62, "transition_inner_to_gap"], (
+        "C12: D-2 創新高紅K + D-1 孕線 + D-0 跳空向下 should trigger"
+    )
+
+
+def test_transition_inner_to_gap_not_fire_without_gap_down():
+    """C12: D-0 open >= prev_low → no gap down → should not trigger."""
+    rows_prefix = [
+        {"open": float(90 + i), "high": float(91 + i),
+         "low": float(89 + i), "close": float(90 + i), "volume": 1000.0}
+        for i in range(60)
+    ]
+    rows_prefix.append({"open": 148.0, "high": 155.0, "low": 147.0, "close": 154.0, "volume": 2000.0})
+    rows_prefix.append({"open": 151.0, "high": 153.0, "low": 149.0, "close": 150.0, "volume": 1000.0})
+    # D-0: open >= prev_low (149) — no gap
+    rows_prefix.append({"open": 150.0, "high": 152.0, "low": 148.0, "close": 149.0, "volume": 1500.0})
+
+    df = add_features(make_bars(rows_prefix))
+    assert not df.loc[62, "transition_inner_to_gap"], (
+        "C12: no gap down → should NOT trigger"
+    )

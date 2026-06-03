@@ -293,6 +293,66 @@ BULL_EXHAUSTION_ATTACK_LOOKBACK = 10  # course-not-stated — engineering propos
 # 5 日 lookback 抓不到。10 日仍涵蓋「短期力竭」語意。
 
 
+# =============================================================================
+# C08. attack_continuity scoring — 攻擊延續性因子 (INVENTORY §C08)
+# =============================================================================
+# COURSE CONCEPT: 攻擊延續性 — 跳空攻擊、攻擊企圖區維持、異常放量後縮量.
+# COURSE QUOTE:
+#   第 18 篇: 「跳空攻擊之後隔日繼續往上」
+#   第 32 篇: 「攻擊企圖區不可跌回意圖區」
+#   第 40 篇: 「異常放量之後量縮 → 攻擊仍有延續性」
+# COURSE NUMBER? No — +1/-1 scoring unit is our operationalization.
+# PROXY VALUE: ±1 per condition (see scoring/attack_continuity.py).
+# This constant block documents the intent; actual values are inline in scoring.
+# (No standalone numeric constant needed — kept for audit trail.)
+ATTACK_CONTINUITY_SCORE_UNIT = 1.0  # ±1 per condition — course-not-stated magnitude
+
+# =============================================================================
+# C09. pattern_pressure scoring — 型態壓力因子 (INVENTORY §C09)
+# =============================================================================
+# COURSE CONCEPT: 型態壓力 — 頸線跌破、反彈遇壓、連層套牢.
+# COURSE QUOTE:
+#   第 17 篇: 「頸線跌破 = 頭部壓力確認」
+#   第 29 篇: 「反彈遇頸線不過 = 頭部型態的阻礙」
+#   入門 成本原理: 「層層套牢 = 多層壓力」
+# COURSE NUMBER? No — +1 per condition is our operationalization.
+# PROXY VALUE: +1 per condition, overhead_supply capped at +3.
+PATTERN_PRESSURE_SCORE_UNIT = 1.0   # +1 per condition — course-not-stated magnitude
+PATTERN_PRESSURE_SUPPLY_MAX = 3.0   # max supply layer contribution — course-not-stated
+
+# =============================================================================
+# C10. ma60_rolloff §C10 — 季線下彎無表態額外懲罰 (INVENTORY §C10)
+# =============================================================================
+# COURSE CONCEPT: 季線扣抵值 > 今日收盤 → 明日 MA60 必然下彎；若今日無紅 K
+#   表態，多方力量不足，壓力加深。
+# COURSE QUOTE: 明日 K 線 第 06 篇「季線扣抵」（課程明示觀念但無數字）.
+# COURSE NUMBER? No — -3 is our operationalization.
+# PROXY VALUE: MA60_BEARISH_NO_CONFIRM_BONUS = -3.0 (in scoring/ma60_rolloff.py).
+MA60_BEARISH_NO_CONFIRM_BONUS = -3.0  # course-not-stated — engineering proxy
+
+# =============================================================================
+# C11. zhongshu_pattern — 中樞型態整理天數 (INVENTORY §C11)
+# =============================================================================
+# COURSE CONCEPT: 中樞型態 = 上升或下降整理區間，突破前等待。
+# COURSE QUOTE:
+#   第 02 篇: 「對抗近因偏誤」
+#   第 21 篇: 「中樞型態 = 整理區間，突破前等待」
+#   第 41 篇: 「上升中樞 vs 下降中樞 識別方式」
+# COURSE NUMBER? No — 3~30 days range is our operationalization.
+# [STUB-NEED-USER]: 老師只說「不要太短也不要太長」，無具體天數。
+ZHONGSHU_MIN_DAYS = 3   # [STUB-NEED-USER] — course-not-stated lower bound
+ZHONGSHU_MAX_DAYS = 30  # [STUB-NEED-USER] — course-not-stated upper bound
+
+# =============================================================================
+# C14. trailing_stop §C14 — 微弱多方趨勢退化版 MA 天數 (INVENTORY §C14)
+# =============================================================================
+# COURSE CONCEPT: 微弱多方趨勢下，以短期趨勢線（課程說「趨勢線」）作最後停利。
+# COURSE QUOTE: 第 05 篇「微弱的多方趨勢就要用趨勢線來輔助」.
+# COURSE NUMBER? No — course says 「趨勢線」not MA; 5-day SMA is our proxy.
+# [STUB-NEED-USER]: 「5 日 SMA」是否就是課程所指的短期趨勢線？
+WEAK_BULL_MA_DAYS = 5  # [STUB-NEED-USER] — course-not-stated MA period
+
+
 __all__ = [
     "ATTACK_HIGHER_LOW_MIN_5DAY",
     "ATTACK_HIGHER_HIGH_MIN_5DAY",
@@ -326,4 +386,12 @@ __all__ = [
     "ISLAND_MAX_BARS",
     "BULL_EXHAUSTION_NEAR_HIGH_PCT",
     "BULL_EXHAUSTION_ATTACK_LOOKBACK",
+    # C08–C14 constants
+    "ATTACK_CONTINUITY_SCORE_UNIT",
+    "PATTERN_PRESSURE_SCORE_UNIT",
+    "PATTERN_PRESSURE_SUPPLY_MAX",
+    "MA60_BEARISH_NO_CONFIRM_BONUS",
+    "ZHONGSHU_MIN_DAYS",
+    "ZHONGSHU_MAX_DAYS",
+    "WEAK_BULL_MA_DAYS",
 ]

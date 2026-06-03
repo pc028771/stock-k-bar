@@ -2,6 +2,24 @@
 
 Course source: 第 09 篇《雙鴉躍空》(13041D9897DBD12852724CAD0D994486)
 Cross-course definition: PATTERN_INVENTORY P10.
+
+§C13 明日 K 線補充 (INVENTORY §C13, 第 34、36 篇):
+  在大盤 K 上偵測雙鴉躍空時，需額外注意「當下是否由權值股單一主導」。
+
+  課程第 34 篇明示：「大盤走勢受個別權值股（如台積電）主導時，雙鴉躍空可能
+  是主力刻意壓盤或分批出貨所形成的短暫型態，而非真實的整體市場轉弱訊號。」
+
+  課程第 36 篇（得利影 6144 案例）補充：「主力自演的場景下，看似看空的 K 線
+  型態可能只是在為後續拉抬製造恐慌買點，需搭配當時大盤背景綜合判斷。」
+
+  實作規範（INVENTORY §C13 明示「不影響 detect 主邏輯，僅 docstring 補充」）：
+  - detect() 邏輯維持不變（已包含 overhead_supply 條件）
+  - 呼叫方（playbook / advisor）在大盤 K 使用此 pattern 時，應注入
+    `context_overrides` 確認「無單一權值股主導」；個股 K 不受此限制
+  - 跨市場 filter 屬於外部資料融合，不在本模組實作
+
+Cross-market filter reminder (cross-market analysis 不在本 pattern 層):
+  caller_note = 「大盤 K 使用時：確認非權值股單一主導（如台積電佔比 > 50%）」
 """
 from __future__ import annotations
 

@@ -105,3 +105,43 @@ def test_no_trigger_in_flat_zone():
     df = _add_prev(make_bars(rows))
     out = mark(df)
     assert not out.iloc[-1]
+
+
+# ============================================================================
+# §C02 — 開盤跳空 + 盤中回補缺口 + 跌破前日低點 (日 K 退化版)
+# ============================================================================
+
+def test_c02_gap_fill_break_triggers_independently():
+    """§C02: open > prev_close (gap), low < prev_close (filled), close < prev_low.
+
+    This path fires independently of the 2-of-3 M1/M2/M3 requirement.
+    Course source: INVENTORY §C02 / 第 03、11 篇.
+    """
+    rows = _high_zone_prior_60(close=60)
+    # Bar 60: red K to create high-zone context; prev_close=60, high=70 (gives prior range)
+    rows.append({"open": 65, "high": 72, "low": 64, "close": 70})
+    # Bar 61: gap-fill-break pattern
+    # open=72 > prev_close=70 (gap up)
+    # low=67 < prev_close=70 (intraday fills gap back)
+    # close=63 < prev_low=64 (close below prev low)
+    rows.append({"open": 72, "high": 73, "low": 63, "close": 62})
+    df = _add_prev(make_bars(rows))
+    out = mark(df)
+    assert out.iloc[-1], (
+        "§C02: open>prev_close + low<prev_close + close<prev_low in high zone should trigger"
+    )
+
+
+def test_c02_no_trigger_when_gap_not_filled():
+    """§C02: open gaps up but low stays ABOVE prev_close → M_gap_fill_break=False."""
+    rows = _high_zone_prior_60(close=60)
+    rows.append({"open": 65, "high": 72, "low": 64, "close": 70})
+    # Bar 61: open=72 > prev_close=70, but low=71 >= prev_close=70 → gap not filled
+    rows.append({"open": 72, "high": 73, "low": 71, "close": 69})
+    df = _add_prev(make_bars(rows))
+    out = mark(df)
+    # Should NOT trigger via C02 path (gap not filled)
+    # May or may not trigger via primary (M3 only if close < min 5 prev), but not C02 path
+    # The key: close=69 is close to prev highs, M3 unlikely; M2 unlikely; M1 unlikely
+    # So overall should be False
+    assert not out.iloc[-1], "C02: no gap fill → should NOT trigger via §C02 path"
