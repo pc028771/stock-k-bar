@@ -1468,6 +1468,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 if c == 0:
                     c = load_prev_close(tk) or ref
                     pre = True
+                # ref_close 沒設 → fallback 用昨收
+                if not ref:
+                    ref = load_prev_close(tk) or 0
                 chg  = (c - ref)/ref*100 if ref else 0
                 dist = (c - stop)/c*100 if (c and stop) else 999
                 trig_key, trig_reason = check_trigger_inline(tk, tactic)
