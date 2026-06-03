@@ -1572,6 +1572,328 @@ def _kb_listener():
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# Demo mode: mock client + scenario 循環
+# ─────────────────────────────────────────────────────────────────────────
+
+class MockClient:
+    """模擬 FubonClient.get_realtime_snapshot 介面、回傳 scenario 設計好的 snapshot."""
+
+    def __init__(self):
+        # tk -> snapshot dict (含 open/close/high/low/change_price/change_rate)
+        self.scenario: dict[str, dict] = {}
+        # tk -> trigger override: (key, reason)
+        self.trigger_overrides: dict[str, tuple[str, str]] = {}
+
+    def get_realtime_snapshot(self, ticker: str) -> dict | None:
+        ticker = str(ticker)
+        snap = self.scenario.get(ticker)
+        return dict(snap) if snap else None
+
+    # 給 WSPriceCache 介面相容性 (demo 不會用、但避免 attr error)
+    def subscribe_quotes(self, *_a, **_kw):
+        return None
+
+    def stats(self):
+        return (len(self.scenario), 0, 0)
+
+
+def _mk_snap(prev: float, open_: float, close: float,
+             high: float | None = None, low: float | None = None) -> dict:
+    """生 snapshot dict、含 change_price/change_rate."""
+    h = high if high is not None else max(open_, close)
+    l = low  if low  is not None else min(open_, close)
+    chg_p = close - prev
+    chg_r = (chg_p / prev * 100) if prev else 0
+    return {
+        'open': open_, 'close': close, 'high': h, 'low': l,
+        'change_price': chg_p, 'change_rate': chg_r,
+        'total_volume': 5000,
+    }
+
+
+def _demo_load_prev_close_patch(orig_load_prev):
+    """Monkey-patch load_prev_close 用 scenario 的 _prev 欄位."""
+    def patched(ticker: str):
+        # demo 模式統一從 mock client 拿; 找不到時回 None
+        snap = _demo_mock_ref.get(str(ticker)) if _demo_mock_ref else None
+        if snap and '_prev' in snap:
+            return float(snap['_prev'])
+        return orig_load_prev(ticker)
+    return patched
+
+
+# 全域 ref 給 patch 用
+_demo_mock_ref: dict | None = None
+
+
+def _build_scenarios() -> list[tuple]:
+    """設計 21+ 個 scenarios、覆蓋所有 layout 狀態。
+
+    每個 tuple: (name, force_phase, snaps_dict_with_prev, sort_mode, watch_min_pri,
+                trigger_overrides_dict)
+    snaps_dict: tk -> {'_prev': float, ...snap fields}
+    trigger_overrides: tk -> (trig_key, reason)
+    """
+    # 預設 prev_close 對照 (來自 HELD/PLAN/WATCH 編輯區附近的合理值)
+    PREV = {
+        '6285': 312.0, '1605': 40.5, '2885': 59.6, '3481': 58.7,
+        '2303': 51.0, '6770': 24.0, '3702': 92.0, '3036': 78.0,
+        '2376': 380.0, '8064': 65.0, '6116': 19.5, '6147': 88.0,
+        '5351': 42.0, '3006': 110.0, '2344': 28.0, '6207': 127.0,
+        '8046': 862.0, '1717': 78.7, '4722': 279.0, '4526': 42.15,
+        '4540': 77.3,
+    }
+
+    def base(adjust: dict[str, tuple[float, float]] | None = None,
+             highlow: dict[str, tuple[float, float]] | None = None) -> dict:
+        """生 baseline snapshot dict。adjust: tk -> (open_pct, close_pct) 相對 prev."""
+        adjust = adjust or {}
+        highlow = highlow or {}
+        out: dict[str, dict] = {}
+        for tk, prev in PREV.items():
+            op_pct, cl_pct = adjust.get(tk, (0.0, 0.0))
+            op = round(prev * (1 + op_pct/100), 2)
+            cl = round(prev * (1 + cl_pct/100), 2)
+            hi, lo = highlow.get(tk, (None, None))
+            snap = _mk_snap(prev, op, cl, hi, lo)
+            snap['_prev'] = prev
+            out[tk] = snap
+        return out
+
+    scenarios = []
+
+    # 1. Pre-market: open=close=prev
+    snaps = base()
+    for tk in snaps:
+        snaps[tk]['open'] = 0  # 無開盤
+        snaps[tk]['close'] = PREV[tk]
+        snaps[tk]['change_price'] = 0
+        snaps[tk]['change_rate'] = 0
+    scenarios.append(("1. Pre-market 盤前無報價", 1, snaps, 'status', 2, {}))
+
+    # 2. Open normal: 全部 +1~2%
+    adj = {tk: (1.0 + (i % 3) * 0.5, 1.5 + (i % 3) * 0.5)
+           for i, tk in enumerate(PREV)}
+    scenarios.append(("2. Open +1~2% 健康延續", 1, base(adj), 'status', 2, {}))
+
+    # 3. Open gap-up warn: 1605 主候選跳空 +4%
+    adj = {tk: (0.5, 1.0) for tk in PREV}
+    adj['1605'] = (4.0, 4.2)
+    scenarios.append(("3. Gap-up +4% 警示 (紅線#1 邊緣)", 1, base(adj), 'status', 2, {}))
+
+    # 4. Open gap-up skip: 1605 主候選跳空 +6%
+    adj = {tk: (0.3, 0.8) for tk in PREV}
+    adj['1605'] = (6.0, 6.5)
+    scenarios.append(("4. Gap-up +6% Skip (紅線#1 觸發)", 1, base(adj), 'status', 2, {}))
+
+    # 5. Held stop loss approach: 1605 距停損 +0.5%
+    # stop=38.75, want close ~ 38.94 → close/prev = 38.94/40.5 ≈ -3.85%
+    adj = {tk: (0.5, 0.8) for tk in PREV}
+    adj['1605'] = (-2.0, -3.85)
+    scenarios.append(("5. 1605 接近停損 (距停 +0.5%)", 2, base(adj), 'status', 2, {}))
+
+    # 6. Held stop loss breach: 1605 跌破停損 38.75 → close=38.5
+    adj = {tk: (0.2, 0.5) for tk in PREV}
+    adj['1605'] = (-2.5, -4.94)  # 38.5
+    scenarios.append(("6. 1605 跌破停損 🔴", 2, base(adj), 'status', 2, {}))
+
+    # 7. Trigger fired: 2885 T1 confirmed (mock override)
+    adj = {tk: (0.5, 1.2) for tk in PREV}
+    adj['2885'] = (1.0, 3.5)
+    trig = {'2885': ('T1', '🟢 強勢延續、外資 +16k 確認')}
+    scenarios.append(("7. 2885 T1 confirmed (Stage 2 加碼訊號)", 2, base(adj), 'trigger', 2, trig))
+
+    # 8. TC structure fail: 8064 watch TC 觸發 → excluded
+    adj = {tk: (0.3, 0.6) for tk in PREV}
+    adj['8064'] = (-1.0, -3.5)
+    trig = {'8064': ('TC', '結構底跌破、出場')}
+    scenarios.append(("8. 8064 TC 結構失敗 (excluded)", 2, base(adj), 'status', 2, trig))
+
+    # 9. Mixed PnL: 1605 +5% / 2885 +8% / 6285 -2% / 3481 平
+    adj = {tk: (0.0, 0.0) for tk in PREV}
+    adj['1605'] = (1.0, 5.0)
+    adj['2885'] = (2.0, 8.0)
+    adj['6285'] = (-0.5, -2.0)
+    adj['3481'] = (0.0, 0.2)
+    scenarios.append(("9. Mixed PnL (有賺有賠)", 2, base(adj), 'pnl', 2, {}))
+
+    # 10. All green
+    adj = {tk: (1.5 + (i % 4), 3.0 + (i % 5)) for i, tk in enumerate(PREV)}
+    scenarios.append(("10. 全部綠 (強勢盤)", 2, base(adj), 'pnl', 2, {}))
+
+    # 11. All red
+    adj = {tk: (-1.0 - (i % 3), -2.5 - (i % 4)) for i, tk in enumerate(PREV)}
+    scenarios.append(("11. 全部紅 (弱勢盤)", 2, base(adj), 'pnl', 2, {}))
+
+    # 12. Watchlist cascade: 3-4 watch 同時 Ch5-3 confirmed
+    adj = {tk: (0.5, 1.5) for tk in PREV}
+    trig = {
+        '2303': ('Ch5-3', '當沖 SOP 確認'),
+        '3702': ('Ch5-3', '量價齊揚、突破近 5 日高'),
+        '6116': ('Ch5-3', '紅海第二棒、管錢哥進場'),
+        '6147': ('Ch5-3', '記憶體封測續強'),
+    }
+    scenarios.append(("12. Watchlist cascade (4 檔 Ch5-3)", 2, base(adj), 'status', 2, trig))
+
+    # 13. 各 trigger 級別並列
+    adj = {tk: (0.3, 0.8) for tk in PREV}
+    trig = {
+        '2303': ('T1', 'T1 強勢延續'),
+        '3702': ('T2', 'T2 反彈訊號'),
+        '6116': ('Ch5-3', 'Ch5-3 當沖 SOP'),
+        '6147': ('T2_watch', 'T2 watch 觀察中'),
+        '8064': ('TC', 'TC 結構失敗'),
+    }
+    scenarios.append(("13. 各 Trigger 級別並列", 2, base(adj), 'trigger', 2, trig))
+
+    # 14-19. 排序模式輪播
+    adj = {tk: (0.5, 1.5 + (i % 5) * 0.6) for i, tk in enumerate(PREV)}
+    adj['1605'] = (1.0, 3.0)
+    adj['6285'] = (-0.5, -1.5)
+    trig_mix = {
+        '2885': ('T1', 'T1'),
+        '6116': ('Ch5-3', 'Ch5-3'),
+        '3702': ('T2', 'T2'),
+    }
+    for sort in SORT_MODES:
+        scenarios.append((f"14-19. 排序模式: {SORT_KEY_LABEL[sort]}",
+                          2, base(adj), sort, 2, trig_mix))
+
+    # 20a/b/c. WATCH min priority 1/2/3
+    adj = {tk: (0.5, 1.2) for tk in PREV}
+    for mp in [1, 2, 3]:
+        scenarios.append((f"20. WATCH min priority = {mp}",
+                          2, base(adj), 'status', mp, {}))
+
+    # 21. STALE data 警示 — 用 phase2、scenarios 大部分為空模擬 cache stale
+    snaps = base({tk: (0.5, 1.0) for tk in PREV})
+    # 只保留少數 ticker 有資料、其他清空模擬 stale
+    keep = {'1605', '2885'}
+    for tk in list(snaps):
+        if tk not in keep:
+            snaps[tk] = {'_prev': PREV[tk]}  # 無 close
+    scenarios.append(("21. STALE data 警示 (大部分 ticker 無報價)",
+                      2, snaps, 'status', 2, {}))
+
+    return scenarios
+
+
+def _run_demo(args):
+    """Demo mode entry: 循環顯示所有 scenarios、每 interval 秒切一個。"""
+    global _demo_mock_ref
+
+    mock = MockClient()
+    scenarios = _build_scenarios()
+
+    # Monkey-patch check_trigger_inline 用 mock.trigger_overrides
+    global check_trigger_inline
+    orig_check = check_trigger_inline
+
+    def mock_check(ticker: str, tactic: str = '核心') -> tuple[str, str]:
+        if ticker in mock.trigger_overrides:
+            return mock.trigger_overrides[ticker]
+        return 'none', ''
+    check_trigger_inline = mock_check
+
+    # Monkey-patch load_prev_close 用 scenario 的 _prev 欄位
+    global load_prev_close
+    orig_load = load_prev_close
+    load_prev_close = _demo_load_prev_close_patch(orig_load)
+
+    # Monkey-patch notify (demo 不真的通知)
+    global maybe_notify_trigger, notify_mac
+    maybe_notify_trigger = lambda *a, **kw: None
+    notify_mac = lambda *a, **kw: None
+
+    # 啟動 keyboard listener (q 退出)
+    kb_thread = threading.Thread(target=_kb_listener, daemon=True)
+    kb_thread.start()
+
+    console = Console()
+    do_notify = False
+    prev_prices: dict = {}
+    notified: set = set()
+
+    # 當前 scenario 狀態
+    _scenario_idx = [0]
+    _force_phase_ref = [None]  # 1 or 2
+
+    def _build_demo_frame() -> Group:
+        idx = _scenario_idx[0]
+        name, phase, snaps, sort_mode, _min_pri, _trig = scenarios[idx]
+        now = datetime.now()
+        now_str = now.strftime('%H:%M:%S')
+
+        header = Text()
+        header.append(f"=== DEMO MODE  {now_str} === ", style="bold magenta")
+        header.append(f"[Scenario {idx+1}/{len(scenarios)}: {name}]", style="bold yellow")
+        hint = Text(
+            f"scenario 每 {args.interval}s 自動切換 | q=退出 | Phase {phase}",
+            style="dim",
+        )
+
+        if phase == 1:
+            content = render_phase1_screener(mock, now_str, sort_mode, do_notify)
+        else:
+            content = render_phase2_holdings(
+                mock, now_str, prev_prices, notified, sort_mode, do_notify
+            )
+
+        footer = Text(
+            f"下個 scenario in {args.interval}s | sort={sort_mode}",
+            style="dim",
+        )
+        return Group(header, hint, content, footer)
+
+    # 預先套用第一個 scenario、避免初始 frame 顯示空資料
+    name, phase, snaps, sort_mode, min_pri, trig = scenarios[0]
+    mock.scenario = snaps
+    mock.trigger_overrides = trig
+    _demo_mock_ref = snaps
+    _watch_min_priority[0] = min_pri
+    _current_sort[0] = sort_mode
+
+    try:
+        with Live(
+            _build_demo_frame(),
+            console=console,
+            screen=not args.no_clear,
+            refresh_per_second=2,
+            transient=False,
+            redirect_stdout=False,
+            redirect_stderr=False,
+        ) as live:
+            while not _quit_flag[0]:
+                # 套用當前 scenario
+                idx = _scenario_idx[0]
+                name, phase, snaps, sort_mode, min_pri, trig = scenarios[idx]
+                mock.scenario = snaps
+                mock.trigger_overrides = trig
+                _demo_mock_ref = snaps
+                _watch_min_priority[0] = min_pri
+                _current_sort[0] = sort_mode
+
+                # render + 等 interval 秒、然後切下一個
+                live.update(_build_demo_frame())
+                _elapsed = 0.0
+                _step = 0.3
+                while _elapsed < args.interval and not _quit_flag[0]:
+                    time.sleep(_step)
+                    _elapsed += _step
+                    # 中途 refresh、讓時鐘走
+                    live.update(_build_demo_frame())
+
+                # 下一個 scenario (loop 回頭)
+                _scenario_idx[0] = (idx + 1) % len(scenarios)
+    finally:
+        _quit_flag[0] = True
+        # 還原 patch (測試友善)
+        check_trigger_inline = orig_check
+        load_prev_close = orig_load
+        print(f"Demo 結束 (跑了 {_scenario_idx[0]+1} / {len(scenarios)} scenarios)")
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -1586,11 +1908,18 @@ def main():
     p.add_argument('--watch-min-priority', type=int, default=2,
                    choices=[1, 2, 3],
                    help='開盤前 WATCH 顯示門檻 (1=全顯/2=預設/3=只看核心)')
+    p.add_argument('--demo', action='store_true',
+                   help='Demo 模式: 循環顯示所有 mock scenarios、驗證 layout')
     args = p.parse_args()
     _watch_min_priority[0] = args.watch_min_priority
 
     _current_sort[0] = args.sort
     do_notify = not args.no_notify
+
+    # Demo 模式: 不連 Fubon、跑 mock scenarios
+    if args.demo:
+        _run_demo(args)
+        return
 
     # StageTrigger 載入狀態
     trigger_ok = _stage_engine is not None
