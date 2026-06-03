@@ -142,7 +142,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame
 | is_red, is_black, is_doji | 顏色旗標、十字線（body_pct ≤ 0.6% AND range_pct ≥ 1.5%） |
 | ma60_slope_5d | MA60 五日斜率 |
 | ma60_rolling_off_close | 60 日前收盤（扣抵預測用） |
-| pre_breakout_trend_days | 連續收盤高於 MA60 的天數（上限 20） |
+| pre_breakout_trend_days | **過去 20 日內**收盤高於 MA60 的**天數總和** (rolling sum，非連續) |
 | overhead_supply_layer | 過去 240 日 swing-high peak 數（高於今日收盤） |
 | unfilled_gap_down_count_240d | 過去 240 日未回補向下跳空缺口數 |
 | is_in_breakdown_pattern | 破底型態旗標（60 日 ≥2 次新低 AND MA60 下滑） |
@@ -363,6 +363,9 @@ extras = resolve_extras("intensity_floor=2,hold_days_cap=20")
 | `attack_quality_anti_course_penalties` | scoring | 量比 / body / 收盤位置三項懲罰 |
 | `inst_direction_score` | scoring | 法人方向分數（tiebreaker） |
 | `shakeout_strong` | entry strategy | Shakeout Strong 完整策略（user-defined） |
+| `bear_single_day_reversal` | pattern (extras) | 空方單日反轉 — 課程明示「最微弱」(P16) |
+| `bull_single_day_reversal` | pattern (extras) | 多方單日反轉 — 課程明示「最微弱」(P17) |
+| `scenarios/playbooks/bullish_reversal_long_bear.yaml` | playbook (extras) | B08 — 多方逆轉長空頭 (需基本面、user override) |
 
 ---
 
@@ -510,6 +513,9 @@ update_branch_outcome(
 ```python
 class AdvisorResult(BaseModel):
     fired_patterns: list[PatternHit]   # pattern, fired_at, confidence
+                                       # NOTE: PatternHit 是 @dataclass(slots=True)
+                                       # **不是** Pydantic BaseModel，沒有 .model_dump()
+                                       # 用 dataclasses.asdict(hit) 或直接 .pattern / .fired_at
     scenarios: list[Scenario]          # pattern_hit, playbook_name, enabled_branches
     active_lights: list[Light]         # sorted critical→warn→info
     notes: list[str]                   # WARN 訊息 + D-class 觀念提醒
