@@ -113,15 +113,6 @@ PLAN_PRIMARY = [
         'note': '6/3 開盤 ≥ 40.0 + 跳空 ≤+3% 加 1 張',
         'reason': '🟢 EOD Trigger 1 確認 (外資 +16k + 管錢 +1067)、加 1 張',
     },
-    {
-        'ticker': '4958', 'name': '臻鼎-KY',
-        'shares': 1000, 'stop': 486.0,
-        'tactic': '題材', 'priority': 3,
-        'source': '處置框架 + scanner',
-        'sector': 'ABF載板/PCB',
-        'note': '🔒A D+5 老師「第 4-5 天最愛切入」最後一天、出關 6/10、core、⭐站前哥',
-        'reason': '🔒A 處置 D+5 (窗口最後一天) + 老師最愛切入 + core + 站前哥、停損 486 (結構底)',
-    },
 ]
 
 # 備案 (Phase 1 主候選被 skip 時遞補)
