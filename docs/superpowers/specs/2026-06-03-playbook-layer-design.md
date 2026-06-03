@@ -692,3 +692,39 @@ playbook layer **不擅自加 features**，缺欄位則 advisor 報錯（fail lo
 ---
 
 **END OF DESIGN**
+
+---
+
+## Updates 2026-06-03 — Open Questions resolved by user
+
+1. **YAML format**: Adopted. YAML 作為 source of truth；loader 用 Pydantic schema validation。每個 playbook 一支 `.yaml`，非工程人也能 review/編輯，符合「課程出處顯眼」原則。Branch `when` 條件用 §3.3 受限 mini-language，保留 vectorize 能力給後續 simulator。
+
+2. **Multi-day branches**: 採用支援。DSL 加 `next_day_n: 1/2/3` 欄位（預設 `next_day_n=1` = 隔日）。語法範例：
+   ```yaml
+   when:
+     all:
+       - next_day_n: 2          # 隔兩日
+       - next_day.close: "> today.high"
+   ```
+   涵蓋老師「休息一天的攻擊」（§32）、「兩日內必須出現攻擊企圖」類劇本。`branch_evaluator` 對 N>1 也走 vectorize（pandas shift(-N)）。上限暫定 N ≤ 3，避免 advisor 變成 forecaster（DEFINITIONS §1.1 禁預測原則）。
+
+3. **Historical advisor output storage**: 採用。新增 `scripts/kline/scenarios/persistence.py`，把每天每 ticker 的 `AdvisorResult` snapshot 存進 SQLite (`data/advisor_history.db`)。Schema 大致：
+   - `advisor_runs`：(run_id, ticker, trade_date, fired_pattern_count, scenario_count, created_at)
+   - `advisor_branches`：(run_id, scenario_idx, branch_id, when_json, confirm_at, action_type, course_citation, matched_after_n_days)
+   - `matched_after_n_days` 留給 simulator 回填，比對實際走勢看 branch 命中率與 action 後驗準確度。Snapshot 採 append-only，不覆蓋。
+
+4. **`partial_exit` action type**: ALLOWED (user override CLAUDE.md)。加入 `ActionType` enum。Note：仍要求 `course_citation`（min_length=5），且 playbook YAML 若使用 `partial_exit`，必須在 `action.description` 引用老師明示比例的原話（如「賣一半」「先賣三分之一」）。Loader 不做自動校驗，靠 code review + grep 檢查。
+
+5. **D-class observations（23 篇純觀念）→ 燈號系統**：
+   - 新增 `scripts/kline/scenarios/lights/*.yaml` 目錄
+   - 每個 light 1 個 yaml，包含：
+     - `light_id`：唯一 id（如 `pressure_meeting_unresolved`）
+     - `trigger_condition`：使用同一套 mini-DSL（vectorizable）
+     - `course_citation`：來源（必填）
+     - `recommendation_text`：給人讀的提醒文字
+     - `severity`：`info` / `warn` / `critical`（顯示用顏色：藍/黃/紅）
+   - advisor 載入所有 lights，每天 evaluate 一次 → 進 `AdvisorResult.active_lights: List[Light]`
+   - Scanner UI 顯示「主面板：fired patterns + scenarios」+「副面板：active lights」分離
+   - 每個 playbook 可選 `relevant_lights: [light_id, ...]` 指明本 playbook 配套燈號（advisor 在輸出時優先 surface）
+   - **23 篇全部對應 1 light**（部分篇章可能拆 2~3 lights），預估 25~30 lights
+
