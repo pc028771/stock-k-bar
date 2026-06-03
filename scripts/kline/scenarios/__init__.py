@@ -21,6 +21,7 @@ from ._schema import (
     Scenario,
     Severity,
 )
+from .condition import UnknownTokenError, evaluate, evaluate_vectorized
 from .loader import LoaderError, load_lights, load_playbooks
 
 __all__ = [
@@ -38,6 +39,9 @@ __all__ = [
     "PlaybookSetup",
     "Scenario",
     "Severity",
+    "UnknownTokenError",
+    "evaluate",
+    "evaluate_vectorized",
     "load_lights",
     "load_playbooks",
 ]
