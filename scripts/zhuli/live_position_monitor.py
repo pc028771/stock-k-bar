@@ -325,6 +325,13 @@ TRIGGER_RANK = {
 _current_sort: list[str] = ['status']
 _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
+_watch_limit: list[int] = [8]
+
+# Demo mode 全域 state
+_demo_idx: list[int] = [0]
+_demo_paused: list[bool] = [True]  # 預設暫停 auto-cycle、手動切
+_demo_jump: list[bool] = [False]   # set 後主迴圈立刻 re-render
+_demo_total: list[int] = [0]
 
 # Trigger cooldown 避免重複通知 (key: "{ticker}_{T1/T2/TC}")
 _trigger_cooldown: dict[str, datetime] = {}
@@ -1270,6 +1277,13 @@ def render_watch_sectioned(
     elif filtered_out:
         out.append(Text(f"({filtered_out} 檔 priority < {min_pri} 過濾)", style="dim"))
 
+    # --watch-limit 限制 watching 顯示行數 (confirmed/excluded 不受限)
+    limit = _watch_limit[0]
+    watching_overflow = 0
+    if limit > 0 and len(watching) > limit:
+        watching_overflow = len(watching) - limit
+        watching = watching[:limit]
+
     if confirmed:
         t = Table(title="🎯 WATCH 可進場 (confirmed)",
                   title_style="bold green", box=box.SIMPLE, expand=True)
@@ -1310,6 +1324,11 @@ def render_watch_sectioned(
                 Text(item.get('note', '')[:28], style="dim"),
             )
         out.append(t)
+        if watching_overflow:
+            out.append(Text(
+                f"({watching_overflow} 檔暫不顯示、--watch-limit 加大)",
+                style="dim",
+            ))
 
     if excluded:
         t = Table(title="⛔ WATCH 排除/低優先",
@@ -1541,8 +1560,11 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
 # 快捷鍵 stdin 偵測 (non-blocking)
 # ─────────────────────────────────────────────────────────────────────────
 
-def _kb_listener():
-    """Background thread: 讀 stdin single char、更新 _current_sort。"""
+def _kb_listener(demo_mode: bool = False):
+    """Background thread: 讀 stdin single char、更新 _current_sort。
+
+    demo_mode=True 時、額外處理 arrow/home/end/space 控制 scenario。
+    """
     mode_map = {'1': 'status', '2': 'priority', '3': 'risk', '4': 'trigger', '5': 'pnl', '6': 'sector'}
     try:
         fd = sys.stdin.fileno()
@@ -1551,17 +1573,57 @@ def _kb_listener():
     except Exception:
         return
 
+    def _advance(delta: int):
+        total = _demo_total[0] or 1
+        _demo_idx[0] = (_demo_idx[0] + delta) % total
+        _demo_jump[0] = True
+
     try:
         while not _quit_flag[0]:
             try:
                 r, _, _ = select.select([sys.stdin], [], [], 0.3)
-                if r:
-                    ch = sys.stdin.read(1)
-                    if ch == 'q':
-                        _quit_flag[0] = True
-                        break
-                    elif ch in mode_map:
-                        _current_sort[0] = mode_map[ch]
+                if not r:
+                    continue
+                ch = sys.stdin.read(1)
+                if ch == 'q':
+                    _quit_flag[0] = True
+                    break
+                if ch == '\x1b':
+                    # escape sequence — 讀後續 2 字元 (e.g. [D / [C / [H / [F)
+                    r2, _, _ = select.select([sys.stdin], [], [], 0.05)
+                    if not r2:
+                        continue
+                    ch2 = sys.stdin.read(1)
+                    if ch2 != '[':
+                        continue
+                    r3, _, _ = select.select([sys.stdin], [], [], 0.05)
+                    if not r3:
+                        continue
+                    ch3 = sys.stdin.read(1)
+                    if not demo_mode:
+                        continue
+                    if ch3 == 'D':       # ← 左
+                        _advance(-1)
+                    elif ch3 == 'C':     # → 右
+                        _advance(1)
+                    elif ch3 == 'H':     # home
+                        _demo_idx[0] = 0
+                        _demo_jump[0] = True
+                    elif ch3 == 'F':     # end
+                        _demo_idx[0] = max(0, (_demo_total[0] or 1) - 1)
+                        _demo_jump[0] = True
+                    continue
+                if demo_mode:
+                    if ch == ' ':
+                        _demo_paused[0] = not _demo_paused[0]
+                        _demo_jump[0] = True
+                        continue
+                    if ch == '0':
+                        _demo_idx[0] = 0
+                        _demo_jump[0] = True
+                        continue
+                if ch in mode_map:
+                    _current_sort[0] = mode_map[ch]
             except Exception:
                 break
     finally:
@@ -1805,8 +1867,11 @@ def _run_demo(args):
     maybe_notify_trigger = lambda *a, **kw: None
     notify_mac = lambda *a, **kw: None
 
-    # 啟動 keyboard listener (q 退出)
-    kb_thread = threading.Thread(target=_kb_listener, daemon=True)
+    # 啟動 keyboard listener (q 退出 + arrow key 切 scenario)
+    _demo_total[0] = len(scenarios)
+    _demo_idx[0] = 0
+    _demo_paused[0] = True  # 預設暫停 auto-cycle
+    kb_thread = threading.Thread(target=_kb_listener, kwargs={'demo_mode': True}, daemon=True)
     kb_thread.start()
 
     console = Console()
@@ -1814,21 +1879,20 @@ def _run_demo(args):
     prev_prices: dict = {}
     notified: set = set()
 
-    # 當前 scenario 狀態
-    _scenario_idx = [0]
-    _force_phase_ref = [None]  # 1 or 2
-
     def _build_demo_frame() -> Group:
-        idx = _scenario_idx[0]
+        idx = _demo_idx[0]
         name, phase, snaps, sort_mode, _min_pri, _trig = scenarios[idx]
         now = datetime.now()
         now_str = now.strftime('%H:%M:%S')
 
+        pause_tag = "⏸ paused" if _demo_paused[0] else f"▶ auto {args.interval}s"
         header = Text()
         header.append(f"=== DEMO MODE  {now_str} === ", style="bold magenta")
-        header.append(f"[Scenario {idx+1}/{len(scenarios)}: {name}]", style="bold yellow")
+        header.append(f"[Scenario {idx+1}/{len(scenarios)}: {name}]  ", style="bold yellow")
+        header.append(f"({pause_tag})", style="cyan")
         hint = Text(
-            f"scenario 每 {args.interval}s 自動切換 | q=退出 | Phase {phase}",
+            "← → 切換 | home/0 首個 | end 末個 | space 切 auto-cycle | q 退出 | "
+            f"Phase {phase}",
             style="dim",
         )
 
@@ -1840,18 +1904,23 @@ def _run_demo(args):
             )
 
         footer = Text(
-            f"下個 scenario in {args.interval}s | sort={sort_mode}",
+            f"sort={sort_mode} | watch-limit={_watch_limit[0]}",
             style="dim",
         )
         return Group(header, hint, content, footer)
 
+    def _apply_current():
+        idx = _demo_idx[0]
+        name, phase, snaps, sort_mode, min_pri, trig = scenarios[idx]
+        global _demo_mock_ref
+        mock.scenario = snaps
+        mock.trigger_overrides = trig
+        _demo_mock_ref = snaps
+        _watch_min_priority[0] = min_pri
+        _current_sort[0] = sort_mode
+
     # 預先套用第一個 scenario、避免初始 frame 顯示空資料
-    name, phase, snaps, sort_mode, min_pri, trig = scenarios[0]
-    mock.scenario = snaps
-    mock.trigger_overrides = trig
-    _demo_mock_ref = snaps
-    _watch_min_priority[0] = min_pri
-    _current_sort[0] = sort_mode
+    _apply_current()
 
     try:
         with Live(
@@ -1864,27 +1933,24 @@ def _run_demo(args):
             redirect_stderr=False,
         ) as live:
             while not _quit_flag[0]:
-                # 套用當前 scenario
-                idx = _scenario_idx[0]
-                name, phase, snaps, sort_mode, min_pri, trig = scenarios[idx]
-                mock.scenario = snaps
-                mock.trigger_overrides = trig
-                _demo_mock_ref = snaps
-                _watch_min_priority[0] = min_pri
-                _current_sort[0] = sort_mode
-
-                # render + 等 interval 秒、然後切下一個
+                _apply_current()
                 live.update(_build_demo_frame())
+
                 _elapsed = 0.0
                 _step = 0.3
-                while _elapsed < args.interval and not _quit_flag[0]:
+                while not _quit_flag[0]:
                     time.sleep(_step)
                     _elapsed += _step
-                    # 中途 refresh、讓時鐘走
+                    # 手動切換 (左/右/home/end/space) → 立刻 re-render + 重設 timer
+                    if _demo_jump[0]:
+                        _demo_jump[0] = False
+                        break
+                    # auto-cycle (非 paused) → 到 interval 推下一個
+                    if (not _demo_paused[0]) and _elapsed >= args.interval:
+                        _demo_idx[0] = (_demo_idx[0] + 1) % len(scenarios)
+                        break
+                    # 持續刷新時鐘
                     live.update(_build_demo_frame())
-
-                # 下一個 scenario (loop 回頭)
-                _scenario_idx[0] = (idx + 1) % len(scenarios)
     finally:
         _quit_flag[0] = True
         # 還原 patch (測試友善)
@@ -1910,8 +1976,11 @@ def main():
                    help='開盤前 WATCH 顯示門檻 (1=全顯/2=預設/3=只看核心)')
     p.add_argument('--demo', action='store_true',
                    help='Demo 模式: 循環顯示所有 mock scenarios、驗證 layout')
+    p.add_argument('--watch-limit', type=int, default=8,
+                   help='WATCH 觀察可能段最多顯示 N 檔 (預設 8、超過 collapse、0=不限)')
     args = p.parse_args()
     _watch_min_priority[0] = args.watch_min_priority
+    _watch_limit[0] = args.watch_limit
 
     _current_sort[0] = args.sort
     do_notify = not args.no_notify
