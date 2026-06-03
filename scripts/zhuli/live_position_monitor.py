@@ -941,13 +941,21 @@ def render_watch_sectioned(
 
     if pre_mkt:
         lines.append(f"  {C.DIM}⏳ 開盤前、5K 累積中 — Trigger 判定尚未啟動{C.END}")
-        # 開盤前過濾 noise: 依 --watch-min-priority 篩
-        min_pri = _watch_min_priority[0]
-        watching = [(it, d) for (it, d) in watching if it.get('priority', 1) >= min_pri]
+
+    # --watch-min-priority 過濾 watching (confirmed 永遠顯示、不過濾)
+    min_pri = _watch_min_priority[0]
+    pre_filter_count = len(watching)
+    watching = [(it, d) for (it, d) in watching if it.get('priority', 1) >= min_pri]
+    filtered_out = pre_filter_count - len(watching)
+
+    if pre_mkt:
         excluded_count = len(excluded)
         excluded = []  # 開盤前不顯示排除清單、開盤後再判
-        if excluded_count:
-            lines.append(f"  {C.DIM}({excluded_count} 檔低優先暫不顯示、開盤後再評){C.END}")
+        if excluded_count or filtered_out:
+            hidden = excluded_count + filtered_out
+            lines.append(f"  {C.DIM}({hidden} 檔低優先/排除暫不顯示){C.END}")
+    elif filtered_out:
+        lines.append(f"  {C.DIM}({filtered_out} 檔 priority < {min_pri} 過濾){C.END}")
 
     if confirmed:
         lines.append(f"{C.BOLD}{C.G}🎯 WATCH 可進場 (composite confirmed):{C.END}")
