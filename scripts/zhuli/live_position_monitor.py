@@ -128,7 +128,15 @@ WATCH = [
         'tactic': '短打', 'priority': 3,
         'source': '老師明示',
         'sector': 'GT基底/成熟製程',
-        'note': '⭐ GT 基底、立即店、「直接參與最大組」、user 提醒'
+        'note': '⭐ GT 基底、「直接參與最大組」、user 提醒'
+    },
+    {
+        'ticker': '6770', 'name': '力積電',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示',
+        'sector': 'GT基底/成熟製程',
+        'note': '⭐ 老師「立即店」、GT 基底、距 MA10 +15% 偏遠等回測'
     },
     {
         'ticker': '3702', 'name': '大聯大',
