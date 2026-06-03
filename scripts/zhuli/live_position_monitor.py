@@ -1431,7 +1431,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 notified.discard(key)
 
             stop_tag = '🔴' if dist < 0 else ('⚠️' if dist < 1 else '🟢')
-            price_label = ('昨' if no_data else '現') + f"{c:.1f}"
+            # 欄位本身已是「現」、無 WS 資料才特別標「昨」、平常不加前綴
+            price_label = (f"昨{c:.1f}" if no_data else f"{c:.1f}")
             t_h.add_row(
                 tactic, stars(pri), tk, name,
                 Text(price_label, style="dim" if no_data else ""),
@@ -1468,10 +1469,18 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 if c == 0:
                     c = load_prev_close(tk) or ref
                     pre = True
-                # ref_close 沒設 → fallback 用昨收
-                if not ref:
-                    ref = load_prev_close(tk) or 0
-                chg  = (c - ref)/ref*100 if ref else 0
+                # 漲跌計算優先用 snapshot.change_rate (WS/REST 已基於真實前收計算)
+                # 否則 fallback ref_close 或 DB prev (DB 可能含今日 bar、會 = c → 0%)
+                snap_chg = snap.get('change_rate')
+                if snap_chg is not None:
+                    try:
+                        chg = float(snap_chg)
+                    except Exception:
+                        chg = 0
+                else:
+                    if not ref:
+                        ref = load_prev_close(tk) or 0
+                    chg = (c - ref)/ref*100 if ref else 0
                 dist = (c - stop)/c*100 if (c and stop) else 999
                 trig_key, trig_reason = check_trigger_inline(tk, tactic)
                 maybe_notify_trigger(tk, item.get('name', tk), trig_key, trig_reason, do_notify)
