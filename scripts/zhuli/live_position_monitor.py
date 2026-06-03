@@ -101,7 +101,7 @@ HELD = [
         'tactic': '短打', 'priority': 3,
         'source': '老師明示 6/3 (夜盤訊號)',
         'sector': '面板/族群補漲',
-        'note': '6/3 進 2 張 @ $58.7、老師夜盤訊號、停損 6/2 收 $56.2'
+        'note': '🔒 6/4 進處置 D+1、老師持有、D+4-5 才切入、現在觀察前幾天 (停 6/2 收 $56.2)'
     },
 ]
 
@@ -134,9 +134,9 @@ WATCH = [
         'ticker': '2303', 'name': '聯電',
         'ref_close': 0, 'stop': None,
         'tactic': '短打', 'priority': 3,
-        'source': '老師明示',
+        'source': '老師明示 6/3 (條件式)',
         'sector': 'GT基底/成熟製程',
-        'note': '⭐ GT 基底、「直接參與最大組」、user 提醒'
+        'note': '⭐ 老師 6/3 條件式圈起來: 看 6/4 尾盤外資是否「黑 K 大買」連 2 天才升等'
     },
     {
         'ticker': '6770', 'name': '力積電',
@@ -149,10 +149,26 @@ WATCH = [
     {
         'ticker': '3702', 'name': '大聯大',
         'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示',
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/3',
         'sector': 'IC通路',
-        'note': '⭐ IC 通路「那個大科」、user 提醒'
+        'note': '⭐⭐⭐ 老師 6/3 圈起來、IC 通路、外資進'
+    },
+    {
+        'ticker': '2308', 'name': '台達電',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/3',
+        'sector': 'AI 電源/電類',
+        'note': '⭐⭐⭐ 老師 6/3 圈起來、外資大買、守月線「很簡單的股票」'
+    },
+    {
+        'ticker': '3128', 'name': '欣詮',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/3',
+        'sector': '半導體',
+        'note': '⭐⭐⭐ 老師 6/3 圈起來、外資佈局「上櫃買這麼多不容易」、均線附近佈局'
     },
     {
         'ticker': '3036', 'name': '文曄',
@@ -230,11 +246,11 @@ WATCH = [
     },
     {
         'ticker': '8046', 'name': '南電',
-        'ref_close': 862.0, 'stop': 834.0,
-        'tactic': '短打', 'priority': 1,
-        'source': '老師明示',
+        'ref_close': 904.0, 'stop': 856.0,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/3 (升等)',
         'sector': 'ABF',
-        'note': '🔴 老師「ABF 需要洗牌」、MA5/10/20 全破、外資 -3,125'
+        'note': '⭐⭐⭐ 老師 6/3 圈起來 (從警示翻轉)、ABF 復活、外資大買、守均線「姿態 OK」'
     },
     # 6/3 scanner 新增 (Tier-B 打擊區、籌碼/型態符合)
     {
