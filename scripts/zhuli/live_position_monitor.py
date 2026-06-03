@@ -334,7 +334,7 @@ TRIGGER_RANK = {
 _current_sort: list[str] = ['status']
 _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
-_watch_limit: list[int] = [8]
+_watch_limit: list[int] = [5]   # 每個分類最多顯示 N 檔、超過 collapse、0 = 全顯
 
 # Render request flag: kb / WS push set True、main loop 0.1s polling 立即重畫
 _render_request: list[bool] = [True]
@@ -354,6 +354,15 @@ _cheat_jump: list[bool] = [False]
 # Trigger cooldown 避免重複通知 (key: "{ticker}_{T1/T2/TC}")
 _trigger_cooldown: dict[str, datetime] = {}
 TRIGGER_COOLDOWN_MIN = 30
+
+# Trigger 觸發時間追蹤 (ticker, trig_key) → 第一次點亮 datetime
+# 用於顯示「Nm前」、判斷時機是否還新鮮
+_trigger_fired_at: dict[tuple[str, str], datetime] = {}
+# ticker → 當前 trigger key、偵測切換用
+_trigger_current: dict[str, str] = {}
+
+# Demo 模式 trigger 起算時間 override (給 demo scenario 設假時間用)
+_demo_trigger_age_override: dict[str, int] = {}  # ticker -> 分鐘數
 
 # ─────────────────────────────────────────────────────────────────────────
 # Tuple → dict 自動 convert (向後相容)
@@ -792,8 +801,68 @@ def r_dist(dist: float) -> Text:
     return Text(f"{dist:+.1f}%", style="green")
 
 
-def r_trigger(trig_key: str, reason: str = '', short: int = 40) -> Text:
-    """Trigger label + reason、rich Text。"""
+def record_trigger_fire(ticker: str, new_trig_key: str,
+                        now: datetime | None = None) -> None:
+    """偵測 trigger 切換、新 key 第一次出現時記時間。
+
+    Called by background DataCache refresh (一個 ticker 一輪一次)。
+    """
+    now = now or datetime.now()
+    prev = _trigger_current.get(ticker)
+    if new_trig_key == prev:
+        return
+    _trigger_current[ticker] = new_trig_key
+    if new_trig_key and new_trig_key != 'none':
+        # 新 trigger 點亮、記時間 (若已記過、不覆蓋)
+        key = (ticker, new_trig_key)
+        if key not in _trigger_fired_at:
+            _trigger_fired_at[key] = now
+
+
+def fmt_trigger_age(ticker: str, trig_key: str,
+                    now: datetime | None = None) -> tuple[str, str]:
+    """回傳 (age_text, style)。空字串若不適用。
+
+    style 依新鮮度: ≤5m 綠、5-15m 黃、15-30m 灰 dim、>30m 紅 dim
+    """
+    if not trig_key or trig_key == 'none':
+        return ('', 'dim')
+
+    now = now or datetime.now()
+    # Demo override: ticker 指定固定 age (分鐘)
+    if ticker in _demo_trigger_age_override:
+        age_min = _demo_trigger_age_override[ticker]
+        t = now - timedelta(minutes=age_min)
+    else:
+        t = _trigger_fired_at.get((ticker, trig_key))
+        if not t:
+            return ('', 'dim')
+        age_min = int((now - t).total_seconds() / 60)
+
+    if age_min < 1:
+        text = f' [{t.strftime("%H:%M")}, 剛剛]'
+    elif age_min < 60:
+        text = f' [{t.strftime("%H:%M")}, {age_min}分前]'
+    else:
+        text = f' [{t.strftime("%H:%M")}, {age_min // 60}h{age_min % 60}m前]'
+
+    if age_min <= 5:
+        style = 'bold green'
+    elif age_min <= 15:
+        style = 'yellow'
+    elif age_min <= 30:
+        style = 'dim'
+    else:
+        style = 'red dim'
+    return (text, style)
+
+
+def r_trigger(trig_key: str, reason: str = '', short: int = 40,
+              ticker: str = '') -> Text:
+    """Trigger label + reason + 觸發時間、rich Text。
+
+    ticker 給的話會附 [HH:MM, Nm前]、依新鮮度上色。
+    """
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     if trig_key == 'Ch5-3':
         style = 'green'
@@ -810,6 +879,10 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40) -> Text:
     t = Text(label, style=style)
     if reason and trig_key != 'none' and trig_key is not None:
         t.append(f" ({reason[:short]})", style='dim')
+    if ticker:
+        age_text, age_style = fmt_trigger_age(ticker, trig_key)
+        if age_text:
+            t.append(age_text, style=age_style)
     return t
 
 
@@ -934,6 +1007,8 @@ class DataCache:
                 with self.lock:
                     self.triggers[tk] = trig
                     self.vol_ratios[tk] = vr
+                # 偵測 trigger 切換、記第一次點亮時間
+                record_trigger_fire(tk, trig[0] if trig else 'none')
             except Exception:
                 self.errors += 1
         self.last_refresh = time.time()
@@ -1177,7 +1252,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 pnl = (c - entry)*shares
                 pnl_pct = (c - entry)/entry*100 if entry else 0
                 detail = Text()
-                detail.append_text(r_trigger(trig_key, trig_reason, short=30))
+                detail.append_text(r_trigger(trig_key, trig_reason, short=30, ticker=tk))
                 detail.append("  ")
                 detail.append(msg, style="dim")
                 detail.append(" | ")
@@ -1240,7 +1315,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 chg_open = (o - prev)/prev*100 if prev else 0
                 cost = o * shares
                 detail = Text()
-                detail.append_text(r_trigger(trig_key, trig_reason, short=25))
+                detail.append_text(r_trigger(trig_key, trig_reason, short=25, ticker=tk))
                 detail.append("  ")
                 detail.append(msg, style="dim")
                 if reason:
@@ -1389,7 +1464,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 t_wc.add_row(
                     stars(pri), item['ticker'], item['name'],
                     f"{c:.1f}" if c else "—",
-                    r_trigger(trig, reason, short=50),
+                    r_trigger(trig, reason, short=50, ticker=item['ticker']),
                 )
             renderables.append(t_wc)
 
@@ -1419,6 +1494,20 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
 # ─────────────────────────────────────────────────────────────────────────
 # WATCH 3-section 分類邏輯
 # ─────────────────────────────────────────────────────────────────────────
+
+def _classify_watch_source(item: dict) -> str:
+    """依 source 欄位分 4 類 (給 WATCH watching 段分組顯示)。"""
+    src = (item.get('source') or '').lower()
+    if '老師' in (item.get('source') or '') or 'teacher' in src:
+        return '🎓 老師明示'
+    if 'shakeout' in src:
+        return '💥 Shakeout 補進'
+    if 'scanner' in src or '框架' in (item.get('source') or '') or '處置' in (item.get('source') or ''):
+        return '🔍 Scanner 命中'
+    if '自' in (item.get('source') or '') or '消息' in (item.get('source') or ''):
+        return '🙋 自選'
+    return '📌 其他'
+
 
 def _classify_watch_item(item: dict, d: dict) -> str:
     """依 composite_check 結果分流: confirmed / watching / excluded."""
@@ -1492,12 +1581,9 @@ def render_watch_sectioned(
     elif filtered_out:
         out.append(Text(f"({filtered_out} 檔 priority < {min_pri} 過濾)", style="dim"))
 
-    # --watch-limit 限制 watching 顯示行數 (confirmed/excluded 不受限)
+    # --watch-limit = 每分類最多顯示行數 (confirmed/excluded 不受限、0 = 全顯)
     limit = _watch_limit[0]
-    watching_overflow = 0
-    if limit > 0 and len(watching) > limit:
-        watching_overflow = len(watching) - limit
-        watching = watching[:limit]
+    watching_total = len(watching)
 
     if confirmed:
         t = Table(title="🎯 WATCH 可進場 (confirmed)",
@@ -1519,35 +1605,59 @@ def render_watch_sectioned(
                 price_s,
                 fmt_vol_ratio(d.get('vol_ratio')),
                 dist_t,
-                r_trigger(trig, reason, short=40),
+                r_trigger(trig, reason, short=40, ticker=item['ticker']),
                 item.get('sector', '?'),
             )
         out.append(t)
 
     if watching:
-        t = Table(title="🔍 WATCH 觀察可能",
-                  title_style="bold", box=box.SIMPLE, expand=True)
-        t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
-        t.add_column("現", justify="right"); t.add_column("漲跌", justify="right")
-        t.add_column("量比", no_wrap=True)
-        t.add_column("Trigger"); t.add_column("Note")
+        # 依 source 關鍵字分類
+        groups: dict[str, list] = {}
         for item, d in watching:
-            pri = item.get('priority', 1)
-            trig = d.get('trigger', 'none')
-            c = d.get('c', 0); chg = d.get('pnl_pct', 0)
-            price_s = f"{c:.1f}" if c else "—"
-            trig_t = r_trigger(trig) if trig not in ('none', None) else Text("—", style="dim")
-            t.add_row(
-                stars(pri), item['ticker'], item['name'],
-                price_s, r_change_pct(chg),
-                fmt_vol_ratio(d.get('vol_ratio')),
-                trig_t,
-                Text(item.get('note', '')[:28], style="dim"),
-            )
-        out.append(t)
-        if watching_overflow:
+            cat = _classify_watch_source(item)
+            groups.setdefault(cat, []).append((item, d))
+        # 顯示順序、所有分類統一規則 (每類最多 limit 檔)
+        order = ['🎓 老師明示', '💥 Shakeout 補進', '🔍 Scanner 命中',
+                 '🙋 自選', '📌 其他']
+        out.append(Text(f"🔍 WATCH 觀察可能 (共 {watching_total} 檔、分類顯示)",
+                        style="bold"))
+        for cat in order:
+            items = groups.get(cat, [])
+            if not items:
+                continue
+            cat_total = len(items)
+            if limit == 0:
+                shown = items
+                title = f"{cat} ({cat_total} 檔、全顯)"
+            elif cat_total > limit:
+                shown = items[:limit]
+                hidden = cat_total - limit
+                title = f"{cat} ({cat_total} 檔、顯示前 {limit}、{hidden} 檔暫不顯、按 0 全顯)"
+            else:
+                shown = items
+                title = f"{cat} ({cat_total} 檔)"
+            t = Table(title=title, title_style="bold", box=box.SIMPLE, expand=True)
+            t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
+            t.add_column("現", justify="right"); t.add_column("漲跌", justify="right")
+            t.add_column("量比", no_wrap=True)
+            t.add_column("Trigger"); t.add_column("Note")
+            for item, d in shown:
+                pri = item.get('priority', 1)
+                trig = d.get('trigger', 'none')
+                c = d.get('c', 0); chg = d.get('pnl_pct', 0)
+                price_s = f"{c:.1f}" if c else "—"
+                trig_t = r_trigger(trig, ticker=item['ticker']) if trig not in ('none', None) else Text("—", style="dim")
+                t.add_row(
+                    stars(pri), item['ticker'], item['name'],
+                    price_s, r_change_pct(chg),
+                    fmt_vol_ratio(d.get('vol_ratio')),
+                    trig_t,
+                    Text(item.get('note', '')[:28], style="dim"),
+                )
+            out.append(t)
+        if limit > 0:
             out.append(Text(
-                f"({watching_overflow} 檔暫不顯示、--watch-limit 加大)",
+                f"(按 0 = 全顯所有檔、+/- 調 limit、目前 limit={limit}/分類)",
                 style="dim",
             ))
 
@@ -1689,7 +1799,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
-                r_trigger(trig_key, trig_reason, short=30),
+                r_trigger(trig_key, trig_reason, short=30, ticker=tk),
                 sector,
                 stop_tag,
             )
@@ -1782,7 +1892,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     r_change_pct(chg),
                     fmt_vol_ratio(vol_ratio),
                     r_dist(dist),
-                    r_trigger(trig_key, trig_reason, short=30),
+                    r_trigger(trig_key, trig_reason, short=30, ticker=tk),
                     sector,
                     wall_tag,
                 )
@@ -2278,7 +2388,110 @@ def _build_scenarios() -> list[tuple]:
     scenarios.append(("21. STALE data 警示 (大部分 ticker 無報價)",
                       2, snaps, 'status', 2, {}))
 
+    # 22. Ch5-3 signal (cascade 早段)
+    adj = {tk: (0.5, 1.2) for tk in PREV}
+    trig = {'2303': ('Ch5-3_signal', '第一根 5K 過 high、量足、待回測')}
+    scenarios.append(("22. Ch5-3 signal (cascade 早段、等回測)",
+                      2, base(adj), 'status', 2, trig))
+
+    # 23. Ch5-3 pullback (回測中)
+    adj = {tk: (0.5, 0.8) for tk in PREV}
+    trig = {'2303': ('Ch5-3_pullback', '回測 MA10 中、守住為續強')}
+    scenarios.append(("23. Ch5-3 pullback (回測 MA10 中)",
+                      2, base(adj), 'status', 2, trig))
+
+    # 24. Ch5-3 confirmed (回測守住、進場 SOP)
+    adj = {tk: (0.5, 1.5) for tk in PREV}
+    trig = {'2303': ('Ch5-3', '回測守住、量配合、進場 SOP confirmed')}
+    scenarios.append(("24. Ch5-3 confirmed (回測守住、進場)",
+                      2, base(adj), 'status', 2, trig))
+
+    # 25. 量比五等級並列 — 用不同 vol 設定 PREV 各 ticker
+    snaps_vol: dict[str, dict] = {}
+    # 5d avg from real DB; volume 設成不同比例: ❄(0.2)/⚪(1.0)/🟡(1.7)/🟢(2.5)/🚀(4.0)
+    # 取出 9:00 開盤、現在假設 11:15 (session ratio 0.5)
+    vol_targets = [
+        ('1605', 0.2, '❄ 萎縮'),
+        ('2885', 1.0, '⚪ 普通'),
+        ('6285', 1.7, '🟡 放大'),
+        ('3481', 2.5, '🟢 爆量'),
+        ('2376', 4.0, '🚀 大爆量'),
+    ]
+    for tk, prev in PREV.items():
+        # default 普通
+        snap = _mk_snap(prev, prev*1.005, prev*1.012, vol=int(_load_5d_for_demo(tk) * 0.5))
+        snap['_prev'] = prev
+        snaps_vol[tk] = snap
+    for tk, mult, _ in vol_targets:
+        if tk not in PREV:
+            continue
+        prev = PREV[tk]
+        avg5d = _load_5d_for_demo(tk)
+        # session ratio = 0.5、想要 vol_ratio = mult → vol = avg5d * 0.5 * mult
+        vol = int(avg5d * 0.5 * mult)
+        snap = _mk_snap(prev, prev*1.005, prev*1.015, vol=vol)
+        snap['_prev'] = prev
+        snaps_vol[tk] = snap
+    scenarios.append(("25. 量比五等級並列 (❄/⚪/🟡/🟢/🚀)",
+                      2, snaps_vol, 'status', 2, {}))
+
+    # 26. 開→現 +5% 續強
+    adj = {tk: (0.0, 5.0) for tk in PREV}
+    adj['1605'] = (0.0, 7.5)
+    scenarios.append(("26. 開→現 大幅續強 (+5%~+7%)",
+                      2, base(adj), 'pnl', 2, {}))
+
+    # 27. 開→現 -3% 回吐
+    adj = {tk: (3.0, 0.0) for tk in PREV}  # 開 +3%、現在回到 prev → 開→現 約 -3%
+    adj['1605'] = (4.0, 0.5)
+    scenarios.append(("27. 開→現 回吐 (開高拉回)",
+                      2, base(adj), 'pnl', 2, {}))
+
+    # 28. Trigger 時間戳「剛剛」(< 1 min)
+    adj = {tk: (0.5, 1.5) for tk in PREV}
+    trig = {'2885': ('T1', 'T1 confirmed')}
+    age = {'2885': 0}  # 0 分 → 剛剛
+    scenarios.append(("28. Trigger 時間戳「剛剛」(綠、最新鮮)",
+                      2, base(adj), 'trigger', 2, trig, age))
+
+    # 29. Trigger 時間戳 5 分前 (綠邊界)
+    adj = {tk: (0.5, 1.5) for tk in PREV}
+    trig = {'2885': ('T1', 'T1 confirmed')}
+    age = {'2885': 5}
+    scenarios.append(("29. Trigger 時間戳 5 分前 (綠邊界)",
+                      2, base(adj), 'trigger', 2, trig, age))
+
+    # 30. Trigger 時間戳 12 分前 (黃)
+    adj = {tk: (0.5, 1.2) for tk in PREV}
+    trig = {'6116': ('Ch5-3', 'Ch5-3 confirmed')}
+    age = {'6116': 12}
+    scenarios.append(("30. Trigger 時間戳 12 分前 (黃、仍 OK)",
+                      2, base(adj), 'status', 2, trig, age))
+
+    # 31. Trigger 時間戳 25 分前 (灰、時機過)
+    adj = {tk: (0.5, 1.0) for tk in PREV}
+    trig = {'6116': ('Ch5-3', 'Ch5-3 confirmed')}
+    age = {'6116': 25}
+    scenarios.append(("31. Trigger 時間戳 25 分前 (灰、時機過)",
+                      2, base(adj), 'status', 2, trig, age))
+
+    # 32. Trigger 時間戳 45 分前 (紅、太晚)
+    adj = {tk: (0.5, 0.8) for tk in PREV}
+    trig = {'8064': ('TC', 'TC 結構失敗')}
+    age = {'8064': 45}
+    scenarios.append(("32. Trigger 時間戳 45 分前 (紅、太晚)",
+                      2, base(adj), 'status', 2, trig, age))
+
     return scenarios
+
+
+def _load_5d_for_demo(ticker: str) -> float:
+    """Demo 用、讀 5d avg、若無回 default 50000 張。"""
+    try:
+        v = load_5d_avg_volume(ticker)
+        return v if v else 50000.0
+    except Exception:
+        return 50000.0
 
 
 def _run_demo(args):
@@ -2320,9 +2533,15 @@ def _run_demo(args):
     prev_prices: dict = {}
     notified: set = set()
 
+    def _unpack(sc):
+        # scenario tuple 可能是 6 或 7 元素 (含 age override)
+        if len(sc) == 7:
+            return sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6]
+        return sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], {}
+
     def _build_demo_frame() -> Group:
         idx = _demo_idx[0]
-        name, phase, snaps, sort_mode, _min_pri, _trig = scenarios[idx]
+        name, phase, snaps, sort_mode, _min_pri, _trig, _age = _unpack(scenarios[idx])
         now = datetime.now()
         now_str = now.strftime('%H:%M:%S')
 
@@ -2352,13 +2571,23 @@ def _run_demo(args):
 
     def _apply_current():
         idx = _demo_idx[0]
-        name, phase, snaps, sort_mode, min_pri, trig = scenarios[idx]
+        name, phase, snaps, sort_mode, min_pri, trig, age_override = _unpack(scenarios[idx])
         global _demo_mock_ref
         mock.scenario = snaps
         mock.trigger_overrides = trig
         _demo_mock_ref = snaps
         _watch_min_priority[0] = min_pri
         _current_sort[0] = sort_mode
+        # 套用 demo trigger age override
+        _demo_trigger_age_override.clear()
+        _demo_trigger_age_override.update(age_override)
+        # demo 模式: 也要把 trigger 推到 _trigger_current/_trigger_fired_at
+        # 讓非-override 的 ticker 有正確「剛點亮」時間戳
+        now = datetime.now()
+        for tk, (tkey, _r) in trig.items():
+            if tk in age_override:
+                continue  # 已 override、不重複記
+            record_trigger_fire(tk, tkey, now)
 
     # 預先套用第一個 scenario、避免初始 frame 顯示空資料
     _apply_current()
@@ -2429,8 +2658,8 @@ def main():
                    help='開盤前 WATCH 顯示門檻 (1=全顯/2=預設/3=只看核心)')
     p.add_argument('--demo', action='store_true',
                    help='Demo 模式: 循環顯示所有 mock scenarios、驗證 layout')
-    p.add_argument('--watch-limit', type=int, default=8,
-                   help='WATCH 觀察可能段最多顯示 N 檔 (預設 8、超過 collapse、0=不限、+/-/0 鍵即時調)')
+    p.add_argument('--watch-limit', type=int, default=5,
+                   help='WATCH 觀察可能段「每分類」最多顯示 N 檔 (預設 5、超過 collapse、0=全顯、+/-/0 鍵即時調)')
     args = p.parse_args()
     # backward compat: --interval 覆寫 --data-interval
     if args.interval is not None:
@@ -2547,8 +2776,8 @@ def main():
             pass
 
         hint = Text(
-            "1-6=排序 +/-=watch-limit 0=不限 h=cheat q=退出  "
-            f"(watch-limit={_watch_limit[0]})",
+            "1-6=排序 +/-=watch-limit (每分類) 0=全顯 h=cheat q=退出  "
+            f"(watch-limit={_watch_limit[0]}/分類)",
             style="dim",
         )
 
