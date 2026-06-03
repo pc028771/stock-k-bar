@@ -1307,7 +1307,16 @@ def main():
                 _emit(f"{C.DIM}下次 {args.interval}s | 排序 [{sort_mode}] | Ctrl+C 或 q 結束{C.END}")
                 sys.stdout.write('\033[J')
                 sys.stdout.flush()
-                time.sleep(args.interval)
+                # 細粒度 sleep、q 鍵 / sort 切換可以更快響應
+                _elapsed = 0.0
+                _step = 0.3
+                _prev_sort = _current_sort[0]
+                while _elapsed < args.interval and not _quit_flag[0]:
+                    time.sleep(_step)
+                    _elapsed += _step
+                    # sort 鍵被按時、立即跳出 sleep 重新 render
+                    if _current_sort[0] != _prev_sort:
+                        break
             except KeyboardInterrupt:
                 break
             except Exception as e:
