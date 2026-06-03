@@ -141,7 +141,14 @@ def main():
     # Pre-compute every detect() signal once (expensive but reusable)
     print("Computing detect() for each pattern ...")
     detect_results = {}
-    for slug in sorted(set(v for v in SLUG_MAP.values() if v) | {"bull_engulfing", "bear_engulfing", "gap_fill_up", "gap_fill_down"}):
+    # Collect all slugs needed: SLUG_MAP outputs + ambiguous handlers + any
+    # pattern_slug that already matches a patterns/*.py file (passthrough cases).
+    case_slugs = set()
+    for _, row in cases.iterrows():
+        case_slugs.update(map_slug(row))
+    extra_slugs = {"bull_engulfing", "bear_engulfing", "gap_fill_up", "gap_fill_down"}
+    all_slugs = set(v for v in SLUG_MAP.values() if v) | extra_slugs | case_slugs
+    for slug in sorted(all_slugs):
         try:
             mod = importlib.import_module(f"kline.patterns.{slug}")
             detect_results[slug] = mod.detect(df).fillna(False)
