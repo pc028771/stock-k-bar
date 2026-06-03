@@ -124,6 +124,31 @@ def load_stock_names(db: Path) -> dict[str, str]:
     return {r[0]: r[1] for r in rows}
 
 
+def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
+    """從 standard_daily_bar 取 target_date 前一交易日的 MA10。
+
+    Args:
+        ticker:      股票代號
+        target_date: 當日日期字串 'YYYY-MM-DD'（取其之前最新一筆）
+        db:          SQLite DB 路徑
+
+    Returns:
+        MA10 浮點數，查無則回 None。
+    """
+    try:
+        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+            r = con.execute(
+                "SELECT ma10 FROM standard_daily_bar "
+                "WHERE ticker=? AND trade_date < ? "
+                "ORDER BY trade_date DESC LIMIT 1",
+                (ticker, target_date),
+            ).fetchone()
+        return float(r[0]) if r and r[0] else None
+    except Exception as e:
+        log.warning("_get_ma10(%s, %s) 失敗: %s", ticker, target_date, e)
+        return None
+
+
 def load_daily_closes(ticker: str, db: Path, n: int = 20) -> pd.Series:
     """取最近 n 日收盤，回傳 Series(index=date str, values=float)."""
     try:
@@ -548,10 +573,17 @@ class StageTrigger:
 
     # ── Ch5-3 第一根 5K SOP ────────────────────────────────────────────────────
 
-    def check_ch5_3_entry(self, k5: pd.DataFrame, prev_close: float) -> dict:
-        """Ch5-3 第一根 5K SOP 評估。
+    def check_ch5_3_entry(
+        self,
+        k5: pd.DataFrame,
+        prev_close: float,
+        ma10: Optional[float] = None,
+        ticker: Optional[str] = None,
+        target_date: Optional[str] = None,
+    ) -> dict:
+        """Ch5-3 第一根 5K SOP 評估 (老師 5/19 實戰課完整版)。
 
-        6 條件:
+        6 條件 (第一根):
           1. 紅K
           2. 跳空 < 5%
           3. 收盤 ≥ 前日收盤 (close_above_prev)
@@ -559,70 +591,139 @@ class StageTrigger:
           5. 實體 > 上影線 (body_gt_shadow)
           6. 5K 漲幅 < 4% (rise_under_4)
 
-        進場時機: 9:10 後過第一根高 + 紅K 收高。
+        State 機:
+          fail      → 第一根 6/6 不過
+          watch     → 9:10 前 / 沒過第一根高、純觀察
+          signal    → 9:10 後過第一根高 (通知、不直接切入)
+          pullback  → 過高後回踩 MA10 附近 (距 -2%~+2%)
+          confirmed → pullback 期間 5K 紅K + 收盤 > MA10 → 正式進場
+
+        雙錨停損 = max(第一根 5K 低、昨日收盤)
         """
-        result = {"triggered": False, "level": "watch", "reason": ""}
+        # 若未傳 ma10，嘗試從 DB 查
+        if ma10 is None and ticker and target_date:
+            ma10 = _get_ma10(ticker, target_date)
+
+        result: dict = {
+            "triggered": False,
+            "level": "watch",
+            "reason": "",
+            "stop_loss": None,
+            "stop_anchors": {},
+        }
 
         if len(k5) < 1:
             result["reason"] = "5K 不足"
             return result
 
-        first = k5.iloc[0]
+        first   = k5.iloc[0]
         open_p  = float(first["open"])
         high_p  = float(first["high"])
+        low_p   = float(first["low"])
         close_p = float(first["close"])
 
-        red_k           = close_p > open_p
-        gap_pct         = (open_p - prev_close) / prev_close * 100 if prev_close > 0 else 999
+        red_k            = close_p > open_p
+        gap_pct          = (open_p - prev_close) / prev_close * 100 if prev_close > 0 else 999
         close_above_prev = close_p >= prev_close
         close_above_open = close_p >= open_p
-        body            = abs(close_p - open_p)
-        upper           = high_p - max(close_p, open_p)
-        body_gt_shadow  = body > upper
-        chg_pct         = (close_p - open_p) / open_p * 100 if open_p > 0 else 0
-        rise_under_4    = chg_pct < 4.0
-        gap_ok          = gap_pct < 5.0
+        body             = abs(close_p - open_p)
+        upper            = high_p - max(close_p, open_p)
+        body_gt_shadow   = body > upper
+        chg_pct          = (close_p - open_p) / open_p * 100 if open_p > 0 else 0
+        rise_under_4     = chg_pct < 4.0
+        gap_ok           = gap_pct < 5.0
 
         all_pass = all([red_k, close_above_prev, close_above_open,
                         body_gt_shadow, rise_under_4, gap_ok])
 
         if not all_pass:
             fails = []
-            if not red_k:           fails.append("非紅K")
-            if not gap_ok:          fails.append(f"跳空 {gap_pct:.1f}% ≥ 5%")
+            if not red_k:            fails.append("非紅K")
+            if not gap_ok:           fails.append(f"跳空 {gap_pct:.1f}% ≥ 5%")
             if not close_above_prev: fails.append(f"收盤 {close_p:.2f} < 前收 {prev_close:.2f}")
             if not close_above_open: fails.append("收盤 < 開盤 (雙錨失守)")
-            if not body_gt_shadow:  fails.append(f"實體 {body:.2f} ≤ 上影 {upper:.2f}")
-            if not rise_under_4:    fails.append(f"漲幅 {chg_pct:.1f}% ≥ 4%")
+            if not body_gt_shadow:   fails.append(f"實體 {body:.2f} ≤ 上影 {upper:.2f}")
+            if not rise_under_4:     fails.append(f"漲幅 {chg_pct:.1f}% ≥ 4%")
             result["level"] = "fail"
             result["reason"] = "第一根 5K 不符: " + ", ".join(fails)
             return result
 
-        # 等 9:10 後過第一根高 + 紅K 收高
+        # 雙錨停損：取第一根 5K 低、昨日收盤 兩者最高
+        first_low = low_p
+        stop_candidates = [first_low, prev_close]
+        stop_loss = max(stop_candidates)
+        result["stop_loss"] = stop_loss
+        result["stop_anchors"] = {
+            "first_5k_low": first_low,
+            "prev_close": prev_close,
+        }
+
         first_high = high_p
-        if len(k5) >= 2:
-            for i in range(1, len(k5)):
-                bar = k5.iloc[i]
-                ts  = k5.index[i]
-                # 取時間字串
-                if hasattr(ts, "strftime"):
-                    t_str = ts.strftime("%H:%M")
-                else:
-                    t_str = str(ts)[11:16]
-                if t_str < "09:10":
-                    continue
-                bar_close = float(bar["close"])
-                bar_open  = float(bar["open"])
-                if bar_close > first_high and bar_close > bar_open:
+
+        def _t(ts) -> str:
+            """將 index timestamp 轉為 HH:MM 字串。"""
+            if hasattr(ts, "strftime"):
+                return ts.strftime("%H:%M")
+            return str(ts)[11:16]
+
+        # ── 找 signal：9:10 後第一根過第一根高的紅 K ───────────────────────────
+        signal_idx: Optional[int] = None
+        for i in range(1, len(k5)):
+            if _t(k5.index[i]) < "09:10":
+                continue
+            bar_close = float(k5.iloc[i]["close"])
+            bar_open  = float(k5.iloc[i]["open"])
+            if bar_close > first_high and bar_close > bar_open:
+                signal_idx = i
+                break
+
+        if signal_idx is None:
+            result["level"] = "watch"
+            result["reason"] = f"Ch5-3 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
+            return result
+
+        # signal 觸發
+        result["level"] = "signal"
+        if ma10 is not None:
+            result["reason"] = f"訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、等回踩 MA10 ({ma10:.2f})"
+        else:
+            result["reason"] = f"訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、MA10 未知"
+
+        # ── 從 signal_idx 往後找回踩 + 守住 ────────────────────────────────────
+        if ma10 is None or ma10 <= 0:
+            # 無法判斷回踩、停在 signal
+            return result
+
+        MA10_BAND = 0.02  # ±2%
+        for i in range(signal_idx + 1, len(k5)):
+            bar       = k5.iloc[i]
+            bar_low   = float(bar["low"])
+            bar_close = float(bar["close"])
+            bar_open  = float(bar["open"])
+
+            # 是否回踩（盤中最低觸及 MA10 ±2%）
+            touched_ma10 = bar_low <= ma10 * (1 + MA10_BAND) and bar_low >= ma10 * (1 - MA10_BAND)
+
+            if touched_ma10:
+                result["level"] = "pullback"
+                result["reason"] = f"回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+                # 守住確認：紅K + 收盤 > MA10
+                if bar_close > bar_open and bar_close > ma10:
                     result["triggered"] = True
                     result["level"] = "confirmed"
-                    result["reason"] = f"Ch5-3 第一根全 pass + {t_str} 過高 {first_high:.2f} 站穩"
-                    result["price"] = bar_close
-                    result["entry_time"] = t_str
+                    result["reason"] = (
+                        f"過高 {first_high:.2f} + 回踩 MA10 {ma10:.2f} 守住 "
+                        f"(紅K {_t(k5.index[i])})"
+                    )
+                    result["entry_price"] = bar_close
+                    result["entry_time"]  = _t(k5.index[i])
                     return result
 
-        result["level"] = "watch"
-        result["reason"] = f"Ch5-3 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
+        # 掃完沒 confirmed
+        if result["level"] == "pullback":
+            result["reason"] = f"回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+        else:
+            result["reason"] = f"訊號觸發、等回踩 MA10 ({ma10:.2f})"
         return result
 
     # ── Composite Cascade Detector ─────────────────────────────────────────────
@@ -681,9 +782,25 @@ class StageTrigger:
         prev_low  = prev_levels.get("prev_low")
 
         # Layer 1: Ch5-3 當沖 entry
-        r = self.check_ch5_3_entry(k5, prev_close)
+        # 傳 ticker + target_date 讓 check_ch5_3_entry 自動查 MA10
+        _today_str = date.today().isoformat()
+        r = self.check_ch5_3_entry(
+            k5, prev_close,
+            ticker=ticker,
+            target_date=_today_str,
+        )
         if r.get("triggered"):
             return self._format_action(r, "Ch5-3", category)
+
+        # Ch5-3 signal / pullback 也需要上報（不 triggered 但 level 有意義）
+        ch53_level = r.get("level", "watch")
+        if ch53_level in ("signal", "pullback"):
+            # 用 detector key = 'Ch5-3_signal' or 'Ch5-3_pullback'
+            return self._format_action(
+                {**r, "triggered": True},
+                f"Ch5-3_{ch53_level}",
+                category,
+            )
 
         # Layer 2: T1 強勢延續
         r = self.check_trigger_1(ticker, k5, prev_high)

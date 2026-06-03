@@ -301,24 +301,28 @@ SORT_KEY_LABEL = {
 
 # Trigger 顯示格式
 TRIGGER_DISPLAY = {
-    'Ch5-3':  '🟡 Ch5-3 當沖 SOP',
-    'T1':     '🟢 T1 confirmed',
-    'T2':     '🎯 T2 confirmed',
-    'TC':     '🔴 TC confirmed',
-    'T2_watch': '🟡 T2 watch',
+    'Ch5-3':          '🟢 Ch5-3 confirmed (守住進場)',
+    'Ch5-3_pullback': '🟡 Ch5-3 pullback (回踩中)',
+    'Ch5-3_signal':   '🟡 Ch5-3 signal (訊號、等回踩)',
+    'T1':             '🟢 T1 confirmed',
+    'T2':             '🎯 T2 confirmed',
+    'TC':             '🔴 TC confirmed',
+    'T2_watch':       '🟡 T2 watch',
     'none': '⚪ 無訊號',
     None: '⚪ 無訊號',
 }
 
-# sort by trigger 優先順序: Ch5-3 > T2 > T1 > TC (warning) > none
+# sort by trigger 優先順序: Ch5-3 confirmed > pullback > signal > T2 > T1 > TC > none
 TRIGGER_RANK = {
-    'Ch5-3': 0,
-    'T2':    1,
-    'T1':    2,
-    'TC':    3,
-    'T2_watch': 4,
-    'none': 5,
-    None: 6,
+    'Ch5-3':          0,
+    'Ch5-3_pullback': 1,
+    'Ch5-3_signal':   2,
+    'T2':             3,
+    'T1':             4,
+    'TC':             5,
+    'T2_watch':       6,
+    'none': 7,
+    None: 8,
 }
 
 # 全域排序切換（快捷鍵 1-6 更新這個）
@@ -658,7 +662,7 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     """Trigger 觸發時、30 分鐘 cooldown 通知。"""
     if not do_notify:
         return
-    if trig_key not in ('Ch5-3', 'T1', 'T2', 'TC'):
+    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T2', 'TC'):
         return
     cd_key = f"{ticker}_{trig_key}"
     now = datetime.now()
@@ -667,12 +671,17 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     _trigger_cooldown[cd_key] = now + timedelta(minutes=TRIGGER_COOLDOWN_MIN)
 
     titles = {
-        'Ch5-3': f"🟡 {ticker} {name} Ch5-3 當沖 SOP",
+        'Ch5-3':          f"🟢 {ticker} {name} Ch5-3 守住 → 可進場",
+        'Ch5-3_pullback': f"🟡 {ticker} {name} Ch5-3 回踩 MA10 中",
+        'Ch5-3_signal':   f"🟡 {ticker} {name} Ch5-3 訊號觸發、等回踩",
         'T1': f"🟢 {ticker} {name} T1 強勢延續",
         'T2': f"🎯 {ticker} {name} T2 反彈訊號",
         'TC': f"🚨 {ticker} {name} TC 結構失敗",
     }
-    sounds = {'Ch5-3': 'Glass', 'T1': 'Glass', 'T2': 'Glass', 'TC': 'Sosumi'}
+    sounds = {
+        'Ch5-3': 'Glass', 'Ch5-3_signal': 'Tink', 'Ch5-3_pullback': 'Tink',
+        'T1': 'Glass', 'T2': 'Glass', 'TC': 'Sosumi',
+    }
     try:
         subprocess.run(
             ['osascript', '-e',
@@ -782,6 +791,8 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40) -> Text:
     """Trigger label + reason、rich Text。"""
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     if trig_key == 'Ch5-3':
+        style = 'green'
+    elif trig_key in ('Ch5-3_signal', 'Ch5-3_pullback'):
         style = 'yellow'
     elif trig_key in ('T1', 'T2'):
         style = 'green'
@@ -1000,6 +1011,8 @@ def fmt_trigger(trig_key: str, reason: str = '') -> str:
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     short = reason[:40] if reason else ''
     if trig_key == 'Ch5-3':
+        return f"{C.G}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
+    if trig_key in ('Ch5-3_signal', 'Ch5-3_pullback'):
         return f"{C.Y}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
     if trig_key in ('T1', 'T2'):
         return f"{C.G}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
