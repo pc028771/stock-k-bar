@@ -18,6 +18,7 @@ setup:
 
 course_sources:
   - source: "明日 K 線 §24 合併十字線後攻擊企圖"
+    article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
     quote: "合併十字線 = 剛創新高位置的一根有上影線 + 一根有下影線；合併後形成長十字線"
   - source: "INVENTORY A01 merged_doji 識別規則"
     quote: "先上影線後下影線力量最強；位置不對則無意義"
@@ -34,6 +35,7 @@ branches:
       description: "隔日跳空向上突破合併十字線高點（merged_high），攻擊企圖最強；可進場"
       course_citation:
         source: "明日 K 線 §24 合併十字線後攻擊：跳空攻擊"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
         quote: "隔日 open > prev_high（合併十字線的 merged_high）→ 跳空攻擊"
       notes:
         - "[Phase 3 STUB] merged_high 需由 patterns/merged_doji.py 計算；目前退化為 today.high"
@@ -51,6 +53,7 @@ branches:
       description: "隔日收盤推升超過合併十字線高點（merged_high），攻擊企圖成立（日K退化版）"
       course_citation:
         source: "明日 K 線 §24 合併十字線後攻擊：推升攻擊（日K退化版）"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
         quote: "推升攻擊：盤中 high > 早盤第一個高點；日K退化版用 today_close > prev_high（merged_high）"
       notes:
         - "[Phase 3 STUB] merged_high 需由 patterns/merged_doji.py 計算"
@@ -68,6 +71,7 @@ branches:
       description: "隔日最低跌破合併十字線低點（merged_low），攻擊意圖失效，不進場"
       course_citation:
         source: "明日 K 線 §24 合併十字線失效條件"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
         quote: "失效：隔日 low < 合併十字線 merged_low → 不攻擊"
       notes:
         - "[Phase 3 STUB] merged_low 需由 patterns/merged_doji.py 計算"
@@ -86,6 +90,7 @@ branches:
       description: "隔日收盤在合併十字線範圍內整理，尚未攻擊也未跌破；繼續觀察"
       course_citation:
         source: "明日 K 線 §24 合併十字線觀察期"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
         quote: "合併十字線後攻擊企圖 — 等待確認方向"
       notes:
         - "[Phase 3 STUB] merged_high/merged_low 需由 patterns/merged_doji.py 計算"

@@ -6,5 +6,6 @@ trigger_condition:
 severity: warn
 course_citation:
   source: "明日 K 線 §14 出現向下跳空的下降三法"
+  article_id: "3399437067F7B90C0A6B4AED8B76FA3E"
   quote: "向下跳空後的下降三法型態，確認空方續演"
 recommendation_text: "今日出現向下跳空並收黑 K，符合下降三法續演的空方訊號。若後續仍無法回補跳空缺口，空方力量持續，多單應審慎確認停損位置。"

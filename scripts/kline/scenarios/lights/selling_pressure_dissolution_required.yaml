@@ -7,5 +7,6 @@ trigger_condition:
 severity: info
 course_citation:
   source: "明日 K 線 §07 賣壓化解"
+  article_id: "910E8BDF113C42643EF26394CDD14007"
   quote: "利多需配合化解賣壓，否則只是被消息帶上"
 recommendation_text: "股價處於賣壓化解區段（前高壓力下方）。利多消息需觀察是否真正化解賣壓，僅靠消息面帶上不具持續性。"

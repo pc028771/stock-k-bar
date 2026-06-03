@@ -6,5 +6,6 @@ trigger_condition:
 severity: warn
 course_citation:
   source: "明日 K 線 §22 破底股糾結"
+  article_id: "ED82A7EC88ADA783258983AF87116CC7"
   quote: "跌破後反彈遇壓的劇本：破底反彈非翻多，仍是套牢賣壓"
 recommendation_text: "股價跌破 60 日低點後出現小紅 K 反彈，屬破底後糾結型態。此處反彈多為套牢者減碼，非真正多方翻轉。明日若無力站回低點上方，確認空方繼續。"

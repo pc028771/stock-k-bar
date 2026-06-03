@@ -7,5 +7,6 @@ trigger_condition:
 severity: info
 course_citation:
   source: "明日 K 線 §37 缺乏力量的判斷"
+  article_id: "10A0886DB3EA30F09114543C88450BBF"
   quote: "賣壓中空與缺乏攻擊企圖的對比：小紅但 MA 不配合，判斷缺乏力量"
 recommendation_text: "股價小紅上漲但 MA5 未配合向上，屬缺乏力量的拉抬。需區分「賣壓中空」（真空上漲）與「缺乏攻擊企圖」（弱勢多方），兩者明日走勢與操作策略不同。"

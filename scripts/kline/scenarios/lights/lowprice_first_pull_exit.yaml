@@ -7,5 +7,6 @@ trigger_condition:
 severity: warn
 course_citation:
   source: "明日 K 線 §09 低價股的處理節奏"
+  article_id: "5710C4E8D0ACFBD5926A74A54853999C"
   quote: "第一次的拉抬結束就離場；箱型誤謬不適用低價股"
 recommendation_text: "低價股出現回檔，可能已是第一次拉抬結束的訊號。低價股不適用箱型區間操作邏輯，第一次拉抬結束應果斷離場，不宜等待第二次。"

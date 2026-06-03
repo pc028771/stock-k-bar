@@ -7,5 +7,6 @@ trigger_condition:
 severity: info
 course_citation:
   source: "明日 K 線 §02 D 部分 中樞型態"
+  article_id: "98207726BFC111243984494E08275765"
   quote: "對抗近因偏誤：中樞整理期間不因最近幾根 K 棒就改變判斷"
 recommendation_text: "股價處於中樞整理區間（60 日高低點之間），今日小黑回檔。注意對抗近因偏誤：中樞整理期間不應因最近幾根黑 K 而改變對主趨勢的判斷，等待突破或跌破確認方向。"

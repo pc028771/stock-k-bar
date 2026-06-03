@@ -7,5 +7,6 @@ trigger_condition:
 severity: warn
 course_citation:
   source: "明日 K 線 §19 下山"
+  article_id: "C71C9461F7EDEE5DB8CC0C66D8399F2E"
   quote: "四類會變成一座山的股票：只有題材沒有未來、短期一次性利多、再次突破高熱度股、利用環境話題"
 recommendation_text: "股價跌破前高且 MA20 轉向，符合下山特徵。需確認是否屬於四類山型：題材股退燒、一次性利多消散、再次突破後力竭、話題退潮。若屬其中一類，多方力量不再持續。"
