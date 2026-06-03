@@ -37,6 +37,7 @@ from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_a
 from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot  # noqa
 from zhuli.entry.small_structure.glued_ma5_platform import detect_glued_ma5_series as detect_glued_ma5  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
+from zhuli.entry.foreign_buy_on_black_k import detect_batch as detect_foreign_black_k_batch  # noqa
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
 # from zhuli.entry.bbands_upper_break import detect as detect_bbands
@@ -154,6 +155,13 @@ def _chip_tag(foreign_5d: float, sitc_5d: float) -> str:
     if foreign_5d < -2000:
         return "🔴 外資強賣"
     return "⚪ 中性"
+
+
+def _foreign_black_k_chip_tag(foreign_5d: float, sitc_5d: float) -> str:
+    """外資大買黑K 條件觀察專用 tag (老師 6/3 教法)."""
+    base = _chip_tag(foreign_5d, sitc_5d)
+    # 外資 5d 為負但每日大買是可能的（黑K壓盤期），加 🐂 標記
+    return f"🐂 條件觀察 ({base})"
 
 
 def _fmt_chip_cols(chip: dict) -> tuple[str, str, str]:
@@ -417,7 +425,12 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         ).fetchall()
     ]
 
-    results = {'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [], 'ma5_pivot': [], 'glued_ma5': []}
+    results = {
+        'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [],
+        'ma5_pivot': [], 'glued_ma5': [],
+        'institutional_firstbuy': [], 'institutional_swing': [],
+        'foreign_buy_on_black_k': [],
+    }
 
     # ⚠️ 只放已驗證門檻的 scanner
     VOL_RATIO_MIN = {
@@ -503,6 +516,190 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
                 pass
 
     con.close()
+
+    # ── 批次載入外資/投信近 10 日資料 → 注入 ticker_dfs ───────────────────────────
+    print(f"  [institutional] 批次載入近 10 日外資/投信資料...", flush=True)
+    try:
+        con_inst = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        inst_tickers = list(ticker_dfs.keys())
+        _ph = ",".join("?" * len(inst_tickers)) if inst_tickers else "''"
+        inst_rows = con_inst.execute(
+            f"""SELECT ticker, trade_date, foreign_net, sitc_net
+                FROM institutional_investors
+                WHERE ticker IN ({_ph})
+                  AND trade_date >= date(?, '-10 days')
+                  AND trade_date <= ?
+                ORDER BY ticker, trade_date""",
+            inst_tickers + [target_date, target_date],
+        ).fetchall() if inst_tickers else []
+        con_inst.close()
+
+        # 建 (ticker, date) → foreign_net/sitc_net 對照
+        _inst_map: dict[tuple[str, str], tuple[float, float]] = {}
+        for row in inst_rows:
+            _inst_map[(row[0], str(row[1])[:10])] = (float(row[2] or 0), float(row[3] or 0))
+
+        for t, df_t in ticker_dfs.items():
+            dates_str = df_t['trade_date'].astype(str).str[:10]
+            df_t['foreign_net'] = dates_str.apply(lambda d: _inst_map.get((t, d), (0.0, 0.0))[0])
+            df_t['sitc_net_daily'] = dates_str.apply(lambda d: _inst_map.get((t, d), (0.0, 0.0))[1])
+
+        print(f"  [institutional] 注入完成 ({len(_inst_map)} rows)", flush=True)
+    except Exception as _e:
+        print(f"  [institutional] 批次載入失敗: {_e}（foreign_net 設 0）", flush=True)
+        for df_t in ticker_dfs.values():
+            if 'foreign_net' not in df_t.columns:
+                df_t['foreign_net'] = 0.0
+            if 'sitc_net_daily' not in df_t.columns:
+                df_t['sitc_net_daily'] = 0.0
+
+    # ── 外資大買黑K連2天 scanner ───────────────────────────────────────────────
+    print(f"  [foreign_buy_on_black_k] 掃描外資大買黑K連2天...", flush=True)
+    try:
+        fbk_hits = detect_foreign_black_k_batch(
+            ticker_dfs=ticker_dfs,
+            stock_info=stock_info,
+            teacher_sector_map=TEACHER_SECTOR_MAP,
+            target_date=target_date,
+        )
+        results['foreign_buy_on_black_k'] = fbk_hits
+        print(f"  [foreign_buy_on_black_k] 找到 {len(fbk_hits)} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [foreign_buy_on_black_k] 失敗: {_e}", flush=True)
+
+    # ── J 投信首買 scanner ─────────────────────────────────────────────────────
+    print(f"  [institutional_firstbuy] 掃描 J 投信首買...", flush=True)
+    try:
+        from zhuli.entry.institutional_firstbuy import (
+            detect as detect_j_firstbuy,
+            load_institutional as load_inst_j,
+        )
+        from zhuli.config import InstitutionalFirstBuyConfig
+        if ticker_dfs:
+            combined_inst_df = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            # 補 ideal_ma_align / is_red / is_black（J scanner 需要）
+            combined_inst_df['is_black'] = combined_inst_df['close'] < combined_inst_df['open']
+            combined_inst_df['is_red'] = combined_inst_df['close'] > combined_inst_df['open']
+            # ideal_ma_align: ma5 > ma10 > ma20 > ma60 全上彎 (proxy: slope > 0)
+            combined_inst_df['ideal_ma_align'] = (
+                (combined_inst_df['ma5'] > combined_inst_df['ma10'])
+                & (combined_inst_df['ma10'] > combined_inst_df['ma20'])
+                & (combined_inst_df['ma20'] > combined_inst_df['ma60'].fillna(0))
+            )
+            combined_inst_df['trade_date'] = pd.to_datetime(combined_inst_df['trade_date'])
+
+            inst_raw_df = load_inst_j(db_path)
+            j_cfg = InstitutionalFirstBuyConfig()
+            j_signals = detect_j_firstbuy(
+                df=combined_inst_df,
+                cfg=j_cfg,
+                inst_df=inst_raw_df,
+                db_path=db_path,
+            )
+            # 過濾只取 target_date 的訊號
+            if not j_signals.empty:
+                j_today = j_signals[
+                    j_signals['signal_date'].astype(str).str[:10] == target_date
+                ]
+            else:
+                j_today = j_signals
+
+            for _, row in j_today.iterrows():
+                t = row['ticker']
+                info = stock_info.get(t, {"name": "", "industry": ""})
+                teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+                teacher_tier = TEACHER_TIER.get(t, '')
+                days_since = None
+                if t in TEACHER_FIRST:
+                    days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+                close_val = float(row.get('close') or 0)
+                ma10_val = float(row.get('ma10') or 0) if pd.notna(row.get('ma10')) else None
+                dist_ma10 = round((close_val - ma10_val) / ma10_val * 100, 1) if ma10_val else None
+                tier = '⭐ Tier-B' if teacher_tier in ('core', 'frequent') else '一般'
+                results['institutional_firstbuy'].append({
+                    'ticker': t,
+                    'name': info['name'],
+                    'industry': info['industry'],
+                    'teacher_sectors': teacher_sectors,
+                    'close': close_val,
+                    'sitc_net': float(row.get('sitc_net') or 0),
+                    'price_divergence': bool(row.get('price_divergence', False)),
+                    'ideal_ma_align': bool(row.get('ideal_ma_align', False)),
+                    'entry_note': str(row.get('entry_note', '')),
+                    'stop_note': f"MA10停損 {ma10_val:.2f}" if ma10_val else '—',
+                    'tier': tier,
+                    'timing_bonus': '',
+                    'teacher_tier': teacher_tier,
+                    'days_since_first_mention': days_since,
+                    'dist_ma10_pct': dist_ma10,
+                    'vol_ratio': 0.0,
+                })
+        print(f"  [institutional_firstbuy] 找到 {len(results['institutional_firstbuy'])} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [institutional_firstbuy] 失敗: {_e}", flush=True)
+
+    # ── I 投信跟單 scanner ─────────────────────────────────────────────────────
+    print(f"  [institutional_swing] 掃描 I 投信跟單...", flush=True)
+    try:
+        from zhuli.entry.institutional_swing import detect as detect_i_swing
+        from zhuli.config import InstitutionalSwingConfig
+        if ticker_dfs:
+            combined_swing_df = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            # 確保 trade_date 為 datetime
+            combined_swing_df['trade_date'] = pd.to_datetime(combined_swing_df['trade_date'])
+            # 補 ma5_slope_5d（若已有直接用）
+            if 'ma5_slope_5d' not in combined_swing_df.columns:
+                combined_swing_df['ma5_slope_5d'] = combined_swing_df.groupby('ticker')['ma5'].transform(lambda s: s.diff(5))
+
+            i_cfg = InstitutionalSwingConfig()
+            i_signals = detect_i_swing(
+                df=combined_swing_df,
+                cfg=i_cfg,
+                db_path=db_path,
+            )
+            if not i_signals.empty:
+                i_today = i_signals[
+                    i_signals['signal_date'].astype(str).str[:10] == target_date
+                ]
+            else:
+                i_today = i_signals
+
+            for _, row in i_today.iterrows():
+                t = row['ticker']
+                info = stock_info.get(t, {"name": "", "industry": ""})
+                teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+                teacher_tier = TEACHER_TIER.get(t, '')
+                days_since = None
+                if t in TEACHER_FIRST:
+                    days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+                close_val = float(row.get('close') or 0)
+                stop_val = float(row.get('stop_loss') or 0) if pd.notna(row.get('stop_loss')) else None
+                dist_ma10 = None
+                if stop_val:
+                    dist_ma10 = round((close_val - stop_val) / stop_val * 100, 1)
+                tier = '⭐ Tier-B' if teacher_tier in ('core', 'frequent') else '一般'
+                results['institutional_swing'].append({
+                    'ticker': t,
+                    'name': info['name'],
+                    'industry': info['industry'],
+                    'teacher_sectors': teacher_sectors,
+                    'close': close_val,
+                    'sitc_buy_5d': float(row.get('sitc_buy_5d') or 0),
+                    'buy_pct_of_shares': float(row.get('buy_pct_of_shares') or 0),
+                    'is_first_appearance': bool(row.get('is_first_appearance', False)),
+                    'ma_alignment_ok': bool(row.get('ma_alignment_ok', False)),
+                    'entry_note': str(row.get('entry_note', '')),
+                    'stop_note': f"MA10停損 {stop_val:.2f}" if stop_val else '—',
+                    'tier': tier,
+                    'timing_bonus': '',
+                    'teacher_tier': teacher_tier,
+                    'days_since_first_mention': days_since,
+                    'dist_ma10_pct': dist_ma10,
+                    'vol_ratio': 0.0,
+                })
+        print(f"  [institutional_swing] 找到 {len(results['institutional_swing'])} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [institutional_swing] 失敗: {_e}", flush=True)
 
     # ── small_structure：改用 run_scan(combined_df, universe='sector_week') ──
     # run_scan 在 watchlist_mode=True 時呼叫 run_watchlist，
@@ -912,6 +1109,10 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
     ma5_pivot_hits = results.pop('ma5_pivot', [])
     glued_ma5_hits = results.pop('glued_ma5', [])
+    # 法人 scanner 獨立段落、不進 all_hits
+    j_hits = results.pop('institutional_firstbuy', [])
+    i_hits = results.pop('institutional_swing', [])
+    fbk_hits = results.pop('foreign_buy_on_black_k', [])
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
@@ -947,6 +1148,9 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         [h['ticker'] for h in all_hits]
         + [h['ticker'] for h in ma5_pivot_hits]
         + [h['ticker'] for h in glued_ma5_hits]
+        + [h['ticker'] for h in j_hits]
+        + [h['ticker'] for h in i_hits]
+        + [h['ticker'] for h in fbk_hits]
     )
     pa_tickers = []
     if pa_wl is not None and not pa_wl.empty and 'ticker' in pa_wl.columns:
@@ -1066,6 +1270,9 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     md.append(f"| post_attack_watchlist | {pa_count} |")
     md.append(f"| ma5_pivot | {len(ma5_pivot_hits)} |")
     md.append(f"| glued_ma5_platform | {len(glued_ma5_hits)} |")
+    md.append(f"| institutional_firstbuy (J) | {len(j_hits)} |")
+    md.append(f"| institutional_swing (I) | {len(i_hits)} |")
+    md.append(f"| 🐂 外資黑K連2天 | {len(fbk_hits)} |")
     md.append(f"| **可進場** (Tier-A/B 距MA10≤15%) | **{len(entry_hits)}** |")
     md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
     md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
@@ -1280,6 +1487,115 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
                       f"{f_str} | {s_str} | {tag} | "
                       f"{_wantgoo_link(h['ticker'])} |")
         md.append(f"")
+
+    # === J 投信首買 ===
+    md += [
+        f"## 🏛 投信首買 (J) — 前 30 天空白 → 今日首買 ≥ 200 張",
+        f"",
+        f"> 老師教法 (Ex2-3): 「前面完全乾淨、今天突然大買 → 明天 5分K SOP 或等回 MA10 站穩」",
+        f"> 價籌背離 (💡) = 收黑K 但投信大買 → 吸貨訊號",
+        f"",
+    ]
+    if j_hits:
+        md += [
+            f"| Ticker | 名稱 | 族群 | 收盤 | 投信買(張) | 價籌背離 | MA多頭 | 距MA10 | 老師 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for h in j_hits:
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            chip = chip_map.get(ticker, {})
+            f_str = f"{chip.get('foreign_5d', 0):+,}" if chip else '—'
+            s_str = f"{chip.get('sitc_5d', 0):+,}" if chip else '—'
+            tag = chip.get('tag', '—') if chip else '—'
+            diverge = '💡' if h.get('price_divergence') else ''
+            ma_align = '✅' if h.get('ideal_ma_align') else ''
+            md.append(
+                f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
+                f"{h.get('sitc_net', 0):+.0f} | {diverge} | {ma_align} | "
+                f"{d_str} | {tt} | {f_str} | {s_str} | {tag} | {_wantgoo_link(ticker)} |"
+            )
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無投信首買命中", f""]
+
+    # === I 投信跟單 ===
+    md += [
+        f"## 🏛 投信跟單 (I) — 5d 累計投信買/股本 ≥ 1.5% + MA 多頭",
+        f"",
+        f"> 老師教法 (Ex2-1/2-2): 「投信連續 5 天買超股本 1.5% = 跟單機會」",
+        f"> 首次上榜 (🆕) 優先；MA5>MA10>MA20 全上彎才進",
+        f"",
+    ]
+    if i_hits:
+        md += [
+            f"| Ticker | 名稱 | 族群 | 收盤 | 5d投信買(張) | 股本% | 首次 | 距MA10 | 老師 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for h in i_hits:
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            chip = chip_map.get(ticker, {})
+            f_str = f"{chip.get('foreign_5d', 0):+,}" if chip else '—'
+            s_str = f"{chip.get('sitc_5d', 0):+,}" if chip else '—'
+            tag = chip.get('tag', '—') if chip else '—'
+            first = '🆕' if h.get('is_first_appearance') else ''
+            buy_pct = h.get('buy_pct_of_shares', 0) or 0
+            md.append(
+                f"| {ticker} | {h['name']} | {sectors_str} | {h['close']:.2f} | "
+                f"{h.get('sitc_buy_5d', 0):+.0f} | {buy_pct:.3f}% | {first} | "
+                f"{d_str} | {tt} | {f_str} | {s_str} | {tag} | {_wantgoo_link(ticker)} |"
+            )
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無投信跟單命中", f""]
+
+    # === 🐂 外資黑K連2天 ===
+    md += [
+        f"## 🐂 外資黑K連2天確認（隔天尾盤評估）",
+        f"",
+        f"> 老師 6/3 教法：「外資大買黑K 連兩天、明天尾盤就開始圈起來」",
+        f"> 黑K + 外資大買 = 主力低檔吸貨 (殺散戶接籌碼)、連2天才算策略性建倉",
+        f"> 流動性門檻：小型 500 張 / 中型 2000 張 / 大型 5000 張",
+        f"> 加分：MA10 上方 (✅) + 無破底型態 (🛡)",
+        f"",
+    ]
+    if fbk_hits:
+        md += [
+            f"| Ticker | 名稱 | 族群 | 收盤 | D0外資(張) | D-1外資(張) | 連天數 | Tier | 距MA10 | ✅MA10上 | 🛡無破底 | 老師 | 外資5d | 投信5d | 籌碼 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for h in fbk_hits[:30]:  # 最多顯示 30 筆
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d = h.get('dist_ma10_pct')
+            d_str = f"{d:+.1f}%" if d is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            chip = chip_map.get(ticker, {})
+            f_str = f"{chip.get('foreign_5d', 0):+,}" if chip else '—'
+            s_str = f"{chip.get('sitc_5d', 0):+,}" if chip else '—'
+            # 🐂 chip_tag for foreign black k
+            base_tag = chip.get('tag', '—') if chip else '—'
+            fbk_tag = f"🐂 條件觀察 ({base_tag})"
+            above = '✅' if h.get('above_ma10') else ''
+            no_break = '🛡' if h.get('not_breakdown') else ''
+            teacher_tier = h.get('teacher_tier', '')
+            tier_label = '⭐ Tier-B' if teacher_tier in ('core', 'frequent') else '一般'
+            md.append(
+                f"| **{ticker}** | {h['name']} | {sectors_str} | {h['close']:.2f} | "
+                f"{h.get('foreign_net_d0', 0):+.0f} | {h.get('foreign_net_d1', 0):+.0f} | "
+                f"{h.get('streak_days', 2)}天 | {tier_label} | {d_str} | {above} | {no_break} | "
+                f"{tt} | {f_str} | {s_str} | {fbk_tag} | {_wantgoo_link(ticker)} |"
+            )
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無外資黑K連2天命中", f""]
 
     # === 處置股專區（--enable-disposal 啟用時）===
     if disposal_map:
