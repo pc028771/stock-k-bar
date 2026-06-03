@@ -152,15 +152,7 @@ WATCH = [
         'tactic': '短打', 'priority': 3,
         'source': '老師明示 6/3',
         'sector': 'IC通路',
-        'note': '⭐⭐⭐ 老師 6/3 圈起來、IC 通路、外資進'
-    },
-    {
-        'ticker': '2308', 'name': '台達電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/3',
-        'sector': 'AI 電源/電類',
-        'note': '⭐⭐⭐ 老師 6/3 圈起來、外資大買、守月線「很簡單的股票」'
+        'note': '⭐⭐⭐ 老師 6/3 圈起來「守月線、很簡單的股票、外資持續大買」'
     },
     {
         'ticker': '3128', 'name': '欣詮',
