@@ -1,0 +1,7 @@
+light_id: bad_severity_light
+trigger_condition:
+  "today.close": "< prev_high_60"
+course_citation:
+  source: 明日 K 線 §04 遇壓狀態
+recommendation_text: 測試用燈號
+severity: "foo"  # Not in ["info", "warn", "critical"]

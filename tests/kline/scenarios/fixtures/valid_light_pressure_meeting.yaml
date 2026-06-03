@@ -1,0 +1,9 @@
+light_id: pressure_meeting_unresolved
+trigger_condition:
+  "today.close": "< prev_high_60"
+  "context.near_resistance": true
+course_citation:
+  source: 明日 K 線 §04 遇壓未化解警示
+  quote: 遇壓沒化解，要往反向思考
+recommendation_text: 股價遇前高壓力尚未化解，注意反壓風險，不宜躁進買入
+severity: warn

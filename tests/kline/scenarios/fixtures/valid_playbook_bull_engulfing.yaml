@@ -1,0 +1,30 @@
+pattern: bull_engulfing
+setup:
+  name: classic_bear_exhaustion
+  required_context: [bear_exhaustion_context]
+branches:
+  - id: B1_next_day_strong
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: 空單回補力量強，但不是多方進場訊號
+      course_citation:
+        source: 明日 K 線 §06 不要解讀為買點
+        article_id: "TODO_real_id"
+        quote: 多頭吞噬本身不是買點
+  - id: B2_next_day_weak
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: stop_loss_trigger
+      description: 收盤跌破今日最低點，結構支撐跌破，停損出清
+      course_citation:
+        source: 明日 K 線 §08 收盤確認停損邏輯
+course_sources:
+  - source: PATTERN_DEFINITIONS §3
+relevant_lights: []

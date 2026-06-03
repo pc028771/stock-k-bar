@@ -21,6 +21,7 @@ from ._schema import (
     Scenario,
     Severity,
 )
+from .loader import LoaderError, load_lights, load_playbooks
 
 __all__ = [
     "Action",
@@ -31,9 +32,12 @@ __all__ = [
     "ContextSnapshot",
     "CourseCitation",
     "Light",
+    "LoaderError",
     "PatternHit",
     "Playbook",
     "PlaybookSetup",
     "Scenario",
     "Severity",
+    "load_lights",
+    "load_playbooks",
 ]
