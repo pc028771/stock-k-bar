@@ -474,6 +474,23 @@ def _load_stage_trigger():
 
 _stage_engine, _fetch_5min, _get_prev = _load_stage_trigger()
 
+
+def _get_market_regime_chip() -> tuple[str, str]:
+    """取大盤環境 chip。回傳 (label, style)。"""
+    try:
+        if _stage_engine is None:
+            return "市場: ⚪ 未知", "dim"
+        today_str = date.today().isoformat()
+        regime = _stage_engine._detect_market_regime(today_str)
+        if regime == "strong":
+            return "市場: 🟢 強勢", "bold green"
+        elif regime == "weak":
+            return "市場: 🔴 弱勢", "bold red"
+        else:
+            return "市場: ⚪ 正常", "white"
+    except Exception:
+        return "市場: ⚪ ?", "dim"
+
 # 抑制 stage_helper 的 log 訊息、避免噴到 monitor alt-screen 破版
 import logging as _logging
 _logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
@@ -2806,6 +2823,9 @@ def main():
             header.append("StageTrigger OK", style="green")
         else:
             header.append("StageTrigger unavailable", style="red")
+        # 大盤環境 chip
+        regime_label, regime_style = _get_market_regime_chip()
+        header.append(f"  [{regime_label}]", style=regime_style)
         # WS cache stats + data cache stats
         try:
             tot, stale, errs = _cache.stats()

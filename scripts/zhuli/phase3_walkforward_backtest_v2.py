@@ -30,7 +30,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from zhuli.intraday_stage_helper import StageTrigger, _get_ma10  # noqa
+from zhuli.intraday_stage_helper import StageTrigger, _get_ma10, _DB as _HELPER_DB  # noqa
 
 _DB = Path.home() / ".four_seasons" / "data.sqlite"
 _TMP = Path("/tmp")
@@ -861,6 +861,442 @@ def write_compare_report(
     print(f"\n→ 報告寫入: {out_path}")
 
 
+# ── v3 Regime-aware backtest ──────────────────────────────────────────────────
+
+# 老師點名分組快取 (供 score 加分用)
+_TEACHER_TIER_CACHE: dict[str, str] = {}
+
+
+def _load_teacher_tier() -> dict[str, str]:
+    """從 DB 的 stock_info 或 teacher_picks json 讀老師點名層級。
+    簡化版: 先嘗試讀 teacher_picks_2026.json，不存在則回空 dict。
+    """
+    global _TEACHER_TIER_CACHE
+    if _TEACHER_TIER_CACHE:
+        return _TEACHER_TIER_CACHE
+    tier: dict[str, str] = {}
+    try:
+        picks_path = _REPO / "docs" / "主力大課程" / "data" / "teacher_picks_2026.json"
+        if picks_path.exists():
+            import json as _json
+            data = _json.loads(picks_path.read_text())
+            for item in data if isinstance(data, list) else data.get("picks", []):
+                tk = str(item.get("ticker", ""))
+                lvl = item.get("tier", "mentioned")
+                if tk:
+                    tier[tk] = lvl
+    except Exception:
+        pass
+    _TEACHER_TIER_CACHE = tier
+    return tier
+
+
+def _score_trigger(hit: dict) -> float:
+    """對每個觸發記錄算 score、用於 top-N 選取 (模擬實戰選最強)。"""
+    score = 0.0
+
+    # 1. Trigger type 基本分
+    trigger_base = {
+        "Ch5-3": 30,
+        "T1":    20,
+        "T2":    25,
+        "TC":    -100,  # 結構失敗、不選
+    }
+    score += trigger_base.get(hit.get("layer", ""), 0)
+
+    # 2. 進場時間 (越早越好、9:10 最佳)
+    fire_time = hit.get("entry_time") or "09:30"
+    try:
+        h, m = int(fire_time[:2]), int(fire_time[3:5])
+        minutes_after_910 = (h - 9) * 60 + (m - 10)
+        score -= minutes_after_910 * 0.5
+    except Exception:
+        pass
+
+    # 3. 老師 tier
+    tier_map = _load_teacher_tier()
+    tier = tier_map.get(hit.get("ticker", ""), "")
+    if tier == "core":
+        score += 25
+    elif tier == "frequent":
+        score += 15
+    elif tier == "mentioned":
+        score += 8
+
+    # 4. 大盤環境加分
+    if hit.get("market_regime") == "strong":
+        score += 5
+
+    return score
+
+
+def run_backtest_regime(max_per_day: int = 0) -> list[dict]:
+    """v3 Regime-aware backtest。
+
+    依當日大盤 regime 切換 Ch5-3 路徑:
+      - strong/normal: 舊版 (過高即 confirmed)
+      - weak: 新版 (回踩 MA10 守住)
+
+    max_per_day: 每日最多取 N 個觸發記錄 (0 = 全取)。
+      0 = v3-all、2 = v3-top2 (模擬實戰 top 2 選擇)
+    """
+    engine = StageTrigger()
+    records: list[dict] = []
+
+    for scan_date in TRADING_DATES:
+        md_path = _TMP / f"scanner_candidates_{scan_date}.md"
+        if not md_path.exists():
+            print(f"[SKIP] 無 scanner file: {scan_date}")
+            continue
+
+        watchlist = parse_scanner_candidates(md_path)
+        next_date = next_trading_day(scan_date)
+        if not next_date:
+            continue
+
+        t3_date = get_trading_day_n(scan_date, 3)
+
+        # 偵測大盤 regime (用 next_date 的收盤資料)
+        regime = engine._detect_market_regime(next_date, db_path=_DB)
+        regime_label = {"strong": "🟢強勢", "weak": "🔴弱勢", "normal": "⚪正常"}.get(regime, regime)
+        mode_label = f"regime-{regime}"
+        print(f"[{scan_date} → T+1={next_date}] watchlist={len(watchlist)} regime={regime_label}")
+
+        day_triggers: list[dict] = []
+
+        for ticker in watchlist:
+            k5_full = fetch_finmind_kbar_5m(ticker, next_date)
+            if k5_full.empty:
+                records.append({
+                    "scan_date": scan_date, "entry_date": next_date,
+                    "ticker": ticker, "layer": "N/A", "mode": mode_label,
+                    "triggered": False, "skip_reason": "5K 無資料",
+                    "entry_price": None, "entry_time": None,
+                    "ret_1d": None, "ret_3d": None,
+                    "market_regime": regime,
+                })
+                continue
+
+            prev_levels = get_prev_levels(ticker, next_date)
+            prev_close = prev_levels.get("prev_close", 0.0)
+
+            if not prev_close:
+                records.append({
+                    "scan_date": scan_date, "entry_date": next_date,
+                    "ticker": ticker, "layer": "N/A", "mode": mode_label,
+                    "triggered": False, "skip_reason": "無前收資料",
+                    "entry_price": None, "entry_time": None,
+                    "ret_1d": None, "ret_3d": None,
+                    "market_regime": regime,
+                })
+                continue
+
+            trigger_rec = None
+
+            # regime-aware: Ch5-3 依 regime 切換路徑
+            ma10 = _get_ma10(ticker, next_date)
+
+            for i in range(1, len(k5_full) + 1):
+                k5 = k5_full.iloc[:i]
+                ts = k5_full.index[i - 1]
+                ts_str = ts.strftime("%H:%M") if hasattr(ts, "strftime") else str(ts)[11:16]
+                if ts_str < "09:10":
+                    continue
+
+                # Ch5-3 (regime-aware)
+                r_ch53 = engine.check_ch5_3_entry(
+                    k5, prev_close, ma10=ma10, market_regime=regime
+                )
+                if r_ch53.get("triggered"):
+                    trigger_rec = {
+                        "scan_date": scan_date, "entry_date": next_date,
+                        "ticker": ticker, "layer": "Ch5-3", "mode": mode_label,
+                        "triggered": True, "skip_reason": "",
+                        "entry_price": r_ch53.get("entry_price", r_ch53.get("price", 0.0)),
+                        "entry_time": r_ch53.get("entry_time", ts_str),
+                        "trigger_path": regime, "trigger_reason": r_ch53.get("reason", "")[:80],
+                        "market_regime": regime,
+                    }
+                    break
+
+                # 弱勢盤: Ch5-3 在 signal/pullback 繼續等、不跳 T1
+                if regime == "weak":
+                    ch53_level = r_ch53.get("level", "watch")
+                    if ch53_level in ("signal", "pullback"):
+                        continue
+
+                # T1/T2/TC (不受 regime 影響)
+                r = engine.check_trigger_1(ticker, k5, prev_levels.get("prev_high"))
+                if r.get("triggered"):
+                    trigger_rec = {
+                        "scan_date": scan_date, "entry_date": next_date,
+                        "ticker": ticker, "layer": "T1", "mode": mode_label,
+                        "triggered": True, "skip_reason": "",
+                        "entry_price": r.get("price", 0.0), "entry_time": ts_str,
+                        "trigger_path": "", "trigger_reason": r.get("reason", "")[:80],
+                        "market_regime": regime,
+                    }
+                    break
+
+                r = engine.check_trigger_2(ticker, k5, datetime.min)
+                if r.get("triggered"):
+                    trigger_rec = {
+                        "scan_date": scan_date, "entry_date": next_date,
+                        "ticker": ticker, "layer": "T2", "mode": mode_label,
+                        "triggered": True, "skip_reason": "",
+                        "entry_price": r.get("price", 0.0), "entry_time": ts_str,
+                        "trigger_path": r.get("path", ""), "trigger_reason": r.get("reason", "")[:80],
+                        "market_regime": regime,
+                    }
+                    break
+
+                r = engine.check_trigger_c(ticker, k5, prev_levels.get("prev_low"))
+                if r.get("triggered"):
+                    trigger_rec = {
+                        "scan_date": scan_date, "entry_date": next_date,
+                        "ticker": ticker, "layer": "TC", "mode": mode_label,
+                        "triggered": True, "skip_reason": "",
+                        "entry_price": r.get("price", 0.0), "entry_time": ts_str,
+                        "trigger_path": "", "trigger_reason": r.get("reason", "")[:80],
+                        "market_regime": regime,
+                    }
+                    break
+
+            if trigger_rec is None:
+                records.append({
+                    "scan_date": scan_date, "entry_date": next_date,
+                    "ticker": ticker, "layer": "none", "mode": mode_label,
+                    "triggered": False, "skip_reason": "無 cascade 觸發",
+                    "entry_price": None, "entry_time": None,
+                    "ret_1d": None, "ret_3d": None,
+                    "market_regime": regime,
+                })
+                continue
+
+            day_triggers.append(trigger_rec)
+
+        # top-N 選取
+        if max_per_day > 0 and day_triggers:
+            day_triggers_sorted = sorted(day_triggers, key=_score_trigger, reverse=True)
+            selected = day_triggers_sorted[:max_per_day]
+            # 未選到的標記 skip
+            selected_keys = {(r["ticker"], r["entry_date"]) for r in selected}
+            for trec in day_triggers:
+                key = (trec["ticker"], trec["entry_date"])
+                if key not in selected_keys:
+                    trec["triggered"] = False
+                    trec["skip_reason"] = "top-N 未選入"
+            # 重設 day_triggers = 所有（含未選到），回報都要記
+            for trec in day_triggers:
+                # 計算報酬（只有 triggered=True 的有意義）
+                if trec.get("triggered"):
+                    entry_price = trec["entry_price"]
+                    if entry_price:
+                        close_1d = get_daily_close(trec["ticker"], trec["entry_date"])
+                        ret_1d = (close_1d / entry_price - 1) * 100 if close_1d else None
+                        ret_3d = None
+                        if t3_date:
+                            close_3d = get_daily_close(trec["ticker"], t3_date)
+                            ret_3d = (close_3d / entry_price - 1) * 100 if close_3d else None
+                        trec["ret_1d"] = round(ret_1d, 2) if ret_1d is not None else None
+                        trec["ret_3d"] = round(ret_3d, 2) if ret_3d is not None else None
+                    else:
+                        trec["ret_1d"] = None
+                        trec["ret_3d"] = None
+                else:
+                    trec["ret_1d"] = None
+                    trec["ret_3d"] = None
+                records.append(trec)
+        else:
+            # max_per_day=0: 全選、計算報酬
+            for trec in day_triggers:
+                entry_price = trec.get("entry_price")
+                if entry_price:
+                    close_1d = get_daily_close(trec["ticker"], trec["entry_date"])
+                    ret_1d = (close_1d / entry_price - 1) * 100 if close_1d else None
+                    ret_3d = None
+                    if t3_date:
+                        close_3d = get_daily_close(trec["ticker"], t3_date)
+                        ret_3d = (close_3d / entry_price - 1) * 100 if close_3d else None
+                    trec["ret_1d"] = round(ret_1d, 2) if ret_1d is not None else None
+                    trec["ret_3d"] = round(ret_3d, 2) if ret_3d is not None else None
+                else:
+                    trec["ret_1d"] = None
+                    trec["ret_3d"] = None
+                records.append(trec)
+
+    return records
+
+
+def write_v3_report(
+    v1_records: list[dict], v1_stats: dict,
+    v2_records: list[dict], v2_stats: dict,
+    v3_all_records: list[dict], v3_all_stats: dict,
+    v3_top2_records: list[dict], v3_top2_stats: dict,
+    out_path: Path,
+) -> None:
+    """輸出 v3 regime-aware + top2 對比報告。"""
+
+    def _s(stats: dict, layer: str, key: str, fmt: str = "{}") -> str:
+        v = stats.get("layer_stats", {}).get(layer, {}).get(key)
+        if v is None:
+            return "—"
+        if isinstance(v, float):
+            try:
+                return fmt.format(v)
+            except Exception:
+                return str(v)
+        return str(v)
+
+    def _overall(stats: dict, key: str, fmt: str = "{}") -> str:
+        v = stats.get(key)
+        if v is None:
+            return "—"
+        try:
+            return fmt.format(v)
+        except Exception:
+            return str(v)
+
+    def _avg1d(records: list[dict]) -> Optional[float]:
+        vals = [r["ret_1d"] for r in records if r.get("triggered") and r.get("ret_1d") is not None]
+        return round(sum(vals) / len(vals), 2) if vals else None
+
+    def _avg3d(records: list[dict]) -> Optional[float]:
+        vals = [r["ret_3d"] for r in records if r.get("triggered") and r.get("ret_3d") is not None]
+        return round(sum(vals) / len(vals), 2) if vals else None
+
+    def _hitrate(records: list[dict]) -> Optional[float]:
+        vals = [r["ret_1d"] for r in records if r.get("triggered") and r.get("ret_1d") is not None]
+        if not vals:
+            return None
+        return round(sum(1 for v in vals if v > 0) / len(vals) * 100, 1)
+
+    v1_trig = [r for r in v1_records if r.get("triggered")]
+    v2_trig = [r for r in v2_records if r.get("triggered")]
+    v3a_trig = [r for r in v3_all_records if r.get("triggered")]
+    v3t_trig = [r for r in v3_top2_records if r.get("triggered")]
+
+    lines = [
+        "# Phase 3 v3 — Regime-aware Walk-forward Backtest 5/1-6/3",
+        "",
+        "> 期間: 2026-05-01 ~ 2026-06-03 (23 交易日)",
+        "> 核心改動: Ch5-3 依大盤環境 (regime) 切換正常盤/弱勢盤 SOP",
+        "",
+        "## 設計原理",
+        "",
+        "- **正常盤/強勢盤** → 舊版 Ch5-3 (過高即 confirmed、不等回踩)",
+        "  - 來源: 其他當沖課程教學 (一般盤態 SOP)",
+        "- **弱勢盤** (大盤跌 > -1% 或收破 MA5) → 新版 Ch5-3 (等回踩 MA10 守住)",
+        "  - 來源: 老師 5/19 弱勢盤實戰課 (當日大盤跌 ~700 點)",
+        "  - 額外限制: 弱勢盤 9:30 後不再觸發 Ch5-3",
+        "",
+        "## Regime 判別規則",
+        "",
+        "| Regime | 條件 | Ch5-3 SOP |",
+        "|--------|------|-----------|",
+        "| 🟢 strong | 大盤 intraday +0.5%+ 且站 MA5 | 舊版 (過高直接進場) |",
+        "| ⚪ normal | 大盤 intraday -1% ~ +0.5% | 舊版 (過高直接進場) |",
+        "| 🔴 weak | 大盤跌 >-1% 或收破 MA5 | 新版 (等回踩 MA10 守住) |",
+        "",
+        "## Score-based Top-2 選取邏輯 (v3-top2)",
+        "",
+        "每日所有 trigger 算 score、取 top 2 模擬實際進場決策:",
+        "- Ch5-3 基本分 30、T2=25、T1=20、TC=-100 (排除)",
+        "- 進場時間越早越好 (-0.5分/分鐘)",
+        "- 老師 tier: core +25、frequent +15、mentioned +8",
+        "- 大盤強勢 +5",
+        "",
+        "## 四模式對比表",
+        "",
+        "| 模式 | 觸發數 | Hit rate (1d) | avg 1d | avg 3d | 備註 |",
+        "|------|--------|--------------|--------|--------|------|",
+    ]
+
+    rows = [
+        ("v1 純舊版 (all)", v1_trig, "過高即 confirmed"),
+        ("v2 純新版 (all)", v2_trig, "回踩 MA10 守住"),
+        ("**v3 regime-aware (all)**", v3a_trig, "依大盤環境切換"),
+        ("**v3 regime-aware (top2)**", v3t_trig, "依大盤環境切換 + 每日 top2"),
+    ]
+    for label, trig_recs, note in rows:
+        n = len(trig_recs)
+        hr = _hitrate(trig_recs)
+        a1 = _avg1d(trig_recs)
+        a3 = _avg3d(trig_recs)
+        hr_s = f"{hr}%" if hr is not None else "—"
+        a1_s = f"{a1:+.2f}%" if a1 is not None else "—"
+        a3_s = f"{a3:+.2f}%" if a3 is not None else "—"
+        lines.append(f"| {label} | {n} | {hr_s} | {a1_s} | {a3_s} | {note} |")
+
+    lines += [
+        "",
+        "## Regime 分佈 (v3-all 觸發日)",
+        "",
+    ]
+    regime_dist: dict[str, int] = {}
+    for r in v3a_trig:
+        rg = r.get("market_regime", "?")
+        regime_dist[rg] = regime_dist.get(rg, 0) + 1
+    for rg, cnt in sorted(regime_dist.items()):
+        lines.append(f"- {rg}: {cnt} 筆")
+
+    lines += [
+        "",
+        "## v3-top2 觸發明細",
+        "",
+        "| 日期 | Ticker | Regime | Layer | 進場時點 | 進場價 | 1d | 3d | Score | 原因 |",
+        "|------|--------|--------|-------|---------|--------|----|----|-------|------|",
+    ]
+    for r in sorted(v3t_trig, key=lambda x: (x.get("entry_date", ""), x.get("ticker", ""))):
+        rg = r.get("market_regime", "?")
+        rg_icon = {"strong": "🟢", "weak": "🔴", "normal": "⚪"}.get(rg, "?")
+        sc = round(_score_trigger(r), 1)
+        r1 = f"{r['ret_1d']:+.2f}%" if r.get("ret_1d") is not None else "—"
+        r3 = f"{r['ret_3d']:+.2f}%" if r.get("ret_3d") is not None else "—"
+        ep = r.get("entry_price") or 0.0
+        et = r.get("entry_time", "—")
+        reason = (r.get("trigger_reason") or "")[:40]
+        lines.append(
+            f"| {r.get('entry_date','?')} | {r.get('ticker','?')} | {rg_icon} {rg} "
+            f"| {r.get('layer','?')} | {et} | {ep:.2f} | {r1} | {r3} | {sc} | {reason} |"
+        )
+
+    lines += [
+        "",
+        "## 結論",
+        "",
+    ]
+
+    # 自動結論
+    v1_hr = _hitrate(v1_trig)
+    v3t_hr = _hitrate(v3t_trig)
+    v3t_a1 = _avg1d(v3t_trig)
+
+    if v3t_hr is not None and v1_hr is not None:
+        if v3t_hr >= v1_hr + 5:
+            lines.append(f"✅ **v3-top2 Hit rate {v3t_hr}% vs v1 {v1_hr}% (大幅改善 {v3t_hr - v1_hr:.1f}pp)**")
+        elif v3t_hr >= v1_hr:
+            lines.append(f"✅ **v3-top2 Hit rate {v3t_hr}% vs v1 {v1_hr}% (持平或微升)**")
+        else:
+            lines.append(f"⚠️ **v3-top2 Hit rate {v3t_hr}% vs v1 {v1_hr}% (需評估)**")
+
+    lines += [
+        "",
+        "- Regime-aware 設計的核心價值: 弱勢盤強制等回踩確認、正常盤不多等",
+        "- Top-2 選取模擬實戰 1-2 個進場、比 all-mode 更真實",
+        "- 正常/強勢盤佔大多數 → v3-all 接近 v1 (合理、Ch5-3 路徑相同)",
+        "- 弱勢盤 (5/19-類) → 新版篩選避免追高、品質應優於 v2-all",
+        "",
+        "---",
+        "",
+        f"_自動產出 @ 2026-06-04 (Phase 3 v3 regime-aware)_",
+    ]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines), encoding="utf-8")
+    print(f"\n→ v3 報告寫入: {out_path}")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -868,38 +1304,85 @@ def main():
     p.add_argument("--legacy-ch53", action="store_true", help="只跑 legacy Ch5-3")
     p.add_argument("--new-only", action="store_true", help="只跑新版 Ch5-3")
     p.add_argument("--compare", action="store_true", default=True, help="同時跑兩版對比 (預設)")
+    p.add_argument("--v3-only", action="store_true", help="只跑 v3 regime-aware (跳過 v1/v2)")
+    p.add_argument("--max-per-day", type=int, default=2,
+                   help="每日最多取 N 個觸發 (0=全取、預設 2)")
     args = p.parse_args()
 
-    print("=== Phase 3 Walk-forward Backtest v2 ===")
+    print("=== Phase 3 Walk-forward Backtest v2/v3 ===")
     print(f"交易日: {len(TRADING_DATES)} 天 (5/1 ~ 6/3)")
     print(f"FinMind cache dir: {_CACHE_DIR}")
     print()
 
-    out_path = (
+    out_v2 = (
         _REPO / "docs" / "主力大課程" / "strategies"
         / "phase3_v2_ch5_3_cascade_compare_5_1_to_6_3.md"
     )
+    out_v3 = (
+        _REPO / "docs" / "主力大課程" / "strategies"
+        / "phase3_v3_regime_aware_top2_5_1_to_6_3.md"
+    )
 
-    print("--- 跑新版 Ch5-3 (回踩 MA10 守住) ---")
-    new_records = run_backtest_single("new")
-    new_stats = analyze(new_records)
-    print(f"\n[新版完成] 觸發: {new_stats['total_triggered']}, Hit rate: {new_stats['overall_hit_rate']}%")
-    print(f"  Ch5-3: n={new_stats['layer_stats']['Ch5-3']['n']}, hr={new_stats['layer_stats']['Ch5-3']['hit_rate']}%")
+    if not args.v3_only:
+        print("--- 跑新版 Ch5-3 (回踩 MA10 守住) ---")
+        new_records = run_backtest_single("new")
+        new_stats = analyze(new_records)
+        print(f"\n[新版完成] 觸發: {new_stats['total_triggered']}, Hit rate: {new_stats['overall_hit_rate']}%")
+        print(f"  Ch5-3: n={new_stats['layer_stats']['Ch5-3']['n']}, hr={new_stats['layer_stats']['Ch5-3']['hit_rate']}%")
+        print()
+
+        print("--- 跑舊版 Ch5-3 (過高即 confirmed) ---")
+        legacy_records = run_backtest_single("legacy")
+        legacy_stats = analyze(legacy_records)
+        print(f"\n[舊版完成] 觸發: {legacy_stats['total_triggered']}, Hit rate: {legacy_stats['overall_hit_rate']}%")
+        print(f"  Ch5-3: n={legacy_stats['layer_stats']['Ch5-3']['n']}, hr={legacy_stats['layer_stats']['Ch5-3']['hit_rate']}%")
+        print()
+
+        write_compare_report(new_records, new_stats, legacy_records, legacy_stats, out_v2)
+    else:
+        # 只跑 v3: 需要 v1/v2 基準資料 (從快取)
+        print("[v3-only] 重新跑 v1/v2 基準 (需要比較基準)")
+        new_records = run_backtest_single("new")
+        new_stats = analyze(new_records)
+        legacy_records = run_backtest_single("legacy")
+        legacy_stats = analyze(legacy_records)
+
+    print("--- 跑 v3 Regime-aware (all) ---")
+    v3_all_records = run_backtest_regime(max_per_day=0)
+    v3_all_stats = analyze(v3_all_records)
+    print(f"\n[v3-all 完成] 觸發: {v3_all_stats['total_triggered']}, Hit rate: {v3_all_stats['overall_hit_rate']}%")
     print()
 
-    print("--- 跑舊版 Ch5-3 (過高即 confirmed) ---")
-    legacy_records = run_backtest_single("legacy")
-    legacy_stats = analyze(legacy_records)
-    print(f"\n[舊版完成] 觸發: {legacy_stats['total_triggered']}, Hit rate: {legacy_stats['overall_hit_rate']}%")
-    print(f"  Ch5-3: n={legacy_stats['layer_stats']['Ch5-3']['n']}, hr={legacy_stats['layer_stats']['Ch5-3']['hit_rate']}%")
+    print(f"--- 跑 v3 Regime-aware (top-{args.max_per_day}/day) ---")
+    v3_top2_records = run_backtest_regime(max_per_day=args.max_per_day)
+    v3_top2_stats = analyze(v3_top2_records)
+    print(f"\n[v3-top{args.max_per_day} 完成] 觸發: {v3_top2_stats['total_triggered']}, Hit rate: {v3_top2_stats['overall_hit_rate']}%")
     print()
 
-    write_compare_report(new_records, new_stats, legacy_records, legacy_stats, out_path)
+    write_v3_report(
+        legacy_records, legacy_stats,
+        new_records, new_stats,
+        v3_all_records, v3_all_stats,
+        v3_top2_records, v3_top2_stats,
+        out_v3,
+    )
 
-    print("\n=== 對比摘要 ===")
-    print(f"新版 總觸發: {new_stats['total_triggered']}  整體Hit: {new_stats['overall_hit_rate']}%")
-    print(f"舊版 總觸發: {legacy_stats['total_triggered']}  整體Hit: {legacy_stats['overall_hit_rate']}%")
+    print("\n=== 四模式對比摘要 ===")
+    for label, recs in [
+        ("v1 legacy (all)", legacy_records),
+        ("v2 new (all)",    new_records),
+        ("v3 regime (all)", v3_all_records),
+        (f"v3 regime (top{args.max_per_day})", v3_top2_records),
+    ]:
+        trig = [r for r in recs if r.get("triggered")]
+        n = len(trig)
+        vals = [r["ret_1d"] for r in trig if r.get("ret_1d") is not None]
+        hr = round(sum(1 for v in vals if v > 0) / len(vals) * 100, 1) if vals else None
+        a1 = round(sum(vals) / len(vals), 2) if vals else None
+        print(f"  {label}: n={n} hit={hr}% avg1d={a1}%")
     print()
+
+    print("\n=== 舊版 layer 明細 (v2 compare) ===")
     for lk in ["Ch5-3", "T1", "T2", "TC"]:
         ns_s = new_stats["layer_stats"].get(lk, {})
         ls_s = legacy_stats["layer_stats"].get(lk, {})

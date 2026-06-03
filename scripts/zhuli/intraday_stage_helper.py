@@ -571,6 +571,72 @@ class StageTrigger:
         result["reason"] = "、".join(reason_parts) + f"、量×{vol_ratio:.1f} 恐慌賣壓"
         return result
 
+    # ── 大盤環境判別 ───────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _detect_market_regime(target_date: str, db_path: Path = _DB) -> str:
+        """判別大盤環境 (TAIEX 收盤 vs 開盤)。
+
+        Returns:
+            'strong': 大盤漲 > +0.5% 且站 MA5
+            'normal': 大盤 -1% ~ +0.5%
+            'weak':   大盤跌 > -1% (收跌幅超 1%) 或收破 MA5
+
+        資料來源: standard_daily_bar WHERE ticker='TAIEX'
+        - 若 target_date 有當日資料 → 用當日 close/open/ma5
+        - 若無 (盤中即時) → 用前一交易日作 fallback
+        """
+        try:
+            for attempt in range(3):
+                try:
+                    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+                    # 先嘗試取當日
+                    row = con.execute(
+                        "SELECT close, open, ma5 FROM standard_daily_bar "
+                        "WHERE ticker='TAIEX' AND trade_date=?",
+                        (target_date,),
+                    ).fetchone()
+                    if not row:
+                        # fallback: 前一交易日
+                        row = con.execute(
+                            "SELECT close, open, ma5 FROM standard_daily_bar "
+                            "WHERE ticker='TAIEX' AND trade_date<? "
+                            "ORDER BY trade_date DESC LIMIT 1",
+                            (target_date,),
+                        ).fetchone()
+                    con.close()
+                    break
+                except sqlite3.OperationalError as e:
+                    if attempt == 2:
+                        log.warning("_detect_market_regime DB 失敗: %s", e)
+                        return "normal"
+                    time.sleep(1)
+            else:
+                return "normal"
+
+            if not row:
+                return "normal"
+
+            taiex_close = float(row[0])
+            taiex_open  = float(row[1])
+            taiex_ma5   = float(row[2]) if row[2] else None
+
+            # 收盤 vs 開盤日內漲跌幅
+            chg_pct = (taiex_close / taiex_open - 1) * 100 if taiex_open > 0 else 0.0
+
+            below_ma5 = (taiex_ma5 is not None and taiex_close < taiex_ma5)
+
+            if chg_pct <= -1.0 or below_ma5:
+                return "weak"
+            elif chg_pct > 0.5 and (taiex_ma5 is None or taiex_close >= taiex_ma5):
+                return "strong"
+            else:
+                return "normal"
+
+        except Exception as e:
+            log.warning("_detect_market_regime 例外: %s", e)
+            return "normal"
+
     # ── Ch5-3 第一根 5K SOP ────────────────────────────────────────────────────
 
     def check_ch5_3_entry(
@@ -580,10 +646,23 @@ class StageTrigger:
         ma10: Optional[float] = None,
         ticker: Optional[str] = None,
         target_date: Optional[str] = None,
+        market_regime: str = "normal",  # 'strong' / 'normal' / 'weak'
     ) -> dict:
         """Ch5-3 第一根 5K SOP 評估 (老師 5/19 實戰課完整版)。
 
-        6 條件 (第一根):
+        雙路徑 (依 market_regime 切換):
+          normal / strong:
+            舊版邏輯 — 9:10 後過第一根高 + 紅K = confirmed (直接進場)
+            不需要回踩 MA10
+            來源: 其他當沖課程教學 (正常盤 SOP)
+
+          weak:
+            新版邏輯 — 過高 = signal、等回踩 MA10 ±2% 守住 = confirmed
+            弱勢盤主升股不可信、等回踩確認
+            來源: 老師 5/19 弱勢盤教學 (當日大盤跌 700 點)
+            額外限制: 弱勢盤 9:30 後不再觸發 Ch5-3
+
+        6 條件 (第一根、兩路徑共用):
           1. 紅K
           2. 跳空 < 5%
           3. 收盤 ≥ 前日收盤 (close_above_prev)
@@ -591,7 +670,12 @@ class StageTrigger:
           5. 實體 > 上影線 (body_gt_shadow)
           6. 5K 漲幅 < 4% (rise_under_4)
 
-        State 機:
+        State 機 (normal/strong):
+          fail    → 第一根 6/6 不過
+          watch   → 9:10 前 / 沒過第一根高、純觀察
+          confirmed → 9:10 後過第一根高 紅K = 直接進場
+
+        State 機 (weak):
           fail      → 第一根 6/6 不過
           watch     → 9:10 前 / 沒過第一根高、純觀察
           signal    → 9:10 後過第一根高 (通知、不直接切入)
@@ -666,65 +750,102 @@ class StageTrigger:
                 return ts.strftime("%H:%M")
             return str(ts)[11:16]
 
-        # ── 找 signal：9:10 後第一根過第一根高的紅 K ───────────────────────────
-        signal_idx: Optional[int] = None
-        for i in range(1, len(k5)):
-            if _t(k5.index[i]) < "09:10":
-                continue
-            bar_close = float(k5.iloc[i]["close"])
-            bar_open  = float(k5.iloc[i]["open"])
-            if bar_close > first_high and bar_close > bar_open:
-                signal_idx = i
-                break
+        # ── 路徑分支：依大盤環境切換 ─────────────────────────────────────────────
+        _regime = market_regime.lower() if market_regime else "normal"
 
-        if signal_idx is None:
-            result["level"] = "watch"
-            result["reason"] = f"Ch5-3 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
-            return result
-
-        # signal 觸發
-        result["level"] = "signal"
-        if ma10 is not None:
-            result["reason"] = f"訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、等回踩 MA10 ({ma10:.2f})"
-        else:
-            result["reason"] = f"訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、MA10 未知"
-
-        # ── 從 signal_idx 往後找回踩 + 守住 ────────────────────────────────────
-        if ma10 is None or ma10 <= 0:
-            # 無法判斷回踩、停在 signal
-            return result
-
-        MA10_BAND = 0.02  # ±2%
-        for i in range(signal_idx + 1, len(k5)):
-            bar       = k5.iloc[i]
-            bar_low   = float(bar["low"])
-            bar_close = float(bar["close"])
-            bar_open  = float(bar["open"])
-
-            # 是否回踩（盤中最低觸及 MA10 ±2%）
-            touched_ma10 = bar_low <= ma10 * (1 + MA10_BAND) and bar_low >= ma10 * (1 - MA10_BAND)
-
-            if touched_ma10:
-                result["level"] = "pullback"
-                result["reason"] = f"回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
-                # 守住確認：紅K + 收盤 > MA10
-                if bar_close > bar_open and bar_close > ma10:
+        if _regime in ("strong", "normal"):
+            # ── 正常盤 / 強勢盤 SOP：過第一根高 + 紅K = confirmed (直接進場) ──
+            for i in range(1, len(k5)):
+                if _t(k5.index[i]) < "09:10":
+                    continue
+                bar_close = float(k5.iloc[i]["close"])
+                bar_open  = float(k5.iloc[i]["open"])
+                if bar_close > first_high and bar_close > bar_open:
                     result["triggered"] = True
                     result["level"] = "confirmed"
                     result["reason"] = (
-                        f"過高 {first_high:.2f} + 回踩 MA10 {ma10:.2f} 守住 "
-                        f"(紅K {_t(k5.index[i])})"
+                        f"Ch5-3 [{_regime}盤] {_t(k5.index[i])} 過高 {first_high:.2f} 站穩"
                     )
                     result["entry_price"] = bar_close
                     result["entry_time"]  = _t(k5.index[i])
+                    result["regime"] = _regime
                     return result
 
-        # 掃完沒 confirmed
-        if result["level"] == "pullback":
-            result["reason"] = f"回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+            result["level"] = "watch"
+            result["reason"] = f"Ch5-3 [{_regime}盤] 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
+            result["regime"] = _regime
+            return result
+
         else:
-            result["reason"] = f"訊號觸發、等回踩 MA10 ({ma10:.2f})"
-        return result
+            # ── 弱勢盤 SOP：過高 = signal、等回踩 MA10 守住 = confirmed ─────────
+            # 弱勢盤 9:30 後不再觸發
+            def _is_after_930(ts) -> bool:
+                t_str = _t(ts)
+                return t_str >= "09:30"
+
+            # 找 signal：9:10 後、9:30 前過第一根高的紅 K
+            signal_idx: Optional[int] = None
+            for i in range(1, len(k5)):
+                ts_str = _t(k5.index[i])
+                if ts_str < "09:10":
+                    continue
+                if ts_str >= "09:30":
+                    break  # 弱勢盤超過 9:30 不再 trigger
+                bar_close = float(k5.iloc[i]["close"])
+                bar_open  = float(k5.iloc[i]["open"])
+                if bar_close > first_high and bar_close > bar_open:
+                    signal_idx = i
+                    break
+
+            if signal_idx is None:
+                result["level"] = "watch"
+                result["reason"] = f"Ch5-3 [弱勢盤] 第一根全 pass、等 9:10-9:30 過高 {first_high:.2f}"
+                result["regime"] = "weak"
+                return result
+
+            # signal 觸發
+            result["level"] = "signal"
+            result["regime"] = "weak"
+            if ma10 is not None:
+                result["reason"] = f"[弱勢盤] 訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、等回踩 MA10 ({ma10:.2f})"
+            else:
+                result["reason"] = f"[弱勢盤] 訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、MA10 未知"
+
+            # 若無 MA10、停在 signal
+            if ma10 is None or ma10 <= 0:
+                return result
+
+            MA10_BAND = 0.02  # ±2%
+            for i in range(signal_idx + 1, len(k5)):
+                bar       = k5.iloc[i]
+                bar_low   = float(bar["low"])
+                bar_close = float(bar["close"])
+                bar_open  = float(bar["open"])
+
+                # 是否回踩（盤中最低觸及 MA10 ±2%）
+                touched_ma10 = bar_low <= ma10 * (1 + MA10_BAND) and bar_low >= ma10 * (1 - MA10_BAND)
+
+                if touched_ma10:
+                    result["level"] = "pullback"
+                    result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+                    # 守住確認：紅K + 收盤 > MA10
+                    if bar_close > bar_open and bar_close > ma10:
+                        result["triggered"] = True
+                        result["level"] = "confirmed"
+                        result["reason"] = (
+                            f"[弱勢盤] 過高 {first_high:.2f} + 回踩 MA10 {ma10:.2f} 守住 "
+                            f"(紅K {_t(k5.index[i])})"
+                        )
+                        result["entry_price"] = bar_close
+                        result["entry_time"]  = _t(k5.index[i])
+                        return result
+
+            # 掃完沒 confirmed
+            if result["level"] == "pullback":
+                result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+            else:
+                result["reason"] = f"[弱勢盤] 訊號觸發、等回踩 MA10 ({ma10:.2f})"
+            return result
 
     # ── Composite Cascade Detector ─────────────────────────────────────────────
 
@@ -765,6 +886,7 @@ class StageTrigger:
         prev_close: float,
         prev_levels: dict,
         category: str = "WATCH",
+        target_date: Optional[str] = None,
     ) -> dict:
         """Cascade detector: Ch5-3 → T1 → T2 → TC。
 
@@ -774,49 +896,59 @@ class StageTrigger:
             prev_close:  前日收盤價
             prev_levels: {'prev_close', 'prev_high', 'prev_low'}
             category:    'HELD' / 'WATCH' / 'PLAN_PRIMARY'
+            target_date: 交易日 (YYYY-MM-DD)，不傳則用 date.today()
 
         Returns:
-            dict with keys: triggered, detector, category, action, reason, [price]
+            dict with keys: triggered, detector, category, action, reason, [price], [market_regime]
         """
         prev_high = prev_levels.get("prev_high")
         prev_low  = prev_levels.get("prev_low")
 
+        _today_str = target_date or date.today().isoformat()
+
+        # 判別大盤環境
+        regime = self._detect_market_regime(_today_str)
+
         # Layer 1: Ch5-3 當沖 entry
         # 傳 ticker + target_date 讓 check_ch5_3_entry 自動查 MA10
-        _today_str = date.today().isoformat()
         r = self.check_ch5_3_entry(
             k5, prev_close,
             ticker=ticker,
             target_date=_today_str,
+            market_regime=regime,
         )
+        def _with_regime(d: dict) -> dict:
+            d["market_regime"] = regime
+            return d
+
         if r.get("triggered"):
-            return self._format_action(r, "Ch5-3", category)
+            return _with_regime(self._format_action(r, "Ch5-3", category))
 
         # Ch5-3 signal / pullback 也需要上報（不 triggered 但 level 有意義）
         ch53_level = r.get("level", "watch")
         if ch53_level in ("signal", "pullback"):
             # 用 detector key = 'Ch5-3_signal' or 'Ch5-3_pullback'
-            return self._format_action(
+            return _with_regime(self._format_action(
                 {**r, "triggered": True},
                 f"Ch5-3_{ch53_level}",
                 category,
-            )
+            ))
 
         # Layer 2: T1 強勢延續
         r = self.check_trigger_1(ticker, k5, prev_high)
         if r.get("triggered"):
-            return self._format_action(r, "T1", category)
+            return _with_regime(self._format_action(r, "T1", category))
 
         # Layer 3: T2 跌深反彈 (新版、盤中高)
         # now_time 傳 datetime.min 表示不做時段限制 (新版已移除時段限制)
         r = self.check_trigger_2(ticker, k5, datetime.min)
         if r.get("triggered"):
-            return self._format_action(r, "T2", category)
+            return _with_regime(self._format_action(r, "T2", category))
 
         # Layer 4: TC 結構失敗
         r = self.check_trigger_c(ticker, k5, prev_low)
         if r.get("triggered"):
-            return self._format_action(r, "TC", category)
+            return _with_regime(self._format_action(r, "TC", category))
 
         return {
             "triggered": False,
@@ -824,6 +956,7 @@ class StageTrigger:
             "category":  category,
             "action":    "—",
             "reason":    r.get("reason", ""),
+            "market_regime": regime,
         }
 
 
