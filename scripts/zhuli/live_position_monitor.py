@@ -641,31 +641,27 @@ def render_priority_panel(held: list[dict], watch: list[dict],
         if dist < 1:
             warnings.append(f"{tk}({dist:+.1f}%)")
 
-    def _render_group(label: str, star_str: str, h_list: list, w_list: list, h_warn: list):
+    def _render_group(label: str, h_list: list, w_list: list):
         all_list = h_list + w_list
         h_tks = [x['ticker'] for x in h_list]
         w_tks = [x['ticker'] for x in w_list]
         all_tks = h_tks + w_tks
         trig_info = [f"{tk}({triggered_map[tk]})" for tk in all_tks if tk in triggered_map]
         warn_info = [w for w in warnings if any(w.startswith(x['ticker']) for x in h_list)]
+        if not all_list:
+            return
+        h_part = f"持{'/'.join(h_tks)}" if h_tks else ''
+        w_part = f"候{'/'.join(w_tks)}" if w_tks else ''
+        trig_part = f" {C.G}🟢{'/'.join(trig_info)}{C.END}" if trig_info else ''
+        warn_part = f" {C.R}⚠️{','.join(warn_info)}{C.END}" if warn_info else ''
+        parts = [p for p in (h_part, w_part) if p]
+        lines.append(
+            f"{C.BOLD}{label}{C.END} {len(all_list)}檔  {' / '.join(parts)}{trig_part}{warn_part}"
+        )
 
-        lines.append(f"{C.BOLD}{label} ({star_str}): {len(all_list)} 檔{C.END}")
-        if h_tks:
-            lines.append(f"   持倉 {'/'.join(h_tks)}")
-        if w_tks:
-            lines.append(f"   候選 {'/'.join(w_tks)}")
-        if trig_info:
-            lines.append(f"   {C.G}Trigger 觸發: {'/'.join(trig_info)}{C.END}")
-        else:
-            lines.append(f"   {C.DIM}Trigger: -{C.END}")
-        if warn_info:
-            lines.append(f"   {C.R}⚠️  警示: {', '.join(warn_info)}{C.END}")
-        else:
-            lines.append(f"   {C.DIM}警示: -{C.END}")
-
-    _render_group('🎯 高優先', '⭐⭐⭐', held_p3, watch_p3, [])
-    _render_group('⚠️  中優先', '⭐⭐',   held_p2, watch_p2, [])
-    _render_group('🟢 一般',   '⭐',     held_p1, watch_p1, [])
+    _render_group('🎯⭐⭐⭐', held_p3, watch_p3)
+    _render_group('⚠️ ⭐⭐',  held_p2, watch_p2)
+    _render_group('🟢⭐',    held_p1, watch_p1)
 
     return lines
 
