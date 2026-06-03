@@ -333,6 +333,11 @@ _demo_paused: list[bool] = [True]  # 預設暫停 auto-cycle、手動切
 _demo_jump: list[bool] = [False]   # set 後主迴圈立刻 re-render
 _demo_total: list[int] = [0]
 
+# Cheat sheet 模式 (按 ? 切到 reference 畫面)
+_cheat_mode: list[bool] = [False]
+_cheat_idx: list[int] = [0]
+_cheat_jump: list[bool] = [False]
+
 # Trigger cooldown 避免重複通知 (key: "{ticker}_{T1/T2/TC}")
 _trigger_cooldown: dict[str, datetime] = {}
 TRIGGER_COOLDOWN_MIN = 30
@@ -1573,10 +1578,80 @@ def _kb_listener(demo_mode: bool = False):
     except Exception:
         return
 
-    def _advance(delta: int):
+    def _advance_demo(delta: int):
         total = _demo_total[0] or 1
         _demo_idx[0] = (_demo_idx[0] + delta) % total
         _demo_jump[0] = True
+
+    def _advance_cheat(delta: int):
+        total = len(CHEAT_SHEET_PAGES) or 1
+        _cheat_idx[0] = (_cheat_idx[0] + delta) % total
+        _cheat_jump[0] = True
+
+    def _read_avail() -> str:
+        """讀出 stdin 緩衝目前所有 bytes (避免 line-buffer 卡住 escape sequence)。"""
+        try:
+            import os as _os
+            data = _os.read(fd, 32)
+            return data.decode('utf-8', errors='replace')
+        except Exception:
+            return ''
+
+    def _handle_arrow(ch3: str):
+        """處理 ESC [ X 序列、依當前 mode 分流。"""
+        if _cheat_mode[0]:
+            if ch3 == 'D':
+                _advance_cheat(-1)
+            elif ch3 == 'C':
+                _advance_cheat(1)
+            elif ch3 == 'H':
+                _cheat_idx[0] = 0
+                _cheat_jump[0] = True
+            elif ch3 == 'F':
+                _cheat_idx[0] = max(0, len(CHEAT_SHEET_PAGES) - 1)
+                _cheat_jump[0] = True
+            return
+        if not demo_mode:
+            return
+        if ch3 == 'D':
+            _advance_demo(-1)
+        elif ch3 == 'C':
+            _advance_demo(1)
+        elif ch3 == 'H':
+            _demo_idx[0] = 0
+            _demo_jump[0] = True
+        elif ch3 == 'F':
+            _demo_idx[0] = max(0, (_demo_total[0] or 1) - 1)
+            _demo_jump[0] = True
+
+    def _handle_char(ch: str):
+        """處理單字元 (非 escape sequence)。"""
+        if ch == 'q':
+            if _cheat_mode[0]:
+                _cheat_mode[0] = False
+                if demo_mode:
+                    _demo_jump[0] = True
+                return
+            _quit_flag[0] = True
+            return
+        if ch == 'h':
+            _cheat_mode[0] = not _cheat_mode[0]
+            if _cheat_mode[0]:
+                _cheat_jump[0] = True
+            elif demo_mode:
+                _demo_jump[0] = True
+            return
+        if demo_mode and not _cheat_mode[0]:
+            if ch == ' ':
+                _demo_paused[0] = not _demo_paused[0]
+                _demo_jump[0] = True
+                return
+            if ch == '0':
+                _demo_idx[0] = 0
+                _demo_jump[0] = True
+                return
+        if ch in mode_map and not _cheat_mode[0]:
+            _current_sort[0] = mode_map[ch]
 
     try:
         while not _quit_flag[0]:
@@ -1584,46 +1659,20 @@ def _kb_listener(demo_mode: bool = False):
                 r, _, _ = select.select([sys.stdin], [], [], 0.3)
                 if not r:
                     continue
-                ch = sys.stdin.read(1)
-                if ch == 'q':
-                    _quit_flag[0] = True
-                    break
-                if ch == '\x1b':
-                    # escape sequence — 讀後續 2 字元 (e.g. [D / [C / [H / [F)
-                    r2, _, _ = select.select([sys.stdin], [], [], 0.05)
-                    if not r2:
-                        continue
-                    ch2 = sys.stdin.read(1)
-                    if ch2 != '[':
-                        continue
-                    r3, _, _ = select.select([sys.stdin], [], [], 0.05)
-                    if not r3:
-                        continue
-                    ch3 = sys.stdin.read(1)
-                    if not demo_mode:
-                        continue
-                    if ch3 == 'D':       # ← 左
-                        _advance(-1)
-                    elif ch3 == 'C':     # → 右
-                        _advance(1)
-                    elif ch3 == 'H':     # home
-                        _demo_idx[0] = 0
-                        _demo_jump[0] = True
-                    elif ch3 == 'F':     # end
-                        _demo_idx[0] = max(0, (_demo_total[0] or 1) - 1)
-                        _demo_jump[0] = True
+                buf = _read_avail()
+                if not buf:
                     continue
-                if demo_mode:
-                    if ch == ' ':
-                        _demo_paused[0] = not _demo_paused[0]
-                        _demo_jump[0] = True
-                        continue
-                    if ch == '0':
-                        _demo_idx[0] = 0
-                        _demo_jump[0] = True
-                        continue
-                if ch in mode_map:
-                    _current_sort[0] = mode_map[ch]
+                # process buffer; escape sequence (ESC [ X) 一口氣處理
+                i = 0
+                n = len(buf)
+                while i < n and not _quit_flag[0]:
+                    c = buf[i]
+                    if c == '\x1b' and i + 2 < n and buf[i + 1] == '[':
+                        _handle_arrow(buf[i + 2])
+                        i += 3
+                    else:
+                        _handle_char(c)
+                        i += 1
             except Exception:
                 break
     finally:
@@ -1631,6 +1680,136 @@ def _kb_listener(demo_mode: bool = False):
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         except Exception:
             pass
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Cheat Sheet: 策略 / 型態 reference (按 h 切換)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Hardcoded 內容、跟著 codebase 走、不 reload memory file
+CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
+    # Page 1
+    ("🚫 紅線 (entry 紀律)", [
+        ("#1 漲停隔日跳空",     "≥ +3% 一律不推 (4526 教訓 -$12,860)"),
+        ("#2 距 MA10 (6/3 校正)", "雙籌碼 (外≥+1000 + 投≥+200)=忽略距離; 單籌碼=提醒不擋; 無籌碼=score 計分"),
+        ("#3 09:10 後切入",     "前 10 分鐘觀察、等回踩 MA10"),
+        ("#4 前 5 分鐘 >5% skip", "一票否決、整檔今天不碰"),
+        ("#5 開盤站賣方",       "尾盤做事情 (9:00 不追、13:00 後再進)"),
+        ("#6 加碼必先脫離成本",  "+10% + 回測支撐才加 (老師 5/29 全面性規則)"),
+        ("#7 警示族群",         "PCB / 散熱 / 連接器: 不追、有持倉 50% sizing"),
+        ("#8 試撮絕對忽略",     "試撮 ≠ 真實開盤 (6/1 嘉晶 -$21,388 教訓)"),
+        ("#9 夜盤訊號 override", "夜盤強→族群續強、紅線 #2 可放寬到 +20%"),
+    ]),
+    # Page 2
+    ("🎯 進場路徑 (composite cascade)", [
+        ("Layer 1: Ch5-3 當沖 SOP", "第一根 5K 6/6 條件 (收高開、量足、突破前高...)"),
+        ("Layer 2: T1 強勢延續",    "4 觸發任一 (強勢/回撤反彈/+10%通則/老師明示)"),
+        ("Layer 3: T2 跌深反彈",    "3 紅K confirm; 路徑 B (5m diff) 已 FAIL 不用"),
+        ("Layer 4: TC 結構失敗",    "excluded、出場訊號"),
+        ("category 分流",          "核心/題材 → HELD; 短打/觀察 → WATCH"),
+        ("紀律 filter",            "discipline_filter 先過、紅線觸發整個 cascade skip"),
+    ]),
+    # Page 3
+    ("📦 Stage 1/2/3 分批進場 SOP", [
+        ("Stage 1: 試水",     "老師明示後第一次切入、小 sizing (1/3 標準位)"),
+        ("Stage 2: 加碼 (4 觸發)", "任一即可、不必硬等 +10%:"),
+        ("  (a) 強勢延續",    "Trigger T1 confirmed"),
+        ("  (b) 回撤反彈",    "Trigger T2 confirmed"),
+        ("  (c) +10% 通則",   "脫離成本 +10% + 回測支撐 (老師 5/29 全面性)"),
+        ("  (d) 老師明示",    "老師再次點名同檔"),
+        ("Stage 3: 突破加碼",  "波段創新高 + 量能配合"),
+        ("不分批的例外",      "信心分級高 (黑盒老師明示時點) 可一次到位"),
+    ]),
+    # Page 4
+    ("🚪 出場 4 條 (老師教法)", [
+        ("基本原則",          "收盤確認、不用盤中價判停損"),
+        ("1. 大黑包覆",       "大黑 K 完整包覆前段漲幅 → 停損訊號"),
+        ("2. 結構底跌破",     "收盤跌破關鍵低點 / 頸線 → 停損出清"),
+        ("3. 趨勢特徵消失",   "低點越來越高的規律不再成立 → 出清"),
+        ("4. 跳空缺口回補失敗", "攻擊失敗、跳空缺口當天回補失敗 → 出場"),
+        ("Core 持倉",         "用結構底、不是 MA5 (8064 東捷教訓)"),
+        ("短線/波段先停利",   "5/23-5/28 連 6 天教、老師連續訊號 = 必跟"),
+    ]),
+    # Page 5
+    ("🔒 處置股 ABC 框架", [
+        ("🔒A 主升續攻",      "D+4-5 切入 / D-2~D-1 / 出關當天開均線上"),
+        ("🔒B 反彈段",        "回落 25-30% + 出關前漲兩根、賺 15% 閃"),
+        ("🔒C 不可進",        "處置中過前高 = 出關當天慘"),
+        ("持有者出場",        "出關前一天賣一半 + 出關當天開低全出"),
+        ("4722 國精化案例",   "D+6 觀察中、6/5 (D-2) 切入時機"),
+    ]),
+    # Page 6
+    ("🎭 老師信號分級", [
+        ("黑盒 vs 白盒",      "黑盒=老師明示時點 (sizing 走 Stage); 白盒=技術派訊號 (館前哥小結構可 all-in)"),
+        ("明示時點",          "「看進場」/「今天買」≠ 只 mention; 必須明確時點"),
+        ("Broker tier 1 confirm", "館前哥 (元大館前) / 站前哥 (凱基站前) 近 5d 淨買"),
+        ("代名詞指向",        "5347 vs 2476 不准搞混; 講稿/Line 必對人"),
+        ("訊號連續性",        "連 N 天教同一觀念 = 必跟 (5/23-5/28「先停利」案例)"),
+        ("講稿=準則、Line=驗證", "Line 對話絕對不更新 spec、只能比對驗證"),
+    ]),
+    # Page 7
+    ("📊 市場/族群 (6/3 框架)", [
+        ("2026 AI 大趨勢",    "Universe ~500 支、AI 主軸、不做全市場"),
+        ("6/2 主流",          "GT 基底 (2303/2330) / IC 通路 (3702/3036)"),
+        ("",                  "記憶體 (2344/2408/3006) / AI PC (2376/3231/2382)"),
+        ("",                  "紅海第二棒 (1605/6116) / 玻璃 (8064)"),
+        ("5/31 警示族群",     "PCB / 散熱 / 連接器 (5/17 起連 4 週)"),
+        ("夜盤訊號",          "找族群相對便宜補漲、紅線 #2 可放寬"),
+        ("排除清單",          "南亞科系 / 文曄系 (注意 5/26 後可能翻轉)"),
+    ]),
+    # Page 8
+    ("⚠️ 拉高出貨 / 大盤訊號", [
+        ("大盤訊號優先",      "看大盤拉高就賣、不等個股訊號"),
+        ("9:15-9:30",         "賣高黃金時段 (老師多次教)"),
+        ("9:20 預估量",       "老師當日 risk gauge"),
+        ("12:00 殺盤考驗",    "加分項、不否決進場 (大盤/個股有跌才能看)"),
+        ("賣完買回 3 框架",   "砍錯補回 / 高賣低接 / 停對沒買回=錯"),
+        ("趨勢 vs 震盪",      "震盪盤鎖利門檻緊 (+3%~+10%)、別用趨勢思維抱波段"),
+    ]),
+    # Page 9
+    ("💰 資金 / Sizing", [
+        ("User 水位",         "~$3.2M (2026 Q2)"),
+        ("標準 sizing",       "10% = $320k = 1 張中型股"),
+        ("信心分級",          "老師明示=黑盒走 Stage; 館前哥小結構=白盒可 all-in"),
+        ("尷尬量避免",        "2 張 = 尷尬量、避免"),
+        ("標準位",            "3-4 張才能「鎖 1 留 2-3」"),
+        ("沒漲停隔日跳空",    "≥+3% 一律不推 (紅線 #1)"),
+        ("打擊區哲學",        "平常小錢耕耘、打擊區大口吃肉"),
+        ("補回損失策略",      "2026 Q2 保守、東捷/鈦昇沒補回前不追高"),
+    ]),
+]
+
+
+def _build_cheat_frame(args) -> Group:
+    """組 cheat sheet 一頁 (用 rich Panel + Table)。"""
+    idx = _cheat_idx[0]
+    total = len(CHEAT_SHEET_PAGES)
+    title, rows = CHEAT_SHEET_PAGES[idx]
+
+    t = Table(show_header=False, box=box.SIMPLE, expand=True, padding=(0, 1))
+    t.add_column("項目", style="bold cyan", no_wrap=True, ratio=2)
+    t.add_column("內容", ratio=5)
+    for key, val in rows:
+        t.add_row(key, val)
+
+    header = Text()
+    header.append(f"📖 CHEAT SHEET  ", style="bold magenta")
+    header.append(f"[{idx+1}/{total}] {title}", style="bold yellow")
+    hint = Text(
+        "← → 翻頁 | home 首頁 | end 末頁 | h 退出 | q 結束",
+        style="dim",
+    )
+    footer = Text(
+        f"← → 翻頁 | h 退出 | {idx+1}/{total} page",
+        style="dim",
+    )
+
+    panel = Panel(
+        t,
+        title=f"{title}",
+        border_style="cyan",
+    )
+    return Group(header, hint, panel, footer)
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1891,7 +2070,7 @@ def _run_demo(args):
         header.append(f"[Scenario {idx+1}/{len(scenarios)}: {name}]  ", style="bold yellow")
         header.append(f"({pause_tag})", style="cyan")
         hint = Text(
-            "← → 切換 | home/0 首個 | end 末個 | space 切 auto-cycle | q 退出 | "
+            "← → 切換 | home/0 首個 | end 末個 | space 切 auto-cycle | h cheat sheet | q 退出 | "
             f"Phase {phase}",
             style="dim",
         )
@@ -1934,29 +2113,37 @@ def _run_demo(args):
         ) as live:
             while not _quit_flag[0]:
                 _apply_current()
-                live.update(_build_demo_frame())
+                if _cheat_mode[0]:
+                    live.update(_build_cheat_frame(args))
+                else:
+                    live.update(_build_demo_frame())
 
                 _elapsed = 0.0
                 _step = 0.3
                 while not _quit_flag[0]:
                     time.sleep(_step)
                     _elapsed += _step
-                    # 手動切換 (左/右/home/end/space) → 立刻 re-render + 重設 timer
+                    if _cheat_jump[0]:
+                        _cheat_jump[0] = False
+                        break
                     if _demo_jump[0]:
                         _demo_jump[0] = False
                         break
-                    # auto-cycle (非 paused) → 到 interval 推下一個
-                    if (not _demo_paused[0]) and _elapsed >= args.interval:
+                    # auto-cycle (非 paused 且不在 cheat sheet 模式) → 推下一個
+                    if (not _cheat_mode[0]) and (not _demo_paused[0]) and _elapsed >= args.interval:
                         _demo_idx[0] = (_demo_idx[0] + 1) % len(scenarios)
                         break
                     # 持續刷新時鐘
-                    live.update(_build_demo_frame())
+                    if _cheat_mode[0]:
+                        live.update(_build_cheat_frame(args))
+                    else:
+                        live.update(_build_demo_frame())
     finally:
         _quit_flag[0] = True
         # 還原 patch (測試友善)
         check_trigger_inline = orig_check
         load_prev_close = orig_load
-        print(f"Demo 結束 (跑了 {_scenario_idx[0]+1} / {len(scenarios)} scenarios)")
+        print(f"Demo 結束 (停在 {_demo_idx[0]+1} / {len(scenarios)} scenarios)")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -2023,6 +2210,9 @@ def main():
 
     def _build_frame() -> Group:
         """組整個 frame: header + content panel + footer。"""
+        # cheat sheet 模式優先
+        if _cheat_mode[0]:
+            return _build_cheat_frame(args)
         now = datetime.now()
         now_str = now.strftime('%H:%M:%S')
         h, m = now.hour, now.minute
@@ -2052,7 +2242,7 @@ def main():
             pass
 
         hint = Text(
-            "快捷鍵: 1=status(分段) 2=priority 3=risk 4=trigger 5=pnl 6=sector q=退出",
+            "快捷鍵: 1=status(分段) 2=priority 3=risk 4=trigger 5=pnl 6=sector h=cheat sheet q=退出",
             style="dim",
         )
 
@@ -2087,10 +2277,15 @@ def main():
                     _elapsed = 0.0
                     _step = 0.3
                     _prev_sort = _current_sort[0]
+                    _prev_cheat = _cheat_mode[0]
                     while _elapsed < args.interval and not _quit_flag[0]:
                         time.sleep(_step)
                         _elapsed += _step
                         if _current_sort[0] != _prev_sort:
+                            break
+                        # cheat sheet toggle or page change → 立刻 re-render
+                        if _cheat_mode[0] != _prev_cheat or _cheat_jump[0]:
+                            _cheat_jump[0] = False
                             break
                 except KeyboardInterrupt:
                     break
