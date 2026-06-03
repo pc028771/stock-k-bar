@@ -12,7 +12,7 @@ course_sources:
 branches:
   - id: B1_next_day_gap_holds_no_fill
     when:
-      "next_day.gap_down": false
+      "next_day.fills_gap": false
     confirm_at: next_open
     next_day_n: 1
     action:

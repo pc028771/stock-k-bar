@@ -83,7 +83,7 @@ branches:
     next_branch_ids: []
 
   # B4 — 持有觀察期（B1/B2 後繼）
-  - id: B3_hold_stop_loss_watch
+  - id: B4_hold_stop_loss_watch
     when:
       "next_day.close": ">= today.low"
     confirm_at: next_close
