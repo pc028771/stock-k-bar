@@ -129,7 +129,7 @@ def load_daily_closes(ticker: str, db: Path, n: int = 20) -> pd.Series:
     try:
         with _db_con(db) as con:
             rows = con.execute(
-                "SELECT date, close FROM daily_price WHERE ticker=? ORDER BY date DESC LIMIT ?",
+                "SELECT trade_date, close FROM standard_daily_bar WHERE ticker=? ORDER BY trade_date DESC LIMIT ?",
                 (ticker, n),
             ).fetchall()
         if not rows:

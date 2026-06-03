@@ -395,6 +395,12 @@ def _load_stage_trigger():
 
 _stage_engine, _fetch_5min, _get_prev = _load_stage_trigger()
 
+# 抑制 stage_helper 的 log 訊息、避免噴到 monitor alt-screen 破版
+import logging as _logging
+_logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
+_logging.getLogger('intraday_stage_helper').setLevel(_logging.ERROR)
+_logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
+
 
 def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]:
     """即時跑 composite_check cascade，回傳 (trigger_key, reason)。
