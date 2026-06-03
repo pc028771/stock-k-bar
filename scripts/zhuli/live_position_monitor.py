@@ -402,6 +402,181 @@ _logging.getLogger('intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# WebSocket 即時報價快取 (取代 sequential REST snapshot)
+# ─────────────────────────────────────────────────────────────────────────
+
+class WSPriceCache:
+    """訂閱 Fubon WebSocket aggregates channel、cache 最新報價。
+
+    monitor 每次 refresh 從 cache 拿、O(1)、不再 sequential REST。
+    REST 用於初始 warm-up + WS 失敗時 fallback。
+    """
+    STALE_SEC = 30  # cache 超過 30 秒沒 update → REST fallback
+
+    def __init__(self, client, tickers: list[str]):
+        self.client = client
+        self.tickers = list(set(tickers))
+        self.cache: dict[str, dict] = {}
+        self.lock = threading.Lock()
+        self.last_update: dict[str, float] = {}
+        self.ws = None
+        self.ws_ok = False
+        self.errors = 0
+        self._warm()
+        self._connect()
+
+    def _warm(self):
+        """REST 初始抓一輪、確保 cache 有資料 + 記錄 _warm_close 供反推 prev_close."""
+        for tk in self.tickers:
+            try:
+                snap = self.client.get_realtime_snapshot(tk)
+                if snap:
+                    with self.lock:
+                        entry = dict(snap)
+                        # 留底用於反推 prev_close (close - change_price)
+                        if 'close' in entry:
+                            entry['_warm_close'] = entry['close']
+                        self.cache[tk] = entry
+                        self.last_update[tk] = time.time()
+            except Exception:
+                pass
+
+    def _connect(self):
+        """Connect WebSocket、subscribe 全部 tickers (trades channel — Speed mode 支援)."""
+        try:
+            # 注意: Fubon Speed mode 不支援 aggregates/candles、只能用 trades/books
+            self.ws = self.client.subscribe_quotes(
+                self.tickers, self._on_message, channel='trades'
+            )
+            self.ws_ok = self.ws is not None
+        except Exception:
+            self.ws_ok = False
+
+    def _on_message(self, msg):
+        """WS 推送 callback。實測 trades channel 訊息格式 (Fubon Speed mode)：
+            {"event": "data", "data": {
+                "symbol": "3481", "type": "EQUITY", "exchange": "TWSE", "market": "TSE",
+                "price": 59.1, "size": 5, "bid": 59, "ask": 59.1, "volume": 532557,
+                "isContinuous": true, "session": "Regular",
+                "time": 1780454658908318, "serial": 11214722
+            }}
+        其他事件: authenticated / pong / heartbeat / subscribed → 忽略。
+        trades stream 沒有 OHLC、只有逐筆 price + 當日累積 volume (股數).
+        我們本地維護 high/low (max/min seen)、close=最新 price、volume=cumulative/1000 (張).
+        open / change_price / change_rate 由 REST warm 初始化、WS 不覆寫.
+        """
+        try:
+            data = msg
+            if isinstance(msg, str):
+                import json as _json
+                data = _json.loads(msg)
+            if not isinstance(data, dict):
+                return
+            # 只處理 data event、忽略 authenticated/pong/heartbeat/subscribed
+            event = data.get('event')
+            if event != 'data':
+                return
+            payload = data.get('data')
+            if not isinstance(payload, dict):
+                return
+            symbol = payload.get('symbol')
+            if not symbol:
+                return
+            symbol = str(symbol)
+            price = payload.get('price')
+            if price is None:
+                return
+            price = float(price)
+            volume_shares = payload.get('volume')  # 累積成交股數
+            bid = payload.get('bid')
+            ask = payload.get('ask')
+            with self.lock:
+                existing = self.cache.get(symbol) or {}
+                # close = 最新成交價
+                existing['close'] = price
+                # high/low 本地維護 (trades stream 沒有 OHLC)
+                cur_high = existing.get('high') or 0
+                cur_low = existing.get('low') or 0
+                if not cur_high or price > cur_high:
+                    existing['high'] = price
+                if not cur_low or price < cur_low:
+                    existing['low'] = price
+                # volume: cumulative shares → 張 (÷1000)
+                if volume_shares is not None:
+                    try:
+                        existing['total_volume'] = int(volume_shares) // 1000
+                    except Exception:
+                        pass
+                # bid/ask 補充欄位
+                if bid is not None:
+                    try:
+                        existing['bid'] = float(bid)
+                    except Exception:
+                        pass
+                if ask is not None:
+                    try:
+                        existing['ask'] = float(ask)
+                    except Exception:
+                        pass
+                # change_price / change_rate 由 prev_close 推算
+                # REST warm 給的 close + change_price → prev_close = close_at_warm - change_at_warm
+                # 用 cached prev_close 推 new change
+                prev_close = existing.get('_prev_close')
+                if prev_close is None:
+                    # 首次: 從 warm cache 反推 prev_close
+                    warm_close = existing.get('_warm_close')
+                    warm_change = existing.get('change_price')
+                    if warm_close is not None and warm_change is not None:
+                        try:
+                            prev_close = float(warm_close) - float(warm_change)
+                            existing['_prev_close'] = prev_close
+                        except Exception:
+                            prev_close = None
+                if prev_close:
+                    try:
+                        existing['change_price'] = price - float(prev_close)
+                        existing['change_rate'] = (price - float(prev_close)) / float(prev_close) * 100
+                    except Exception:
+                        pass
+                self.cache[symbol] = existing
+                self.last_update[symbol] = time.time()
+        except Exception:
+            self.errors += 1
+
+    def get_realtime_snapshot(self, ticker: str) -> dict | None:
+        """模擬 FubonClient.get_realtime_snapshot 介面、回傳 cached snapshot.
+
+        若 cache stale > STALE_SEC、用 REST 補一筆。
+        """
+        ticker = str(ticker)
+        with self.lock:
+            snap = self.cache.get(ticker)
+            ts   = self.last_update.get(ticker, 0)
+        if snap and (time.time() - ts) < self.STALE_SEC:
+            return dict(snap)
+        # Stale or missing → REST fallback
+        try:
+            fresh = self.client.get_realtime_snapshot(ticker)
+            if fresh:
+                with self.lock:
+                    self.cache[ticker] = dict(fresh)
+                    self.last_update[ticker] = time.time()
+                return fresh
+        except Exception:
+            pass
+        return snap  # 回傳舊資料總比 None 好
+
+    def stats(self) -> tuple[int, int, int]:
+        """回傳 (cached_count, stale_count, error_count)."""
+        now = time.time()
+        with self.lock:
+            total = len(self.cache)
+            stale = sum(1 for ts in self.last_update.values()
+                        if (now - ts) > self.STALE_SEC)
+        return total, stale, self.errors
+
+
 def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]:
     """即時跑 composite_check cascade，回傳 (trigger_key, reason)。
 
@@ -1257,7 +1432,24 @@ def main():
     # StageTrigger 載入狀態
     trigger_ok = _stage_engine is not None
 
-    client = FubonClient()
+    rest_client = FubonClient()
+
+    # 收集所有 tickers (HELD + PLAN_PRIMARY + PLAN_BACKUP + WATCH) 給 WS 訂閱
+    _all_tk = set()
+    for src in [HELD, PLAN_PRIMARY, PLAN_BACKUP, WATCH]:
+        for it in src:
+            if isinstance(it, dict) and it.get('ticker'):
+                _all_tk.add(str(it['ticker']))
+            elif isinstance(it, (tuple, list)) and len(it) > 0:
+                _all_tk.add(str(it[0]))
+
+    print(f"初始化 WSPriceCache、訂閱 {len(_all_tk)} 檔...", flush=True)
+    _cache = WSPriceCache(rest_client, list(_all_tk))
+    print(f"  WS 連線: {'OK' if _cache.ws_ok else 'FAIL — 將全程 REST fallback'}", flush=True)
+    print(f"  Warm cache: {len(_cache.cache)} 檔", flush=True)
+
+    # client 給 render 用、實際走 cache (內含 stale fallback)
+    client = _cache
     prev_prices: dict = {}
     notified:    set  = set()
 
