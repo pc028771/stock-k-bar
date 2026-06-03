@@ -1535,7 +1535,7 @@ def _kb_listener():
     try:
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
-        tty.setraw(fd)
+        tty.setcbreak(fd)  # cbreak 保留 NL→CRNL 輸出翻譯、避免 rich 階梯狀
     except Exception:
         return
 
