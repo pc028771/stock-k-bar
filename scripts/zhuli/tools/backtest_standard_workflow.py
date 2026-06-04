@@ -132,22 +132,18 @@ def _priority(h: dict) -> int:
 
 
 def pick_top3(hits: list[dict]) -> list[dict]:
-    """選 Top 3: priority DESC, dist_ma10_pct ASC (距離越近越優先)."""
-    # 只取 priority >= 2 (P3 + P2)，若不足再補 P1
+    """選 Top 3: 嚴格 P3 only、tie-break 距 MA10 升冪.
+
+    Strict P3 = 5/1-6/4 backtest C1 最佳組合 (vs baseline 用 P3+P2 噪音多)
+    P3 < 3 檔 → 少開 / 不開、不 fallback 到 P2.
+    """
     p3 = [h for h in hits if _priority(h) >= 3]
-    p2 = [h for h in hits if _priority(h) == 2]
-    p1 = [h for h in hits if _priority(h) == 1]
 
     def dist_key(h):
         d = h.get("dist_ma10_pct")
         return d if d is not None else 999.0
 
-    p3_sorted = sorted(p3, key=dist_key)
-    p2_sorted = sorted(p2, key=dist_key)
-    p1_sorted = sorted(p1, key=dist_key)
-
-    candidates = (p3_sorted + p2_sorted + p1_sorted)[:3]
-    return candidates
+    return sorted(p3, key=dist_key)[:3]
 
 
 # ── Price lookup ──────────────────────────────────────────────────────────────
