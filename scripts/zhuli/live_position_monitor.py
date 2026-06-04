@@ -1048,11 +1048,33 @@ def fmt_trigger_age(ticker: str, trig_key: str,
     return (text, style)
 
 
+def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str:
+    """9:15-9:30 觸發加「拉高出貨時段」警示文字。
+
+    Args:
+        trig_key:  trigger key (Ch5-3 / T1 / T2 / TC / …)
+        fire_time: 觸發時間 (datetime)、None 則用 now
+
+    Returns:
+        若在 9:15-9:30 時段且是進場類 trigger → '⚠️ 拉高出貨時段、等 9:30+ '
+        否則 → ''
+    """
+    if trig_key not in ('Ch5-3', 'T1', 'T2'):
+        return ''
+    t = fire_time or datetime.now()
+    # 比較 time 部分
+    from datetime import time as _time
+    if _time(9, 15) <= t.time() < _time(9, 30):
+        return ' ⚠️ 拉高出貨時段、等 9:30+ '
+    return ''
+
+
 def r_trigger(trig_key: str, reason: str = '', short: int = 40,
               ticker: str = '') -> Text:
-    """Trigger label + reason + 觸發時間、rich Text。
+    """Trigger label + reason + 觸發時間 + 拉高出貨警示、rich Text。
 
     ticker 給的話會附 [HH:MM, Nm前]、依新鮮度上色。
+    9:15-9:30 觸發進場類 trigger 附 ⚠️ 拉高出貨警示。
     """
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     if trig_key == 'Ch5-3':
@@ -1074,6 +1096,11 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
         age_text, age_style = fmt_trigger_age(ticker, trig_key)
         if age_text:
             t.append(age_text, style=age_style)
+        # 9:15-9:30 拉高出貨警示
+        fire_t = _trigger_fired_at.get((ticker, trig_key))
+        warn = fmt_trigger_warning(trig_key, fire_t)
+        if warn:
+            t.append(warn, style='bold yellow')
     return t
 
 

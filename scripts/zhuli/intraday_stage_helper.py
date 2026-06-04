@@ -582,10 +582,34 @@ class StageTrigger:
             'normal': 大盤 -1% ~ +0.5%
             'weak':   大盤跌 > -1% (收跌幅超 1%) 或收破 MA5
 
-        資料來源: standard_daily_bar WHERE ticker='TAIEX'
-        - 若 target_date 有當日資料 → 用當日 close/open/ma5
-        - 若無 (盤中即時) → 用前一交易日作 fallback
+        Layer 1 (優先): Fubon IX0001 即時 snapshot — 取 (close/open - 1) * 100
+          - 若 TAIEX 盤中 chg% <= -1.0 → weak
+          - 若 TAIEX 盤中 chg% >  0.5  → strong
+          - 否則 → normal
+          - 即時不知道 MA5、簡化判斷
+
+        Layer 2 (fallback): standard_daily_bar WHERE ticker='TAIEX'
+          - 若 target_date 有當日資料 → 用當日 close/open/ma5
+          - 若無 (盤中即時) → 用前一交易日作 fallback
         """
+        # ── Layer 1: 即時 IX0001 snapshot ─────────────────────────────────────
+        try:
+            client = _get_fubon()
+            snap = client.get_realtime_snapshot('IX0001') or {}
+            op = float(snap.get('open') or 0)
+            cl = float(snap.get('close') or 0)
+            if op > 0 and cl > 0:
+                chg_pct = (cl / op - 1) * 100
+                if chg_pct <= -1.0:
+                    return "weak"
+                elif chg_pct > 0.5:
+                    return "strong"
+                else:
+                    return "normal"
+        except Exception as _e:
+            log.debug("_detect_market_regime IX0001 snapshot 失敗、fallback daily bar: %s", _e)
+
+        # ── Layer 2: fallback daily bar (現有邏輯) ────────────────────────────
         try:
             for attempt in range(3):
                 try:
@@ -755,19 +779,48 @@ class StageTrigger:
 
         if _regime in ("strong", "normal"):
             # ── 正常盤 / 強勢盤 SOP：過第一根高 + 紅K = confirmed (直接進場) ──
+            # ⚠️ 雙重過濾 (6/4 8046 南電 教訓):
+            #   1. 9:15-9:30 = 拉高出貨高峰 → 降為 signal、等 9:30 後確認
+            #   2. 進場價距日內最高 < 1% → 降為 signal、等回測 -1% 再切入
             for i in range(1, len(k5)):
-                if _t(k5.index[i]) < "09:10":
+                t_str = _t(k5.index[i])
+                if t_str < "09:10":
                     continue
                 bar_close = float(k5.iloc[i]["close"])
                 bar_open  = float(k5.iloc[i]["open"])
                 if bar_close > first_high and bar_close > bar_open:
+                    # 過濾 1: 9:15-9:30 拉高出貨時段
+                    if "09:15" <= t_str < "09:30":
+                        result["level"] = "signal"
+                        result["reason"] = (
+                            f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
+                            f"但 9:15-9:30 拉高出貨時段、等 9:30 後確認"
+                        )
+                        result["regime"] = _regime
+                        return result
+
+                    # 過濾 2: 9:30 後才生效 — 進場價太接近日內最高 (距日高 < 1%)
+                    # 說明: 9:10 breakout 本身就是 day high、不適用此過濾；
+                    #       9:30 後日高已具參考意義、才比較
+                    if t_str >= "09:30":
+                        day_high_so_far = float(k5["high"].iloc[:i+1].max())
+                        if bar_close >= day_high_so_far * 0.99:
+                            result["level"] = "signal"
+                            result["reason"] = (
+                                f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
+                                f"但太接近日高 ${day_high_so_far:.2f}、等回測 -1% 再切入"
+                            )
+                            result["regime"] = _regime
+                            return result
+
+                    # 通過所有過濾 → confirmed
                     result["triggered"] = True
                     result["level"] = "confirmed"
                     result["reason"] = (
-                        f"Ch5-3 [{_regime}盤] {_t(k5.index[i])} 過高 {first_high:.2f} 站穩"
+                        f"Ch5-3 [{_regime}盤] {t_str} 過高 {first_high:.2f} 站穩"
                     )
                     result["entry_price"] = bar_close
-                    result["entry_time"]  = _t(k5.index[i])
+                    result["entry_time"]  = t_str
                     result["regime"] = _regime
                     return result
 
