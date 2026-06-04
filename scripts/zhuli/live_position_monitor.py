@@ -101,11 +101,11 @@ HELD = [
     {
         'ticker': '3481', 'name': '群創',
         'cost': 58.7, 'shares': 2000, 'stop': 56.2,
-        'strategy_mode': 'overnight',  # 隔日沖、隔日 9:00 出 (backtest +1.85%/筆)
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/3 (夜盤訊號)',
+        'strategy_mode': 'swing',  # 處置中、不能隔日沖、等 D+4-5 看站均線
+        'tactic': '題材', 'priority': 3,
+        'source': '老師明示 6/3 + 處置中',
         'sector': '面板/族群補漲',
-        'note': '🔒 6/4 進處置 D+1、老師持有、D+4-5 才切入、現在觀察前幾天 (停 6/2 收 $56.2)'
+        'note': '🔒 6/4 D+1 進處置、老師持有、等 D+4-5 看站均線 (6/9-6/10)、停 $56.2'
     },
     {
         'ticker': '8046', 'name': '南電',
