@@ -288,6 +288,38 @@ def format_advisor_result(
         lines.append("")
 
     # ------------------------------------------------------------------
+    # Manual-judgment hints (§26 防守姿態 / §30 創紀錄的跌點之後)
+    # ------------------------------------------------------------------
+    if result.manual_hints:
+        lines.append("🧭 人工判斷情境 (manual-judgment patterns)")
+        for hint in result.manual_hints:
+            name = hint.get("name", "unknown")
+            course_source = hint.get("course_source", "")
+            trigger_reason = hint.get("trigger_reason", "")
+            manual_checks: list[str] = hint.get("manual_checks", [])
+            course_quotes: list[str] = hint.get("course_quotes", [])
+            stubs: list[str] = hint.get("stubs", [])
+
+            lines.append(f"  ⚠️ {name}")
+            lines.append(f"    課程：{course_source}")
+            lines.append(f"    觸發理由：{trigger_reason}")
+            lines.append("")
+            lines.append("    需自行判斷：")
+            for check in manual_checks:
+                lines.append(f"      {check}")
+            lines.append("")
+            lines.append("    課程關鍵句：")
+            for quote in course_quotes:
+                lines.append(f'      「{quote}」')
+            if stubs:
+                lines.append("")
+                lines.append("    📌 STUB-NEED-USER：")
+                for stub in stubs:
+                    lines.append(f"      {stub}")
+            lines.append("")
+        lines.append("")
+
+    # ------------------------------------------------------------------
     # Active lights
     # ------------------------------------------------------------------
     lines.append("🚨 警示 (lights)")

@@ -269,6 +269,12 @@ class ContextSnapshot(BaseModel):
     # 進場確認條件（隔日）: 「不再創新低」
     taiex_no_new_low_next_day: Optional[bool] = None  # 加權指數隔日不再創新低
 
+    # 防守姿態判斷輔助 (明日 K 線 §26 / EF7308E2336BF7BCE94142944DB580B1)
+    # STUB-NEED-USER: 大盤近期弱勢 — 具體 N 天 / 跌幅閾值課程未明示，由呼叫端注入
+    taiex_recent_weak: Optional[bool] = None
+    # STUB-NEED-USER: 個股相對大盤強勢 — 量化標準課程未明示，由呼叫端注入
+    stock_outperforms_taiex: Optional[bool] = None
+
 
 class AdvisorResult(BaseModel):
     """The full output of ``advisor.analyze()`` for one ticker × one date."""
@@ -289,3 +295,10 @@ class AdvisorResult(BaseModel):
         description="D-class 觀念提醒 + 缺 feature 的 warn 訊息",
     )
     context_snapshot: Optional[ContextSnapshot] = None
+    manual_hints: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "人工判斷情境 hints — 課程明說需人工判斷的 pattern（§26 防守姿態 / §30 創紀錄跌點）。"
+            "每個 hint 包含 name / course_source / trigger_reason / manual_checks / course_quotes。"
+        ),
+    )

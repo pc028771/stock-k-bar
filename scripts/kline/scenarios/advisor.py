@@ -45,6 +45,7 @@ from ._schema import (
 from .condition import UnknownTokenError, evaluate
 from .context import build_context_snapshot as _build_context_snapshot_external
 from .loader import LoaderError, load_lights, load_playbooks
+from .manual_hints import check_defensive_stance_hint, check_record_decline_rebound_hint
 
 # ---------------------------------------------------------------------------
 # Sentinel column: if this is absent the df needs add_features() first.
@@ -472,7 +473,16 @@ def analyze(
     active_lights = _evaluate_lights(lights, today_row, ctx, notes)
 
     # ------------------------------------------------------------------
-    # 9. Assemble AdvisorResult
+    # 9. Collect manual-judgment hints (§26 defensive_stance, §30 record_decline_rebound)
+    # ------------------------------------------------------------------
+    manual_hints: list[dict] = []
+    for hint_fn in (check_defensive_stance_hint, check_record_decline_rebound_hint):
+        hint = hint_fn(today_row, ctx)
+        if hint is not None:
+            manual_hints.append(hint)
+
+    # ------------------------------------------------------------------
+    # 10. Assemble AdvisorResult
     # ------------------------------------------------------------------
     return AdvisorResult(
         fired_patterns=fired_patterns,
@@ -480,4 +490,5 @@ def analyze(
         active_lights=active_lights,
         notes=notes,
         context_snapshot=ctx,
+        manual_hints=manual_hints,
     )

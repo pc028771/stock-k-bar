@@ -329,6 +329,13 @@ def build_context_snapshot(
                 taiex_vals[f] = val
 
     # ------------------------------------------------------------------
+    # 4c. Resolve §26 防守姿態 manual-hint fields (overrides only)
+    #     STUB-NEED-USER: 課程未給量化標準，只能由呼叫端透過 overrides 注入
+    # ------------------------------------------------------------------
+    taiex_recent_weak = overrides.get("taiex_recent_weak", None)
+    stock_outperforms_taiex = overrides.get("stock_outperforms_taiex", None)
+
+    # ------------------------------------------------------------------
     # 5. Build snapshot
     # ------------------------------------------------------------------
     snapshot = ContextSnapshot(
@@ -352,6 +359,9 @@ def build_context_snapshot(
         taiex_record_limit_down_count=taiex_vals["taiex_record_limit_down_count"],
         taiex_record_any_criterion=taiex_vals["taiex_record_any_criterion"],
         taiex_no_new_low_next_day=taiex_vals["taiex_no_new_low_next_day"],
+        # --- §26 防守姿態 manual-hint fields (STUB-NEED-USER) ---
+        taiex_recent_weak=taiex_recent_weak,
+        stock_outperforms_taiex=stock_outperforms_taiex,
     )
 
     return snapshot, warn_notes
