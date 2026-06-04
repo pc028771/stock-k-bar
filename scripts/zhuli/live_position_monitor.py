@@ -1363,26 +1363,32 @@ COLS_HELD_P1 = [
     ("開盤評語",  30, "left",  True),
 ]
 
-# WATCH confirmed
+# WATCH confirmed/watching: 同 HELD 風格、更豐富資訊
+# - 策略 (戰術) / ⭐ / Ticker / Name 主資訊
+# - 開→現 (%) / 量比 / 距 MA10 (健康度) / 距 ref (vs 加入監控時)
+# - 族群 (sector)
 COLS_WATCH_CONFIRMED = [
+    ("策略",      10, "left",  True),
     ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
-    ("現",         8, "right", True),
+    ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
-    ("距停",       8, "right", True),
-    ("族群",      16, "left",  True),
+    ("距MA10",     8, "right", True),
+    ("距ref",      8, "right", True),
+    ("族群",      14, "left",  True),
 ]
 
-# WATCH watching (分類)
 COLS_WATCH_WATCHING = [
+    ("策略",      10, "left",  True),
     ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
-    ("現",         8, "right", True),
-    ("漲跌",       8, "right", True),
+    ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
-    ("Note",      32, "left",  True),
+    ("距MA10",     8, "right", True),
+    ("距ref",      8, "right", True),
+    ("族群",      14, "left",  True),
 ]
 
 # Phase 2 watchlist (非 status mode)
@@ -1587,6 +1593,60 @@ def fmt_open_to_now_pct(o: float, c: float) -> Text:
 
 
 _avg_vol_cache: dict[str, float | None] = {}
+_ma10_cache: dict[str, float | None] = {}
+
+
+def load_ma10(ticker: str) -> float | None:
+    """MA10 close (排除今天)。讀 standard_daily_bar.ma10 欄位、cache."""
+    if ticker in _ma10_cache:
+        return _ma10_cache[ticker]
+    try:
+        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+        r = con.execute(
+            "SELECT ma10 FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date < date('now', 'localtime') "
+            "ORDER BY trade_date DESC LIMIT 1",
+            (ticker,)
+        ).fetchone()
+        con.close()
+        val = float(r[0]) if r and r[0] else None
+        _ma10_cache[ticker] = val
+        return val
+    except Exception:
+        _ma10_cache[ticker] = None
+        return None
+
+
+def r_dist_ma10(c: float, ticker: str) -> Text:
+    """距 MA10 % + 上色 (打擊區判斷):
+       -3% ~ +5%: 綠 (打擊區)
+       +5% ~ +10%: 黃 (偏遠)
+       > +10%: 紅 dim (太遠、不追)
+       < -3%: 紅 (跌深)
+    """
+    ma10 = load_ma10(ticker)
+    if not ma10 or not c:
+        return Text("—", style="dim")
+    pct = (c - ma10) / ma10 * 100
+    if -3 <= pct <= 5:
+        return Text(f"{pct:+.1f}%", style="green")
+    if 5 < pct <= 10:
+        return Text(f"{pct:+.1f}%", style="yellow")
+    if pct > 10:
+        return Text(f"{pct:+.1f}%", style="red dim")
+    return Text(f"{pct:+.1f}%", style="red")
+
+
+def r_dist_ref(c: float, ref: float) -> Text:
+    """距 ref_close (加入監控時的價) %、紅綠中性顯示。"""
+    if not ref or not c:
+        return Text("—", style="dim")
+    pct = (c - ref) / ref * 100
+    if pct >= 1:
+        return Text(f"{pct:+.1f}%", style="green")
+    if pct <= -1:
+        return Text(f"{pct:+.1f}%", style="red")
+    return Text(f"{pct:+.1f}%", style="dim")
 
 
 def load_prev_close(ticker: str) -> float | None:
@@ -2110,26 +2170,37 @@ def render_watch_sectioned(
     watching_total = len(watching)
 
     if confirmed:
-        # confirmed: per-ticker Group (固定 widths)
+        # confirmed: per-ticker Group (固定 widths、同 HELD 風格)
         cparts: list = [Text("🎯 WATCH 可進場 (confirmed)", style="bold green")]
         for c_idx, (item, d) in enumerate(confirmed):
+            tk = item['ticker']
             pri = item.get('priority', 1)
+            tactic = item.get('tactic', '短打')
             trig = d.get('trigger', 'none'); reason = d.get('trigger_reason', '')
-            c = d.get('c', 0); stop = item.get('stop')
-            dist = d.get('dist_to_stop', 999)
-            dist_t = r_dist(dist) if stop else Text("—", style="dim")
-            price_s = f"{c:.1f}" if c else "—"
+            c = d.get('c', 0)
+            o = d.get('o', 0)
+            ref = item.get('ref_close') or 0
+            # 開→現 (%) cell
+            if o:
+                open_cell = Text(f"{o:.1f}→{c:.1f}")
+                open_cell.append_text(fmt_open_to_now_pct(o, c))
+            elif c:
+                open_cell = Text(f"{c:.1f}")
+            else:
+                open_cell = Text("—", style="dim")
             show_hdr = (c_idx == 0)
             mini = _mk_aligned_table(COLS_WATCH_CONFIRMED, show_hdr)
             mini.add_row(
-                stars(pri), item['ticker'], item['name'],
-                price_s,
+                Text(tactic, style="dim"),
+                stars(pri), tk, item['name'],
+                open_cell,
                 fmt_vol_ratio(d.get('vol_ratio')),
-                dist_t,
-                item.get('sector', '?'),
+                r_dist_ma10(c, tk),
+                r_dist_ref(c, ref),
+                Text(item.get('sector', '?'), style="dim"),
             )
             cparts.append(mini)
-            cparts.append(_render_subrow(trig, reason, ticker=item['ticker']))
+            cparts.append(_render_subrow(trig, reason, ticker=tk))
         out.append(Group(*cparts))
 
     if watching:
@@ -2158,24 +2229,37 @@ def render_watch_sectioned(
             else:
                 shown = items
                 title = f"{cat} ({cat_total} 檔)"
-            # watching: per-ticker Group (固定 widths)
+            # watching: per-ticker Group (固定 widths、同 HELD 風格)
             wparts: list = [Text(title, style="bold")]
             for w_idx, (item, d) in enumerate(shown):
+                tk = item['ticker']
                 pri = item.get('priority', 1)
+                tactic = item.get('tactic', '短打')
                 trig = d.get('trigger', 'none')
                 reason = d.get('trigger_reason', '')
-                c = d.get('c', 0); chg = d.get('pnl_pct', 0)
-                price_s = f"{c:.1f}" if c else "—"
+                c = d.get('c', 0)
+                o = d.get('o', 0)
+                ref = item.get('ref_close') or 0
+                if o:
+                    open_cell = Text(f"{o:.1f}→{c:.1f}")
+                    open_cell.append_text(fmt_open_to_now_pct(o, c))
+                elif c:
+                    open_cell = Text(f"{c:.1f}")
+                else:
+                    open_cell = Text("—", style="dim")
                 show_hdr = (w_idx == 0)
                 mini = _mk_aligned_table(COLS_WATCH_WATCHING, show_hdr)
                 mini.add_row(
-                    stars(pri), item['ticker'], item['name'],
-                    price_s, r_change_pct(chg),
+                    Text(tactic, style="dim"),
+                    stars(pri), tk, item['name'],
+                    open_cell,
                     fmt_vol_ratio(d.get('vol_ratio')),
-                    Text(item.get('note', '')[:28], style="dim"),
+                    r_dist_ma10(c, tk),
+                    r_dist_ref(c, ref),
+                    Text(item.get('sector', '?'), style="dim"),
                 )
                 wparts.append(mini)
-                wparts.append(_render_subrow(trig, reason, ticker=item['ticker']))
+                wparts.append(_render_subrow(trig, reason, ticker=tk))
             out.append(Group(*wparts))
         if limit > 0:
             out.append(Text(
@@ -2366,6 +2450,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             try:
                 snap = client.get_realtime_snapshot(tk) or {}
                 c = float(snap.get('close') or 0)
+                o = float(snap.get('open') or 0)
                 pre = False
                 if c == 0:
                     c = load_prev_close(tk) or ref
@@ -2388,7 +2473,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 vol_lots = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 live_data[tk] = {
-                    'c': c, 'pnl_pct': chg, 'dist_to_stop': dist,
+                    'c': c, 'o': o, 'pnl_pct': chg, 'dist_to_stop': dist,
                     'pre': pre, 'trigger': trig_key, 'trigger_reason': trig_reason,
                     'vol_ratio': vol_ratio,
                 }
