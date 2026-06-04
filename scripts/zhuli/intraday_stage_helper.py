@@ -1,21 +1,21 @@
 """盤中即時 Stage Trigger 偵測器 — 主力大操作紀律。
 
 每 N 秒抓 5 分 K，偵測四種 Trigger (cascade 優先順序):
-  Ch5-3:     第一根 5K SOP (當沖路徑、6 條件全 pass + 9:10 後過高站穩)
-  Trigger 1: 強勢延續 (連 2 紅K + 量增 + 站前波高 + 距開盤 >+1%)
-  Trigger 2: 跌深反彈 (從盤中最高跌 ≥ 2.5% + 3 紅K 或 5m diff 由負轉正)
-  Trigger C: 結構失敗 (跌破前波低或距 MA10 -3% + 量爆下行)
+  首攻 (Ch5-3): 第一根 5K SOP (當沖路徑、6 條件全 pass + 9:10 後過高站穩)
+  續攻 (T1):    強勢延續 (連 2 紅K + 量增 + 站前波高 + 距開盤 >+1%)
+  反彈 (T2):    跌深反彈 (從盤中最高跌 ≥ 2.5% + 3 紅K 或 5m diff 由負轉正)
+  破底 (TC):    結構失敗 (跌破前波低或距 MA10 -3% + 量爆下行)
 
 Cascade 邏輯 (composite_check):
-  Ch5-3 pass → 走當沖路徑
-  → T1 pass → 強勢延續
-  → T2 pass → 跌深反彈
-  → TC pass → 結構失敗
+  首攻 pass → 走當沖路徑
+  → 續攻 pass → 強勢延續
+  → 反彈 pass → 跌深反彈
+  → 破底 pass → 結構失敗
 
 Per-category action:
-  HELD:         T1 → Stage 2 加碼追高 / T2 → Stage 2 反彈低接加碼 / TC → 出 Stage 1 警示
-  WATCH:        Ch5-3/T1/T2 → Stage 1 試水 / TC → 不要進
-  PLAN_PRIMARY: Ch5-3/T1/T2 → 進場時機 / TC → skip
+  HELD:         續攻 → Stage 2 加碼追高 / 反彈 → Stage 2 反彈低接加碼 / 破底 → 出 Stage 1 警示
+  WATCH:        首攻/續攻/反彈 → Stage 1 試水 / 破底 → 不要進
+  PLAN_PRIMARY: 首攻/續攻/反彈 → 進場時機 / 破底 → skip
 
 紀律守則:
   - 09:00-09:10 不觸發任何 entry Trigger
@@ -73,12 +73,29 @@ WATCH: list[tuple[str, str, float, float, str]] = [
     ("4722", "國精化",  281.0, 268.0, "短打"),
 ]
 
+# Trigger 命名對照表 (新中文名 → 舊英文 alias 向後相容)
+TRIGGER_NAME_MAP: dict[str, str] = {
+    "首攻":          "Ch5-3",
+    "首攻_signal":   "Ch5-3_signal",
+    "首攻_pullback": "Ch5-3_pullback",
+    "續攻":          "T1",
+    "續攻_watch":    "T1_watch",
+    "反彈":          "T2",
+    "反彈_watch":    "T2_watch",
+    "破底":          "TC",
+    "尾盤_confirmed": "Closing_confirmed",
+    "尾盤_watch":    "Closing_watch",
+    "尾盤_skip":     "Closing_skip",
+}
+# 反向 alias: 舊名 → 新名 (向後相容讀取)
+TRIGGER_ALIAS_MAP: dict[str, str] = {v: k for k, v in TRIGGER_NAME_MAP.items()}
+
 # 戰術 → 適用 trigger
 TACTICS_TRIGGERS: dict[str, list[str]] = {
-    "核心":  ["Trigger_1", "Trigger_2"],
-    "短打":  ["Trigger_1", "Trigger_2"],
-    "當沖":  ["Ch5-3_entry"],
-    "題材":  ["Trigger_1", "Trigger_2"],
+    "核心":  ["續攻", "反彈"],
+    "短打":  ["續攻", "反彈"],
+    "當沖":  ["首攻"],
+    "題材":  ["續攻", "反彈"],
 }
 
 # ── Fubon client (lazy init) ──────────────────────────────────────────────────
@@ -1149,19 +1166,32 @@ class StageTrigger:
 
     # ── Composite Cascade Detector ─────────────────────────────────────────────
 
-    # Per-category action mapping
+    # Per-category action mapping (新中文 trigger 名為 primary；舊英文名 alias 向後相容)
     _CATEGORY_ACTION: dict[tuple[str, str], str] = {
-        ("HELD",         "Ch5-3"): "N/A (已持倉、Ch5-3 不適用)",
+        ("HELD",         "首攻"): "N/A (已持倉、首攻不適用)",
+        ("HELD",         "續攻"): "Stage 2 加碼追高",
+        ("HELD",         "反彈"): "Stage 2 反彈低接加碼",
+        ("HELD",         "破底"): "🚨 出 Stage 1 警示",
+        ("WATCH",        "首攻"): "Stage 1 試水進場 (首攻 SOP)",
+        ("WATCH",        "續攻"): "Stage 1 試水追高",
+        ("WATCH",        "反彈"): "Stage 1 反彈低接",
+        ("WATCH",        "破底"): "⛔ 不要進、結構壞",
+        ("PLAN_PRIMARY", "首攻"): "進場時機 (首攻)",
+        ("PLAN_PRIMARY", "續攻"): "進場時機 (續攻)",
+        ("PLAN_PRIMARY", "反彈"): "進場時機 (反彈)",
+        ("PLAN_PRIMARY", "破底"): "⛔ skip 該檔",
+        # 舊英文名 alias (向後相容)
+        ("HELD",         "Ch5-3"): "N/A (已持倉、首攻不適用)",
         ("HELD",         "T1"):    "Stage 2 加碼追高",
         ("HELD",         "T2"):    "Stage 2 反彈低接加碼",
         ("HELD",         "TC"):    "🚨 出 Stage 1 警示",
-        ("WATCH",        "Ch5-3"): "Stage 1 試水進場 (當沖 SOP)",
+        ("WATCH",        "Ch5-3"): "Stage 1 試水進場 (首攻 SOP)",
         ("WATCH",        "T1"):    "Stage 1 試水追高",
         ("WATCH",        "T2"):    "Stage 1 反彈低接",
         ("WATCH",        "TC"):    "⛔ 不要進、結構壞",
-        ("PLAN_PRIMARY", "Ch5-3"): "進場時機 (Ch5-3)",
-        ("PLAN_PRIMARY", "T1"):    "進場時機 (T1)",
-        ("PLAN_PRIMARY", "T2"):    "進場時機 (T2)",
+        ("PLAN_PRIMARY", "Ch5-3"): "進場時機 (首攻)",
+        ("PLAN_PRIMARY", "T1"):    "進場時機 (續攻)",
+        ("PLAN_PRIMARY", "T2"):    "進場時機 (反彈)",
         ("PLAN_PRIMARY", "TC"):    "⛔ skip 該檔",
     }
 
@@ -1188,7 +1218,13 @@ class StageTrigger:
         category: str = "WATCH",
         target_date: Optional[str] = None,
     ) -> dict:
-        """Cascade detector: Ch5-3 → T1 → T2 → TC。
+        """Cascade detector: 首攻 → 續攻 → 反彈 → 破底。
+
+        新中文命名 (primary) 對應關係:
+          首攻  = Ch5-3  (第一根 5K SOP)
+          續攻  = T1     (強勢延續)
+          反彈  = T2     (跌深反彈)
+          破底  = TC     (結構失敗)
 
         Args:
             ticker:      股票代號 (傳給底層 check_ 函式)
@@ -1200,6 +1236,7 @@ class StageTrigger:
 
         Returns:
             dict with keys: triggered, detector, category, action, reason, [price], [market_regime]
+            detector 使用新中文名 (首攻/續攻/反彈/破底/首攻_signal/首攻_pullback/續攻_watch/反彈_watch)
         """
         prev_high = prev_levels.get("prev_high")
         prev_low  = prev_levels.get("prev_low")
@@ -1209,7 +1246,7 @@ class StageTrigger:
         # 判別大盤環境
         regime = self._detect_market_regime(_today_str)
 
-        # Layer 1: Ch5-3 當沖 entry
+        # Layer 1: 首攻 (Ch5-3) 當沖 entry
         # 傳 ticker + target_date 讓 check_ch5_3_entry 自動查 MA10
         r = self.check_ch5_3_entry(
             k5, prev_close,
@@ -1222,49 +1259,48 @@ class StageTrigger:
             return d
 
         if r.get("triggered"):
-            return _with_regime(self._format_action(r, "Ch5-3", category))
+            return _with_regime(self._format_action(r, "首攻", category))
 
-        # Ch5-3 signal / pullback 也需要上報（不 triggered 但 level 有意義）
+        # 首攻 signal / pullback 也需要上報（不 triggered 但 level 有意義）
         ch53_level = r.get("level", "watch")
         if ch53_level in ("signal", "pullback"):
-            # 用 detector key = 'Ch5-3_signal' or 'Ch5-3_pullback'
             return _with_regime(self._format_action(
                 {**r, "triggered": True},
-                f"Ch5-3_{ch53_level}",
+                f"首攻_{ch53_level}",
                 category,
             ))
 
-        # Layer 2: T1 強勢延續
+        # Layer 2: 續攻 (T1) 強勢延續
         r = self.check_trigger_1(ticker, k5, prev_high)
         if r.get("triggered"):
-            return _with_regime(self._format_action(r, "T1", category))
-        # T1_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
+            return _with_regime(self._format_action(r, "續攻", category))
+        # 續攻_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
         t1_level = r.get("level", "watch")
         if t1_level == "T1_watch":
             return _with_regime(self._format_action(
                 {**r, "triggered": True},
-                "T1_watch",
+                "續攻_watch",
                 category,
             ))
 
-        # Layer 3: T2 跌深反彈 (新版、盤中高)
+        # Layer 3: 反彈 (T2) 跌深反彈 (新版、盤中高)
         # now_time 傳 datetime.min 表示不做時段限制 (新版已移除時段限制)
         r = self.check_trigger_2(ticker, k5, datetime.min)
         if r.get("triggered"):
-            return _with_regime(self._format_action(r, "T2", category))
-        # T2_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
+            return _with_regime(self._format_action(r, "反彈", category))
+        # 反彈_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
         t2_level = r.get("level", "watch")
         if t2_level == "T2_watch":
             return _with_regime(self._format_action(
                 {**r, "triggered": True},
-                "T2_watch",
+                "反彈_watch",
                 category,
             ))
 
-        # Layer 4: TC 結構失敗
+        # Layer 4: 破底 (TC) 結構失敗
         r = self.check_trigger_c(ticker, k5, prev_low)
         if r.get("triggered"):
-            return _with_regime(self._format_action(r, "TC", category))
+            return _with_regime(self._format_action(r, "破底", category))
 
         base_result = {
             "triggered": False,
@@ -1275,7 +1311,7 @@ class StageTrigger:
             "market_regime": regime,
         }
 
-        # Layer 5 (附加、不破壞既有邏輯): Closing_check 13:00-13:25
+        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:00-13:25
         now_str = datetime.now().strftime("%H:%M")
         if "13:00" <= now_str <= "13:25":
             closing_r = self.check_closing_panel(
@@ -1286,17 +1322,17 @@ class StageTrigger:
             )
             cl_level = closing_r.get("level", "not_in_window")
             if cl_level == "confirmed":
-                closing_detector = "Closing_confirmed"
+                closing_detector = "尾盤_confirmed"
             elif cl_level == "watch":
-                closing_detector = "Closing_watch"
+                closing_detector = "尾盤_watch"
             else:
-                closing_detector = "Closing_skip"
+                closing_detector = "尾盤_skip"
 
             closing_triggered = cl_level in ("confirmed", "watch")
             cl_action_map = {
-                "Closing_confirmed": "🟢 尾盤可進 (5/5)",
-                "Closing_watch":     "🟡 尾盤觀察 (3-4/5)",
-                "Closing_skip":      "🔴 尾盤不進 (<3/5)",
+                "尾盤_confirmed": "🟢 尾盤可進 (5/5)",
+                "尾盤_watch":     "🟡 尾盤觀察 (3-4/5)",
+                "尾盤_skip":      "🔴 尾盤不進 (<3/5)",
             }
             return _with_regime({
                 **base_result,
@@ -1409,22 +1445,22 @@ def run_monitor(
                     cooldown[cd_key] = now + timedelta(minutes=COOLDOWN_MIN)
                     msg = f"現 ${price:.2f}、{action} | {reason[:60]}"
 
-                    if detector == "Ch5-3":
-                        _log(f"🟡 Ch5-3 {ticker} {name}: {reason}")
+                    if detector in ("首攻", "Ch5-3"):
+                        _log(f"🟡 首攻 {ticker} {name}: {reason}")
                         if notify:
-                            notify_mac(f"🟡 {ticker} {name} Ch5-3 SOP", msg)
-                    elif detector == "T1":
-                        _log(f"🟢 Trigger 1 {ticker} {name}: {reason}")
+                            notify_mac(f"🟡 {ticker} {name} 首攻 SOP", msg)
+                    elif detector in ("續攻", "T1"):
+                        _log(f"🟢 續攻 {ticker} {name}: {reason}")
                         if notify:
-                            notify_mac(f"🟢 {ticker} {name} Trigger 1 強勢延續", msg)
-                    elif detector == "T2":
-                        _log(f"🎯 Trigger 2 {ticker} {name}: {reason}")
+                            notify_mac(f"🟢 {ticker} {name} 續攻 強勢延續", msg)
+                    elif detector in ("反彈", "T2"):
+                        _log(f"🎯 反彈 {ticker} {name}: {reason}")
                         if notify:
-                            notify_mac(f"🎯 {ticker} {name} Trigger 2 反彈訊號", msg)
-                    elif detector == "TC":
-                        _log(f"🚨 Trigger C {ticker} {name}: {reason}")
+                            notify_mac(f"🎯 {ticker} {name} 反彈 訊號", msg)
+                    elif detector in ("破底", "TC"):
+                        _log(f"🚨 破底 {ticker} {name}: {reason}")
                         if notify:
-                            notify_mac(f"🚨 {ticker} {name} 結構失敗", msg, sound="Sosumi")
+                            notify_mac(f"🚨 {ticker} {name} 破底 結構失敗", msg, sound="Sosumi")
                 elif not result.get("triggered"):
                     _log(f"  [{ticker}] cascade: {detector} — {reason[:60]}")
 

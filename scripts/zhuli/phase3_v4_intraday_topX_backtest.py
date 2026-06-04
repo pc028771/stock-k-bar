@@ -4,9 +4,16 @@
   - 期間: 2026-05-19 → 2026-06-03 (~10 交易日)
   - 進場: composite_check confirmed 那根 5K 收盤價
   - 出場: 純當沖 13:30 最後 1 分 K 收盤 (絕不留倉)
-  - 篩選: 只取 confirmed layer (Ch5-3/T1/T2)、排除 TC
+  - 篩選: 只取 confirmed layer (首攻/續攻/反彈)、排除 破底
   - 排序: v3 score → 每日 top-2 (--max-per-day 2)
   - 含手續費 -0.6% (買 + 賣 + 證交稅 簡化)
+
+Trigger 命名對照 (新中文名 → 舊英文名 alias):
+  首攻 = Ch5-3  (第一根 5K SOP)
+  續攻 = T1     (強勢延續)
+  反彈 = T2     (跌深反彈)
+  破底 = TC     (結構失敗)
+  本腳本內部 layer 欄位保留舊英文名以維持歷史報告相容性。
 
 多種 exit 策略對比:
   1. 13:30 收盤  (基本版)
@@ -366,7 +373,11 @@ def _load_teacher_tier() -> dict[str, str]:
 
 def _score_trigger(hit: dict) -> float:
     score = 0.0
-    trigger_base = {"Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100}
+    # 支援新中文名及舊英文名 alias
+    trigger_base = {
+        "首攻": 30, "續攻": 20, "反彈": 25, "破底": -100,  # 新中文名
+        "Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100,       # 舊英文名 alias
+    }
     score += trigger_base.get(hit.get("layer", ""), 0)
 
     fire_time = hit.get("entry_time") or "09:30"

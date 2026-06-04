@@ -281,9 +281,12 @@ def _load_teacher_tier() -> dict[str, str]:
 
 
 def _score_trigger_baseline(hit: dict) -> float:
-    """v4 原始分數公式。"""
+    """v4 原始分數公式。支援新中文名及舊英文名 alias。"""
     score = 0.0
-    trigger_base = {"Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100}
+    trigger_base = {
+        "首攻": 30, "續攻": 20, "反彈": 25, "破底": -100,  # 新中文名
+        "Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100,       # 舊英文名 alias
+    }
     score += trigger_base.get(hit.get("layer", ""), 0)
 
     fire_time = hit.get("entry_time") or "09:30"
@@ -310,9 +313,12 @@ def _score_trigger_baseline(hit: dict) -> float:
 
 
 def _score_trigger_v5b(hit: dict) -> float:
-    """策略 B: Ch5-3+50 / T2-10 / T1+10 (其餘不變)。"""
+    """策略 B: 首攻+50 / 反彈-10 / 續攻+10 (其餘不變)。支援新中文名及舊英文名 alias。"""
     score = 0.0
-    trigger_base = {"Ch5-3": 50, "T1": 10, "T2": -10, "TC": -100}
+    trigger_base = {
+        "首攻": 50, "續攻": 10, "反彈": -10, "破底": -100,  # 新中文名
+        "Ch5-3": 50, "T1": 10, "T2": -10, "TC": -100,        # 舊英文名 alias
+    }
     score += trigger_base.get(hit.get("layer", ""), 0)
 
     fire_time = hit.get("entry_time") or "09:30"

@@ -274,9 +274,12 @@ def _load_teacher_tier() -> dict[str, str]:
 
 
 def _score_trigger(hit: dict) -> float:
-    """與 v5 baseline 相同的分數公式。"""
+    """與 v5 baseline 相同的分數公式。支援新中文名及舊英文名 alias。"""
     score = 0.0
-    trigger_base = {"Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100}
+    trigger_base = {
+        "首攻": 30, "續攻": 20, "反彈": 25, "破底": -100,  # 新中文名
+        "Ch5-3": 30, "T1": 20, "T2": 25, "TC": -100,       # 舊英文名 alias
+    }
     score += trigger_base.get(hit.get("layer", ""), 0)
 
     fire_time = hit.get("entry_time") or "09:30"

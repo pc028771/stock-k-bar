@@ -496,26 +496,52 @@ WIN_RATE_BY_SESSION: dict[str, int] = {
     "closing":    80,   # 13:00-13:25 老師尾盤
 }
 
-# Trigger 顯示格式
+# Trigger 顯示格式 (新中文命名 primary、舊英文名 alias 向後相容)
 TRIGGER_DISPLAY = {
-    'Ch5-3':             '🟢 Ch5-3 confirmed (守住進場)',
-    'Ch5-3_pullback':    '🟡 Ch5-3 pullback (回踩中)',
-    'Ch5-3_signal':      '🟡 Ch5-3 signal (訊號、等回踩)',
-    'T1':                '🟢 T1 confirmed',
-    'T1_watch':          '🟡 T1 watch (等 9:45+)',
-    'T2':                '🎯 T2 confirmed',
-    'TC':                '🔴 TC confirmed',
-    'T2_watch':          '🟡 T2 watch (等 9:45+)',
+    # 新中文命名 (primary)
+    '首攻':          '🟢 首攻 confirmed (守住進場)',
+    '首攻_pullback': '🟡 首攻 pullback (回踩中)',
+    '首攻_signal':   '🟡 首攻 signal (訊號、等回踩)',
+    '續攻':          '🟢 續攻 confirmed',
+    '續攻_watch':    '🟡 續攻 watch (等 9:45+)',
+    '反彈':          '🎯 反彈 confirmed',
+    '反彈_watch':    '🟡 反彈 watch (等 9:45+)',
+    '破底':          '🔴 破底 confirmed',
     # 尾盤進場確認 (13:00-13:25)
-    'Closing_confirmed': '🟢 ⭐ Closing 5/5 尾盤可進',
-    'Closing_watch':     '🟡 Closing 3-4/5 尾盤觀察',
-    'Closing_skip':      '🔴 Closing <3/5 尾盤不進',
+    '尾盤_confirmed': '🟢 ⭐ 尾盤 confirmed (5/5)',
+    '尾盤_watch':    '🟡 尾盤 watch (3-4/5)',
+    '尾盤_skip':     '🔴 尾盤 skip (<3/5)',
+    # 舊英文名 alias (向後相容)
+    'Ch5-3':             '🟢 首攻 confirmed (守住進場)',
+    'Ch5-3_pullback':    '🟡 首攻 pullback (回踩中)',
+    'Ch5-3_signal':      '🟡 首攻 signal (訊號、等回踩)',
+    'T1':                '🟢 續攻 confirmed',
+    'T1_watch':          '🟡 續攻 watch (等 9:45+)',
+    'T2':                '🎯 反彈 confirmed',
+    'T2_watch':          '🟡 反彈 watch (等 9:45+)',
+    'TC':                '🔴 破底 confirmed',
+    'Closing_confirmed': '🟢 ⭐ 尾盤 confirmed (5/5)',
+    'Closing_watch':     '🟡 尾盤 watch (3-4/5)',
+    'Closing_skip':      '🔴 尾盤 skip (<3/5)',
     'none': '⚪ 無訊號',
     None: '⚪ 無訊號',
 }
 
-# sort by trigger 優先順序: Ch5-3 confirmed > pullback > signal > Closing > T2 > T1 > TC > none
+# sort by trigger 優先順序: 首攻 confirmed > pullback > signal > 尾盤 > 反彈 > 續攻 > 破底 > none
 TRIGGER_RANK = {
+    # 新中文命名 (primary)
+    '首攻':           0,
+    '首攻_pullback':  1,
+    '首攻_signal':    2,
+    '尾盤_confirmed': 3,
+    '尾盤_watch':     4,
+    '反彈':           5,
+    '續攻':           6,
+    '破底':           7,
+    '尾盤_skip':      8,
+    '續攻_watch':     9,
+    '反彈_watch':     10,
+    # 舊英文名 alias (向後相容)
     'Ch5-3':             0,
     'Ch5-3_pullback':    1,
     'Ch5-3_signal':      2,
@@ -891,9 +917,9 @@ class WSPriceCache:
 def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]:
     """即時跑 composite_check cascade，回傳 (trigger_key, reason)。
 
-    trigger_key: 'Ch5-3' / 'T1' / 'T2' / 'TC' / 'none'
+    trigger_key: '首攻' / '續攻' / '反彈' / '破底' / 'none'  (新中文名)
+    舊英文名 alias: 'Ch5-3' / 'T1' / 'T2' / 'TC' 亦接受 (向後相容)
     category 依 tactic 決定: 核心/題材 → HELD；其他 → WATCH
-    向後相容: 舊 TRIGGER_DISPLAY / TRIGGER_RANK 保持不變。
     """
     if _stage_engine is None or _fetch_5min is None or _get_prev is None:
         return 'none', '(StageTrigger unavailable)'
@@ -941,12 +967,22 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
 
 
 def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_notify: bool):
-    """Trigger 觸發時、30 分鐘 cooldown 通知。"""
+    """Trigger 觸發時、30 分鐘 cooldown 通知。支援新中文名及舊英文名 alias。"""
     if not do_notify:
         return
-    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T1_watch',
-                        'T2', 'T2_watch', 'TC',
-                        'Closing_confirmed', 'Closing_watch', 'Closing_skip'):
+    # 支援新中文名及舊英文名 alias
+    valid_keys = (
+        '首攻', '首攻_signal', '首攻_pullback',
+        '續攻', '續攻_watch',
+        '反彈', '反彈_watch',
+        '破底',
+        '尾盤_confirmed', '尾盤_watch', '尾盤_skip',
+        # 舊英文名 alias
+        'Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T1_watch',
+        'T2', 'T2_watch', 'TC',
+        'Closing_confirmed', 'Closing_watch', 'Closing_skip',
+    )
+    if trig_key not in valid_keys:
         return
     cd_key = f"{ticker}_{trig_key}"
     now = datetime.now()
@@ -955,19 +991,38 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     _trigger_cooldown[cd_key] = now + timedelta(minutes=TRIGGER_COOLDOWN_MIN)
 
     titles = {
-        'Ch5-3':             f"🟢 {ticker} {name} Ch5-3 守住 → 可進場",
-        'Ch5-3_pullback':    f"🟡 {ticker} {name} Ch5-3 回踩 MA10 中",
-        'Ch5-3_signal':      f"🟡 {ticker} {name} Ch5-3 訊號觸發、等回踩",
-        'T1':                f"🟢 {ticker} {name} T1 強勢延續",
-        'T1_watch':          f"🟡 {ticker} {name} T1 watch → 等 9:45+",
-        'T2':                f"🎯 {ticker} {name} T2 反彈訊號",
-        'T2_watch':          f"🟡 {ticker} {name} T2 watch → 等 9:45+",
-        'TC':                f"🚨 {ticker} {name} TC 結構失敗",
+        # 新中文命名 (primary)
+        '首攻':          f"🟢 {ticker} {name} 首攻 守住 → 可進場",
+        '首攻_pullback': f"🟡 {ticker} {name} 首攻 回踩 MA10 中",
+        '首攻_signal':   f"🟡 {ticker} {name} 首攻 訊號觸發、等回踩",
+        '續攻':          f"🟢 {ticker} {name} 續攻 強勢延續",
+        '續攻_watch':    f"🟡 {ticker} {name} 續攻 watch → 等 9:45+",
+        '反彈':          f"🎯 {ticker} {name} 反彈 訊號",
+        '反彈_watch':    f"🟡 {ticker} {name} 反彈 watch → 等 9:45+",
+        '破底':          f"🚨 {ticker} {name} 破底 結構失敗",
+        '尾盤_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 5/5 Win 80% → 可進",
+        '尾盤_watch':    f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
+        '尾盤_skip':     f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
+        # 舊英文名 alias
+        'Ch5-3':             f"🟢 {ticker} {name} 首攻 守住 → 可進場",
+        'Ch5-3_pullback':    f"🟡 {ticker} {name} 首攻 回踩 MA10 中",
+        'Ch5-3_signal':      f"🟡 {ticker} {name} 首攻 訊號觸發、等回踩",
+        'T1':                f"🟢 {ticker} {name} 續攻 強勢延續",
+        'T1_watch':          f"🟡 {ticker} {name} 續攻 watch → 等 9:45+",
+        'T2':                f"🎯 {ticker} {name} 反彈 訊號",
+        'T2_watch':          f"🟡 {ticker} {name} 反彈 watch → 等 9:45+",
+        'TC':                f"🚨 {ticker} {name} 破底 結構失敗",
         'Closing_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 5/5 Win 80% → 可進",
         'Closing_watch':     f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
         'Closing_skip':      f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
     }
     sounds = {
+        '首攻': 'Glass', '首攻_signal': 'Tink', '首攻_pullback': 'Tink',
+        '續攻': 'Glass', '續攻_watch': 'Tink',
+        '反彈': 'Glass', '反彈_watch': 'Tink',
+        '破底': 'Sosumi',
+        '尾盤_confirmed': 'Glass', '尾盤_watch': 'Tink', '尾盤_skip': 'Basso',
+        # 舊英文名 alias
         'Ch5-3': 'Glass', 'Ch5-3_signal': 'Tink', 'Ch5-3_pullback': 'Tink',
         'T1': 'Glass', 'T1_watch': 'Tink',
         'T2': 'Glass', 'T2_watch': 'Tink',
@@ -1145,7 +1200,7 @@ def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str
     Returns:
         時段警示字串、或空字串。
     """
-    if trig_key not in ('Ch5-3', 'T1', 'T2'):
+    if trig_key not in ('首攻', '續攻', '反彈', 'Ch5-3', 'T1', 'T2'):
         return ''
     t = (fire_time or datetime.now()).time()
     from datetime import time as _time
@@ -1172,21 +1227,21 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
     Closing_confirmed 加 ⭐ Win 80% 標記。
     """
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
-    if trig_key == 'Ch5-3':
+    if trig_key in ('首攻', 'Ch5-3'):
         style = 'green'
-    elif trig_key in ('Ch5-3_signal', 'Ch5-3_pullback'):
+    elif trig_key in ('首攻_signal', '首攻_pullback', 'Ch5-3_signal', 'Ch5-3_pullback'):
         style = 'yellow'
-    elif trig_key in ('T1', 'T2'):
+    elif trig_key in ('續攻', '反彈', 'T1', 'T2'):
         style = 'green'
-    elif trig_key == 'TC':
+    elif trig_key in ('破底', 'TC'):
         style = 'red'
-    elif trig_key in ('T1_watch', 'T2_watch'):
+    elif trig_key in ('續攻_watch', '反彈_watch', 'T1_watch', 'T2_watch'):
         style = 'yellow'
-    elif trig_key == 'Closing_confirmed':
+    elif trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
         style = 'bold magenta'
-    elif trig_key == 'Closing_watch':
+    elif trig_key in ('尾盤_watch', 'Closing_watch'):
         style = 'yellow'
-    elif trig_key == 'Closing_skip':
+    elif trig_key in ('尾盤_skip', 'Closing_skip'):
         style = 'red dim'
     else:
         style = 'dim'
@@ -1236,36 +1291,41 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
     prefix = Text("└ ", style="dim")
     age_text, age_style = fmt_trigger_age(ticker, trig_key, now) if trig_key else ('', 'dim')
 
-    # ── 1. Closing_confirmed (尾盤 5/5) → bold green ⭐ 最佳 ─────────────
-    if trig_key == 'Closing_confirmed':
+    # ── 1. 尾盤_confirmed / Closing_confirmed (尾盤 5/5) → bold green ⭐ 最佳 ──
+    if trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
+        # 加「剩 N 分到 13:25」截止提示
+        remain_min = max(0, (13 * 60 + 25) - (now.hour * 60 + now.minute))
+        remain_str = f"、剩 {remain_min} 分到 13:25" if remain_min > 0 else "、13:25 截止!"
         t = Text()
         t.append_text(prefix)
-        t.append(f"🟢 ⭐ Closing 5/5 Win {wd['closing']}% (最佳時段)", style="bold green")
+        t.append(f"🟢 ⭐ 尾盤 Win {wd['closing']}% (最佳時段{remain_str})", style="bold green")
         if age_text:
             t.append(age_text, style=age_style)
         return t
 
-    # ── 2. Closing_watch (尾盤 3-4/5) → green 普通強調 ───────────────────
-    if trig_key == 'Closing_watch':
+    # ── 2. 尾盤_watch / Closing_watch (尾盤 3-4/5) → green 普通強調 ────────
+    if trig_key in ('尾盤_watch', 'Closing_watch'):
+        remain_min = max(0, (13 * 60 + 25) - (now.hour * 60 + now.minute))
+        remain_str = f"、剩 {remain_min} 分到 13:25" if remain_min > 0 else "、13:25 截止!"
         t = Text()
         t.append_text(prefix)
-        t.append(f"🟡 Closing 3-4/5 watch Win {wd['closing']}% (觀察)", style="green")
+        t.append(f"🟡 尾盤 3-4/5 watch Win {wd['closing']}% (觀察{remain_str})", style="green")
         if age_text:
             t.append(age_text, style=age_style)
         return t
 
-    # ── 3. Closing_skip → dim、純提示 ─────────────────────────────────────
-    if trig_key == 'Closing_skip':
+    # ── 3. 尾盤_skip / Closing_skip → dim、純提示 ─────────────────────────
+    if trig_key in ('尾盤_skip', 'Closing_skip'):
         t = Text()
         t.append_text(prefix)
         t.append("⚪ 尾盤 <3/5 不進", style="dim")
         return t
 
-    # ── 4. TC 結構壞 → red ───────────────────────────────────────────────
-    if trig_key == 'TC':
+    # ── 4. 破底 / TC 結構壞 → red ───────────────────────────────────────
+    if trig_key in ('破底', 'TC'):
         t = Text()
         t.append_text(prefix)
-        t.append("🔴 TC 結構壞、等修復", style="red")
+        t.append("🔴 破底 結構壞、等修復", style="red")
         return t
 
     # ── 5. 無訊號 → dim、不推銷 Win 80% ──────────────────────────────────
@@ -1278,10 +1338,10 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
             t.append("⚪ 無訊號、待 13:00 評估", style="dim")
         return t
 
-    # ── 6. 有 confirmed trigger (T1/T2/Ch5-3) ────────────────────────────
+    # ── 6. 有 confirmed trigger (續攻/反彈/首攻 或舊英文名) ─────────────────
     label = TRIGGER_DISPLAY.get(trig_key, trig_key)
 
-    if trig_key in ('T1', 'T2', 'Ch5-3'):
+    if trig_key in ('首攻', '續攻', '反彈', 'T1', 'T2', 'Ch5-3'):
         if is_closing:
             # 尾盤 + confirmed trigger → bold green ⭐ 最佳進場
             t = Text()
@@ -1687,15 +1747,15 @@ def classify_open(open_price: float, prev_close: float) -> tuple[str, str, str]:
 def fmt_trigger(trig_key: str, reason: str = '') -> str:
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     short = reason[:40] if reason else ''
-    if trig_key == 'Ch5-3':
+    if trig_key in ('首攻', 'Ch5-3'):
         return f"{C.G}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
-    if trig_key in ('Ch5-3_signal', 'Ch5-3_pullback'):
+    if trig_key in ('首攻_signal', '首攻_pullback', 'Ch5-3_signal', 'Ch5-3_pullback'):
         return f"{C.Y}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
-    if trig_key in ('T1', 'T2'):
+    if trig_key in ('續攻', '反彈', 'T1', 'T2'):
         return f"{C.G}{label}{C.END}" + (f" {C.DIM}({short}){C.END}" if short else '')
-    if trig_key == 'TC':
+    if trig_key in ('破底', 'TC'):
         return f"{C.R}{label}{C.END}" + (f" {C.DIM}({short[:40]}){C.END}" if reason else '')
-    if trig_key == 'T2_watch':
+    if trig_key in ('反彈_watch', 'T2_watch'):
         return f"{C.Y}{label}{C.END}" + (f" {C.DIM}({reason[:30]}){C.END}" if reason else '')
     return f"{C.DIM}{label}{C.END}"
 
@@ -1720,7 +1780,7 @@ def render_priority_panel(held: list[dict], watch: list[dict],
     for x in held + watch:
         tk = x.get('ticker', '')
         trig = live_data.get(tk, {}).get('trigger', 'none')
-        if trig in ('T1', 'T2', 'TC'):
+        if trig in ('續攻', '反彈', '破底', 'T1', 'T2', 'TC'):
             triggered_map[tk] = trig
 
     warnings: list[str] = []
@@ -2698,19 +2758,20 @@ CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
     ]),
     # Page 2
     ("🎯 進場路徑 (composite cascade)", [
-        ("Layer 1: Ch5-3 當沖 SOP", "第一根 5K 6/6 條件 (收高開、量足、突破前高...)"),
-        ("Layer 2: T1 強勢延續",    "4 觸發任一 (強勢/回撤反彈/+10%通則/老師明示)"),
-        ("Layer 3: T2 跌深反彈",    "3 紅K confirm; 路徑 B (5m diff) 已 FAIL 不用"),
-        ("Layer 4: TC 結構失敗",    "excluded、出場訊號"),
-        ("category 分流",          "核心/題材 → HELD; 短打/觀察 → WATCH"),
-        ("紀律 filter",            "discipline_filter 先過、紅線觸發整個 cascade skip"),
+        ("Layer 1: 首攻 (Ch5-3) 當沖 SOP", "第一根 5K 6/6 條件 (收高開、量足、突破前高...)"),
+        ("Layer 2: 續攻 (T1) 強勢延續",    "4 觸發任一 (強勢/回撤反彈/+10%通則/老師明示)"),
+        ("Layer 3: 反彈 (T2) 跌深反彈",    "3 紅K confirm; 路徑 B (5m diff) 已 FAIL 不用"),
+        ("Layer 4: 破底 (TC) 結構失敗",    "excluded、出場訊號"),
+        ("尾盤 (Closing) 13:00-13:25",     "5 項確認、Win 80%、另立顯示"),
+        ("category 分流",                  "核心/題材 → HELD; 短打/觀察 → WATCH"),
+        ("紀律 filter",                    "discipline_filter 先過、紅線觸發整個 cascade skip"),
     ]),
     # Page 3
     ("📦 Stage 1/2/3 分批進場 SOP", [
         ("Stage 1: 試水",     "老師明示後第一次切入、小 sizing (1/3 標準位)"),
         ("Stage 2: 加碼 (4 觸發)", "任一即可、不必硬等 +10%:"),
-        ("  (a) 強勢延續",    "Trigger T1 confirmed"),
-        ("  (b) 回撤反彈",    "Trigger T2 confirmed"),
+        ("  (a) 強勢延續",    "Trigger 續攻 confirmed"),
+        ("  (b) 回撤反彈",    "Trigger 反彈 confirmed"),
         ("  (c) +10% 通則",   "脫離成本 +10% + 回測支撐 (老師 5/29 全面性)"),
         ("  (d) 老師明示",    "老師再次點名同檔"),
         ("Stage 3: 突破加碼",  "波段創新高 + 量能配合"),
@@ -2948,17 +3009,17 @@ def _build_scenarios() -> list[tuple]:
     adj['1605'] = (-2.5, -4.94)  # 38.5
     scenarios.append(("6. 1605 跌破停損 🔴", 2, base(adj), 'status', 2, {}))
 
-    # 7. Trigger fired: 2885 T1 confirmed (mock override)
+    # 7. Trigger fired: 2885 續攻 confirmed (mock override)
     adj = {tk: (0.5, 1.2) for tk in PREV}
     adj['2885'] = (1.0, 3.5)
-    trig = {'2885': ('T1', '🟢 強勢延續、外資 +16k 確認')}
-    scenarios.append(("7. 2885 T1 confirmed (Stage 2 加碼訊號)", 2, base(adj), 'trigger', 2, trig))
+    trig = {'2885': ('續攻', '🟢 強勢延續、外資 +16k 確認')}
+    scenarios.append(("7. 2885 續攻 confirmed (Stage 2 加碼訊號)", 2, base(adj), 'trigger', 2, trig))
 
-    # 8. TC structure fail: 8064 watch TC 觸發 → excluded
+    # 8. 破底 structure fail: 8064 watch 破底 觸發 → excluded
     adj = {tk: (0.3, 0.6) for tk in PREV}
     adj['8064'] = (-1.0, -3.5)
-    trig = {'8064': ('TC', '結構底跌破、出場')}
-    scenarios.append(("8. 8064 TC 結構失敗 (excluded)", 2, base(adj), 'status', 2, trig))
+    trig = {'8064': ('破底', '結構底跌破、出場')}
+    scenarios.append(("8. 8064 破底 結構失敗 (excluded)", 2, base(adj), 'status', 2, trig))
 
     # 9. Mixed PnL: 1605 +5% / 2885 +8% / 6285 -2% / 3481 平
     adj = {tk: (0.0, 0.0) for tk in PREV}
@@ -2976,24 +3037,24 @@ def _build_scenarios() -> list[tuple]:
     adj = {tk: (-1.0 - (i % 3), -2.5 - (i % 4)) for i, tk in enumerate(PREV)}
     scenarios.append(("11. 全部紅 (弱勢盤)", 2, base(adj), 'pnl', 2, {}))
 
-    # 12. Watchlist cascade: 3-4 watch 同時 Ch5-3 confirmed
+    # 12. Watchlist cascade: 3-4 watch 同時首攻 confirmed
     adj = {tk: (0.5, 1.5) for tk in PREV}
     trig = {
-        '2303': ('Ch5-3', '當沖 SOP 確認'),
-        '3702': ('Ch5-3', '量價齊揚、突破近 5 日高'),
-        '6116': ('Ch5-3', '紅海第二棒、管錢哥進場'),
-        '6147': ('Ch5-3', '記憶體封測續強'),
+        '2303': ('首攻', '當沖 SOP 確認'),
+        '3702': ('首攻', '量價齊揚、突破近 5 日高'),
+        '6116': ('首攻', '紅海第二棒、管錢哥進場'),
+        '6147': ('首攻', '記憶體封測續強'),
     }
-    scenarios.append(("12. Watchlist cascade (4 檔 Ch5-3)", 2, base(adj), 'status', 2, trig))
+    scenarios.append(("12. Watchlist cascade (4 檔首攻)", 2, base(adj), 'status', 2, trig))
 
     # 13. 各 trigger 級別並列
     adj = {tk: (0.3, 0.8) for tk in PREV}
     trig = {
-        '2303': ('T1', 'T1 強勢延續'),
-        '3702': ('T2', 'T2 反彈訊號'),
-        '6116': ('Ch5-3', 'Ch5-3 當沖 SOP'),
-        '6147': ('T2_watch', 'T2 watch 觀察中'),
-        '8064': ('TC', 'TC 結構失敗'),
+        '2303': ('續攻', '續攻 強勢延續'),
+        '3702': ('反彈', '反彈 跌深反彈訊號'),
+        '6116': ('首攻', '首攻 當沖 SOP'),
+        '6147': ('反彈_watch', '反彈 watch 觀察中'),
+        '8064': ('破底', '破底 結構失敗'),
     }
     scenarios.append(("13. 各 Trigger 級別並列", 2, base(adj), 'trigger', 2, trig))
 
@@ -3002,9 +3063,9 @@ def _build_scenarios() -> list[tuple]:
     adj['1605'] = (1.0, 3.0)
     adj['6285'] = (-0.5, -1.5)
     trig_mix = {
-        '2885': ('T1', 'T1'),
-        '6116': ('Ch5-3', 'Ch5-3'),
-        '3702': ('T2', 'T2'),
+        '2885': ('續攻', '續攻'),
+        '6116': ('首攻', '首攻'),
+        '3702': ('反彈', '反彈'),
     }
     for sort in SORT_MODES:
         scenarios.append((f"14-19. 排序模式: {SORT_KEY_LABEL[sort]}",
@@ -3026,22 +3087,22 @@ def _build_scenarios() -> list[tuple]:
     scenarios.append(("21. STALE data 警示 (大部分 ticker 無報價)",
                       2, snaps, 'status', 2, {}))
 
-    # 22. Ch5-3 signal (cascade 早段)
+    # 22. 首攻_signal (cascade 早段)
     adj = {tk: (0.5, 1.2) for tk in PREV}
-    trig = {'2303': ('Ch5-3_signal', '第一根 5K 過 high、量足、待回測')}
-    scenarios.append(("22. Ch5-3 signal (cascade 早段、等回測)",
+    trig = {'2303': ('首攻_signal', '第一根 5K 過 high、量足、待回測')}
+    scenarios.append(("22. 首攻_signal (cascade 早段、等回測)",
                       2, base(adj), 'status', 2, trig))
 
-    # 23. Ch5-3 pullback (回測中)
+    # 23. 首攻_pullback (回測中)
     adj = {tk: (0.5, 0.8) for tk in PREV}
-    trig = {'2303': ('Ch5-3_pullback', '回測 MA10 中、守住為續強')}
-    scenarios.append(("23. Ch5-3 pullback (回測 MA10 中)",
+    trig = {'2303': ('首攻_pullback', '回測 MA10 中、守住為續強')}
+    scenarios.append(("23. 首攻_pullback (回測 MA10 中)",
                       2, base(adj), 'status', 2, trig))
 
-    # 24. Ch5-3 confirmed (回測守住、進場 SOP)
+    # 24. 首攻 confirmed (回測守住、進場 SOP)
     adj = {tk: (0.5, 1.5) for tk in PREV}
-    trig = {'2303': ('Ch5-3', '回測守住、量配合、進場 SOP confirmed')}
-    scenarios.append(("24. Ch5-3 confirmed (回測守住、進場)",
+    trig = {'2303': ('首攻', '回測守住、量配合、進場 SOP confirmed')}
+    scenarios.append(("24. 首攻 confirmed (回測守住、進場)",
                       2, base(adj), 'status', 2, trig))
 
     # 25. 量比五等級並列 — 用不同 vol 設定 PREV 各 ticker
