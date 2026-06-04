@@ -38,6 +38,10 @@ from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot  # n
 from zhuli.entry.small_structure.glued_ma5_platform import detect_glued_ma5_series as detect_glued_ma5  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 from zhuli.entry.foreign_buy_on_black_k import detect_batch as detect_foreign_black_k_batch  # noqa
+from zhuli.chip.dual_axis_relative_strength import (  # noqa
+    detect as detect_dual_axis_strength,
+    TAIEX_DROP_THRESHOLD as _DUAL_AXIS_TAIEX_THRESHOLD,
+)
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
 # from zhuli.entry.bbands_upper_break import detect as detect_bbands
@@ -1603,6 +1607,71 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     # === 處置股專區（--enable-disposal 啟用時）===
     if disposal_map:
         md += _render_disposal_section(disposal_map, all_hits)
+
+    # === 🛡️ 雙軸籌碼相對強勢（大盤跌日才觸發）===
+    # 只在大盤跌 -1% 日執行；非跌日直接略過、不擋 pipeline
+    try:
+        # 先快速取 TAIEX 漲跌幅判斷是否觸發
+        _taiex_pct = None
+        if db_path:
+            _con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+            _row = _con.execute(
+                "SELECT close FROM standard_daily_bar WHERE ticker='TAIEX' AND trade_date=?",
+                (target_date,),
+            ).fetchone()
+            _prev = _con.execute(
+                "SELECT close FROM standard_daily_bar "
+                "WHERE ticker='TAIEX' AND trade_date<? ORDER BY trade_date DESC LIMIT 1",
+                (target_date,),
+            ).fetchone()
+            _con.close()
+            if _row and _prev:
+                _taiex_pct = (_row[0] / _prev[0] - 1) * 100
+
+        if _taiex_pct is not None and _taiex_pct <= _DUAL_AXIS_TAIEX_THRESHOLD:
+            print(f"  [dual_axis] TAIEX {_taiex_pct:+.2f}% 觸發大盤跌掃描...", flush=True)
+            _dual_hits = detect_dual_axis_strength(target_date, db=db_path)
+            # 把命中 ticker 記到 all_hits 加 🛡️ 標籤（標記優先、不擋）
+            _dual_tickers = {sig.ticker for sig in _dual_hits}
+            for _h in all_hits:
+                if _h['ticker'] in _dual_tickers:
+                    _h['dual_axis_label'] = '🛡️'
+            # 也標記 ma5_pivot / glued_ma5 / j_hits / i_hits / fbk_hits
+            for _hit_list in (ma5_pivot_hits, glued_ma5_hits, j_hits, i_hits, fbk_hits):
+                for _h in _hit_list:
+                    if _h.get('ticker') in _dual_tickers:
+                        _h['dual_axis_label'] = '🛡️'
+            print(f"  [dual_axis] 命中 {len(_dual_hits)} 檔", flush=True)
+
+            md += [
+                f"## 🛡️ 雙軸籌碼相對強勢 — 大盤跌守均線 (TAIEX {_taiex_pct:+.2f}%)",
+                f"",
+                f"> 條件：TAIEX 當日 ≤ -1% ✅ | 外資5d ≥ +3,000張 | 投信5d ≥ -500張 | close > MA5/MA10/MA20 任一",
+                f"> 門檻來源：user 2026-06-04 拍板 | 驗證：6282 康舒 (5/13 5/28 命中)",
+                f"> 此標籤 = 升優先級、不擋其他訊號",
+                f"",
+            ]
+            if _dual_hits:
+                md.append(
+                    f"| Ticker | 名稱 | 收盤 | 守均線 | 外資5d | 投信5d | wantgoo |"
+                )
+                md.append(f"|---|---|---|---|---|---|---|")
+                for _sig in sorted(_dual_hits, key=lambda x: -x.foreign_5d):
+                    _name = _sig.name or TEACHER_NAME.get(_sig.ticker, "")
+                    md.append(
+                        f"| **{_sig.ticker}** | {_name} | {_sig.close:.2f} | "
+                        f"{_sig.ma_label} | "
+                        f"{_sig.foreign_5d:+,.0f} | {_sig.sitc_5d:+,.0f} | "
+                        f"{_wantgoo_link(_sig.ticker)} |"
+                    )
+                md.append(f"")
+            else:
+                md += [f"> {target_date} 大盤跌但無雙軸籌碼相對強勢命中", f""]
+        else:
+            _pct_str = f"{_taiex_pct:+.2f}%" if _taiex_pct is not None else "未知"
+            print(f"  [dual_axis] TAIEX {_pct_str} 未達 -1% 門檻、略過", flush=True)
+    except Exception as _e:
+        print(f"  [dual_axis] 失敗、略過 (不擋 pipeline): {_e}", flush=True)
 
     md += [
         f"---",
