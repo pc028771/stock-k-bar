@@ -36,6 +36,7 @@ from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
 from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_attack_report  # noqa
 from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot  # noqa
 from zhuli.entry.small_structure.glued_ma5_platform import detect_glued_ma5_series as detect_glued_ma5  # noqa
+from zhuli.entry.uniform_ma_above import run_uniform_ma_above  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom          # noqa
 from zhuli.entry.foreign_buy_on_black_k import detect_batch as detect_foreign_black_k_batch  # noqa
 from zhuli.chip.dual_axis_relative_strength import (  # noqa
@@ -815,6 +816,31 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
             print(f"  [post_attack] 無資料")
     except Exception as e:
         print(f"  [post_attack] 失敗: {e}")
+
+    # ── uniform_ma_above：均線全順向 + 站 MA5 之上 ───────────────────────────
+    print(f"  [uniform_ma_above] 掃描均線全順向 + 站 MA5 (sector_all)...")
+    results['uniform_ma_above'] = pd.DataFrame()
+    try:
+        from zhuli.entry.small_structure.watchlist import _load_sector_all
+        _sa_universe = _load_sector_all()
+        if ticker_dfs:
+            combined_df3 = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            uma = run_uniform_ma_above(
+                combined_df3,
+                allowed_tickers=_sa_universe,
+                target_date=target_date,
+                ticker_col='ticker',
+            )
+            if uma is not None and not uma.empty:
+                uma['name'] = uma['ticker'].map(lambda t: stock_info.get(t, {}).get('name', ''))
+                results['uniform_ma_above'] = uma
+                print(f"  [uniform_ma_above] 找到 {len(uma)} 檔均線全順向")
+            else:
+                print(f"  [uniform_ma_above] 無命中")
+        else:
+            print(f"  [uniform_ma_above] 無資料")
+    except Exception as e:
+        print(f"  [uniform_ma_above] 失敗: {e}")
 
     # ── ma5_pivot_breakout：攻擊→平台→攻擊型長線多頭 ─────────────────────────
     # 用 sector_week universe 過濾 (跟 small_structure 一致)
