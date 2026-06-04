@@ -406,6 +406,101 @@ WATCH = [
     },
 ]
 
+# ─────────────────────────────────────────────────────────────────────────
+# daily_watchlist JSON 自動 merge (scanner → WATCH)
+# ─────────────────────────────────────────────────────────────────────────
+
+def _merge_scanner_watchlist() -> tuple[int, int, str]:
+    """讀 daily_watchlist JSON、merge 新 ticker 進 WATCH global list.
+
+    - 優先找 today's JSON (docs/主力大課程/daily_watchlist/{today}.json)
+    - 不存在則找最近一天的
+    - 硬編碼 WATCH 已有的 ticker → 跳過 (不覆蓋)
+    - 新 ticker → append 進 WATCH (source='scanner'、priority/note 從 JSON 帶)
+
+    Returns:
+        (added_count, existing_count, loaded_date)
+    """
+    import json as _json
+    from datetime import date as _date
+
+    global WATCH  # noqa: PLW0603
+
+    watchlist_dir = _REPO / "docs" / "主力大課程" / "daily_watchlist"
+    if not watchlist_dir.exists():
+        return (0, 0, '')
+
+    today_str = _date.today().isoformat()
+
+    # 找目標 JSON: today 優先、否則最新
+    target_json: Path | None = None
+    today_path = watchlist_dir / f"{today_str}.json"
+    if today_path.exists():
+        target_json = today_path
+        loaded_date = today_str
+    else:
+        jsons = sorted(watchlist_dir.glob("*.json"))
+        if jsons:
+            target_json = jsons[-1]
+            loaded_date = target_json.stem
+        else:
+            return (0, 0, '')
+
+    try:
+        payload = _json.loads(target_json.read_text(encoding='utf-8'))
+    except Exception:
+        return (0, 0, loaded_date)
+
+    candidates = payload.get('candidates', [])
+    if not candidates:
+        return (0, 0, loaded_date)
+
+    # 建立現有 WATCH ticker set (hardcoded)
+    existing_tickers: set[str] = set()
+    for item in WATCH:
+        if isinstance(item, dict) and item.get('ticker'):
+            existing_tickers.add(str(item['ticker']))
+        elif isinstance(item, (tuple, list)) and len(item) > 0:
+            existing_tickers.add(str(item[0]))
+
+    added = 0
+    for c in candidates:
+        ticker = str(c.get('ticker', ''))
+        if not ticker or ticker in existing_tickers:
+            continue
+
+        sources = c.get('sources', [])
+        priority = int(c.get('priority', 2))
+        sector = c.get('sector', '')
+        note = c.get('note', '')
+        ref_close = float(c.get('ref_close', 0) or 0)
+        dist = c.get('dist_ma10_pct')
+        name = c.get('name', '')
+        tactic = c.get('tactic', '短打')
+
+        # 組合 note 加上 dist_ma10
+        note_full = note
+        if dist is not None:
+            note_full = f"{note_full} | 距MA10 {dist:+.1f}%".strip(' |')
+
+        WATCH.append({
+            'ticker': ticker,
+            'name': name,
+            'ref_close': ref_close,
+            'stop': None,
+            'tactic': tactic,
+            'priority': priority,
+            'source': f'scanner ({", ".join(sources[:2])})',
+            'sector': sector,
+            'note': f'📊 {note_full}' if note_full else f'📊 scanner 命中 ({loaded_date})',
+        })
+        existing_tickers.add(ticker)
+        added += 1
+
+    existing_count = len(existing_tickers) - added
+    return (added, existing_count, loaded_date)
+
+
 # 老師 6/2 明示族群框架 (大方向、scanner 命中後加分):
 TEACHER_SECTORS_20260602 = {
     'IC 通路': '⭐⭐ 6/2 主流 (3702 大聯大 / 3036 文曄)',
@@ -3485,6 +3580,17 @@ def main():
                 or (isinstance(it, tuple))]  # tuple 格式向後相容、不過濾
         if not HELD:
             print(f"[warn] --strategy {args.strategy!r} 過濾後 HELD 為空", flush=True)
+
+    # ── daily_watchlist JSON → WATCH merge (預設啟用) ──────────────────────
+    _wl_added, _wl_existing, _wl_date = _merge_scanner_watchlist()
+    if _wl_date:
+        print(
+            f"📂 載入 watchlist {_wl_date}: 新增 {_wl_added} 檔 "
+            f"(existing {_wl_existing} 檔保留)",
+            flush=True,
+        )
+    else:
+        print("📂 daily_watchlist 目錄不存在或無 JSON、跳過 merge", flush=True)
 
     # Demo 模式: 不連 Fubon、跑 mock scenarios
     if args.demo:
