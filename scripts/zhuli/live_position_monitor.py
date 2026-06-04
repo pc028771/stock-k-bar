@@ -1486,22 +1486,19 @@ def r_change_pct(chg: float) -> Text:
 
 # 持倉表 (Phase 2 t_h)
 COLS_HELD_P2 = [
-    ("策略",      10, "left",  True),
-    ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
     ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
     ("P&L",       20, "right", True),
     ("距停",       8, "right", True),
-    ("出場提醒",  22, "left",  True),
     ("狀",         3, "left",  True),
+    ("Trigger",   48, "left",  True),
 ]
 
 # 已持倉開盤健康度 (Phase 1 t_held)
 COLS_HELD_P1 = [
     ("Lv",         4, "left",  True),
-    ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
     ("開→現 (%)", 18, "left",  True),
@@ -1509,7 +1506,8 @@ COLS_HELD_P1 = [
     ("入",         8, "right", True),
     ("P&L",       20, "right", True),
     ("停",         8, "right", True),
-    ("開盤評語",  30, "left",  True),
+    ("開盤評語",  28, "left",  True),
+    ("Trigger",   48, "left",  True),
 ]
 
 # WATCH confirmed/watching: 同 HELD 風格、更豐富資訊
@@ -1526,6 +1524,7 @@ COLS_WATCH_CONFIRMED = [
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
     ("族群",      14, "left",  True),
+    ("Trigger",   40, "left",  True),
 ]
 
 COLS_WATCH_WATCHING = [
@@ -1538,6 +1537,7 @@ COLS_WATCH_WATCHING = [
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
     ("族群",      14, "left",  True),
+    ("Trigger",   40, "left",  True),
 ]
 
 # Phase 2 watchlist (非 status mode)
@@ -1552,6 +1552,7 @@ COLS_WATCH_P2 = [
     ("距停",       8, "right", True),
     ("族群",      16, "left",  True),
     ("狀",         5, "left",  True),
+    ("Trigger",   40, "left",  True),
 ]
 
 
@@ -1582,6 +1583,43 @@ def _render_subrow(trig_key: str, trig_reason: str, ticker: str,
     from rich.padding import Padding
     txt = r_trigger_subrow(trig_key, trig_reason, ticker=ticker, now=now)
     return Padding(txt, (0, 0, 0, 4))
+
+
+def _mk_trigger_cell(trig_key: str, trig_reason: str,
+                     exit_alert: str | None = None) -> Text:
+    """Trigger 末欄 Text (單行、含出場提醒 + TRIGGER_DISPLAY + reason)。
+
+    組成優先順序:
+      1. 若有出場提醒 → 先顯示 (紅色強調)
+      2. TRIGGER_DISPLAY[trig_key]
+      3. trig_reason (dim)
+    若 trig_key 為 'none'/None 且無出場提醒 → dim '-'
+    """
+    t = Text()
+    has_exit = bool(exit_alert)
+    has_trig = trig_key and trig_key not in ('none', None)
+
+    if not has_exit and not has_trig:
+        t.append("-", style="dim")
+        return t
+
+    if has_exit:
+        t.append(exit_alert, style="bold red")  # type: ignore[arg-type]
+        if has_trig or trig_reason:
+            t.append(" | ", style="dim")
+
+    if has_trig:
+        disp = TRIGGER_DISPLAY.get(trig_key, trig_key)
+        t.append(disp)
+    elif not has_exit:
+        t.append("-", style="dim")
+
+    if trig_reason:
+        if has_exit or has_trig:
+            t.append(" | ", style="dim")
+        t.append(trig_reason, style="dim")
+
+    return t
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1955,20 +1993,17 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
 
     # 已持倉開盤健康度 — per-ticker Group (固定 widths)
     if held:
-        hparts: list = [Text("📊 已持倉開盤健康度", style="bold")]
         sorted_held = sort_items(held, sort_mode, live_data)
-        for h_idx, item in enumerate(sorted_held):
+        t_held = _mk_aligned_table(COLS_HELD_P1, show_header=True)
+        for item in sorted_held:
             tk     = item['ticker']
             name   = item['name']
             entry  = item.get('cost', 0)
             shares = item.get('shares', 0)
             stop   = item.get('stop', 0)
-            pri    = item.get('priority', 2)
             d      = live_data.get(tk, {})
             trig_key    = d.get('trigger', 'none')
             trig_reason = d.get('trigger_reason', '')
-            show_hdr = (h_idx == 0)
-            mini = _mk_aligned_table(COLS_HELD_P1, show_hdr)
             try:
                 snap = client.get_realtime_snapshot(tk) or {}
                 o    = float(snap.get('open') or 0)
@@ -1992,23 +2027,19 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 open_to_now = Text(f"{o:.1f}→{c:.1f}")
                 open_to_now.append_text(fmt_open_to_now_pct(o, c))
-                mini.add_row(
-                    level, stars(pri), tk, name,
+                t_held.add_row(
+                    level, tk, name,
                     open_to_now,
                     fmt_vol_ratio(vol_ratio),
                     f"{entry:.1f}",
                     r_pnl(pnl, pnl_pct),
                     f"{stop}",
                     opening_comment,
+                    _mk_trigger_cell(trig_key, trig_reason),
                 )
-                hparts.append(mini)
-                hparts.append(_render_subrow(trig_key, trig_reason, ticker=tk))
             except Exception as e:
-                mini.add_row("?", "", tk, name, "err", "", "", Text(str(e), style="red"), "", "")
-                hparts.append(mini)
-                from rich.padding import Padding
-                hparts.append(Padding(Text("└ ⚠️ 錯誤", style="red dim"), (0, 0, 0, 4)))
-        renderables.append(Group(*hparts))
+                t_held.add_row("?", tk, name, "err", "", "", Text(str(e), style="red"), "", "", "")
+        renderables.append(Group(Text("📊 已持倉開盤健康度", style="bold"), t_held))
 
     # 待進場主候選
     if plan:
@@ -2319,9 +2350,9 @@ def render_watch_sectioned(
     watching_total = len(watching)
 
     if confirmed:
-        # confirmed: per-ticker Group (固定 widths、同 HELD 風格)
-        cparts: list = [Text("🎯 WATCH 可進場 (confirmed)", style="bold green")]
-        for c_idx, (item, d) in enumerate(confirmed):
+        # confirmed: 單一 Table、所有 row 共用 COLS_WATCH_CONFIRMED
+        t_confirmed = _mk_aligned_table(COLS_WATCH_CONFIRMED, show_header=True)
+        for item, d in confirmed:
             tk = item['ticker']
             pri = item.get('priority', 1)
             tactic = item.get('tactic', '短打')
@@ -2337,9 +2368,7 @@ def render_watch_sectioned(
                 open_cell = Text(f"{c:.1f}")
             else:
                 open_cell = Text("—", style="dim")
-            show_hdr = (c_idx == 0)
-            mini = _mk_aligned_table(COLS_WATCH_CONFIRMED, show_hdr)
-            mini.add_row(
+            t_confirmed.add_row(
                 Text(tactic, style="dim"),
                 stars(pri), tk, item['name'],
                 open_cell,
@@ -2347,10 +2376,9 @@ def render_watch_sectioned(
                 r_dist_ma10(c, tk),
                 r_dist_ref(c, ref),
                 Text(item.get('sector', '?'), style="dim"),
+                _mk_trigger_cell(trig, reason),
             )
-            cparts.append(mini)
-            cparts.append(_render_subrow(trig, reason, ticker=tk))
-        out.append(Group(*cparts))
+        out.append(Group(Text("🎯 WATCH 可進場 (confirmed)", style="bold green"), t_confirmed))
 
     if watching:
         # 依 source 關鍵字分類
@@ -2378,9 +2406,9 @@ def render_watch_sectioned(
             else:
                 shown = items
                 title = f"{cat} ({cat_total} 檔)"
-            # watching: per-ticker Group (固定 widths、同 HELD 風格)
-            wparts: list = [Text(title, style="bold")]
-            for w_idx, (item, d) in enumerate(shown):
+            # watching: 單一 Table per cat、所有 row 共用 COLS_WATCH_WATCHING
+            t_watching = _mk_aligned_table(COLS_WATCH_WATCHING, show_header=True)
+            for item, d in shown:
                 tk = item['ticker']
                 pri = item.get('priority', 1)
                 tactic = item.get('tactic', '短打')
@@ -2396,9 +2424,7 @@ def render_watch_sectioned(
                     open_cell = Text(f"{c:.1f}")
                 else:
                     open_cell = Text("—", style="dim")
-                show_hdr = (w_idx == 0)
-                mini = _mk_aligned_table(COLS_WATCH_WATCHING, show_hdr)
-                mini.add_row(
+                t_watching.add_row(
                     Text(tactic, style="dim"),
                     stars(pri), tk, item['name'],
                     open_cell,
@@ -2406,10 +2432,9 @@ def render_watch_sectioned(
                     r_dist_ma10(c, tk),
                     r_dist_ref(c, ref),
                     Text(item.get('sector', '?'), style="dim"),
+                    _mk_trigger_cell(trig, reason),
                 )
-                wparts.append(mini)
-                wparts.append(_render_subrow(trig, reason, ticker=tk))
-            out.append(Group(*wparts))
+            out.append(Group(Text(title, style="bold"), t_watching))
         if limit > 0:
             out.append(Text(
                 f"(按 0 = 全顯所有檔、+/- 調 limit、目前 limit={limit}/分類)",
@@ -2491,36 +2516,23 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
     if not held_enriched:
         renderables.append(Text("未進場、無持倉監控", style="dim"))
     else:
-        # 持倉表: per-ticker Group(固定 widths mini-table + Padding(Text))
-        # 所有 mini-tables 共用 COLS_HELD_P2 widths → 視覺上對齊
-        # subrow 是獨立 Text、用 Padding 縮排、不必對齊欄
+        # 持倉表: 單一 Table、所有 row 共用 COLS_HELD_P2、Rich 自動對齊
         _now_render = datetime.now()
-        held_parts: list = [Text("📊 持倉", style="bold")]
+        t_held_p2 = _mk_aligned_table(COLS_HELD_P2, show_header=True)
         sorted_held = sort_items(held_enriched, sort_mode, live_data)
-        for idx, item in enumerate(sorted_held):
+        for item in sorted_held:
             tk     = item['ticker']
             name   = item['name']
             entry  = item['cost']
             stop   = item['stop']
-            tactic = item.get('tactic', '—')
-            pri    = item.get('priority', 2)
-            sector = item.get('sector', '?')
             d = live_data.get(tk, {})
-            show_hdr = (idx == 0)
-
-            mini = _mk_aligned_table(COLS_HELD_P2, show_hdr)
 
             if 'error' in d:
-                _smode_err = get_strategy_mode(item)
-                mini.add_row(
-                    Text(STRATEGY_CHIP.get(_smode_err, _smode_err), style='dim'),
-                    stars(pri), tk, name,
+                t_held_p2.add_row(
+                    tk, name,
                     Text(f"err {d['error']}", style="red"),
-                    "", "", "", "", "?")
-                held_parts.append(mini)
-                from rich.padding import Padding
-                held_parts.append(Padding(
-                    Text("└ ⚠️ 無法取得資料", style="dim"), (0, 0, 0, 4)))
+                    "", "", "", "?",
+                    Text("└ ⚠️ 無法取得資料", style="dim"))
                 continue
 
             c        = d.get('c', entry)
@@ -2560,23 +2572,16 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 open_cell = Text(f"{o:.1f}→{c:.1f}") if o else Text(f"{c:.1f}")
                 if o:
                     open_cell.append_text(fmt_open_to_now_pct(o, c))
-            _smode = get_strategy_mode(item)
-            chip_text  = Text(STRATEGY_CHIP.get(_smode, _smode),
-                              style=STRATEGY_EXIT_STYLE.get(_smode, 'dim'))
-            exit_text  = r_strategy_chip(item, _now_render)
-            mini.add_row(
-                chip_text, stars(pri), tk, name,
+            t_held_p2.add_row(
+                tk, name,
                 open_cell,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
-                exit_text,
                 stop_tag,
+                _mk_trigger_cell(trig_key, trig_reason, exit_alert_msg),
             )
-            held_parts.append(mini)
-            held_parts.append(_render_subrow(trig_key, trig_reason,
-                                             ticker=tk, now=_now_render))
-        renderables.append(Group(*held_parts))
+        renderables.append(Group(Text("📊 持倉", style="bold"), t_held_p2))
 
     today = total_pnl + REALIZED
     summary = Text()
@@ -2633,12 +2638,10 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
         if sort_mode == 'status':
             renderables.extend(render_watch_sectioned(watch_enriched, live_data, sort_mode))
         else:
-            # Watchlist: per-ticker Group (固定 widths)
-            wparts: list = [Text(
-                f"Watchlist (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})",
-                style="dim")]
+            # Watchlist: 單一 Table、所有 row 共用 COLS_WATCH_P2
+            t_watch_p2 = _mk_aligned_table(COLS_WATCH_P2, show_header=True)
             sorted_watch = sort_items(watch_enriched, sort_mode, live_data)
-            for w_idx, item in enumerate(sorted_watch):
+            for item in sorted_watch:
                 tk     = item['ticker']
                 name   = item['name']
                 ref    = item.get('ref_close') or 0
@@ -2657,9 +2660,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 snap_w = client.get_realtime_snapshot(tk) or {}
                 vol_lots = snap_w.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
-                show_hdr = (w_idx == 0)
-                mini = _mk_aligned_table(COLS_WATCH_P2, show_hdr)
-                mini.add_row(
+                t_watch_p2.add_row(
                     stars(pri), tactic, tk, name,
                     f"{c:.1f}" if c else "—",
                     r_change_pct(chg),
@@ -2667,10 +2668,11 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     r_dist(dist),
                     sector,
                     wall_tag,
+                    _mk_trigger_cell(trig_key, trig_reason),
                 )
-                wparts.append(mini)
-                wparts.append(_render_subrow(trig_key, trig_reason, ticker=tk))
-            renderables.append(Group(*wparts))
+            renderables.append(Group(
+                Text(f"Watchlist (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})", style="dim"),
+                t_watch_p2))
 
     panel = Panel(
         Group(*renderables),
