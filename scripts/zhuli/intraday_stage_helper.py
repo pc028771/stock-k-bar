@@ -50,6 +50,23 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# ── Phase 1 出場 Detector 匯入 (lazy, 避免 import error 影響啟動) ──────────────
+try:
+    from scripts.zhuli.exit.detectors import (
+        check_umbrella_exit,
+        check_high_long_black,
+        check_profit_milestone,
+        check_gap_down_emergency,
+    )
+    _EXIT_DETECTORS_AVAILABLE = True
+except ImportError as _e:
+    _EXIT_DETECTORS_AVAILABLE = False
+    # 提供 stub functions 以避免 NameError
+    def check_umbrella_exit(*a, **kw):   return {"triggered": False, "reason": "detector 未載入"}
+    def check_high_long_black(*a, **kw): return {"triggered": False, "reason": "detector 未載入"}
+    def check_profit_milestone(*a, **kw):return {"triggered": False, "reason": "detector 未載入"}
+    def check_gap_down_emergency(*a, **kw): return {"triggered": False, "reason": "detector 未載入"}
+
 _DB = Path.home() / ".four_seasons" / "data.sqlite"
 
 logging.basicConfig(
@@ -86,6 +103,25 @@ TRIGGER_NAME_MAP: dict[str, str] = {
     "尾盤_confirmed": "Closing_confirmed",  # 3-4/5 最佳進場
     "尾盤_過熱":     "Closing_overheated",  # 5/5 Win 40% 過熱、不該追
     "尾盤_skip":     "Closing_skip",
+    # ── Phase 1 出場 Trigger (新增) ──
+    "掀傘":          "Open_umbrella",       # 🌂 主力收手、主動全出
+    "高檔長黑":      "High_long_black",     # 🦘 高檔攻擊結束
+    "隔日急殺":      "Gap_down_emergency",  # 📉 開盤 -5% 立即出
+    "隔日急殺_警示": "Gap_down_warning",    # ⚠️ 開盤 -3~-5% 警示
+    "分批停利_10%":  "Profit_milestone_10", # 💰 +10% 鎖 1/3
+    "分批停利_20%":  "Profit_milestone_20", # 💰 +20% 再鎖 1/3
+    "分批停利_30%":  "Profit_milestone_30", # 💰 +30% 守剩 1/3
+}
+
+# 出場 Trigger 顯示說明
+EXIT_TRIGGER_DISPLAY: dict[str, str] = {
+    "掀傘":          "🌂 掀傘出場 (主力收手)",
+    "高檔長黑":      "🦘 高檔長黑 K (攻擊結束)",
+    "隔日急殺":      "📉 隔日急殺 立即出",
+    "隔日急殺_警示": "⚠️ 隔日跳空警示",
+    "分批停利_10%":  "💰 +10% 鎖 1/3",
+    "分批停利_20%":  "💰 +20% 再鎖 1/3",
+    "分批停利_30%":  "💰 +30% 守剩 1/3",
 }
 # 反向 alias: 舊名 → 新名 (向後相容讀取)
 TRIGGER_ALIAS_MAP: dict[str, str] = {v: k for k, v in TRIGGER_NAME_MAP.items()}
@@ -1381,6 +1417,133 @@ def _get_prev_levels(ticker: str, db: Path) -> dict:
     }
 
 
+# ── Phase 1 出場 Detector 執行函式 ─────────────────────────────────────────────
+
+# 各 ticker 的分批停利里程碑 (跨循環共用)
+_profit_milestones_state: dict[str, set] = {}
+
+
+def _run_exit_detectors(
+    ticker: str,
+    name: str,
+    k5: pd.DataFrame,
+    entry_price: float,
+    prev_close: float,
+    now: datetime,
+    cooldown: dict[str, datetime],
+    notify: bool,
+    log_fn,
+    cooldown_min: int = 30,
+) -> None:
+    """對 HELD 持倉跑 4 個出場 detector，觸發時通知。
+
+    出場優先級 (高於 TC):
+      掀傘 / 高檔長黑 / 隔日急殺 → 立即出場訊號 (MAC 通知 + Sosumi 音效)
+      分批停利 → 提示 (MAC 通知、不阻斷)
+    """
+    global _profit_milestones_state
+
+    if ticker not in _profit_milestones_state:
+        _profit_milestones_state[ticker] = set()
+
+    t = now.time()
+    t_str = now.strftime("%H:%M")
+    current_price = float(k5["close"].iloc[-1])
+
+    # ── Detector 1: 掀傘 ──────────────────────────────────────────────────────
+    cd_key_umb = f"{ticker}_掀傘"
+    if now > cooldown.get(cd_key_umb, datetime.min):
+        r = check_umbrella_exit(k5, entry_price)
+        if r.get("triggered"):
+            cooldown[cd_key_umb] = now + timedelta(minutes=cooldown_min)
+            reason = r.get("reason", "")
+            log_fn(f"🌂 掀傘 {ticker} {name}: {reason}")
+            if notify:
+                notify_mac(
+                    f"🌂 {ticker} {name} 掀傘出場",
+                    f"現 ${current_price:.2f} | {reason[:60]}",
+                    sound="Sosumi",
+                )
+
+    # ── Detector 2: 高檔長黑 K ────────────────────────────────────────────────
+    # 高檔長黑需要至少 7 根 5K (proxy 版)；
+    # 為讓 5K DataFrame 能跑，轉成「日線視角」的近似判斷:
+    #   body > 4%、連 2 創新高後大黑 K
+    # 注: 完整版在 check_high_long_black (日線)，5K 版用簡化邏輯
+    cd_key_hlb = f"{ticker}_高檔長黑"
+    if len(k5) >= 7 and now > cooldown.get(cd_key_hlb, datetime.min):
+        last = k5.iloc[-1]
+        prev_bar = k5.iloc[-2]
+        body_pct = (float(last["open"]) - float(last["close"])) / float(last["open"]) if float(last["open"]) > 0 else 0
+        is_long_black_5k = float(last["close"]) < float(last["open"]) and body_pct >= 0.03
+        # 吃下前 5 根
+        prior_5_min_close = float(k5.iloc[-7:-2]["close"].min()) if len(k5) >= 7 else 0
+        m3_5k = prior_5_min_close > 0 and float(last["close"]) < prior_5_min_close
+        # 前 2 根持續創高後今日長黑包覆
+        prev2_high = float(k5.iloc[-3]["high"]) if len(k5) >= 3 else 0
+        m2_5k = float(prev_bar["close"]) > float(prev_bar["open"]) and float(last["open"]) >= float(prev_bar["high"]) and float(last["close"]) <= float(prev_bar["low"])
+
+        if is_long_black_5k and (m2_5k or m3_5k):
+            cooldown[cd_key_hlb] = now + timedelta(minutes=cooldown_min)
+            reason = (
+                f"5K 高檔長黑 (實體{body_pct*100:.1f}%)"
+                + (" + M2包覆" if m2_5k else "")
+                + (" + M3吃前5根" if m3_5k else "")
+            )
+            log_fn(f"🦘 高檔長黑 {ticker} {name}: {reason}")
+            if notify:
+                notify_mac(
+                    f"🦘 {ticker} {name} 高檔長黑",
+                    f"現 ${current_price:.2f} | {reason[:60]}",
+                    sound="Sosumi",
+                )
+
+    # ── Detector 3: 分批停利里程碑 ────────────────────────────────────────────
+    milestones = _profit_milestones_state[ticker]
+    r = check_profit_milestone(current_price, entry_price, milestones)
+    if r.get("triggered"):
+        key = r.get("milestone_key")
+        milestones.add(key)
+        action = r.get("action", key)
+        reason = r.get("reason", "")
+        log_fn(f"{action} {ticker} {name}: {reason}")
+        if notify:
+            notify_mac(
+                f"{action} {ticker} {name}",
+                f"現 ${current_price:.2f} | {reason[:60]}",
+                sound="Glass",
+            )
+
+    # ── Detector 4: 隔日急殺 (9:00-9:10 開盤評估) ─────────────────────────────
+    if t_str <= "09:10" and prev_close > 0:
+        cd_key_gap = f"{ticker}_隔日急殺"
+        if now > cooldown.get(cd_key_gap, datetime.min):
+            open_price = float(k5["open"].iloc[0])
+            r = check_gap_down_emergency(open_price, prev_close)
+            if r.get("triggered"):
+                cooldown[cd_key_gap] = now + timedelta(minutes=cooldown_min * 24)  # 當日只通知 1 次
+                level = r.get("level", "normal")
+                gap_pct = r.get("gap_pct", 0) * 100
+                reason = r.get("reason", "")
+                action = r.get("action", "")
+                if level == "emergency":
+                    log_fn(f"📉 急殺 {ticker} {name}: {reason}")
+                    if notify:
+                        notify_mac(
+                            f"📉 {ticker} {name} 隔日急殺 {gap_pct:.1f}%",
+                            f"開盤 ${open_price:.2f} | {action}",
+                            sound="Sosumi",
+                        )
+                else:  # warning
+                    log_fn(f"⚠️ 跳空警示 {ticker} {name}: {reason}")
+                    if notify:
+                        notify_mac(
+                            f"⚠️ {ticker} {name} 跳空 {gap_pct:.1f}%",
+                            f"開盤 ${open_price:.2f} | {action}",
+                            sound="Basso",
+                        )
+
+
 def run_monitor(
     tickers: list[tuple[str, str, str]],  # (ticker, name, tactic)
     interval: int,
@@ -1480,6 +1643,21 @@ def run_monitor(
                             notify_mac(f"🚨 {ticker} {name} 破底 結構失敗", msg, sound="Sosumi")
                 elif not result.get("triggered"):
                     _log(f"  [{ticker}] cascade: {detector} — {reason[:60]}")
+
+                # ── Phase 1 出場 Detector (HELD 持倉額外評估) ─────────────────
+                # 掀傘 / 高檔長黑 / 分批停利 / 急殺 — 只對 HELD 持倉跑
+                if category == "HELD" and _EXIT_DETECTORS_AVAILABLE:
+                    # 找對應的 HELD 進場價
+                    entry_price_map = {h[0]: h[2] for h in HELD}
+                    entry_price = entry_price_map.get(ticker, 0.0)
+                    if entry_price > 0:
+                        _run_exit_detectors(
+                            ticker=ticker, name=name, k5=k5,
+                            entry_price=entry_price,
+                            prev_close=prev_close,
+                            now=now, cooldown=cooldown,
+                            notify=notify, log_fn=_log,
+                        )
 
             except Exception as e:
                 _log(f"[ERROR] {ticker}: {e}")
