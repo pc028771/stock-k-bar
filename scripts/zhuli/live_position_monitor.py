@@ -1199,16 +1199,18 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
                      now: datetime | None = None) -> Text:
     """第 2 行 trigger 顯示文字 (固定佔位、永遠回傳非空 Text)。
 
-    排版規則 (任務 2: 尾盤建議放 confirmed 之前):
-      無 trigger       → "└ ⚪ 無訊號"
-      有 trigger、非尾盤 → "└ ⏱️ 等 13:00 Win 80% (現 [trigger] Win XX%)"
-      尾盤時段內有 trigger → "└ 🟢 ⭐ 最佳進場 Win 80% (現 [closing_trigger] N/5)"
-      Closing_confirmed → "└ 🟢 ⭐ Closing 5/5 Win 80% (最佳時段)"
-      Closing_watch     → "└ ⏱️ 尾盤 3-4/5 Win 80% (觀察、等確認)"
-      Closing_skip      → "└ 🔴 尾盤 <3/5 (不進)"
-      TC                → "└ 🔴 TC 結構壞、等修復"
+    亮度規則 (依「該行動」明確度):
+      bold yellow — 有 confirmed trigger、非尾盤 → 強調「等 13:00」
+      bold green  — 尾盤時段 + Closing confirmed → 強調「最佳進場」
+      green       — 尾盤時段 + Closing watch (3-4/5) → 普通綠
+      yellow      — 有 watch/signal trigger (T*_watch, Ch5-3_signal/pullback)
+      red         — TC 結構壞、等修復
+      dim         — 無訊號 / Closing_skip (純提示、不推銷 Win 80%)
 
-    用意: user 一眼先看「等」、不被「confirmed」誘惑進場。
+    核心原則:
+      - 「Win 80%」只在「有 confirmed + 需等到 13:00」場景出現
+      - 無訊號 ≠ 該等 13:00 (純 dim 提示)
+      - 強亮度 ∝ 該行動的明確度
     """
     now = now or datetime.now()
     from datetime import time as _time
@@ -1216,96 +1218,90 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
     is_closing = _time(13, 0) <= now.time() < _time(13, 25)
 
     prefix = Text("└ ", style="dim")
+    age_text, age_style = fmt_trigger_age(ticker, trig_key, now) if trig_key else ('', 'dim')
 
-    # ── Closing 相關 trigger (直接顯示、不加「等」前置) ─────────────────
+    # ── 1. Closing_confirmed (尾盤 5/5) → bold green ⭐ 最佳 ─────────────
     if trig_key == 'Closing_confirmed':
         t = Text()
         t.append_text(prefix)
-        t.append(f"🟢 ⭐ Closing 5/5 Win {wd['closing']}% (最佳時段)", style="bold magenta")
-        age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
+        t.append(f"🟢 ⭐ Closing 5/5 Win {wd['closing']}% (最佳時段)", style="bold green")
         if age_text:
             t.append(age_text, style=age_style)
         return t
 
+    # ── 2. Closing_watch (尾盤 3-4/5) → green 普通強調 ───────────────────
     if trig_key == 'Closing_watch':
         t = Text()
         t.append_text(prefix)
-        t.append(f"⏱️ 尾盤 3-4/5 Win {wd['closing']}% (觀察、等確認)", style="yellow")
-        age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
+        t.append(f"🟡 Closing 3-4/5 watch Win {wd['closing']}% (觀察)", style="green")
         if age_text:
             t.append(age_text, style=age_style)
         return t
 
+    # ── 3. Closing_skip → dim、純提示 ─────────────────────────────────────
     if trig_key == 'Closing_skip':
         t = Text()
         t.append_text(prefix)
-        t.append("🔴 尾盤 <3/5 (不進)", style="red dim")
+        t.append("⚪ 尾盤 <3/5 不進", style="dim")
         return t
 
+    # ── 4. TC 結構壞 → red ───────────────────────────────────────────────
     if trig_key == 'TC':
         t = Text()
         t.append_text(prefix)
         t.append("🔴 TC 結構壞、等修復", style="red")
         return t
 
-    # ── 無訊號 ────────────────────────────────────────────────────────────
+    # ── 5. 無訊號 → dim、不推銷 Win 80% ──────────────────────────────────
     if not trig_key or trig_key in ('none', None):
         t = Text()
         t.append_text(prefix)
         if is_closing:
-            t.append(f"⏱️ 尾盤時段 Win {wd['closing']}% (無訊號)", style="dim")
+            t.append("⚪ 尾盤無訊號、不進", style="dim")
         else:
-            t.append(f"⏱️ 等 13:00 Win {wd['closing']}% (現 ⚪ 無訊號)", style="dim")
+            t.append("⚪ 無訊號、待 13:00 評估", style="dim")
         return t
 
-    # ── 有 trigger (Ch5-3 / T1 / T2 / T1_watch / T2_watch …) ────────────
-    # 取 trigger label (短版)
+    # ── 6. 有 confirmed trigger (T1/T2/Ch5-3) ────────────────────────────
     label = TRIGGER_DISPLAY.get(trig_key, trig_key)
-    age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
 
     if trig_key in ('T1', 'T2', 'Ch5-3'):
-        # 進場類 trigger
         if is_closing:
-            # 尾盤: 強調最佳時段
+            # 尾盤 + confirmed trigger → bold green ⭐ 最佳進場
             t = Text()
             t.append_text(prefix)
-            t.append(f"🟢 ⭐ 最佳進場 Win {wd['closing']}%", style="bold magenta")
+            t.append(f"🟢 ⭐ 最佳進場 Win {wd['closing']}%", style="bold green")
             t.append(f" (現 {label}", style="dim")
             if age_text:
                 t.append(age_text, style=age_style)
             t.append(")", style="dim")
             return t
         else:
-            # 非尾盤: 先顯示「等 13:00」、再顯示現在的 trigger
-            # 區分目前時段 win rate
+            # 非尾盤 + confirmed trigger → bold yellow 強調「等 13:00」
             t_now = now.time()
             if _time(9, 15) <= t_now < _time(9, 45):
-                cur_win = wd['pump_dump']
-                cur_label = f"Win {cur_win}% ⚠️ 拉高出貨"
-            elif _time(9, 45) <= t_now < _time(13, 0):
-                cur_win = wd['healthy']
-                cur_label = f"Win {cur_win}%"
+                cur_label = f"Win {wd['pump_dump']}% ⚠️ 拉高出貨"
             else:
-                cur_win = wd['healthy']
-                cur_label = f"Win {cur_win}%"
+                cur_label = f"Win {wd['healthy']}%"
             t = Text()
             t.append_text(prefix)
-            t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="yellow")
+            t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="bold yellow")
             t.append(f" (現 {label} {cur_label}", style="dim")
             if age_text:
                 t.append(age_text, style=age_style)
             t.append(")", style="dim")
             return t
-    else:
-        # watch 類 / 其他 (T1_watch, T2_watch, Ch5-3_signal, Ch5-3_pullback)
-        t = Text()
-        t.append_text(prefix)
-        t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="dim")
-        t.append(f" (現 {label}", style="dim")
-        if age_text:
-            t.append(age_text, style=age_style)
-        t.append(")", style="dim")
-        return t
+
+    # ── 7. watch 類 (T1_watch, T2_watch, Ch5-3_signal, Ch5-3_pullback) ──
+    #     普通 yellow、不強調「等 80%」(因為尚未 confirm)
+    #     label 已含 emoji (例: "🟡 T2 watch (等 9:45+)")、不再重複加
+    t = Text()
+    t.append_text(prefix)
+    t.append(label, style="yellow")
+    t.append(" (等確認後再評估)", style="dim")
+    if age_text:
+        t.append(age_text, style=age_style)
+    return t
 
 
 def r_change_pct(chg: float) -> Text:
