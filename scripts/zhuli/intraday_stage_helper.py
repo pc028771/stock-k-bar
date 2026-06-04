@@ -1016,8 +1016,8 @@ class StageTrigger:
                 'scores': {
                     'structure_hold':    bool,   # 1. close > MA10
                     'kill_test_passed':  bool,   # 2. 12:00 後有觸低 (殺盤考驗過)
-                    'rebound_confirmed': bool,   # 3. 13:00 後 2 紅K 或站 MA5
-                    'volume_calm':       bool,   # 4. 量縮 (非爆量)
+                    'rebound_confirmed': bool,   # 3. 13:00 後連續 2 根紅K (單根/站MA5 已移除)
+                    'volume_calm':       bool,   # 4. 尾盤 per-bar 量 < 早盤 per-bar 量 × 1.2
                     'not_chasing_high':  bool,   # 5. 距日高 < +1.5%
                 },
                 'pass_count':  int,  # 0-5
@@ -1085,35 +1085,40 @@ class StageTrigger:
         kill_by_ma5 = (ma5 > 0 and after_12_low < ma5 * 0.99)
         cond2 = kill_by_morning_high or kill_by_ma5
 
-        # 4. 條件 3: 反彈確認
-        #    - 13:00 後 5K 連續 2 根紅K  OR  13:00 後 5K 收盤 > MA5
+        # 4. 條件 3 / 4 — 先切出 13:00 後 5K
         after_13_k5 = k5[k5.index.strftime("%H:%M") >= "13:00"] if hasattr(k5.index, "strftime") else k5.tail(max(1, len(k5) // 6))
 
+        # ── 資料不足保護：< 2 根 5K 不能判斷 ──────────────────────────────────────
+        # Bug fix: 13:00 剛開始只有 1 根 5K 時、cond3/cond4 幾乎永遠 True
+        # 必須等至少 2 根才有意義的量/反彈比較
+        if len(after_13_k5) < 2:
+            return {
+                **base,
+                "level": "watch",
+                "reason": f"13:00 後僅 {len(after_13_k5)} 根 5K、資料不足、暫 watch",
+                "pass_count": 0,
+            }
+
+        # 條件 3: 反彈確認 — 必須連續 2 根紅K
+        # Bug fix: 移除「單根大紅 1.5%+」和「站 MA5」fallback (13:00 第 1 根站 MA5 太容易)
         rebound_2_red = False
         if len(after_13_k5) >= 2:
             last2 = after_13_k5.tail(2)
             rebound_2_red = bool((last2["close"] > last2["open"]).all())
-        elif len(after_13_k5) == 1:
-            # 1 根大紅K (實體 > 1.5% 視為大紅)
-            bar = after_13_k5.iloc[0]
-            body_pct = (float(bar["close"]) - float(bar["open"])) / float(bar["open"]) * 100 if float(bar["open"]) > 0 else 0
-            rebound_2_red = body_pct >= 1.5
+        cond3 = rebound_2_red
 
-        rebound_above_ma5 = (ma5 > 0 and not after_13_k5.empty and float(after_13_k5.iloc[-1]["close"]) > ma5)
-        cond3 = rebound_2_red or rebound_above_ma5
-
-        # 5. 條件 4: 量縮確認 (整理量)
-        #    13:00 後 5K 累積量 < 5日同時段平均 × 1.5
-        #    簡化: 13:00 後量 vs 全日 5K 前段量的均值比較
-        if not after_13_k5.empty:
-            after_13_vol = float(after_13_k5["volume"].sum())
-            # 用全日前段量估算「同時段期望量」
-            all_vol_per_bar_avg = float(k5["volume"].mean()) if not k5.empty else 1
-            n_after_13 = len(after_13_k5)
-            expected_vol = all_vol_per_bar_avg * n_after_13 * 1.5
-            cond4 = after_13_vol < expected_vol
+        # 條件 4: 量縮確認 — per-bar 量比、非累積量
+        # Bug fix: 原「累積量 < 全日均 × 根數 × 1.5」在 13:00 剛開始必 True
+        # 改為「13:00 後 per-bar 平均量 < 早盤 per-bar 平均量 × 1.2」
+        morning_k5 = k5[k5.index.strftime("%H:%M") < "13:00"] if hasattr(k5.index, "strftime") else k5.head(max(1, len(k5) - len(after_13_k5)))
+        n_after_13 = len(after_13_k5)
+        after_13_vol = float(after_13_k5["volume"].sum())
+        afternoon_per_bar = after_13_vol / max(1, n_after_13)
+        if not morning_k5.empty:
+            morning_per_bar = float(morning_k5["volume"].mean())
+            cond4 = afternoon_per_bar < morning_per_bar * 1.2
         else:
-            cond4 = True  # 無資料保守設 True
+            cond4 = True  # 無早盤資料 fallback
 
         # 6. 條件 5: 未追高
         #    當前 close 距日高 < +1.5%

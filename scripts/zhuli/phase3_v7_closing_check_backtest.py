@@ -339,14 +339,17 @@ def scan_closing_candidates(
         entry_price_1300 = float(k5_1300.iloc[-1]["close"])
         entry_time_str = k5_1300.index[-1].strftime("%H:%M")
 
-        # 跑 Closing_check (用截至 13:00 的 5K 資料，模擬時段內評估)
+        # 跑 Closing_check:
+        #   進場價鎖定 13:00 收盤、但評估需截至 13:05 才能有 2 根 after_13_k5
+        #   (修: 原傳 <= "13:00" 只有 1 根、cond3/4 永遠 pass_count=0)
+        k5_1305 = k5_full[k5_full.index.strftime("%H:%M") <= "13:05"]
         closing_r = engine.check_closing_panel(
             ticker=ticker,
-            k5=k5_1300,    # 只傳截至 13:00 的資料
+            k5=k5_1305,    # 傳截至 13:05 的資料 (才有 2 根 after_13_k5)
             ma10=ma10,
             target_date=entry_date,
             db_path=_DB,
-            _now_override="13:00",  # 強制時段觸發
+            _now_override="13:05",  # 強制時段觸發
         )
 
         closing_level = closing_r.get("level", "skip")
@@ -584,9 +587,13 @@ def print_summary(results: dict) -> str:
     cl_st   = calc_stats(results["v7_closing"])
     cf_st   = calc_stats(results["v7_confirmed"])
     lines.append(f"  v5 baseline D (隔日出): 已知 Win ~65%、avg +1.85%")
-    lines.append(f"  v7 baseline_D (13:00):  Win={base_st['win_rate']}%  avg={base_st['avg_ret']:+.2f}%  n={base_st['n']}")
-    lines.append(f"  v7 closing ≥3/5:        Win={cl_st['win_rate']}%  avg={cl_st['avg_ret']:+.2f}%  n={cl_st['n']}")
-    lines.append(f"  v7 confirmed 5/5:       Win={cf_st['win_rate']}%  avg={cf_st['avg_ret']:+.2f}%  n={cf_st['n']}")
+    def _fmt(st: dict) -> str:
+        wr = f"{st['win_rate']:.1f}%" if st['win_rate'] is not None else "—"
+        ar = f"{st['avg_ret']:+.2f}%" if st['avg_ret'] is not None else "—"
+        return f"Win={wr}  avg={ar}  n={st['n']}"
+    lines.append(f"  v7 baseline_D (13:00):  {_fmt(base_st)}")
+    lines.append(f"  v7 closing ≥3/5:        {_fmt(cl_st)}")
+    lines.append(f"  v7 confirmed 5/5:       {_fmt(cf_st)}")
 
     if base_st["n"] and cl_st["n"]:
         win_diff = (cl_st["win_rate"] or 0) - (base_st["win_rate"] or 0)
