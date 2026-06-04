@@ -1487,9 +1487,9 @@ def r_change_pct(chg: float) -> Text:
 # 持倉表 (Phase 2 t_h)
 COLS_HELD_P2 = [
     ("Stock",     14, "left",  True),
-    ("開→現 (%)", 18, "left",  True),
+    ("開→現 (%)", 22, "left",  True),
     ("量比",       8, "left",  True),
-    ("P&L",       20, "right", True),
+    ("P&L",       16, "right", True),
     ("距停",       8, "right", True),
     ("狀",         3, "left",  True),
     ("Trigger",    0, "left",  False),
@@ -1499,10 +1499,10 @@ COLS_HELD_P2 = [
 COLS_HELD_P1 = [
     ("Lv",         4, "left",  True),
     ("Stock",     14, "left",  True),
-    ("開→現 (%)", 18, "left",  True),
+    ("開→現 (%)", 22, "left",  True),
     ("量比",       8, "left",  True),
     ("入",         8, "right", True),
-    ("P&L",       20, "right", True),
+    ("P&L",       16, "right", True),
     ("停",         8, "right", True),
     ("開盤評語",  28, "left",  True),
     ("Trigger",    0, "left",  False),
@@ -1514,9 +1514,9 @@ COLS_HELD_P1 = [
 # - 族群 (sector)
 COLS_WATCH_CONFIRMED = [
     ("策略",       6, "left",  True),
-    ("⭐",         6, "left",  True),
+    ("",           6, "left",  True),
     ("Stock",     14, "left",  True),
-    ("開→現 (%)", 18, "left",  True),
+    ("開→現 (%)", 22, "left",  True),
     ("量比",       8, "left",  True),
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
@@ -1526,9 +1526,9 @@ COLS_WATCH_CONFIRMED = [
 
 COLS_WATCH_WATCHING = [
     ("策略",       6, "left",  True),
-    ("⭐",         6, "left",  True),
+    ("",           6, "left",  True),
     ("Stock",     14, "left",  True),
-    ("開→現 (%)", 18, "left",  True),
+    ("開→現 (%)", 22, "left",  True),
     ("量比",       8, "left",  True),
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
@@ -1538,7 +1538,7 @@ COLS_WATCH_WATCHING = [
 
 # Phase 2 watchlist (非 status mode)
 COLS_WATCH_P2 = [
-    ("⭐",         6, "left",  True),
+    ("",           6, "left",  True),
     ("戰術",       6, "left",  True),
     ("Stock",     14, "left",  True),
     ("現",         8, "right", True),
@@ -2050,7 +2050,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
             expand=True,
         )
         t_plan.add_column("Lv", no_wrap=True)
-        t_plan.add_column("⭐", no_wrap=True)
+        t_plan.add_column("", no_wrap=True)
         t_plan.add_column("Stock", no_wrap=True)
         t_plan.add_column("前→開 (%) →現 (%)", no_wrap=True)
         t_plan.add_column("量比", no_wrap=True)
@@ -2216,7 +2216,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         if confirmed_p1:
             t_wc = Table(title="🎯 WATCH 可進場 (confirmed)",
                          title_style="bold green", box=box.SIMPLE, expand=True)
-            t_wc.add_column("⭐"); t_wc.add_column("Stock")
+            t_wc.add_column(""); t_wc.add_column("Stock")
             t_wc.add_column("現", justify="right")
             t_wc.add_column("Trigger")
             for item, d in confirmed_p1:
@@ -2232,7 +2232,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         if watching_p1:
             t_ww = Table(title="🔍 WATCH 觀察中",
                          title_style="bold", box=box.SIMPLE, expand=True)
-            t_ww.add_column("⭐"); t_ww.add_column("Stock")
+            t_ww.add_column(""); t_ww.add_column("Stock")
             t_ww.add_column("現", justify="right")
             t_ww.add_column("Note")
             for item, d in watching_p1:
