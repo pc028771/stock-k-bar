@@ -306,7 +306,17 @@ def _evaluate_lights(
 ) -> list[Light]:
     """Evaluate all lights against today's row and return active ones.
 
-    Active = trigger_condition evaluates to True (or None/pending → included).
+    Active = trigger_condition evaluates to True.
+
+    Semantic note (2026-06-04):
+      Previously None/pending was also treated as active to handle next_day.*
+      pending semantics. But this caused lights referencing toplevel context
+      fields (attack_cost, defensive_low, merged_high/low) to always fire when
+      those fields were None (not yet populated). Since no current light uses
+      next_day.* in its trigger_condition, None now skips (data-missing
+      semantic). If a future light needs pending semantics, handle it
+      explicitly.
+
     Sorted by severity: critical → warn → info.
 
     Parameters
@@ -338,7 +348,7 @@ def _evaluate_lights(
             notes.append(f"WARN: light '{light_id}' condition error: {exc}")
             continue
 
-        if result is True or result is None:
+        if result is True:
             active.append(light)
 
     # Sort critical → warn → info

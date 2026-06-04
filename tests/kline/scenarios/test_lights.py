@@ -30,9 +30,9 @@ LIGHTS_DIR = Path(__file__).parents[3] / "scripts" / "kline" / "scenarios" / "li
 
 class TestLoadAllLights:
     def test_load_lights_returns_19(self):
-        """T2.3.1a: loading lights dir returns exactly 19 lights (leading_env_reverse removed — 主力大 field)."""
+        """T2.3.1a: loading lights dir returns exactly 24 lights (19 baseline + 5 advanced field lights: lt_attack_cost_breakdown, lt_attack_intent_zone_breakdown, lt_defensive_low_break, lt_merged_doji_high_break, lt_merged_doji_low_break)."""
         lights = load_lights([LIGHTS_DIR])
-        assert len(lights) == 19
+        assert len(lights) == 24
 
     def test_all_lights_have_severity(self):
         """T2.3.1b: every loaded light has a valid severity value."""
@@ -69,7 +69,7 @@ class TestLoadAllLights:
         assert len(lights) == len(set(lights.keys()))
 
     def test_expected_light_ids_present(self):
-        """T2.3.1f: spot-check that all 19 expected light_ids are present (leading_env_reverse removed)."""
+        """T2.3.1f: spot-check that all 24 expected light_ids are present (19 baseline + 5 advanced field lights)."""
         expected_ids = {
             "pressure_meeting_unresolved",
             "weak_bull_trendline_only",
@@ -90,6 +90,13 @@ class TestLoadAllLights:
             "lack_of_power_distinction",
             "new_high_next_day_attack_required",
             "zhongshu_recency_bias",
+            # advanced field lights (toplevel snapshot fields: attack_cost / attack_intent_zone_low /
+            # defensive_low / merged_high / merged_low)
+            "lt_attack_cost_breakdown",
+            "lt_attack_intent_zone_breakdown",
+            "lt_defensive_low_break",
+            "lt_merged_doji_high_break",
+            "lt_merged_doji_low_break",
         }
         lights = load_lights([LIGHTS_DIR])
         assert set(lights.keys()) == expected_ids
@@ -100,10 +107,16 @@ class TestLoadAllLights:
         severity_counts = {"info": 0, "warn": 0, "critical": 0}
         for light in lights.values():
             severity_counts[light.severity] += 1
-        # 2 critical, 8 warn, 9 info (leading_env_reverse was warn, now removed)
-        assert severity_counts["critical"] == 2
-        assert severity_counts["warn"] == 8
-        assert severity_counts["info"] == 9
+        # Baseline 2026-06-04 (lights_fix_batch): 1 critical (top_formation),
+        # 9 warn (manipulator_distribution_warning downgraded from critical),
+        # 9 info.
+        # Advanced field lights add: critical (attack_cost_breakdown,
+        # defensive_low_break) = +2, warn (attack_intent_zone_breakdown,
+        # merged_doji_low_break) = +2, info (merged_doji_high_break) = +1.
+        # Total: 3 critical, 11 warn, 10 info.
+        assert severity_counts["critical"] == 3
+        assert severity_counts["warn"] == 11
+        assert severity_counts["info"] == 10
 
 
 # ---------------------------------------------------------------------------
@@ -207,21 +220,38 @@ class TestTriggerConditionDSL:
         assert result is False
 
     def test_top_formation_critical_triggers(self):
-        """T2.3.2g: top_formation_three_criteria activates with correct inputs."""
+        """T2.3.2g: top_formation_three_criteria activates with correct inputs.
+
+        2026-06-04 audit fix: condition now requires 跌破頸線 proxy
+        (close < prior_low_60 + is_breakdown_pattern_flag=1 + ma60_will_rise=False),
+        aligned with course §17 「跌破頸線促成頭部成型」.
+        """
         lights = load_lights([LIGHTS_DIR])
         light = lights["top_formation_three_criteria"]
         assert light.severity == "critical"
-        # close < prev_high_60, close < prev.close, ma60_will_rise=False
-        row = self._make_row(close=98.0, prev_close=105.0, prev_high_60=115.0)
+        # close < prior_low_60 + breakdown_pattern + ma60 下彎
+        row = self._make_row(
+            close=78.0,
+            prev_close=82.0,
+            prev_high_60=115.0,
+            prior_low_60=80.0,
+            is_breakdown_pattern_flag=1,
+        )
         ctx = self._make_ctx(ma60_will_rise=False)
         result = evaluate(light.trigger_condition, row, ctx)
         assert result is True
 
     def test_manipulator_distribution_critical(self):
-        """T2.3.2h: manipulator_distribution_warning is severity=critical."""
+        """T2.3.2h: manipulator_distribution_warning severity.
+
+        2026-06-04 audit fix: severity downgraded critical → warn because the
+        original condition (single high-zone black K) fired 42.5% of days
+        — too broad for critical level. Course §31 actually requires 高檔長黑
+        (body ≥ 4%) as the trigger.
+        """
         lights = load_lights([LIGHTS_DIR])
         light = lights["manipulator_distribution_warning"]
-        assert light.severity == "critical"
+        assert light.severity == "warn"
 
     def test_new_high_next_day_attack_required_triggers_only_when_new_high(self):
         """T2.3.2i: new_high_next_day_attack_required NOT always-true — only fires when high+close >= prev_high_60.
@@ -385,22 +415,32 @@ class TestAdvisorActiveLights:
         )
 
     def test_critical_lights_fire_on_bearish_conditions(self):
-        """T2.3.3e: top_formation_three_criteria fires when conditions are met."""
+        """T2.3.3e: top_formation_three_criteria fires when conditions are met.
+
+        2026-06-04 audit fix: condition aligned to course §17 「跌破頸線」 — needs
+        close < prior_low_60 + is_breakdown_pattern_flag=1 + ma60 下彎.
+        Build a series with sustained breakdowns (multiple new-low events) so
+        is_in_breakdown_pattern fires.
+        """
         import numpy as np
 
-        # Build a df where today's close < prev.close AND < prev_high_60
-        # Use a declining series for the last few bars
-        n_bars = 100
+        n_bars = 120
         today_date = "2026-06-03"
         dates = pd.bdate_range(end=today_date, periods=n_bars, freq="B")
-        # Rising then sharply declining at the end
-        closes = np.concatenate([
-            np.linspace(80.0, 120.0, n_bars - 5),
-            np.linspace(118.0, 95.0, 5),  # declining last 5 bars
+        # Rise then sustained decline with multiple new lows
+        rise = np.linspace(100.0, 150.0, 40)
+        peak_consol = np.linspace(150.0, 148.0, 20)
+        # Stair-step decline to create ≥ 2 new-low events
+        decline = np.concatenate([
+            np.linspace(148.0, 130.0, 15),
+            np.linspace(132.0, 115.0, 15),
+            np.linspace(117.0, 95.0, 15),
+            np.linspace(95.0, 70.0, 15),
         ])
-        opens = closes * 1.01  # open > close → black K for last bars
-        highs = closes * 1.02
-        lows = closes * 0.98
+        closes = np.concatenate([rise, peak_consol, decline])
+        opens = closes * 1.005
+        highs = closes * 1.01
+        lows = closes * 0.99
         volumes = np.full(n_bars, 10000.0)
         ma60_vals = pd.Series(closes).rolling(60, min_periods=1).mean().values
         ma20_vals = pd.Series(closes).rolling(20, min_periods=1).mean().values
@@ -415,8 +455,6 @@ class TestAdvisorActiveLights:
             "volume": volumes,
             "ma20": ma20_vals,
             "ma60": ma60_vals,
-            "prev_high_60": 125.0,   # above current close
-            "prior_low_60": 70.0,
         })
 
         context_overrides = {

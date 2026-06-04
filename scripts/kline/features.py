@@ -684,4 +684,48 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         d2_red_new_high & d1_harami_in_d2 & d0_gap_down_open
     ).fillna(False)
 
+    # =====================================================================
+    # Lights-fix additions (2026-06-04) — toplevel features for YAML lights
+    # to express course-faithful conditions. No existing column modified.
+    # Course sources noted per feature.
+    # =====================================================================
+
+    # === Short-window prior highs/lows (5/10 day windows) ===
+    # Used by §15 高檔推升, §02 中樞窄幅, §10 上影線, §12 漲停隔日, §16 上升三法.
+    df["prior_high_5"] = g["high"].transform(lambda s: s.shift(1).rolling(5, min_periods=5).max())
+    df["prior_low_5"] = g["low"].transform(lambda s: s.shift(1).rolling(5, min_periods=5).min())
+    df["prior_high_10"] = g["high"].transform(lambda s: s.shift(1).rolling(10, min_periods=10).max())
+
+    # === body_pct / range_pct as toplevel scalars (for §11 高檔長黑 body 門檻) ===
+    # Alias existing body_pct/range_pct so YAML can reference them as toplevel.
+    df["body_pct_today"] = df["body_pct"]
+    df["range_pct_today"] = df["range_pct"]
+
+    # === is_limit_up_today — toplevel bool alias for is_limit_up_locked ===
+    # Course source: 明日 K 線 §12 漲停板出現後再繼續上漲的機率
+    # Stored as int (0/1) so vectorized float cast works; consumed via bool field check.
+    df["is_limit_up_today"] = df["is_limit_up_locked"].fillna(False).astype(int)
+
+    # === low_price_flag — close < LOW_PRICE_THRESHOLD ===
+    # Course source: 明日 K 線 §09 低價股的處理節奏 (5710C4E8...)
+    # 「八張低價股，跟買一張百元的中價股，價格的風險一樣」
+    # [STUB-NEED-USER L1]: LOW_PRICE_THRESHOLD = 30.0
+    from .course_proxy_constants import LOW_PRICE_THRESHOLD
+    df["low_price_flag"] = (df["close"] < LOW_PRICE_THRESHOLD).fillna(False).astype(int)
+
+    # === is_breakdown_pattern_flag — toplevel int alias for is_in_breakdown_pattern ===
+    # Course source: 明日 K 線 §17 頭部成型 (跌破頸線). Proxy: ≥2 new-low events + MA60 下彎.
+    df["is_breakdown_pattern_flag"] = df["is_in_breakdown_pattern"].fillna(False).astype(int)
+
+    # === is_anomalous_volume_flag — toplevel int alias for is_anomalous_volume ===
+    # Course source: §40 明顯放量創新高 + 賣壓化解需有量.
+    df["is_anomalous_volume_flag"] = df["is_anomalous_volume"].fillna(False).astype(int)
+
+    # === recent_range_pct_5 — 過去 5 日（含今日）high-low 區間 / close 比 ===
+    # Course source: 明日 K 線 §02 中樞型態 — 「橫向盤整」窄幅判斷
+    # [STUB-NEED-USER L3]: ZHONGSHU_RANGE_MAX_PCT = 0.10
+    high_5 = g["high"].transform(lambda s: s.rolling(5, min_periods=5).max())
+    low_5 = g["low"].transform(lambda s: s.rolling(5, min_periods=5).min())
+    df["recent_range_pct_5"] = ((high_5 - low_5) / df["close"].replace(0, np.nan)).fillna(1.0)
+
     return df

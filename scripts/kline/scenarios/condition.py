@@ -67,6 +67,17 @@ _TOPLEVEL_FIELDS = frozenset({
     "defensive_low",
     "merged_high",
     "merged_low",
+    # Lights-fix toplevel fields (2026-06-04)
+    "prior_high_5",
+    "prior_low_5",
+    "prior_high_10",
+    "body_pct_today",
+    "range_pct_today",
+    "is_limit_up_today",
+    "low_price_flag",
+    "is_breakdown_pattern_flag",
+    "is_anomalous_volume_flag",
+    "recent_range_pct_5",
 })
 
 # Full whitelist (string representations for fast lookup)

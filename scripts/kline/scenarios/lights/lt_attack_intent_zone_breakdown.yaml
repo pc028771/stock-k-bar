@@ -1,0 +1,10 @@
+light_id: lt_attack_intent_zone_breakdown
+trigger_condition:
+  all:
+    - "today.close": "< attack_intent_zone_low"
+severity: warn
+course_citation:
+  source: "明日 K 線 §23 攻擊企圖"
+  article_id: "047E1FD6DD691AE8917F725E2CAA496F"
+  quote: "創新高的上影線，就是隔天往上漲就是繼續攻擊企圖了，往下跌回「攻擊意圖區」，就是沒有要攻擊的意思，明天就是關鍵判斷點，但是依然要先持有，不攻擊再出場就好了。"
+recommendation_text: "今日收盤跌回攻擊意圖區下緣，課程明示「往下跌回攻擊意圖區，就是沒有要攻擊的意思」。明日為關鍵判斷點，依然先持有；若再無攻擊企圖，依課程出場。"

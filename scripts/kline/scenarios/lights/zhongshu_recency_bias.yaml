@@ -1,12 +1,18 @@
 light_id: zhongshu_recency_bias
 trigger_condition:
   all:
+    # 中樞結構代理：過去 5 日窄幅整理（≤ ZHONGSHU_RANGE_MAX_PCT = 10%）
+    - "recent_range_pct_5": "<= 0.10"
+    # 處於 60 日區間內（未突破未跌破）
     - "today.close": "< prev_high_60"
     - "today.close": "> prior_low_60"
+    # 今日小黑回檔
     - "today.close": "< prev.close"
+    # 不破過去 5 日最低（中樞「不破紅 K 低點」近似 — 仍在中樞區段內）
+    - "today.close": ">= prior_low_5"
 severity: info
 course_citation:
-  source: "明日 K 線 §02 D 部分 中樞型態"
+  source: "明日 K 線 §02 中樞型態"
   article_id: "98207726BFC111243984494E08275765"
-  quote: "對抗近因偏誤：中樞整理期間不因最近幾根 K 棒就改變判斷"
-recommendation_text: "股價處於中樞整理區間（60 日高低點之間），今日小黑回檔。注意對抗近因偏誤：中樞整理期間不應因最近幾根黑 K 而改變對主趨勢的判斷，等待突破或跌破確認方向。"
+  quote: "所謂的上升中樞型態指的是先上漲、橫向盤整，但是都沒有跌破原本先上漲的紅K低點……明日K線的概念如此重要？當然是要對抗人性採用過去的近因偏誤來判斷決策"
+recommendation_text: "股價處於 60 日區間中段、過去 5 日窄幅 + 今日小黑但不破 5 日低點，符合課程「上升中樞型態」結構。需對抗近因偏誤：不因最近幾根黑 K 就改變對主趨勢的判斷，等待突破創新高（中樞結束、繼續攻擊）或跌破低點（中樞失效）。"

@@ -425,6 +425,36 @@ ATTACK_COST_VOL_RATIO: float = 1.0  # [STUB-NEED-USER S2] — course-not-stated 
 #   持續 N 天 → 視為攻擊結束、提前 reset」邏輯。待 user 確認 lookback 天數。
 ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS: int = 20  # [STUB-NEED-USER]
 
+# =============================================================================
+# L1. low_price_threshold — 低價股價位門檻 (明日 K 線 §09 低價股的處理節奏)
+# =============================================================================
+# COURSE CONCEPT: 課程明示「低價股」是 §09 lowprice_first_pull_exit 的前提，
+#   未明示元/股的數值。範例案例：錸德(2349)、億泰(1616)、中工(2515) 約 10-25 元。
+# COURSE QUOTE: 「八張低價股，跟買一張百元的中價股，價格的風險一樣，籌碼風險更高一些」
+# COURSE NUMBER? No — [STUB-NEED-USER].
+# PROXY VALUE: 30 元（包含老師案例上沿，留緩衝）。
+# RATIONALE: 老師案例 10-25 元，30 元作為「低價股」上界 proxy。中價股一般 30-100。
+LOW_PRICE_THRESHOLD: float = 30.0  # [STUB-NEED-USER]
+
+# =============================================================================
+# L2. high_long_black_envelopment_min_pct — 高檔長黑包覆 body 最低占幅
+# =============================================================================
+# COURSE CONCEPT: 明日 K 線 §11 「當黑K出現」— 「高檔長黑、包覆、實質賣壓」
+# COURSE QUOTE: 「高檔長黑、包覆、實質有賣壓出現」（威剛 113-05-09 案例）
+# COURSE NUMBER? No — [STUB-NEED-USER] 老師未明示「長黑」的 body% 門檻。
+# PROXY VALUE: 0.04（body 佔開盤 4%；與 HIGH_LONG_BLACK_BODY_PCT_MIN 同步）。
+HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT: float = 0.04  # [STUB-NEED-USER]
+
+# =============================================================================
+# L3. zhongshu_range_max_pct — 中樞窄幅整理上限 (明日 K 線 §02 中樞型態)
+# =============================================================================
+# COURSE CONCEPT: 中樞型態 = 先上漲 + 橫向盤整（不破紅 K 低點）。
+# COURSE QUOTE: 「先上漲、橫向盤整，但是都沒有跌破原本先上漲的紅K低點」
+# COURSE NUMBER? No — [STUB-NEED-USER] 課程質性描述、未明示窄幅 %。
+# PROXY VALUE: 10%（過去 5 日 high-low 區間幅度 ≤ 10%）。
+# RATIONALE: 「橫向」= 不大幅波動；採 10% 作為窄幅代理。
+ZHONGSHU_RANGE_MAX_PCT: float = 0.10  # [STUB-NEED-USER]
+
 
 __all__ = [
     "ATTACK_HIGHER_LOW_MIN_5DAY",
@@ -474,4 +504,8 @@ __all__ = [
     "ATTACK_COST_LIMIT_UP_THRESHOLD",
     "ATTACK_COST_VOL_RATIO",
     "ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS",
+    # L1-L3 lights-fix STUB constants (2026-06-04)
+    "LOW_PRICE_THRESHOLD",
+    "HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT",
+    "ZHONGSHU_RANGE_MAX_PCT",
 ]

@@ -1,12 +1,14 @@
 light_id: lack_of_power_distinction
 trigger_condition:
   all:
-    - "today.close": "> prev.close"
-    - "today.close": "< prev_high_60"
+    # 賣壓中空結束 / 缺乏攻擊企圖：接近前高（攻擊意圖區內）但收盤跌回意圖區
+    # 課程：「沒有資金願意幫別人解套」「賣壓中空段結束就遇到頭部壓力」
+    - "today.at_pressure_retest": true
+    - "today.close": "< prev.close"
     - "context.ma5_will_rise": false
 severity: info
 course_citation:
   source: "明日 K 線 §37 缺乏力量的判斷"
   article_id: "10A0886DB3EA30F09114543C88450BBF"
-  quote: "賣壓中空與缺乏攻擊企圖的對比：小紅但 MA 不配合，判斷缺乏力量"
-recommendation_text: "股價小紅上漲但 MA5 未配合向上，屬缺乏力量的拉抬。需區分「賣壓中空」（真空上漲）與「缺乏攻擊企圖」（弱勢多方），兩者明日走勢與操作策略不同。"
+  quote: "賣壓中空段的反彈結束之後，就遇到了頭部壓力，沒有資金願意幫別人解套"
+recommendation_text: "股價接近 60 日高（壓力回測區）但收盤回落且 MA5 不配合，符合課程「賣壓中空結束 / 缺乏攻擊企圖」的力量不足狀態。市場資金只是喊喊而已，沒有要解決套牢賣壓。"

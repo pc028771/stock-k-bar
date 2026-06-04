@@ -1,12 +1,17 @@
 light_id: weak_bull_trendline_only
 trigger_condition:
   all:
-    - "today.close": "> prev.close"
-    - "today.close": "< prev_high_60"
+    # 高檔黏著 + 微幅創新高（窄幅 + 接近前 60 日高）
+    - "today.at_pressure_retest": true
+    # 過去 5 日窄幅（K 線重疊度高）— 課程「K 線與 K 線的重疊程度高」
+    - "recent_range_pct_5": "<= 0.08"
+    # MA5 向上但 MA20 也向上（中期多方持續）
     - "context.ma5_will_rise": true
+    - "context.ma20_will_rise": true
+    - "today.close": "> prev.close"
 severity: info
 course_citation:
   source: "明日 K 線 §05 微弱多方趨勢"
   article_id: "DFA0948468F5B51D57D0E841F5EC4F9B"
-  quote: "不得已才用短期趨勢線；股價小紅但無攻擊力量"
-recommendation_text: "目前僅有微弱多方趨勢（MA5 向上＋小紅 K），無轉折組合佐證。不得已才使用短期趨勢線判斷，持有需克制『想賣』的心理。"
+  quote: "用短期趨勢線跌破，通常是在高檔區域已經沒有任何標準可以用來判斷的時候，沒有空方轉折，不得已才使用"
+recommendation_text: "高檔區域 + 過去 5 日窄幅 + MA5/MA20 雙向上，符合課程「微弱的多方趨勢」狀態。K 線重疊度高、看不出強勢力道，沒有空方轉折時不得已才用短期趨勢線跌破做停利。持有需克制「想賣」心理，拖越久不破獲利程度可能越高。"

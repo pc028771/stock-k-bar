@@ -1,12 +1,14 @@
 light_id: mountain_descent_four_types
 trigger_condition:
   all:
-    - "today.close": "< prev_high_60"
+    # 曾出現攻擊 + 跌回攻擊意圖區：今日收盤跌破 attack_intent_zone_high
+    - "today.close": "< attack_intent_zone_high"
+    # 結構轉弱：今日下跌 + MA20 下彎
     - "today.close": "< prev.close"
     - "context.ma20_will_rise": false
 severity: warn
 course_citation:
   source: "明日 K 線 §19 下山"
   article_id: "C71C9461F7EDEE5DB8CC0C66D8399F2E"
-  quote: "四類會變成一座山的股票：只有題材沒有未來、短期一次性利多、再次突破高熱度股、利用環境話題"
-recommendation_text: "股價跌破前高且 MA20 轉向，符合下山特徵。需確認是否屬於四類山型：題材股退燒、一次性利多消散、再次突破後力竭、話題退潮。若屬其中一類，多方力量不再持續。"
+  quote: "當一檔股票出現走勢不合常理的強勢拉抬，那未來十年有可能最強的就是這一段了，除非基本面有看起來明顯獲利成長的表現"
+recommendation_text: "曾突破前高（有攻擊意圖區）但今日跌回意圖區 + MA20 下彎，符合課程「下山」前兆。需結合基本面 / 題材熱度評估屬於哪一類山型（題材無未來 / 一次性利多 / 再突破熱度股 / 環境話題）；K 線無法單獨判斷四類分類，建議配合公司營運面研判。"

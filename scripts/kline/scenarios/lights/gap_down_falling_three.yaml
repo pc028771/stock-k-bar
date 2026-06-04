@@ -1,11 +1,15 @@
 light_id: gap_down_falling_three
 trigger_condition:
   all:
+    # 完整下降三法序列代理：
+    # (1) 今日為黑 K + 開盤低於昨收（跳空或下開）
     - "today.open": "< prev.close"
-    - "today.close": "< prev.close"
+    - "today.close": "< today.open"
+    # (2) 收盤跌破過去 5 日最低 → 表示「整理 2-3 天後再黑 K」往下突破
+    - "today.close": "< prior_low_5"
 severity: warn
 course_citation:
   source: "明日 K 線 §14 出現向下跳空的下降三法"
   article_id: "3399437067F7B90C0A6B4AED8B76FA3E"
-  quote: "向下跳空後的下降三法型態，確認空方續演"
-recommendation_text: "今日出現向下跳空並收黑 K，符合下降三法續演的空方訊號。若後續仍無法回補跳空缺口，空方力量持續，多單應審慎確認停損位置。"
+  quote: "下降三法的文字定義：先有下跌黑K，然後整理兩到三天，再往下出現一根黑K"
+recommendation_text: "符合下降三法後段特徵：今日跳空黑 K 且收盤跌破過去 5 日最低，表示先前的下跌-整理結構告破。「除非缺口被回補，否則這個疑慮都是存在的」（課程原文），不能加碼，警覺攤平傾向。"

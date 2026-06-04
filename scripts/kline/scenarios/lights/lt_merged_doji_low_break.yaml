@@ -1,0 +1,10 @@
+light_id: lt_merged_doji_low_break
+trigger_condition:
+  all:
+    - "today.close": "< merged_low"
+severity: warn
+course_citation:
+  source: "明日 K 線 §26 防守姿態（合併十字線失效條件）"
+  article_id: "EF7308E2336BF7BCE94142944DB580B1"
+  quote: "既然如此，明日就得開始攻擊，或者如果不打算攻擊，跌破合併十字線的低點作為確認不攻擊。"
+recommendation_text: "今日收盤跌破合併十字線低點，課程明示「跌破合併十字線的低點作為確認不攻擊」。攻擊企圖失效、依課程出場。"

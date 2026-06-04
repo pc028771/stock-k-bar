@@ -1,0 +1,10 @@
+light_id: lt_attack_cost_breakdown
+trigger_condition:
+  all:
+    - "today.close": "< attack_cost"
+severity: critical
+course_citation:
+  source: "明日 K 線 §20 攻擊成本顯現日"
+  article_id: "B44741FE824D0798CC91C1521D5B0FF7"
+  quote: "跌破攻擊成本代表的意義是：「這一次創新高股價並沒有要攻擊」，所以站在明日K線的角度，其實第二天就有答案，也會馬上知道要怎樣應對。"
+recommendation_text: "今日收盤跌破攻擊成本，課程明示「這一次創新高股價並沒有要攻擊」。主力拉抬決心已然不足、明日起股價應該盤整轉弱居多，短線價差交易者出場。"
