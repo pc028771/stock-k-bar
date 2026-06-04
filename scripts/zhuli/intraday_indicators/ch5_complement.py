@@ -218,8 +218,10 @@ def check_b5_2_limit_up_pattern(
     body_1  = abs(close_1 - open_1)
     upper_1 = high_1 - max(close_1, open_1)
 
-    # B 型：跳空 ≥ 3% + 第 1 根衝高（上影 ≥ body × 1.5）
-    if gap_pct >= 3.0 and body_1 > 0 and upper_1 >= body_1 * 1.5:
+    # B 型：跳空 ≥ 3% + 第 1 根衝高
+    # 含十字星 case：body ≈ 0 但有顯著上影、視為極端 B 型
+    body_threshold = max(body_1, open_1 * 0.001)
+    if gap_pct >= 3.0 and upper_1 >= body_threshold * 1.5:
         return {
             "triggered": True,
             "level": "B",
