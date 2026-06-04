@@ -901,6 +901,188 @@ class StageTrigger:
                 result["reason"] = f"[弱勢盤] 訊號觸發、等回踩 MA10 ({ma10:.2f})"
             return result
 
+    # ── Closing Check (13:00-13:25 尾盤進場確認) ──────────────────────────────
+
+    def check_closing_panel(
+        self,
+        ticker: str,
+        k5: pd.DataFrame,
+        ma5: Optional[float] = None,
+        ma10: Optional[float] = None,
+        target_date: Optional[str] = None,
+        db_path: Path = _DB,
+        _now_override: Optional[str] = None,
+    ) -> dict:
+        """13:00-13:25 尾盤進場 5 項確認。
+
+        老師說「尾盤才能進」的客觀條件版本。
+        backtest 證實 13:00 進場 Win rate 80.8% 最高（v6 backtest）。
+
+        Args:
+            ticker:          股票代號
+            k5:              全日 5 分 K DataFrame (index = datetime)
+            ma5:             日線 MA5（前一日）；None → 從 5K 推算
+            ma10:            日線 MA10（前一日）；None → 查 DB
+            target_date:     YYYY-MM-DD；None → 今日
+            db_path:         SQLite DB 路徑
+            _now_override:   'HH:MM' 字串，測試用覆蓋現在時間
+
+        Returns:
+            {
+                'triggered':  bool,
+                'level':      'confirmed' / 'watch' / 'skip' / 'not_in_window',
+                'reason':     str,
+                'scores': {
+                    'structure_hold':    bool,   # 1. close > MA10
+                    'kill_test_passed':  bool,   # 2. 12:00 後有觸低 (殺盤考驗過)
+                    'rebound_confirmed': bool,   # 3. 13:00 後 2 紅K 或站 MA5
+                    'volume_calm':       bool,   # 4. 量縮 (非爆量)
+                    'not_chasing_high':  bool,   # 5. 距日高 < +1.5%
+                },
+                'pass_count':  int,  # 0-5
+            }
+        """
+        base = {
+            "triggered": False,
+            "level": "not_in_window",
+            "reason": "不在 13:00-13:25 時段",
+            "scores": {
+                "structure_hold":    False,
+                "kill_test_passed":  False,
+                "rebound_confirmed": False,
+                "volume_calm":       False,
+                "not_chasing_high":  False,
+            },
+            "pass_count": 0,
+        }
+
+        if k5 is None or k5.empty:
+            base["reason"] = "5K 資料為空"
+            return base
+
+        # 1. 時段檢查
+        if _now_override:
+            now_str = _now_override
+        else:
+            now_str = datetime.now().strftime("%H:%M")
+
+        if not ("13:00" <= now_str <= "13:25"):
+            return base
+
+        # 獲取 MA10 (日線)
+        if ma10 is None and ticker and target_date:
+            ma10 = _get_ma10(ticker, target_date, db_path)
+
+        # 若 MA10 未知，退化到用 5K 近 10 根均
+        if ma10 is None or ma10 <= 0:
+            ma10_raw = k5["close"].rolling(10, min_periods=3).mean()
+            ma10 = float(ma10_raw.iloc[-1]) if not ma10_raw.empty else 0.0
+
+        # 若 MA5 未知，用 5K 近 5 根均 (日線 MA5 代理)
+        if ma5 is None or ma5 <= 0:
+            ma5_raw = k5["close"].rolling(5, min_periods=3).mean()
+            ma5 = float(ma5_raw.iloc[-1]) if not ma5_raw.empty else 0.0
+
+        current_close = float(k5["close"].iloc[-1])
+        day_high = float(k5["high"].max())
+
+        # 2. 條件 1: 結構守住 — close > MA10
+        cond1 = (ma10 > 0 and current_close > ma10)
+
+        # 3. 條件 2: 殺盤考驗過
+        #    - 12:00 後最低 < 早盤最高 -2%  OR  12:00 後最低 < MA5 -1%
+        afternoon_k5 = k5[k5.index.strftime("%H:%M") >= "12:00"] if hasattr(k5.index, "strftime") else pd.DataFrame()
+        if afternoon_k5.empty:
+            # 如果 index 不是 datetime-like，試用 iloc 近似
+            afternoon_k5 = k5.tail(max(1, len(k5) // 3))
+
+        morning_k5 = k5[k5.index.strftime("%H:%M") < "12:00"] if hasattr(k5.index, "strftime") else k5.head(max(1, len(k5) // 2))
+        morning_high = float(morning_k5["high"].max()) if not morning_k5.empty else day_high
+
+        after_12_low = float(afternoon_k5["low"].min()) if not afternoon_k5.empty else current_close
+        kill_by_morning_high = (after_12_low < morning_high * 0.98)
+        kill_by_ma5 = (ma5 > 0 and after_12_low < ma5 * 0.99)
+        cond2 = kill_by_morning_high or kill_by_ma5
+
+        # 4. 條件 3: 反彈確認
+        #    - 13:00 後 5K 連續 2 根紅K  OR  13:00 後 5K 收盤 > MA5
+        after_13_k5 = k5[k5.index.strftime("%H:%M") >= "13:00"] if hasattr(k5.index, "strftime") else k5.tail(max(1, len(k5) // 6))
+
+        rebound_2_red = False
+        if len(after_13_k5) >= 2:
+            last2 = after_13_k5.tail(2)
+            rebound_2_red = bool((last2["close"] > last2["open"]).all())
+        elif len(after_13_k5) == 1:
+            # 1 根大紅K (實體 > 1.5% 視為大紅)
+            bar = after_13_k5.iloc[0]
+            body_pct = (float(bar["close"]) - float(bar["open"])) / float(bar["open"]) * 100 if float(bar["open"]) > 0 else 0
+            rebound_2_red = body_pct >= 1.5
+
+        rebound_above_ma5 = (ma5 > 0 and not after_13_k5.empty and float(after_13_k5.iloc[-1]["close"]) > ma5)
+        cond3 = rebound_2_red or rebound_above_ma5
+
+        # 5. 條件 4: 量縮確認 (整理量)
+        #    13:00 後 5K 累積量 < 5日同時段平均 × 1.5
+        #    簡化: 13:00 後量 vs 全日 5K 前段量的均值比較
+        if not after_13_k5.empty:
+            after_13_vol = float(after_13_k5["volume"].sum())
+            # 用全日前段量估算「同時段期望量」
+            all_vol_per_bar_avg = float(k5["volume"].mean()) if not k5.empty else 1
+            n_after_13 = len(after_13_k5)
+            expected_vol = all_vol_per_bar_avg * n_after_13 * 1.5
+            cond4 = after_13_vol < expected_vol
+        else:
+            cond4 = True  # 無資料保守設 True
+
+        # 6. 條件 5: 未追高
+        #    當前 close 距日高 < +1.5%
+        # 未追高: close 距日高至少 -1.5% (避免買在尾盤最後一根衝高)
+        # not_chasing_high = True 代表收盤還在日高下方 1.5% 以上、沒有追在最頂
+        dist_below_high_pct = (day_high - current_close) / day_high * 100 if day_high > 0 else 99
+        cond5 = dist_below_high_pct >= 1.5  # 距日高跌幅 ≥ 1.5% → 不是追在頂部
+
+        scores = {
+            "structure_hold":    cond1,
+            "kill_test_passed":  cond2,
+            "rebound_confirmed": cond3,
+            "volume_calm":       cond4,
+            "not_chasing_high":  cond5,
+        }
+        pass_count = sum(scores.values())
+
+        # 7. 決定 level
+        if pass_count == 5:
+            level = "confirmed"
+        elif pass_count >= 3:
+            level = "watch"
+        else:
+            level = "skip"
+
+        # 8. 組 reason 字串
+        score_labels = {
+            "structure_hold":    "結構",
+            "kill_test_passed":  "殺盤",
+            "rebound_confirmed": "反彈",
+            "volume_calm":       "量縮",
+            "not_chasing_high":  "未追高",
+        }
+        pass_parts  = [score_labels[k] for k, v in scores.items() if v]
+        fail_parts  = [score_labels[k] for k, v in scores.items() if not v]
+        pass_str    = "✓".join(pass_parts) if pass_parts else "—"
+        reason_str  = f"{pass_count}/5 pass ({pass_str})"
+        if fail_parts:
+            reason_str += f"  ✗{','.join(fail_parts)}"
+
+        triggered = level in ("confirmed", "watch")
+
+        return {
+            "triggered":  triggered,
+            "level":      level,
+            "reason":     reason_str,
+            "scores":     scores,
+            "pass_count": pass_count,
+        }
+
     # ── Composite Cascade Detector ─────────────────────────────────────────────
 
     # Per-category action mapping
@@ -1004,7 +1186,7 @@ class StageTrigger:
         if r.get("triggered"):
             return _with_regime(self._format_action(r, "TC", category))
 
-        return {
+        base_result = {
             "triggered": False,
             "detector":  "none",
             "category":  category,
@@ -1012,6 +1194,41 @@ class StageTrigger:
             "reason":    r.get("reason", ""),
             "market_regime": regime,
         }
+
+        # Layer 5 (附加、不破壞既有邏輯): Closing_check 13:00-13:25
+        now_str = datetime.now().strftime("%H:%M")
+        if "13:00" <= now_str <= "13:25":
+            closing_r = self.check_closing_panel(
+                ticker=ticker,
+                k5=k5,
+                target_date=_today_str,
+                db_path=_DB,
+            )
+            cl_level = closing_r.get("level", "not_in_window")
+            if cl_level == "confirmed":
+                closing_detector = "Closing_confirmed"
+            elif cl_level == "watch":
+                closing_detector = "Closing_watch"
+            else:
+                closing_detector = "Closing_skip"
+
+            closing_triggered = cl_level in ("confirmed", "watch")
+            cl_action_map = {
+                "Closing_confirmed": "🟢 尾盤可進 (5/5)",
+                "Closing_watch":     "🟡 尾盤觀察 (3-4/5)",
+                "Closing_skip":      "🔴 尾盤不進 (<3/5)",
+            }
+            return _with_regime({
+                **base_result,
+                "triggered":        closing_triggered,
+                "detector":         closing_detector,
+                "action":           cl_action_map.get(closing_detector, ""),
+                "reason":           closing_r.get("reason", ""),
+                "closing_scores":   closing_r.get("scores", {}),
+                "closing_pass_count": closing_r.get("pass_count", 0),
+            })
+
+        return base_result
 
 
 # ── 主監控邏輯 ────────────────────────────────────────────────────────────────

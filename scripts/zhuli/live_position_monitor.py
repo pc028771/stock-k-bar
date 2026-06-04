@@ -480,28 +480,35 @@ def check_strategy_exit_alert(item: dict, now: datetime | None = None) -> str | 
 
 # Trigger 顯示格式
 TRIGGER_DISPLAY = {
-    'Ch5-3':          '🟢 Ch5-3 confirmed (守住進場)',
-    'Ch5-3_pullback': '🟡 Ch5-3 pullback (回踩中)',
-    'Ch5-3_signal':   '🟡 Ch5-3 signal (訊號、等回踩)',
-    'T1':             '🟢 T1 confirmed',
-    'T2':             '🎯 T2 confirmed',
-    'TC':             '🔴 TC confirmed',
-    'T2_watch':       '🟡 T2 watch',
+    'Ch5-3':             '🟢 Ch5-3 confirmed (守住進場)',
+    'Ch5-3_pullback':    '🟡 Ch5-3 pullback (回踩中)',
+    'Ch5-3_signal':      '🟡 Ch5-3 signal (訊號、等回踩)',
+    'T1':                '🟢 T1 confirmed',
+    'T2':                '🎯 T2 confirmed',
+    'TC':                '🔴 TC confirmed',
+    'T2_watch':          '🟡 T2 watch',
+    # 尾盤進場確認 (13:00-13:25)
+    'Closing_confirmed': '🟢 Closing 5/5 尾盤可進',
+    'Closing_watch':     '🟡 Closing 3-4/5 尾盤觀察',
+    'Closing_skip':      '🔴 Closing <3/5 尾盤不進',
     'none': '⚪ 無訊號',
     None: '⚪ 無訊號',
 }
 
-# sort by trigger 優先順序: Ch5-3 confirmed > pullback > signal > T2 > T1 > TC > none
+# sort by trigger 優先順序: Ch5-3 confirmed > pullback > signal > Closing > T2 > T1 > TC > none
 TRIGGER_RANK = {
-    'Ch5-3':          0,
-    'Ch5-3_pullback': 1,
-    'Ch5-3_signal':   2,
-    'T2':             3,
-    'T1':             4,
-    'TC':             5,
-    'T2_watch':       6,
-    'none': 7,
-    None: 8,
+    'Ch5-3':             0,
+    'Ch5-3_pullback':    1,
+    'Ch5-3_signal':      2,
+    'Closing_confirmed': 3,
+    'Closing_watch':     4,
+    'T2':                5,
+    'T1':                6,
+    'TC':                7,
+    'Closing_skip':      8,
+    'T2_watch':          9,
+    'none': 10,
+    None: 11,
 }
 
 # 全域排序切換（快捷鍵 1-6 更新這個）
@@ -901,7 +908,8 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     """Trigger 觸發時、30 分鐘 cooldown 通知。"""
     if not do_notify:
         return
-    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T2', 'TC'):
+    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T2', 'TC',
+                        'Closing_confirmed', 'Closing_watch', 'Closing_skip'):
         return
     cd_key = f"{ticker}_{trig_key}"
     now = datetime.now()
@@ -910,16 +918,20 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     _trigger_cooldown[cd_key] = now + timedelta(minutes=TRIGGER_COOLDOWN_MIN)
 
     titles = {
-        'Ch5-3':          f"🟢 {ticker} {name} Ch5-3 守住 → 可進場",
-        'Ch5-3_pullback': f"🟡 {ticker} {name} Ch5-3 回踩 MA10 中",
-        'Ch5-3_signal':   f"🟡 {ticker} {name} Ch5-3 訊號觸發、等回踩",
-        'T1': f"🟢 {ticker} {name} T1 強勢延續",
-        'T2': f"🎯 {ticker} {name} T2 反彈訊號",
-        'TC': f"🚨 {ticker} {name} TC 結構失敗",
+        'Ch5-3':             f"🟢 {ticker} {name} Ch5-3 守住 → 可進場",
+        'Ch5-3_pullback':    f"🟡 {ticker} {name} Ch5-3 回踩 MA10 中",
+        'Ch5-3_signal':      f"🟡 {ticker} {name} Ch5-3 訊號觸發、等回踩",
+        'T1':                f"🟢 {ticker} {name} T1 強勢延續",
+        'T2':                f"🎯 {ticker} {name} T2 反彈訊號",
+        'TC':                f"🚨 {ticker} {name} TC 結構失敗",
+        'Closing_confirmed': f"🟢 {ticker} {name} 尾盤 5/5 → 可進",
+        'Closing_watch':     f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
+        'Closing_skip':      f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
     }
     sounds = {
         'Ch5-3': 'Glass', 'Ch5-3_signal': 'Tink', 'Ch5-3_pullback': 'Tink',
         'T1': 'Glass', 'T2': 'Glass', 'TC': 'Sosumi',
+        'Closing_confirmed': 'Glass', 'Closing_watch': 'Tink', 'Closing_skip': 'Basso',
     }
     try:
         subprocess.run(
