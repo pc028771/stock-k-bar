@@ -782,14 +782,17 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         print(f"  [small_structure] run_scan 失敗: {e}（小結構候選數 0）")
 
     # ── post_attack watchlist（攻擊後盤整早期追蹤）────────────────────────────
-    print(f"  [post_attack] 攻擊後盤整追蹤 (sector_week)...")
+    # universe='sector_all'：涵蓋老師「曾明示過」的所有族群（包含 IPC、低軌衛星、航太國防等）
+    # 不限「本週主推」(sector_week)，避免漏抓如 4916 事欣科類型的非當週主推但強勢標的
+    # 根因：4916 5/15-6/3 +84% 但 5/28 scanner 以 sector_week 漏抓
+    print(f"  [post_attack] 攻擊後盤整追蹤 (sector_all — 老師曾明示所有族群)...")
     results['post_attack_watchlist'] = pd.DataFrame()
     try:
         if ticker_dfs:
             combined_df2 = pd.concat(list(ticker_dfs.values()), ignore_index=True)
             pa_wl = run_post_attack_watchlist(
                 combined_df2,
-                universe='sector_week',
+                universe='sector_all',
                 target_date=target_date,
                 ticker_col='ticker',
             )
@@ -1355,7 +1358,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
             pa_wl,
             stock_info=pa_stock_info,
             target_date=target_date,
-            universe='sector_week',
+            universe='sector_all',
         )
         md.append(pa_section)
     else:
