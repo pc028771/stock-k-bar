@@ -215,7 +215,7 @@ WATCH = [
         'tactic': '短打', 'priority': 2,
         'source': '老師明示',
         'sector': 'IC通路',
-        'note': '⭐ IC 通路、user 提醒 (注意 5/26 排除清單翻轉?)'
+        'note': '⭐⭐ IC 通路 6/2 主流、老師明示 (3702 大聯大 / 3036 文曄)、持續監控'
     },
     {
         'ticker': '2376', 'name': '技嘉',
@@ -272,7 +272,7 @@ WATCH = [
         'tactic': '短打', 'priority': 2,
         'source': '老師明示',
         'sector': '記憶體',
-        'note': '⚠️ 主流但「已 50%、不要再追」、觀察回測'
+        'note': '⚠️ 漲多 50%、不主動推、等回測 MA10 才進、持續監控'
     },
     {
         'ticker': '1303', 'name': '南亞',
@@ -1195,6 +1195,119 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
     return t
 
 
+def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
+                     now: datetime | None = None) -> Text:
+    """第 2 行 trigger 顯示文字 (固定佔位、永遠回傳非空 Text)。
+
+    排版規則 (任務 2: 尾盤建議放 confirmed 之前):
+      無 trigger       → "└ ⚪ 無訊號"
+      有 trigger、非尾盤 → "└ ⏱️ 等 13:00 Win 80% (現 [trigger] Win XX%)"
+      尾盤時段內有 trigger → "└ 🟢 ⭐ 最佳進場 Win 80% (現 [closing_trigger] N/5)"
+      Closing_confirmed → "└ 🟢 ⭐ Closing 5/5 Win 80% (最佳時段)"
+      Closing_watch     → "└ ⏱️ 尾盤 3-4/5 Win 80% (觀察、等確認)"
+      Closing_skip      → "└ 🔴 尾盤 <3/5 (不進)"
+      TC                → "└ 🔴 TC 結構壞、等修復"
+
+    用意: user 一眼先看「等」、不被「confirmed」誘惑進場。
+    """
+    now = now or datetime.now()
+    from datetime import time as _time
+    wd = WIN_RATE_BY_SESSION
+    is_closing = _time(13, 0) <= now.time() < _time(13, 25)
+
+    prefix = Text("└ ", style="dim")
+
+    # ── Closing 相關 trigger (直接顯示、不加「等」前置) ─────────────────
+    if trig_key == 'Closing_confirmed':
+        t = Text()
+        t.append_text(prefix)
+        t.append(f"🟢 ⭐ Closing 5/5 Win {wd['closing']}% (最佳時段)", style="bold magenta")
+        age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
+        if age_text:
+            t.append(age_text, style=age_style)
+        return t
+
+    if trig_key == 'Closing_watch':
+        t = Text()
+        t.append_text(prefix)
+        t.append(f"⏱️ 尾盤 3-4/5 Win {wd['closing']}% (觀察、等確認)", style="yellow")
+        age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
+        if age_text:
+            t.append(age_text, style=age_style)
+        return t
+
+    if trig_key == 'Closing_skip':
+        t = Text()
+        t.append_text(prefix)
+        t.append("🔴 尾盤 <3/5 (不進)", style="red dim")
+        return t
+
+    if trig_key == 'TC':
+        t = Text()
+        t.append_text(prefix)
+        t.append("🔴 TC 結構壞、等修復", style="red")
+        return t
+
+    # ── 無訊號 ────────────────────────────────────────────────────────────
+    if not trig_key or trig_key in ('none', None):
+        t = Text()
+        t.append_text(prefix)
+        if is_closing:
+            t.append(f"⏱️ 尾盤時段 Win {wd['closing']}% (無訊號)", style="dim")
+        else:
+            t.append(f"⏱️ 等 13:00 Win {wd['closing']}% (現 ⚪ 無訊號)", style="dim")
+        return t
+
+    # ── 有 trigger (Ch5-3 / T1 / T2 / T1_watch / T2_watch …) ────────────
+    # 取 trigger label (短版)
+    label = TRIGGER_DISPLAY.get(trig_key, trig_key)
+    age_text, age_style = fmt_trigger_age(ticker, trig_key, now)
+
+    if trig_key in ('T1', 'T2', 'Ch5-3'):
+        # 進場類 trigger
+        if is_closing:
+            # 尾盤: 強調最佳時段
+            t = Text()
+            t.append_text(prefix)
+            t.append(f"🟢 ⭐ 最佳進場 Win {wd['closing']}%", style="bold magenta")
+            t.append(f" (現 {label}", style="dim")
+            if age_text:
+                t.append(age_text, style=age_style)
+            t.append(")", style="dim")
+            return t
+        else:
+            # 非尾盤: 先顯示「等 13:00」、再顯示現在的 trigger
+            # 區分目前時段 win rate
+            t_now = now.time()
+            if _time(9, 15) <= t_now < _time(9, 45):
+                cur_win = wd['pump_dump']
+                cur_label = f"Win {cur_win}% ⚠️ 拉高出貨"
+            elif _time(9, 45) <= t_now < _time(13, 0):
+                cur_win = wd['healthy']
+                cur_label = f"Win {cur_win}%"
+            else:
+                cur_win = wd['healthy']
+                cur_label = f"Win {cur_win}%"
+            t = Text()
+            t.append_text(prefix)
+            t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="yellow")
+            t.append(f" (現 {label} {cur_label}", style="dim")
+            if age_text:
+                t.append(age_text, style=age_style)
+            t.append(")", style="dim")
+            return t
+    else:
+        # watch 類 / 其他 (T1_watch, T2_watch, Ch5-3_signal, Ch5-3_pullback)
+        t = Text()
+        t.append_text(prefix)
+        t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="dim")
+        t.append(f" (現 {label}", style="dim")
+        if age_text:
+            t.append(age_text, style=age_style)
+        t.append(")", style="dim")
+        return t
+
+
 def r_change_pct(chg: float) -> Text:
     """漲跌幅 % 上色。"""
     style = 'red' if chg < 0 else 'green'
@@ -1534,7 +1647,8 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         t_held.add_column("入", justify="right", no_wrap=True)
         t_held.add_column("P&L", justify="right", no_wrap=True)
         t_held.add_column("停", justify="right", no_wrap=True)
-        t_held.add_column("Trigger / 開盤評語")
+        t_held.add_column("開盤評語", no_wrap=True)
+        t_held.add_column("Trigger / 尾盤建議")
         for item in sort_items(held, sort_mode, live_data):
             tk     = item['ticker']
             name   = item['name']
@@ -1560,16 +1674,16 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     entry_tag = Text("入價貼開盤", style="dim")
                 pnl = (c - entry)*shares
                 pnl_pct = (c - entry)/entry*100 if entry else 0
-                detail = Text()
-                detail.append_text(r_trigger(trig_key, trig_reason, short=30, ticker=tk))
-                detail.append("  ")
-                detail.append(msg, style="dim")
-                detail.append(" | ")
-                detail.append_text(entry_tag)
+                # 開盤評語 (短版、第 1 行)
+                opening_comment = Text()
+                opening_comment.append(msg, style="dim")
+                opening_comment.append(" | ")
+                opening_comment.append_text(entry_tag)
                 vol_lots = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 open_to_now = Text(f"{o:.1f}→{c:.1f}")
                 open_to_now.append_text(fmt_open_to_now_pct(o, c))
+                # 行 1: 標準資訊
                 t_held.add_row(
                     level,
                     stars(pri),
@@ -1580,10 +1694,19 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     f"{entry:.1f}",
                     r_pnl(pnl, pnl_pct),
                     f"{stop}",
-                    detail,
+                    opening_comment,
+                    Text(""),  # Trigger 列留空
+                )
+                # 行 2: Trigger / 尾盤建議
+                t_held.add_row(
+                    "", "", "", "", "", "", "", "", "", "",
+                    r_trigger_subrow(trig_key, trig_reason, ticker=tk),
+                    end_section=True,
                 )
             except Exception as e:
-                t_held.add_row("?", "", tk, name, "err", "", "", Text(str(e), style="red"), "", "")
+                t_held.add_row("?", "", tk, name, "err", "", "", Text(str(e), style="red"), "", "", "")
+                t_held.add_row("", "", "", "", "", "", "", "", "", "",
+                               Text("└ ⚠️ 錯誤", style="red dim"), end_section=True)
         renderables.append(t_held)
 
     # 待進場主候選
@@ -1901,7 +2024,8 @@ def render_watch_sectioned(
         t.add_column("現", justify="right")
         t.add_column("量比", no_wrap=True)
         t.add_column("距停", justify="right")
-        t.add_column("Trigger"); t.add_column("族群")
+        t.add_column("族群", no_wrap=True)
+        t.add_column("Trigger / 尾盤建議")
         for item, d in confirmed:
             pri = item.get('priority', 1)
             trig = d.get('trigger', 'none'); reason = d.get('trigger_reason', '')
@@ -1909,13 +2033,20 @@ def render_watch_sectioned(
             dist = d.get('dist_to_stop', 999)
             dist_t = r_dist(dist) if stop else Text("—", style="dim")
             price_s = f"{c:.1f}" if c else "—"
+            # 行 1: 標準資訊
             t.add_row(
                 stars(pri), item['ticker'], item['name'],
                 price_s,
                 fmt_vol_ratio(d.get('vol_ratio')),
                 dist_t,
-                r_trigger(trig, reason, short=40, ticker=item['ticker']),
                 item.get('sector', '?'),
+                Text(""),  # Trigger 留空
+            )
+            # 行 2: Trigger / 尾盤建議
+            t.add_row(
+                "", "", "", "", "", "", "",
+                r_trigger_subrow(trig, reason, ticker=item['ticker']),
+                end_section=True,
             )
         out.append(t)
 
@@ -1949,19 +2080,27 @@ def render_watch_sectioned(
             t.add_column("⭐"); t.add_column("Ticker"); t.add_column("Name")
             t.add_column("現", justify="right"); t.add_column("漲跌", justify="right")
             t.add_column("量比", no_wrap=True)
-            t.add_column("Trigger"); t.add_column("Note")
+            t.add_column("Note", no_wrap=True)
+            t.add_column("Trigger / 尾盤建議")
             for item, d in shown:
                 pri = item.get('priority', 1)
                 trig = d.get('trigger', 'none')
+                reason = d.get('trigger_reason', '')
                 c = d.get('c', 0); chg = d.get('pnl_pct', 0)
                 price_s = f"{c:.1f}" if c else "—"
-                trig_t = r_trigger(trig, ticker=item['ticker']) if trig not in ('none', None) else Text("—", style="dim")
+                # 行 1: 標準資訊
                 t.add_row(
                     stars(pri), item['ticker'], item['name'],
                     price_s, r_change_pct(chg),
                     fmt_vol_ratio(d.get('vol_ratio')),
-                    trig_t,
                     Text(item.get('note', '')[:28], style="dim"),
+                    Text(""),  # Trigger 留空
+                )
+                # 行 2: Trigger / 尾盤建議
+                t.add_row(
+                    "", "", "", "", "", "", "",
+                    r_trigger_subrow(trig, reason, ticker=item['ticker']),
+                    end_section=True,
                 )
             out.append(t)
         if limit > 0:
@@ -2055,9 +2194,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
         t_h.add_column("量比", no_wrap=True)
         t_h.add_column("P&L", justify="right", no_wrap=True)
         t_h.add_column("距停", justify="right", no_wrap=True)
-        t_h.add_column("Trigger")
-        t_h.add_column("出場提醒")
+        t_h.add_column("出場提醒", no_wrap=True)
         t_h.add_column("狀", no_wrap=True)
+        t_h.add_column("Trigger / 尾盤建議")
         _now_render = datetime.now()
         for item in sort_items(held_enriched, sort_mode, live_data):
             tk     = item['ticker']
@@ -2074,7 +2213,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     Text(STRATEGY_CHIP.get(_smode_err, _smode_err), style='dim'),
                     stars(pri), tk, name,
                     Text(f"err {d['error']}", style="red"),
-                    "", "", "", "", "", "?")
+                    "", "", "", "", "?", "")
+                t_h.add_row("", "", "", "", "", "", "", "", "", "",
+                            Text("└ ⚠️ 無法取得資料", style="dim"), end_section=True)
                 continue
             c        = d.get('c', entry)
             pnl      = d.get('pnl', 0)
@@ -2119,15 +2260,22 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             chip_text  = Text(STRATEGY_CHIP.get(_smode, _smode),
                               style=STRATEGY_EXIT_STYLE.get(_smode, 'dim'))
             exit_text  = r_strategy_chip(item, _now_render)  # 含倒數
+            # 行 1: 標準資訊 (不含 trigger 長文)
             t_h.add_row(
                 chip_text, stars(pri), tk, name,
                 open_cell,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
-                r_trigger(trig_key, trig_reason, short=30, ticker=tk),
                 exit_text,
                 stop_tag,
+                Text(""),  # Trigger 列留空、第 2 行再顯示
+            )
+            # 行 2: Trigger / 尾盤建議 (固定佔位、永遠顯示、不消失)
+            t_h.add_row(
+                "", "", "", "", "", "", "", "", "", "",
+                r_trigger_subrow(trig_key, trig_reason, ticker=tk, now=_now_render),
+                end_section=True,
             )
         renderables.append(t_h)
 
@@ -2192,7 +2340,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             t_w.add_column("現", justify="right"); t_w.add_column("漲跌", justify="right")
             t_w.add_column("量比", no_wrap=True)
             t_w.add_column("距停", justify="right")
-            t_w.add_column("Trigger"); t_w.add_column("族群"); t_w.add_column("狀")
+            t_w.add_column("族群", no_wrap=True); t_w.add_column("狀", no_wrap=True)
+            t_w.add_column("Trigger / 尾盤建議")
             for item in sort_items(watch_enriched, sort_mode, live_data):
                 tk     = item['ticker']
                 name   = item['name']
@@ -2212,15 +2361,22 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 snap_w = client.get_realtime_snapshot(tk) or {}
                 vol_lots = snap_w.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
+                # 行 1: 標準資訊
                 t_w.add_row(
                     stars(pri), tactic, tk, name,
                     f"{c:.1f}" if c else "—",
                     r_change_pct(chg),
                     fmt_vol_ratio(vol_ratio),
                     r_dist(dist),
-                    r_trigger(trig_key, trig_reason, short=30, ticker=tk),
                     sector,
                     wall_tag,
+                    Text(""),  # Trigger 留空
+                )
+                # 行 2: Trigger / 尾盤建議
+                t_w.add_row(
+                    "", "", "", "", "", "", "", "", "", "",
+                    r_trigger_subrow(trig_key, trig_reason, ticker=tk),
+                    end_section=True,
                 )
             renderables.append(t_w)
 
@@ -2465,7 +2621,7 @@ CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
         ("",                  "紅海第二棒 (1605/6116) / 玻璃 (8064)"),
         ("5/31 警示族群",     "PCB / 散熱 / 連接器 (5/17 起連 4 週)"),
         ("夜盤訊號",          "找族群相對便宜補漲、紅線 #2 可放寬"),
-        ("排除清單",          "南亞科系 / 文曄系 (注意 5/26 後可能翻轉)"),
+        ("持續觀察",          "南亞科系 / 文曄系 5/26 排除已過 2 週 → stale、持續監控等回測"),
     ]),
     # Page 8
     ("⚠️ 拉高出貨 / 大盤訊號", [
