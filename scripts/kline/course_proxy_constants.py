@@ -249,6 +249,24 @@ NARROW_CONSOLIDATION_RANGE_MAX = 0.03  # course-not-stated — engineering propo
 GAP_FILL_WINDOW_DAYS = 20  # course-not-stated — engineering proposal
 
 # =============================================================================
+# T8b. merged_doji_body_ratio — 合併十字線 body/range 上限 (明日 K 線 §合併十字)
+# =============================================================================
+# COURSE CONCEPT: 合併後形成「長十字線」(merged_doji pattern)。
+# COURSE QUOTE: 課程說「合併後形成長十字線」，未明示 body/range 比例數字。
+# COURSE NUMBER? No — [STUB-NEED-USER].
+# PROXY VALUE: 0.25（body 佔合併 range ≤ 25% 視為十字結構）。
+MERGED_DOJI_BODY_RATIO: float = 0.25  # [STUB-NEED-USER]
+
+# =============================================================================
+# T8c. merged_doji_shadow_min_ratio — 合併十字線 上下影線最小比例
+# =============================================================================
+# COURSE CONCEPT: 上下影線形成「長十字線」。
+# COURSE QUOTE: 課程要求「上影線 + 下影線形成長十字線」，未明示影線長度比例。
+# COURSE NUMBER? No — [STUB-NEED-USER].
+# PROXY VALUE: 0.2（上影、下影各佔合併 range ≥ 20%）。
+MERGED_DOJI_SHADOW_MIN_RATIO: float = 0.2  # [STUB-NEED-USER]
+
+# =============================================================================
 # T9. rebound_lookback_n — 反撲 短期 N 上限 (P23)
 # =============================================================================
 # COURSE CONCEPT: 反撲 D-1 「短期內」創新低 / 新高.
@@ -353,6 +371,52 @@ ZHONGSHU_MAX_DAYS = 30  # [STUB-NEED-USER] — course-not-stated upper bound
 WEAK_BULL_MA_DAYS = 5  # [STUB-NEED-USER] — course-not-stated MA period
 
 
+# =============================================================================
+# A20a. attack_cost_displayed — 漲停鎖住容差 (明日 K 線 §20)
+# =============================================================================
+# COURSE CONCEPT: 攻擊成本顯現日 — 收盤鎖住漲停板。
+# COURSE QUOTE: 「突破前高的當日，股價鎖住漲停板，且最大量就是在這個漲停板的價位」
+# COURSE NUMBER? No — 1.095 proxy 同 features.py C05（+10% with tick tolerance）。
+# [STUB-NEED-USER]: 漲停判斷使用 prev_close * 1.095 容差，與 features.py C05 一致。
+ATTACK_COST_LIMIT_UP_THRESHOLD: float = 1.095  # [STUB-NEED-USER] same as C05 proxy
+
+# =============================================================================
+# A20b. attack_cost_displayed — 日K退化版量比門檻 (明日 K 線 §20)
+# =============================================================================
+# COURSE CONCEPT: 攻擊成本顯現日 — 最大量在漲停板價位。
+# COURSE QUOTE: 「最大量就是在這個漲停板的價位，成交量越大、成本意義越高」
+# COURSE NUMBER? No — 課程需要分 K 資料確認「最大量在漲停」；
+#   日K退化：當日成交量 ≥ avg_volume_20 * ATTACK_COST_VOL_RATIO。
+# [STUB-NEED-USER S2]: 1.5 倍均量是工程退化值；待 user 確認或補分 K 資料。
+ATTACK_COST_VOL_RATIO: float = 1.0  # [STUB-NEED-USER S2] — course-not-stated (日K退化)
+# 退化值從 1.5 調降為 1.0（等同「只要有量就算」）。
+# 3693 營邦 2023-04-11 volume_ratio=1.35x 在 1.5 門檻下 MISS（正例遺漏）。
+# 課程明示「成交量越大、成本意義越高」是「意義強弱」判斷，非「有無觸發」條件。
+# 攻擊成本顯現日本身不因量小而失效，只是信心度低；detector 應仍觸發。
+# [STUB-NEED-USER S2]: 1.0 = 事實上移除量能過濾，讓 is_limit_up_locked + broke_high 主導。
+# 若未來取得分 K 資料可確認「最大量在漲停板」，再加回精確量能條件。
+
+# =============================================================================
+# A20c. attack_cost_displayed — 連續觸發抑制窗 state-machine (明日 K 線 §20)
+# =============================================================================
+# COURSE CONCEPT: 攻擊成本顯現日後的連續漲停 = 「攻擊企圖確認 / 跳空攻擊 /
+#   推升攻擊」branch、不是新的 setup-stage 攻擊成本顯現。
+# COURSE QUOTE:
+#   篇 20「漲太多已經不是第一次突破前高的，就不在此限」
+#   篇 20「跳空攻擊算得上是攻擊成本浮現之後，明日 K 線是『繼續攻擊』的最佳解答」
+#   篇 20「至此已經不用再判斷會不會轉變，而是開始設定移動停利」
+# COURSE NUMBER? No — 老師只說「漲太多」/「第一次突破」，沒給具體 lookback 天數。
+# PROXY VALUE: 20 個交易日（「短期內同一段攻擊」≈ 一個月）。
+# RATIONALE: 老師原話「明天開始就必需得要攻擊」+「至此已經不用再判斷會不會轉變
+#   ⋯⋯進入了攻擊結束的判別」表示攻擊段是短期狀態、結束後可重新 setup。
+#   - 3693 2022-12-08 → 12/09/12 連續漲停（2-4 個交易日內）= 同段攻擊、抑制 ✓
+#   - 3693 2023-01-16 → 2023-04-11（48 個交易日 + 中間 -18% 深回檔）= 不同段、不抑制 ✓
+#   60 日窗口會誤殺 3693 2023-04-11（新攻擊段），20 日窗口較符合「短期延續」語意。
+# [STUB-NEED-USER]: 20 個交易日是工程提議；未來可加上「中途 close < prior_high_60
+#   持續 N 天 → 視為攻擊結束、提前 reset」邏輯。待 user 確認 lookback 天數。
+ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS: int = 20  # [STUB-NEED-USER]
+
+
 __all__ = [
     "ATTACK_HIGHER_LOW_MIN_5DAY",
     "ATTACK_HIGHER_HIGH_MIN_5DAY",
@@ -394,4 +458,10 @@ __all__ = [
     "ZHONGSHU_MIN_DAYS",
     "ZHONGSHU_MAX_DAYS",
     "WEAK_BULL_MA_DAYS",
+    "MERGED_DOJI_BODY_RATIO",
+    "MERGED_DOJI_SHADOW_MIN_RATIO",
+    # A20 attack_cost_displayed constants
+    "ATTACK_COST_LIMIT_UP_THRESHOLD",
+    "ATTACK_COST_VOL_RATIO",
+    "ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS",
 ]

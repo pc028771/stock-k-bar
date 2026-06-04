@@ -153,7 +153,8 @@ def _backfill_single_ticker(
     else:
         df_indexed = ticker_df.sort_index()
 
-    all_dates = df_indexed.index.tolist()
+    # Normalise index to str "YYYY-MM-DD" so DB strings and Timestamp keys match.
+    all_dates = [str(d)[:10] for d in df_indexed.index.tolist()]
     date_to_pos: dict[str, int] = {d: i for i, d in enumerate(all_dates)}
 
     # Empty context df — context fields will resolve to False in vectorized eval
@@ -187,6 +188,8 @@ def _backfill_single_ticker(
                         ctx_df=ctx_df,
                         next_day_n=next_day_n,
                     )
+                    # Normalise series index to str "YYYY-MM-DD" to match date_to_pos keys.
+                    result_series.index = [str(d)[:10] for d in result_series.index]
                     condition_cache[cache_key] = result_series
                 except (UnknownTokenError, KeyError, Exception):
                     # DSL error or missing column → skip, leave NULL

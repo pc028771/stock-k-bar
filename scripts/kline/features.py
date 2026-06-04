@@ -542,6 +542,41 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         | prev2_high_ph60_match
     ).fillna(False)
 
+    # === C04b: 剛創新高（盤中版）label ===
+    # Course source: 明日 K 線 第 24 篇《合併十字線》
+    #
+    # 老師原文（E9A6F935298C7C5C2E269AA952AA1BB2）：
+    #   「股價在剛創新高的位置，長十字線代表的是盤中有過先上漲的拉抬」
+    #   「創新高的上影線也是攻擊過的意義」
+    #   「位置就在剛創新高的狀態」
+    #
+    # 關鍵差異：
+    #   is_just_broke_high（C04）   = close >= prior_high_60（收盤突破）
+    #   is_just_broke_high_intraday = high  >= prior_high_60（盤中觸及即算）
+    #
+    # 課程明示「盤中有過攻擊的力量」= 上影線創新高（high >= prior_high_60），
+    # 不一定要收盤突破。此變體專為 merged_doji 新增，不改動原有 is_just_broke_high。
+    #
+    # 窗口：今日、前 1 日、前 2 日（同 C04 三天窗口，用 high 取代 close）。
+    #
+    # [STUB-NEED-USER S5]:
+    #   「盤中創新高」的定義已由課程明示（high > prior_high_60），
+    #   但「前 2 日」窗口（今日 + D-1 + D-2）是否足夠，課程未明示窗口天數。
+    #   沿用 C04 的三天窗口作為代理。
+
+    prev_high_ph60_intraday = (
+        g["high"].shift(1) >= g["prior_high_60"].shift(1)
+    ).fillna(False)
+    prev2_high_ph60_intraday = (
+        g["high"].shift(2) >= g["prior_high_60"].shift(2)
+    ).fillna(False)
+
+    df["is_just_broke_high_intraday"] = (
+        (df["high"] >= df["prior_high_60"])
+        | prev_high_ph60_intraday
+        | prev2_high_ph60_intraday
+    ).fillna(False)
+
     # === C05: 漲停鎖住 flag ===
     # Course source: 明日 K 線 INVENTORY.md §C05 (第 20、28 篇)
     #

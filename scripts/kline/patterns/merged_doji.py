@@ -9,7 +9,10 @@ Signal Class: entry candidate（剛創新高位置 + 明日攻擊預期）
 K-bar 數量: 2 根合併
 
 識別規則（老師明示，INVENTORY §A01）:
-  1. 位置條件：今日或前 1 日為剛創新高（close 或 prev_close > prior_high_60 對應時間點）
+  1. 位置條件：今日或前 1~2 日為剛創新高（盤中或收盤觸及 prior_high_60）
+     - 課程明示「盤中有過攻擊的力量」也算（看上影線創新高 = high >= prior_high_60）
+     - 使用 is_just_broke_high_intraday（features.py C04b），以 high 取代 close 判斷
+     - 原 close-based 版本改為 intraday 版，避免遺漏上影線創新高的案例（MD-02 5443 均豪）
   2. K 棒組成：前根有上影線、今根有下影線（力量最強組合）
      - 反向（前根下影線後根上影線）退化為「上影線單獨判斷」，不觸發此 pattern
   3. 合併條件：兩根合併後形成「長十字線」
@@ -40,13 +43,10 @@ import numpy as np
 import pandas as pd
 
 
-# [STUB-NEED-USER] 十字線判斷比例門檻：|merged_body| / merged_range <= 0.25
-# 課程說「合併後形成長十字線」但未明示 body/range 比例數字。
-MERGED_DOJI_BODY_RATIO: float = 0.25
-
-# [STUB-NEED-USER] 上下影線最小長度（相對 merged_range）才算「長十字線」
-# 課程要求「上影線 + 下影線形成長十字線」，未明示影線長度比例。
-MERGED_DOJI_SHADOW_MIN_RATIO: float = 0.2
+from ..course_proxy_constants import (
+    MERGED_DOJI_BODY_RATIO,
+    MERGED_DOJI_SHADOW_MIN_RATIO,
+)
 
 
 def _is_doji_merged(
@@ -85,13 +85,18 @@ def detect(df: pd.DataFrame) -> pd.Series:
 
     Args:
         df: 含 ticker, open, high, low, close, prior_high_60 等欄位的 DataFrame
+            通常已透過 add_features() 加工（建議帶入 is_just_broke_high_intraday）。
 
     Returns:
         pd.Series[bool]: 合併十字線觸發的 K 棒（今日為第二根 K）
 
     Conditions (INVENTORY §A01):
-      1. 位置條件：前 1 日或今日 close > prior_high_60（剛創新高）
-         - prev_close > prior_high_60.shift(1)  OR  close > prior_high_60
+      1. 位置條件：今日、前 1 日或前 2 日有盤中創新高（high >= prior_high_60）
+         - 課程原文：「盤中有過攻擊的力量」「創新高的上影線也是攻擊過的意義」
+         - 使用 is_just_broke_high_intraday（features.py C04b）；若欄位不存在，
+           fallback 到 prev_high >= prior_high_60_prev OR close > prior_high_60
+         - 原 close-based 版（prev_close > prior_high_60_prev OR close > prior_high_60）
+           改為 intraday 版，以修正 MD-02 5443 均豪 2024-06-25 MISS（上影線創新高日）
       2. K 棒方向組合（最強）：前根上影線為主 + 今根下影線為主
          - 前根：upper_shadow_prev > lower_shadow_prev（上影線較長）
          - 今根：lower_shadow_today > upper_shadow_today（下影線較長）
@@ -105,10 +110,20 @@ def detect(df: pd.DataFrame) -> pd.Series:
     prev_close = g["close"].shift(1)
     prior_high_60_prev = g["prior_high_60"].shift(1)
 
-    # --- 條件 1: 剛創新高位置（前 1 日或今日） ---
-    just_broke_high = (
-        (prev_close > prior_high_60_prev) | (df["close"] > df["prior_high_60"])
-    ).fillna(False)
+    # --- 條件 1: 剛創新高位置（盤中版 C04b）---
+    # 使用 features.py C04b 的 is_just_broke_high_intraday（如有）；
+    # 否則 fallback 到盤中版本計算
+    if "is_just_broke_high_intraday" in df.columns:
+        just_broke_high = df["is_just_broke_high_intraday"].fillna(False)
+    else:
+        # Fallback: 計算 intraday 版本（不需 features.py 已 run）
+        prev2_high = g["high"].shift(2)
+        prior_high_60_prev2 = g["prior_high_60"].shift(2)
+        just_broke_high = (
+            (df["high"] >= df["prior_high_60"])
+            | (prev_high >= prior_high_60_prev)
+            | (prev2_high >= prior_high_60_prev2)
+        ).fillna(False)
 
     # --- 條件 2: 影線組合 — 前根上影線 > 下影線（前根以上影線為主） ---
     prev_body_top = pd.concat([prev_open, prev_close], axis=1).max(axis=1)

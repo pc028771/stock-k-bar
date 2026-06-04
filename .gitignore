@@ -60,3 +60,7 @@ data/analysis/four_seasons/season_*.csv
 data/analysis/four_seasons/backtest_*_trades.csv
 !data/analysis/four_seasons/backtest_2025_final_trades.csv
 !data/analysis/four_seasons/*.csv.zip
+
+# kline_patterns generated DBs (regeneratable backtest artifacts)
+data/analysis/kline_patterns/*.db
+data/analysis/kline_patterns/*.sqlite

@@ -40,6 +40,7 @@ API:
 from __future__ import annotations
 
 from . import (
+    attack_cost_displayed,
     bear_engulfing,
     biting,
     breakout_double_star,
@@ -69,6 +70,7 @@ from . import (
 )
 
 PATTERN_REGISTRY = {
+    "attack_cost_displayed": attack_cost_displayed.detect,
     "bear_engulfing": bear_engulfing.detect,
     "bull_engulfing": bull_engulfing.detect,
     "morning_star_harami": morning_star_harami.detect,
