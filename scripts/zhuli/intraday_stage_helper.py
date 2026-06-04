@@ -353,6 +353,30 @@ class StageTrigger:
             result["reason"] = f"未站穩前波高 {prev_high:.2f}"
             return result
 
+        # ── 9:15-9:45 拉高出貨時段過濾 ────────────────────────────────────────
+        # v8 backtest: 觸發即進 Win 54.8%、尾盤 Win 80.8%；9:15-9:45 系統性差
+        # 與 Ch5-3 對齊 — 9:15-9:45 確認降為 T1_watch
+        now_ts = k5.index[-1]
+        t_str = now_ts.strftime("%H:%M") if hasattr(now_ts, "strftime") else "09:30"
+        if "09:15" <= t_str < "09:45":
+            result["level"] = "T1_watch"
+            result["reason"] = (
+                f"T1 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+                f"(連 2 紅K + 量×{vol_ratio:.1f} + 反彈+{rebound_pct:.1f}%"
+                + (f" + 站前波高 {prev_high:.2f}" if prev_high else "")
+                + ")"
+            )
+            return result
+
+        # ── 距日高 < 1.5% 過濾 ──────────────────────────────────────────────────
+        day_high = float(k5["high"].max())
+        if day_high > 0 and current_close >= day_high * 0.985:
+            result["level"] = "T1_watch"
+            result["reason"] = (
+                f"T1 觸發但太接近日高 ${day_high:.2f}、等回測 -1.5% 再切入"
+            )
+            return result
+
         result["triggered"] = True
         result["level"] = "confirmed"
         result["reason"] = (
@@ -407,6 +431,27 @@ class StageTrigger:
             all_red = (last_3["close"] > last_3["open"]).all()
             rebound = (float(last_3.iloc[-1]["close"]) - low_price) / low_price * 100
             if all_red and rebound >= 1.0:
+                # ── 9:15-9:45 拉高出貨時段過濾 (與 Ch5-3 / T1 對齊) ────────────
+                now_ts2 = last_3.index[-1]
+                t_str2 = now_ts2.strftime("%H:%M") if hasattr(now_ts2, "strftime") else "09:30"
+                if "09:15" <= t_str2 < "09:45":
+                    result["level"] = "T2_watch"
+                    result["reason"] = (
+                        f"T2 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+                        f"(跌深 {pullback_pct:.1f}% + 3 紅K + 反彈 {rebound:.1f}%)"
+                    )
+                    return result
+
+                # ── 距日高 < 1.5% 過濾 ─────────────────────────────────────────
+                day_high_t2 = float(k5["high"].max())
+                confirm_close = float(last_3.iloc[-1]["close"])
+                if day_high_t2 > 0 and confirm_close >= day_high_t2 * 0.985:
+                    result["level"] = "T2_watch"
+                    result["reason"] = (
+                        f"T2 觸發但太接近日高 ${day_high_t2:.2f}、等回測 -1.5% 再切入"
+                    )
+                    return result
+
                 result["triggered"] = True
                 result["level"] = "confirmed"
                 result["reason"] = (
@@ -428,6 +473,25 @@ class StageTrigger:
                     and current_time >= "09:10"
                     and float(last["close"]) > float(last["open"])   # 紅K
                     and float(last["volume"]) >= vol_mean5):          # 量 ≥ 5 根平均
+                # ── 9:15-9:45 拉高出貨時段過濾 (Path B) ────────────────────────
+                if "09:15" <= current_time < "09:45":
+                    result["level"] = "T2_watch"
+                    result["reason"] = (
+                        f"T2(B) 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+                        f"(跌深 {pullback_pct:.1f}% + 5m diff 轉正)"
+                    )
+                    return result
+
+                # ── 距日高 < 1.5% 過濾 (Path B) ────────────────────────────────
+                day_high_b = float(k5["high"].max())
+                close_b = float(last["close"])
+                if day_high_b > 0 and close_b >= day_high_b * 0.985:
+                    result["level"] = "T2_watch"
+                    result["reason"] = (
+                        f"T2(B) 觸發但太接近日高 ${day_high_b:.2f}、等回測 -1.5%"
+                    )
+                    return result
+
                 result["triggered"] = True
                 result["level"] = "confirmed"
                 result["reason"] = (
@@ -1174,12 +1238,28 @@ class StageTrigger:
         r = self.check_trigger_1(ticker, k5, prev_high)
         if r.get("triggered"):
             return _with_regime(self._format_action(r, "T1", category))
+        # T1_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
+        t1_level = r.get("level", "watch")
+        if t1_level == "T1_watch":
+            return _with_regime(self._format_action(
+                {**r, "triggered": True},
+                "T1_watch",
+                category,
+            ))
 
         # Layer 3: T2 跌深反彈 (新版、盤中高)
         # now_time 傳 datetime.min 表示不做時段限制 (新版已移除時段限制)
         r = self.check_trigger_2(ticker, k5, datetime.min)
         if r.get("triggered"):
             return _with_regime(self._format_action(r, "T2", category))
+        # T2_watch (9:15-9:45 或距日高 <1.5%) 也需要上報
+        t2_level = r.get("level", "watch")
+        if t2_level == "T2_watch":
+            return _with_regime(self._format_action(
+                {**r, "triggered": True},
+                "T2_watch",
+                category,
+            ))
 
         # Layer 4: TC 結構失敗
         r = self.check_trigger_c(ticker, k5, prev_low)
