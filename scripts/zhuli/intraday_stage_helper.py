@@ -83,8 +83,8 @@ TRIGGER_NAME_MAP: dict[str, str] = {
     "反彈":          "T2",
     "反彈_watch":    "T2_watch",
     "破底":          "TC",
-    "尾盤_confirmed": "Closing_confirmed",
-    "尾盤_watch":    "Closing_watch",
+    "尾盤_confirmed": "Closing_confirmed",  # 3-4/5 最佳進場
+    "尾盤_過熱":     "Closing_overheated",  # 5/5 Win 40% 過熱、不該追
     "尾盤_skip":     "Closing_skip",
 }
 # 反向 alias: 舊名 → 新名 (向後相容讀取)
@@ -1011,7 +1011,10 @@ class StageTrigger:
         Returns:
             {
                 'triggered':  bool,
-                'level':      'confirmed' / 'watch' / 'skip' / 'not_in_window',
+                'level':      'confirmed' / 'overheated' / 'skip' / 'not_in_window',
+                              # confirmed = 3-4/5 Win 82% 最佳進場 (triggered=True)
+                              # overheated = 5/5 Win 40% 過熱不追 (triggered=False)
+                              # skip = <3/5 不進 (triggered=False)
                 'reason':     str,
                 'scores': {
                     'structure_hold':    bool,   # 1. close > MA10
@@ -1137,10 +1140,14 @@ class StageTrigger:
         pass_count = sum(scores.values())
 
         # 7. 決定 level
+        # v7 backtest 校正:
+        #   5/5 = Win 40% / -0.78%  → overheated (已被拉走、不該追)
+        #   3-4/5 = Win 82% / +1.62% → confirmed (最佳進場)
+        #   <3/5 = Win 73% / +1.35%  → skip (不進)
         if pass_count == 5:
-            level = "confirmed"
+            level = "overheated"
         elif pass_count >= 3:
-            level = "watch"
+            level = "confirmed"
         else:
             level = "skip"
 
@@ -1159,7 +1166,8 @@ class StageTrigger:
         if fail_parts:
             reason_str += f"  ✗{','.join(fail_parts)}"
 
-        triggered = level in ("confirmed", "watch")
+        # triggered = "可進場" 語意: confirmed (3-4/5) = True、overheated (5/5) 和 skip = False
+        triggered = level in ("confirmed",)
 
         return {
             "triggered":  triggered,
@@ -1326,17 +1334,21 @@ class StageTrigger:
                 db_path=_DB,
             )
             cl_level = closing_r.get("level", "not_in_window")
+            # v7 backtest 校正命名:
+            #   confirmed (3-4/5) → 尾盤_confirmed  Win 82% 最佳進場
+            #   overheated (5/5)  → 尾盤_過熱       Win 40% 過熱不追
+            #   skip (<3/5)       → 尾盤_skip        不進
             if cl_level == "confirmed":
                 closing_detector = "尾盤_confirmed"
-            elif cl_level == "watch":
-                closing_detector = "尾盤_watch"
+            elif cl_level == "overheated":
+                closing_detector = "尾盤_過熱"
             else:
                 closing_detector = "尾盤_skip"
 
-            closing_triggered = cl_level in ("confirmed", "watch")
+            closing_triggered = cl_level in ("confirmed",)  # 過熱不算觸發
             cl_action_map = {
-                "尾盤_confirmed": "🟢 尾盤可進 (5/5)",
-                "尾盤_watch":     "🟡 尾盤觀察 (3-4/5)",
+                "尾盤_confirmed": "🟢 尾盤可進 (3-4/5 Win 82%)",
+                "尾盤_過熱":      "🔴 尾盤過熱 (5/5 Win 40% 別追)",
                 "尾盤_skip":      "🔴 尾盤不進 (<3/5)",
             }
             return _with_regime({

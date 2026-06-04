@@ -507,10 +507,10 @@ TRIGGER_DISPLAY = {
     '反彈':          '🎯 反彈 confirmed',
     '反彈_watch':    '🟡 反彈 watch (等 9:45+)',
     '破底':          '🔴 破底 confirmed',
-    # 尾盤進場確認 (13:00-13:25)
-    '尾盤_confirmed': '🟢 ⭐ 尾盤 confirmed (5/5)',
-    '尾盤_watch':    '🟡 尾盤 watch (3-4/5)',
-    '尾盤_skip':     '🔴 尾盤 skip (<3/5)',
+    # 尾盤進場確認 (13:00-13:25) — v7 backtest 校正命名
+    '尾盤_confirmed': '🟢 ⭐ 尾盤 confirmed 3-4/5 Win 82% (最佳進場)',
+    '尾盤_過熱':      '🔴 尾盤過熱 5/5 Win 40% (已被拉走、別追)',
+    '尾盤_skip':      '⚪ 尾盤 skip <3/5 (不進)',
     # 舊英文名 alias (向後相容)
     'Ch5-3':             '🟢 首攻 confirmed (守住進場)',
     'Ch5-3_pullback':    '🟡 首攻 pullback (回踩中)',
@@ -520,9 +520,10 @@ TRIGGER_DISPLAY = {
     'T2':                '🎯 反彈 confirmed',
     'T2_watch':          '🟡 反彈 watch (等 9:45+)',
     'TC':                '🔴 破底 confirmed',
-    'Closing_confirmed': '🟢 ⭐ 尾盤 confirmed (5/5)',
-    'Closing_watch':     '🟡 尾盤 watch (3-4/5)',
-    'Closing_skip':      '🔴 尾盤 skip (<3/5)',
+    'Closing_confirmed': '🟢 ⭐ 尾盤 confirmed 3-4/5 Win 82% (最佳進場)',
+    'Closing_overheated': '🔴 尾盤過熱 5/5 Win 40% (已被拉走、別追)',
+    'Closing_watch':     '🟡 尾盤 watch (3-4/5)',  # legacy alias
+    'Closing_skip':      '⚪ 尾盤 skip <3/5 (不進)',
     'none': '⚪ 無訊號',
     None: '⚪ 無訊號',
 }
@@ -533,11 +534,11 @@ TRIGGER_RANK = {
     '首攻':           0,
     '首攻_pullback':  1,
     '首攻_signal':    2,
-    '尾盤_confirmed': 3,
-    '尾盤_watch':     4,
-    '反彈':           5,
-    '續攻':           6,
-    '破底':           7,
+    '尾盤_confirmed': 3,   # 3-4/5 Win 82% 最佳進場、高優先
+    '反彈':           4,
+    '續攻':           5,
+    '破底':           6,
+    '尾盤_過熱':      7,   # 5/5 Win 40% 警示、低優先
     '尾盤_skip':      8,
     '續攻_watch':     9,
     '反彈_watch':     10,
@@ -546,10 +547,11 @@ TRIGGER_RANK = {
     'Ch5-3_pullback':    1,
     'Ch5-3_signal':      2,
     'Closing_confirmed': 3,
-    'Closing_watch':     4,
-    'T2':                5,
-    'T1':                6,
-    'TC':                7,
+    'Closing_overheated': 7,
+    'Closing_watch':     4,  # legacy
+    'T2':                4,
+    'T1':                5,
+    'TC':                6,
     'Closing_skip':      8,
     'T1_watch':          9,
     'T2_watch':          10,
@@ -976,11 +978,11 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
         '續攻', '續攻_watch',
         '反彈', '反彈_watch',
         '破底',
-        '尾盤_confirmed', '尾盤_watch', '尾盤_skip',
+        '尾盤_confirmed', '尾盤_過熱', '尾盤_skip',
         # 舊英文名 alias
         'Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T1_watch',
         'T2', 'T2_watch', 'TC',
-        'Closing_confirmed', 'Closing_watch', 'Closing_skip',
+        'Closing_confirmed', 'Closing_overheated', 'Closing_watch', 'Closing_skip',
     )
     if trig_key not in valid_keys:
         return
@@ -1000,9 +1002,9 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
         '反彈':          f"🎯 {ticker} {name} 反彈 訊號",
         '反彈_watch':    f"🟡 {ticker} {name} 反彈 watch → 等 9:45+",
         '破底':          f"🚨 {ticker} {name} 破底 結構失敗",
-        '尾盤_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 5/5 Win 80% → 可進",
-        '尾盤_watch':    f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
-        '尾盤_skip':     f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
+        '尾盤_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 3-4/5 Win 82% → 最佳進場",
+        '尾盤_過熱':      f"🔴 {ticker} {name} 尾盤 5/5 過熱 Win 40% → 別追",
+        '尾盤_skip':      f"⚪ {ticker} {name} 尾盤 <3/5 → 不進",
         # 舊英文名 alias
         'Ch5-3':             f"🟢 {ticker} {name} 首攻 守住 → 可進場",
         'Ch5-3_pullback':    f"🟡 {ticker} {name} 首攻 回踩 MA10 中",
@@ -1012,22 +1014,24 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
         'T2':                f"🎯 {ticker} {name} 反彈 訊號",
         'T2_watch':          f"🟡 {ticker} {name} 反彈 watch → 等 9:45+",
         'TC':                f"🚨 {ticker} {name} 破底 結構失敗",
-        'Closing_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 5/5 Win 80% → 可進",
-        'Closing_watch':     f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
-        'Closing_skip':      f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
+        'Closing_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 3-4/5 Win 82% → 最佳進場",
+        'Closing_overheated': f"🔴 {ticker} {name} 尾盤 5/5 過熱 Win 40% → 別追",
+        'Closing_watch':     f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",  # legacy
+        'Closing_skip':      f"⚪ {ticker} {name} 尾盤 <3/5 → 不進",
     }
     sounds = {
         '首攻': 'Glass', '首攻_signal': 'Tink', '首攻_pullback': 'Tink',
         '續攻': 'Glass', '續攻_watch': 'Tink',
         '反彈': 'Glass', '反彈_watch': 'Tink',
         '破底': 'Sosumi',
-        '尾盤_confirmed': 'Glass', '尾盤_watch': 'Tink', '尾盤_skip': 'Basso',
+        '尾盤_confirmed': 'Glass', '尾盤_過熱': 'Sosumi', '尾盤_skip': 'Basso',
         # 舊英文名 alias
         'Ch5-3': 'Glass', 'Ch5-3_signal': 'Tink', 'Ch5-3_pullback': 'Tink',
         'T1': 'Glass', 'T1_watch': 'Tink',
         'T2': 'Glass', 'T2_watch': 'Tink',
         'TC': 'Sosumi',
-        'Closing_confirmed': 'Glass', 'Closing_watch': 'Tink', 'Closing_skip': 'Basso',
+        'Closing_confirmed': 'Glass', 'Closing_overheated': 'Sosumi',
+        'Closing_watch': 'Tink', 'Closing_skip': 'Basso',
     }
     try:
         subprocess.run(
@@ -1239,6 +1243,8 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
         style = 'yellow'
     elif trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
         style = 'bold magenta'
+    elif trig_key in ('尾盤_過熱', 'Closing_overheated'):
+        style = 'bold red'
     elif trig_key in ('尾盤_watch', 'Closing_watch'):
         style = 'yellow'
     elif trig_key in ('尾盤_skip', 'Closing_skip'):
@@ -1291,25 +1297,34 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
     prefix = Text("└ ", style="dim")
     age_text, age_style = fmt_trigger_age(ticker, trig_key, now) if trig_key else ('', 'dim')
 
-    # ── 1. 尾盤_confirmed / Closing_confirmed (尾盤 5/5) → bold green ⭐ 最佳 ──
+    # ── 1. 尾盤_confirmed / Closing_confirmed (3-4/5 Win 82%) → bold green ⭐ 最佳 ──
     if trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
         # 加「剩 N 分到 13:25」截止提示
         remain_min = max(0, (13 * 60 + 25) - (now.hour * 60 + now.minute))
         remain_str = f"、剩 {remain_min} 分到 13:25" if remain_min > 0 else "、13:25 截止!"
         t = Text()
         t.append_text(prefix)
-        t.append(f"🟢 ⭐ 尾盤 Win {wd['closing']}% (最佳時段{remain_str})", style="bold green")
+        t.append(f"🟢 ⭐ 尾盤 3-4/5 Win 82% (最佳進場{remain_str})", style="bold green")
         if age_text:
             t.append(age_text, style=age_style)
         return t
 
-    # ── 2. 尾盤_watch / Closing_watch (尾盤 3-4/5) → green 普通強調 ────────
+    # ── 1b. 尾盤_過熱 / Closing_overheated (5/5 Win 40%) → bold red 警示 ──
+    if trig_key in ('尾盤_過熱', 'Closing_overheated'):
+        t = Text()
+        t.append_text(prefix)
+        t.append("🔴 尾盤過熱 5/5 Win 40% (已被拉走、別追)", style="bold red")
+        if age_text:
+            t.append(age_text, style=age_style)
+        return t
+
+    # ── 2. 尾盤_watch / Closing_watch (legacy) → yellow 普通觀察 ─────────
     if trig_key in ('尾盤_watch', 'Closing_watch'):
         remain_min = max(0, (13 * 60 + 25) - (now.hour * 60 + now.minute))
         remain_str = f"、剩 {remain_min} 分到 13:25" if remain_min > 0 else "、13:25 截止!"
         t = Text()
         t.append_text(prefix)
-        t.append(f"🟡 尾盤 3-4/5 watch Win {wd['closing']}% (觀察{remain_str})", style="green")
+        t.append(f"🟡 尾盤 watch (觀察{remain_str})", style="yellow")
         if age_text:
             t.append(age_text, style=age_style)
         return t
@@ -2762,7 +2777,7 @@ CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
         ("Layer 2: 續攻 (T1) 強勢延續",    "4 觸發任一 (強勢/回撤反彈/+10%通則/老師明示)"),
         ("Layer 3: 反彈 (T2) 跌深反彈",    "3 紅K confirm; 路徑 B (5m diff) 已 FAIL 不用"),
         ("Layer 4: 破底 (TC) 結構失敗",    "excluded、出場訊號"),
-        ("尾盤 (Closing) 13:00-13:25",     "5 項確認、Win 80%、另立顯示"),
+        ("尾盤 (Closing) 13:00-13:25",     "5 項確認、v7 backtest: 3-4/5=Win 82% ⭐ / 5/5=Win 40% 過熱別追"),
         ("category 分流",                  "核心/題材 → HELD; 短打/觀察 → WATCH"),
         ("紀律 filter",                    "discipline_filter 先過、紅線觸發整個 cascade skip"),
     ]),
@@ -2953,7 +2968,7 @@ def _build_scenarios() -> list[tuple]:
         '2376': 380.0, '8064': 65.0, '6116': 19.5, '6147': 88.0,
         '5351': 42.0, '3006': 110.0, '2344': 28.0, '6207': 127.0,
         '8046': 862.0, '1717': 78.7, '4722': 279.0, '4526': 42.15,
-        '4540': 77.3,
+        '4540': 77.3, '1303': 113.0,  # 南亞 (scenario 33/34 尾盤演示用)
     }
 
     def base(adjust: dict[str, tuple[float, float]] | None = None,
@@ -3180,6 +3195,25 @@ def _build_scenarios() -> list[tuple]:
     age = {'8064': 45}
     scenarios.append(("32. Trigger 時間戳 45 分前 (紅、太晚)",
                       2, base(adj), 'status', 2, trig, age))
+
+    # 33. 尾盤 confirmed 3-4/5 Win 82% (最佳進場)
+    adj = {tk: (0.0, 0.8) for tk in PREV}
+    adj['1303'] = (0.0, 1.2)  # 南亞 稍漲
+    trig = {
+        '1303': ('尾盤_confirmed', '結構✓殺盤✓反彈✓量縮✓ (4/5 pass Win 82%)'),
+        '3702': ('尾盤_confirmed', '結構✓反彈✓量縮✓ (3/5 pass Win 82%)'),
+    }
+    scenarios.append(("33. 尾盤 confirmed 3-4/5 Win 82% ⭐ 最佳進場",
+                      2, base(adj), 'trigger', 2, trig))
+
+    # 34. 尾盤過熱 5/5 Win 40% (警示不追)
+    adj = {tk: (0.0, 1.5) for tk in PREV}
+    adj['1303'] = (2.0, 4.5)  # 南亞 強漲、已被拉走
+    trig = {
+        '1303': ('尾盤_過熱', '5/5 全 pass → 已被拉走 Win 40% 別追'),
+    }
+    scenarios.append(("34. 尾盤過熱 5/5 Win 40% 🔴 別追",
+                      2, base(adj), 'trigger', 2, trig))
 
     return scenarios
 
