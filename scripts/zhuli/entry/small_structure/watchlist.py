@@ -251,7 +251,7 @@ def run_post_attack_watchlist(
     universe: str = 'sector_week',
     target_date: str | None = None,
     ticker_col: str = 'ticker',
-    attack_window: int = 15,
+    attack_window: int = 8,
     consol_window: int = 5,
 ) -> pd.DataFrame:
     """攻擊後盤整 watchlist — 給人眼辨識 + 問老師用.

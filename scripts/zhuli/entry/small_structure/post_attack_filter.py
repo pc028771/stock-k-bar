@@ -21,10 +21,10 @@ import pandas as pd
 
 def get_post_attack_info(
     df: pd.DataFrame,
-    attack_window: int = 15,
+    attack_window: int = 8,
     consol_window: int = 5,
-    min_attack_pct: float = 0.10,
-    consol_range_pct: float = 0.10,
+    min_attack_pct: float = 0.15,
+    consol_range_pct: float = 0.05,
 ) -> dict | None:
     """攻擊後盤整資訊 dict，不符合回傳 None.
 
