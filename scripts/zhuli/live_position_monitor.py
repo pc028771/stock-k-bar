@@ -292,38 +292,79 @@ WATCH = [
         'note': '🟡 老師 [25:08]「壓著、尾盤關注、跟東捷類似」、距 MA10 +9.4%'
     },
     # 8046 南電 — 6/4 已進 HELD、移除 WATCH
-    # 老師 6/4 中長期 watchlist 補 4 檔 (其餘 4 檔已在上方 WATCH)
+    # 老師 6/4 圈起來 + 均線全順向 (~44 檔之一) — user 列出 5 檔
+    {
+        'ticker': '6282', 'name': '康舒',
+        'ref_close': 64.4, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 圈起來',
+        'sector': 'AI電源/散熱',
+        'note': '🛡️ 6/4 圈起來、大盤跌時守均價線 (relative_strength validation case)'
+    },
+    {
+        'ticker': '2449', 'name': '京元電子',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 圈起來',
+        'sector': '半導體封測',
+        'note': '🛡️ 6/4 圈起來'
+    },
+    {
+        'ticker': '4967', 'name': '十銓',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 圈起來',
+        'sector': '記憶體模組',
+        'note': '🛡️ 6/4 圈起來'
+    },
+    {
+        'ticker': '3211', 'name': '順達',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 圈起來',
+        'sector': '電池模組',
+        'note': '🛡️ 6/4 圈起來'
+    },
+    {
+        'ticker': '6209', 'name': '今國光',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 圈起來',
+        'sector': '光學鏡頭',
+        'note': '🛡️ 6/4 圈起來'
+    },
+    # 老師 6/3 圈起來中長期 補 4 檔 (其餘 4 檔已在上方 WATCH)
     {
         'ticker': '3037', 'name': '欣興',
         'ref_close': 0, 'stop': None,
         'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 中長期',
+        'source': '老師明示 6/3 圈起來',
         'sector': 'ABF載板',
-        'note': '⭐ 老師 6/4 中長期 watchlist (ABF 主推、tier core)'
+        'note': '⭐ 老師 6/3 圈起來中長期 (ABF 主推、tier core)'
     },
     {
         'ticker': '2308', 'name': '台達電',
         'ref_close': 0, 'stop': None,
         'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 中長期',
+        'source': '老師明示 6/3 圈起來',
         'sector': 'AI電源/散熱',
-        'note': '⭐ 老師 6/4 中長期 watchlist (AI 電源/散熱龍頭)'
+        'note': '⭐ 老師 6/3 圈起來中長期 (AI 電源/散熱龍頭)'
     },
     {
         'ticker': '2368', 'name': '金像電',
         'ref_close': 0, 'stop': None,
         'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 中長期',
+        'source': '老師明示 6/3 圈起來',
         'sector': 'PCB',
-        'note': '⭐ 老師 6/4 中長期 watchlist (PCB)'
+        'note': '⭐ 老師 6/3 圈起來中長期 (PCB)'
     },
     {
         'ticker': '2345', 'name': '智邦',
         'ref_close': 0, 'stop': None,
         'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 中長期',
+        'source': '老師明示 6/3 圈起來',
         'sector': '網通',
-        'note': '⭐ 老師 6/4 中長期 watchlist (網通/800G switch)'
+        'note': '⭐ 老師 6/3 圈起來中長期 (網通/800G switch)'
     },
     # 6/3 scanner 新增 (Tier-B 打擊區、籌碼/型態符合)
     {
