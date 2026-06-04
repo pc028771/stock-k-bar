@@ -1327,6 +1327,109 @@ def r_change_pct(chg: float) -> Text:
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# Aligned mini-table helper (per-ticker Group 方案)
+# ─────────────────────────────────────────────────────────────────────────
+# 每檔 ticker = 1 個 mini-table (固定 column widths) + 1 個 Text subrow
+# 所有 mini-tables 用相同 widths → 視覺上對齊
+# trigger 是獨立 Text (Padding 縮排)、不在 table 內、不必對齊
+#
+# 各區塊的 column spec (name, width, justify, no_wrap):
+
+# 持倉表 (Phase 2 t_h)
+COLS_HELD_P2 = [
+    ("策略",      10, "left",  True),
+    ("⭐",         6, "left",  True),
+    ("Ticker",     6, "left",  True),
+    ("Name",       8, "left",  True),
+    ("開→現 (%)", 18, "left",  True),
+    ("量比",       8, "left",  True),
+    ("P&L",       20, "right", True),
+    ("距停",       8, "right", True),
+    ("出場提醒",  22, "left",  True),
+    ("狀",         3, "left",  True),
+]
+
+# 已持倉開盤健康度 (Phase 1 t_held)
+COLS_HELD_P1 = [
+    ("Lv",         4, "left",  True),
+    ("⭐",         6, "left",  True),
+    ("Ticker",     6, "left",  True),
+    ("Name",       8, "left",  True),
+    ("開→現 (%)", 18, "left",  True),
+    ("量比",       8, "left",  True),
+    ("入",         8, "right", True),
+    ("P&L",       20, "right", True),
+    ("停",         8, "right", True),
+    ("開盤評語",  30, "left",  True),
+]
+
+# WATCH confirmed
+COLS_WATCH_CONFIRMED = [
+    ("⭐",         6, "left",  True),
+    ("Ticker",     6, "left",  True),
+    ("Name",       8, "left",  True),
+    ("現",         8, "right", True),
+    ("量比",       8, "left",  True),
+    ("距停",       8, "right", True),
+    ("族群",      16, "left",  True),
+]
+
+# WATCH watching (分類)
+COLS_WATCH_WATCHING = [
+    ("⭐",         6, "left",  True),
+    ("Ticker",     6, "left",  True),
+    ("Name",       8, "left",  True),
+    ("現",         8, "right", True),
+    ("漲跌",       8, "right", True),
+    ("量比",       8, "left",  True),
+    ("Note",      32, "left",  True),
+]
+
+# Phase 2 watchlist (非 status mode)
+COLS_WATCH_P2 = [
+    ("⭐",         6, "left",  True),
+    ("戰術",       8, "left",  True),
+    ("Ticker",     6, "left",  True),
+    ("Name",       8, "left",  True),
+    ("現",         8, "right", True),
+    ("漲跌",       8, "right", True),
+    ("量比",       8, "left",  True),
+    ("距停",       8, "right", True),
+    ("族群",      16, "left",  True),
+    ("狀",         5, "left",  True),
+]
+
+
+def _mk_aligned_table(cols: list, show_header: bool) -> Table:
+    """建固定 column widths 的 mini-table、所有 mini 共用同一份 spec → align。
+
+    box=None 不畫邊框、padding=(0,1) 維持欄距、show_edge=False
+    """
+    t = Table(
+        show_header=show_header,
+        header_style="bold" if show_header else None,
+        box=None,
+        padding=(0, 1),
+        show_edge=False,
+        expand=False,
+    )
+    for name, width, justify, no_wrap in cols:
+        t.add_column(name, width=width, justify=justify, no_wrap=no_wrap)
+    return t
+
+
+def _render_subrow(trig_key: str, trig_reason: str, ticker: str,
+                   now: datetime | None = None) -> "Padding":
+    """trigger 第 2 行、用 Padding 縮排對齊 mini-table 左側欄距。
+
+    Padding(text, (top, right, bottom, left))
+    """
+    from rich.padding import Padding
+    txt = r_trigger_subrow(trig_key, trig_reason, ticker=ticker, now=now)
+    return Padding(txt, (0, 0, 0, 4))
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # DB helper
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -1641,7 +1744,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
     # Priority panel
     renderables.append(render_priority_panel(held, watch_norm, live_data))
 
-    # 已持倉開盤健康度 — Group(mini-table + full-width subrow)
+    # 已持倉開盤健康度 — per-ticker Group (固定 widths)
     if held:
         hparts: list = [Text("📊 已持倉開盤健康度", style="bold")]
         sorted_held = sort_items(held, sort_mode, live_data)
@@ -1656,24 +1759,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
             trig_key    = d.get('trigger', 'none')
             trig_reason = d.get('trigger_reason', '')
             show_hdr = (h_idx == 0)
-
-            def _mk_held(show_header: bool) -> Table:
-                t = Table(box=box.SIMPLE, expand=True,
-                          show_header=show_header, show_edge=False,
-                          padding=(0, 1))
-                t.add_column("Lv", no_wrap=True)
-                t.add_column("⭐", no_wrap=True)
-                t.add_column("Ticker", no_wrap=True)
-                t.add_column("Name", no_wrap=True)
-                t.add_column("開→現 (%)", no_wrap=True)
-                t.add_column("量比", no_wrap=True)
-                t.add_column("入", justify="right", no_wrap=True)
-                t.add_column("P&L", justify="right", no_wrap=True)
-                t.add_column("停", justify="right", no_wrap=True)
-                t.add_column("開盤評語", no_wrap=True)
-                return t
-
-            mini = _mk_held(show_hdr)
+            mini = _mk_aligned_table(COLS_HELD_P1, show_hdr)
             try:
                 snap = client.get_realtime_snapshot(tk) or {}
                 o    = float(snap.get('open') or 0)
@@ -1707,13 +1793,12 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     opening_comment,
                 )
                 hparts.append(mini)
-                sub = Text("    ")
-                sub.append_text(r_trigger_subrow(trig_key, trig_reason, ticker=tk))
-                hparts.append(sub)
+                hparts.append(_render_subrow(trig_key, trig_reason, ticker=tk))
             except Exception as e:
                 mini.add_row("?", "", tk, name, "err", "", "", Text(str(e), style="red"), "", "")
                 hparts.append(mini)
-                hparts.append(Text("    └ ⚠️ 錯誤", style="red dim"))
+                from rich.padding import Padding
+                hparts.append(Padding(Text("└ ⚠️ 錯誤", style="red dim"), (0, 0, 0, 4)))
         renderables.append(Group(*hparts))
 
     # 待進場主候選
@@ -2025,7 +2110,7 @@ def render_watch_sectioned(
     watching_total = len(watching)
 
     if confirmed:
-        # confirmed: Group(per-stock mini-table + full-width subrow)
+        # confirmed: per-ticker Group (固定 widths)
         cparts: list = [Text("🎯 WATCH 可進場 (confirmed)", style="bold green")]
         for c_idx, (item, d) in enumerate(confirmed):
             pri = item.get('priority', 1)
@@ -2035,14 +2120,7 @@ def render_watch_sectioned(
             dist_t = r_dist(dist) if stop else Text("—", style="dim")
             price_s = f"{c:.1f}" if c else "—"
             show_hdr = (c_idx == 0)
-            mini = Table(box=box.SIMPLE, expand=True,
-                         show_header=show_hdr, show_edge=False, padding=(0, 1))
-            mini.add_column("⭐", no_wrap=True); mini.add_column("Ticker", no_wrap=True)
-            mini.add_column("Name", no_wrap=True)
-            mini.add_column("現", justify="right", no_wrap=True)
-            mini.add_column("量比", no_wrap=True)
-            mini.add_column("距停", justify="right", no_wrap=True)
-            mini.add_column("族群", no_wrap=True)
+            mini = _mk_aligned_table(COLS_WATCH_CONFIRMED, show_hdr)
             mini.add_row(
                 stars(pri), item['ticker'], item['name'],
                 price_s,
@@ -2051,9 +2129,7 @@ def render_watch_sectioned(
                 item.get('sector', '?'),
             )
             cparts.append(mini)
-            sub = Text("    ")
-            sub.append_text(r_trigger_subrow(trig, reason, ticker=item['ticker']))
-            cparts.append(sub)
+            cparts.append(_render_subrow(trig, reason, ticker=item['ticker']))
         out.append(Group(*cparts))
 
     if watching:
@@ -2082,7 +2158,7 @@ def render_watch_sectioned(
             else:
                 shown = items
                 title = f"{cat} ({cat_total} 檔)"
-            # watching: Group(per-stock mini-table + full-width subrow)
+            # watching: per-ticker Group (固定 widths)
             wparts: list = [Text(title, style="bold")]
             for w_idx, (item, d) in enumerate(shown):
                 pri = item.get('priority', 1)
@@ -2091,14 +2167,7 @@ def render_watch_sectioned(
                 c = d.get('c', 0); chg = d.get('pnl_pct', 0)
                 price_s = f"{c:.1f}" if c else "—"
                 show_hdr = (w_idx == 0)
-                mini = Table(box=box.SIMPLE, expand=True,
-                             show_header=show_hdr, show_edge=False, padding=(0, 1))
-                mini.add_column("⭐", no_wrap=True); mini.add_column("Ticker", no_wrap=True)
-                mini.add_column("Name", no_wrap=True)
-                mini.add_column("現", justify="right", no_wrap=True)
-                mini.add_column("漲跌", justify="right", no_wrap=True)
-                mini.add_column("量比", no_wrap=True)
-                mini.add_column("Note", no_wrap=True)
+                mini = _mk_aligned_table(COLS_WATCH_WATCHING, show_hdr)
                 mini.add_row(
                     stars(pri), item['ticker'], item['name'],
                     price_s, r_change_pct(chg),
@@ -2106,9 +2175,7 @@ def render_watch_sectioned(
                     Text(item.get('note', '')[:28], style="dim"),
                 )
                 wparts.append(mini)
-                sub = Text("    ")
-                sub.append_text(r_trigger_subrow(trig, reason, ticker=item['ticker']))
-                wparts.append(sub)
+                wparts.append(_render_subrow(trig, reason, ticker=item['ticker']))
             out.append(Group(*wparts))
         if limit > 0:
             out.append(Text(
@@ -2191,10 +2258,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
     if not held_enriched:
         renderables.append(Text("未進場、無持倉監控", style="dim"))
     else:
-        # 持倉表: Group(mini-table per stock + full-width trigger subrow Text)
-        # 每檔 = 1 個 mini-table (1 row) + 1 個 full-width Text
-        # 第一檔的 mini-table show header、其餘 hide header
-        # 好處: trigger 文字跨整 row 寬度、不會擠進最後一欄折行
+        # 持倉表: per-ticker Group(固定 widths mini-table + Padding(Text))
+        # 所有 mini-tables 共用 COLS_HELD_P2 widths → 視覺上對齊
+        # subrow 是獨立 Text、用 Padding 縮排、不必對齊欄
         _now_render = datetime.now()
         held_parts: list = [Text("📊 持倉", style="bold")]
         sorted_held = sort_items(held_enriched, sort_mode, live_data)
@@ -2209,23 +2275,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             d = live_data.get(tk, {})
             show_hdr = (idx == 0)
 
-            def _mk_table(show_header: bool) -> Table:
-                t = Table(box=box.SIMPLE, expand=True,
-                          show_header=show_header, show_edge=False,
-                          padding=(0, 1))
-                t.add_column("策略", no_wrap=True)
-                t.add_column("⭐", no_wrap=True)
-                t.add_column("Ticker", no_wrap=True)
-                t.add_column("Name", no_wrap=True)
-                t.add_column("開→現 (%)", no_wrap=True)
-                t.add_column("量比", no_wrap=True)
-                t.add_column("P&L", justify="right", no_wrap=True)
-                t.add_column("距停", justify="right", no_wrap=True)
-                t.add_column("出場提醒", no_wrap=True)
-                t.add_column("狀", no_wrap=True)
-                return t
-
-            mini = _mk_table(show_hdr)
+            mini = _mk_aligned_table(COLS_HELD_P2, show_hdr)
 
             if 'error' in d:
                 _smode_err = get_strategy_mode(item)
@@ -2235,7 +2285,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     Text(f"err {d['error']}", style="red"),
                     "", "", "", "", "?")
                 held_parts.append(mini)
-                held_parts.append(Text("    └ ⚠️ 無法取得資料", style="dim"))
+                from rich.padding import Padding
+                held_parts.append(Padding(
+                    Text("└ ⚠️ 無法取得資料", style="dim"), (0, 0, 0, 4)))
                 continue
 
             c        = d.get('c', entry)
@@ -2279,7 +2331,6 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             chip_text  = Text(STRATEGY_CHIP.get(_smode, _smode),
                               style=STRATEGY_EXIT_STYLE.get(_smode, 'dim'))
             exit_text  = r_strategy_chip(item, _now_render)
-            # 行 1: 標準資訊
             mini.add_row(
                 chip_text, stars(pri), tk, name,
                 open_cell,
@@ -2290,11 +2341,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 stop_tag,
             )
             held_parts.append(mini)
-            # 行 2: trigger subrow 跨整 row 寬度
-            sub = Text("    ")
-            sub.append_text(r_trigger_subrow(trig_key, trig_reason,
+            held_parts.append(_render_subrow(trig_key, trig_reason,
                                              ticker=tk, now=_now_render))
-            held_parts.append(sub)
         renderables.append(Group(*held_parts))
 
     today = total_pnl + REALIZED
@@ -2351,7 +2399,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
         if sort_mode == 'status':
             renderables.extend(render_watch_sectioned(watch_enriched, live_data, sort_mode))
         else:
-            # Watchlist: Group(mini-table per stock + full-width subrow)
+            # Watchlist: per-ticker Group (固定 widths)
             wparts: list = [Text(
                 f"Watchlist (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})",
                 style="dim")]
@@ -2376,15 +2424,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 vol_lots = snap_w.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 show_hdr = (w_idx == 0)
-                mini = Table(box=box.SIMPLE, expand=True,
-                             show_header=show_hdr, show_edge=False, padding=(0, 1))
-                mini.add_column("⭐", no_wrap=True); mini.add_column("戰術", no_wrap=True)
-                mini.add_column("Ticker", no_wrap=True); mini.add_column("Name", no_wrap=True)
-                mini.add_column("現", justify="right", no_wrap=True)
-                mini.add_column("漲跌", justify="right", no_wrap=True)
-                mini.add_column("量比", no_wrap=True)
-                mini.add_column("距停", justify="right", no_wrap=True)
-                mini.add_column("族群", no_wrap=True); mini.add_column("狀", no_wrap=True)
+                mini = _mk_aligned_table(COLS_WATCH_P2, show_hdr)
                 mini.add_row(
                     stars(pri), tactic, tk, name,
                     f"{c:.1f}" if c else "—",
@@ -2395,9 +2435,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     wall_tag,
                 )
                 wparts.append(mini)
-                sub = Text("    ")
-                sub.append_text(r_trigger_subrow(trig_key, trig_reason, ticker=tk))
-                wparts.append(sub)
+                wparts.append(_render_subrow(trig_key, trig_reason, ticker=tk))
             renderables.append(Group(*wparts))
 
     panel = Panel(
