@@ -129,7 +129,7 @@ PLAN_PRIMARY = [
     {
         'ticker': '1605', 'name': '華新',
         'shares': 1000, 'stop': 38.75,
-        'tactic': '核心 Stage 2', 'priority': 3,
+        'tactic': '核心', 'priority': 3,
         'source': '老師重壓 + Trigger 1',
         'sector': '紅海第二棒',
         'note': '6/3 開盤 ≥ 40.0 + 跳空 ≤+3% 加 1 張',
@@ -1515,7 +1515,7 @@ COLS_HELD_P1 = [
 # - 開→現 (%) / 量比 / 距 MA10 (健康度) / 距 ref (vs 加入監控時)
 # - 族群 (sector)
 COLS_WATCH_CONFIRMED = [
-    ("策略",      10, "left",  True),
+    ("策略",       6, "left",  True),
     ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
@@ -1528,7 +1528,7 @@ COLS_WATCH_CONFIRMED = [
 ]
 
 COLS_WATCH_WATCHING = [
-    ("策略",      10, "left",  True),
+    ("策略",       6, "left",  True),
     ("⭐",         6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
@@ -1543,7 +1543,7 @@ COLS_WATCH_WATCHING = [
 # Phase 2 watchlist (非 status mode)
 COLS_WATCH_P2 = [
     ("⭐",         6, "left",  True),
-    ("戰術",       8, "left",  True),
+    ("戰術",       6, "left",  True),
     ("Ticker",     6, "left",  True),
     ("Name",       8, "left",  True),
     ("現",         8, "right", True),
