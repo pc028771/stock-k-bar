@@ -2367,7 +2367,7 @@ def render_watch_sectioned(
                 open_cell = Text("—", style="dim")
             t_confirmed.add_row(
                 Text(tactic, style="dim"),
-                stars(pri), tk, item['name'],
+                stars(pri), f"{tk} {item['name']}",
                 open_cell,
                 fmt_vol_ratio(d.get('vol_ratio')),
                 r_dist_ma10(c, tk),
@@ -2423,7 +2423,7 @@ def render_watch_sectioned(
                     open_cell = Text("—", style="dim")
                 t_watching.add_row(
                     Text(tactic, style="dim"),
-                    stars(pri), tk, item['name'],
+                    stars(pri), f"{tk} {item['name']}",
                     open_cell,
                     fmt_vol_ratio(d.get('vol_ratio')),
                     r_dist_ma10(c, tk),
