@@ -1486,8 +1486,7 @@ def r_change_pct(chg: float) -> Text:
 
 # 持倉表 (Phase 2 t_h)
 COLS_HELD_P2 = [
-    ("Ticker",     6, "left",  True),
-    ("Name",       8, "left",  True),
+    ("Stock",     14, "left",  True),
     ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
     ("P&L",       20, "right", True),
@@ -1499,8 +1498,7 @@ COLS_HELD_P2 = [
 # 已持倉開盤健康度 (Phase 1 t_held)
 COLS_HELD_P1 = [
     ("Lv",         4, "left",  True),
-    ("Ticker",     6, "left",  True),
-    ("Name",       8, "left",  True),
+    ("Stock",     14, "left",  True),
     ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
     ("入",         8, "right", True),
@@ -1517,8 +1515,7 @@ COLS_HELD_P1 = [
 COLS_WATCH_CONFIRMED = [
     ("策略",       6, "left",  True),
     ("⭐",         6, "left",  True),
-    ("Ticker",     6, "left",  True),
-    ("Name",       8, "left",  True),
+    ("Stock",     14, "left",  True),
     ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
     ("距MA10",     8, "right", True),
@@ -1530,8 +1527,7 @@ COLS_WATCH_CONFIRMED = [
 COLS_WATCH_WATCHING = [
     ("策略",       6, "left",  True),
     ("⭐",         6, "left",  True),
-    ("Ticker",     6, "left",  True),
-    ("Name",       8, "left",  True),
+    ("Stock",     14, "left",  True),
     ("開→現 (%)", 18, "left",  True),
     ("量比",       8, "left",  True),
     ("距MA10",     8, "right", True),
@@ -1544,8 +1540,7 @@ COLS_WATCH_WATCHING = [
 COLS_WATCH_P2 = [
     ("⭐",         6, "left",  True),
     ("戰術",       6, "left",  True),
-    ("Ticker",     6, "left",  True),
-    ("Name",       8, "left",  True),
+    ("Stock",     14, "left",  True),
     ("現",         8, "right", True),
     ("漲跌",       8, "right", True),
     ("量比",       8, "left",  True),
@@ -2028,7 +2023,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 open_to_now = Text(f"{o:.1f}→{c:.1f}")
                 open_to_now.append_text(fmt_open_to_now_pct(o, c))
                 t_held.add_row(
-                    level, tk, name,
+                    level, f"{tk} {name}",
                     open_to_now,
                     fmt_vol_ratio(vol_ratio),
                     f"{entry:.1f}",
@@ -2038,7 +2033,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     _mk_trigger_cell(trig_key, trig_reason),
                 )
             except Exception as e:
-                t_held.add_row("?", tk, name, "err", "", "", Text(str(e), style="red"), "", "", "")
+                t_held.add_row("?", f"{tk} {name}", "err", "", "", Text(str(e), style="red"), "", "", "")
         renderables.append(Group(Text("📊 已持倉開盤健康度", style="bold"), t_held))
 
     # 待進場主候選
@@ -2051,8 +2046,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         )
         t_plan.add_column("Lv", no_wrap=True)
         t_plan.add_column("⭐", no_wrap=True)
-        t_plan.add_column("Ticker", no_wrap=True)
-        t_plan.add_column("Name", no_wrap=True)
+        t_plan.add_column("Stock", no_wrap=True)
         t_plan.add_column("前→開 (%) →現 (%)", no_wrap=True)
         t_plan.add_column("量比", no_wrap=True)
         t_plan.add_column("停", justify="right", no_wrap=True)
@@ -2100,8 +2094,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 t_plan.add_row(
                     level,
                     stars(pri),
-                    tk,
-                    name,
+                    f"{tk} {name}",
                     chg_pct_str,
                     fmt_vol_ratio(vol_ratio),
                     f"{stop}",
@@ -2111,7 +2104,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 if sev in ('skip', 'warn'):
                     skipped.append(tk)
             except Exception as e:
-                t_plan.add_row("?", "", tk, name, "err", "", "", "", Text(str(e), style="red"))
+                t_plan.add_row("?", "", f"{tk} {name}", "err", "", "", "", Text(str(e), style="red"))
         renderables.append(t_plan)
 
         # 備案推薦
@@ -2144,8 +2137,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 expand=True,
             )
             t_bk.add_column("Lv")
-            t_bk.add_column("Ticker")
-            t_bk.add_column("Name")
+            t_bk.add_column("Stock")
             t_bk.add_column("前→開 (%) →現 (%)")
             t_bk.add_column("停", justify="right")
             t_bk.add_column("Sizing")
@@ -2164,7 +2156,7 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 bk_str.append(f" →{c:.1f}")
                 bk_str.append_text(fmt_open_to_now_pct(o, c))
                 t_bk.add_row(
-                    level, tk, name,
+                    level, f"{tk} {name}",
                     bk_str,
                     f"{stop}",
                     f"{shares}股 ${cost:,.0f}",
@@ -2219,14 +2211,14 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         if confirmed_p1:
             t_wc = Table(title="🎯 WATCH 可進場 (confirmed)",
                          title_style="bold green", box=box.SIMPLE, expand=True)
-            t_wc.add_column("⭐"); t_wc.add_column("Ticker"); t_wc.add_column("Name")
+            t_wc.add_column("⭐"); t_wc.add_column("Stock")
             t_wc.add_column("現", justify="right")
             t_wc.add_column("Trigger")
             for item, d in confirmed_p1:
                 trig = d.get('trigger', 'none'); reason = d.get('trigger_reason', '')
                 c = d.get('c', 0); pri = item.get('priority', 1)
                 t_wc.add_row(
-                    stars(pri), item['ticker'], item['name'],
+                    stars(pri), f"{item['ticker']} {item['name']}",
                     f"{c:.1f}" if c else "—",
                     r_trigger(trig, reason, short=50, ticker=item['ticker']),
                 )
@@ -2235,13 +2227,13 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
         if watching_p1:
             t_ww = Table(title="🔍 WATCH 觀察中",
                          title_style="bold", box=box.SIMPLE, expand=True)
-            t_ww.add_column("⭐"); t_ww.add_column("Ticker"); t_ww.add_column("Name")
+            t_ww.add_column("⭐"); t_ww.add_column("Stock")
             t_ww.add_column("現", justify="right")
             t_ww.add_column("Note")
             for item, d in watching_p1:
                 c = d.get('c', 0); pri = item.get('priority', 1)
                 t_ww.add_row(
-                    stars(pri), item['ticker'], item['name'],
+                    stars(pri), f"{item['ticker']} {item['name']}",
                     f"{c:.1f}" if c else "—",
                     Text(item.get('note', '')[:60], style="dim"),
                 )
@@ -2444,7 +2436,7 @@ def render_watch_sectioned(
     if excluded:
         t = Table(title="⛔ WATCH 排除/低優先",
                   title_style="dim", box=box.SIMPLE, expand=True)
-        t.add_column("Ticker"); t.add_column("Name"); t.add_column("原因")
+        t.add_column("Stock"); t.add_column("原因")
         for item, d in excluded:
             trig = d.get('trigger', 'none')
             reason_s = ''
@@ -2454,7 +2446,7 @@ def render_watch_sectioned(
                 reason_s = item['note'][:30]
             elif item.get('priority', 1) == 1:
                 reason_s = '低優先'
-            t.add_row(item['ticker'], item['name'], Text(reason_s, style="dim"))
+            t.add_row(f"{item['ticker']} {item['name']}", Text(reason_s, style="dim"))
         out.append(t)
 
     return out
@@ -2529,7 +2521,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
 
             if 'error' in d:
                 t_held_p2.add_row(
-                    tk, name,
+                    f"{tk} {name}",
                     Text(f"err {d['error']}", style="red"),
                     "", "", "", "?",
                     Text("└ ⚠️ 無法取得資料", style="dim"))
@@ -2573,7 +2565,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 if o:
                     open_cell.append_text(fmt_open_to_now_pct(o, c))
             t_held_p2.add_row(
-                tk, name,
+                f"{tk} {name}",
                 open_cell,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
@@ -2661,7 +2653,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 vol_lots = snap_w.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
                 t_watch_p2.add_row(
-                    stars(pri), tactic, tk, name,
+                    stars(pri), tactic, f"{tk} {name}",
                     f"{c:.1f}" if c else "—",
                     r_change_pct(chg),
                     fmt_vol_ratio(vol_ratio),
