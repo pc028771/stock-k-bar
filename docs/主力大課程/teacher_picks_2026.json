@@ -330,6 +330,11 @@
         "date": "2026-05-22",
         "source": "line_chat",
         "context": "🥇明確主推 3037 欣興（ABF 主推）"
+      },
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
       }
     ],
     "sectors": [
@@ -742,6 +747,11 @@
         "date": "2026-01-18",
         "source": "D1B23CF4_本週",
         "context": "電力發威（台達電 華城 康舒 華新）"
+      },
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
       }
     ],
     "sectors": [
@@ -1531,6 +1541,11 @@
         "date": "2026-05-23",
         "source": "5_23_直播音檔_part1",
         "context": "老師上週「四大聚焦主題」之一；5/18→5/22 +19.7%（已起漲）"
+      },
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
       }
     ],
     "sectors": [
@@ -2250,6 +2265,11 @@
         "date": "2026-05-26",
         "source": "5_26_晚課_法人籌碼",
         "context": "文貌養豬哥、均線未排好、有套牢賣壓 ⚠️警示"
+      },
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
       }
     ],
     "sectors": [
@@ -3290,6 +3310,11 @@
         "date": "2026-05-25",
         "source": "line_chat_群組_5月25日中午",
         "context": "Kyle Lee『光通回暖 通過!』、老師明確『通過』— 光通族群"
+      },
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
       }
     ],
     "sectors": [
@@ -3500,6 +3525,50 @@
     "sectors": [
       "光電",
       "家登集團"
+    ],
+    "tier_signal": "frequent"
+  },
+  "3264": {
+    "name": "欣銓",
+    "mentions": [
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
+      }
+    ],
+    "sectors": [
+      "半導體封測",
+      "IC測試"
+    ],
+    "tier_signal": "frequent"
+  },
+  "2368": {
+    "name": "金像電",
+    "mentions": [
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
+      }
+    ],
+    "sectors": [
+      "PCB"
+    ],
+    "tier_signal": "frequent"
+  },
+  "2345": {
+    "name": "智邦",
+    "mentions": [
+      {
+        "date": "2026-06-04",
+        "source": "user_relay_teacher_midlong",
+        "context": "老師圈起來中長期要看的 8 檔之一 (3264/6257/3036/3042/3037/2308/2368/2345)"
+      }
+    ],
+    "sectors": [
+      "網通",
+      "800G switch"
     ],
     "tier_signal": "frequent"
   }

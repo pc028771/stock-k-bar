@@ -292,6 +292,39 @@ WATCH = [
         'note': '🟡 老師 [25:08]「壓著、尾盤關注、跟東捷類似」、距 MA10 +9.4%'
     },
     # 8046 南電 — 6/4 已進 HELD、移除 WATCH
+    # 老師 6/4 中長期 watchlist 補 4 檔 (其餘 4 檔已在上方 WATCH)
+    {
+        'ticker': '3037', 'name': '欣興',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 中長期',
+        'sector': 'ABF載板',
+        'note': '⭐ 老師 6/4 中長期 watchlist (ABF 主推、tier core)'
+    },
+    {
+        'ticker': '2308', 'name': '台達電',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 中長期',
+        'sector': 'AI電源/散熱',
+        'note': '⭐ 老師 6/4 中長期 watchlist (AI 電源/散熱龍頭)'
+    },
+    {
+        'ticker': '2368', 'name': '金像電',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 中長期',
+        'sector': 'PCB',
+        'note': '⭐ 老師 6/4 中長期 watchlist (PCB)'
+    },
+    {
+        'ticker': '2345', 'name': '智邦',
+        'ref_close': 0, 'stop': None,
+        'tactic': '中長期', 'priority': 2,
+        'source': '老師明示 6/4 中長期',
+        'sector': '網通',
+        'note': '⭐ 老師 6/4 中長期 watchlist (網通/800G switch)'
+    },
     # 6/3 scanner 新增 (Tier-B 打擊區、籌碼/型態符合)
     {
         'ticker': '1717', 'name': '長興',
