@@ -1779,6 +1779,19 @@ def fmt_open_to_now_pct(o: float, c: float) -> Text:
     return Text(f" ({pct:.1f}%)", style="red")
 
 
+def mk_open_to_now_cell(o: float, c: float) -> Text:
+    """組「o → c (pct%)」cell。o 缺則顯示 c、皆缺顯 dim「—」。
+    所有 table 共用 (HELD P1/P2、WATCH confirmed/watching)。
+    """
+    if o:
+        cell = Text(f"{o:.1f}→{c:.1f}")
+        cell.append_text(fmt_open_to_now_pct(o, c))
+        return cell
+    if c:
+        return Text(f"{c:.1f}")
+    return Text("—", style="dim")
+
+
 _avg_vol_cache: dict[str, float | None] = {}
 _ma10_cache: dict[str, float | None] = {}
 
@@ -2025,11 +2038,9 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                 opening_comment.append_text(entry_tag)
                 vol_lots = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_lots) if vol_lots else None)
-                open_to_now = Text(f"{o:.1f}→{c:.1f}")
-                open_to_now.append_text(fmt_open_to_now_pct(o, c))
                 t_held.add_row(
                     level, f"{tk} {name}",
-                    open_to_now,
+                    mk_open_to_now_cell(o, c),
                     fmt_vol_ratio(vol_ratio),
                     f"{entry:.1f}",
                     r_pnl(pnl, pnl_pct),
@@ -2357,14 +2368,7 @@ def render_watch_sectioned(
             c = d.get('c', 0)
             o = d.get('o', 0)
             ref = item.get('ref_close') or 0
-            # 開→現 (%) cell
-            if o:
-                open_cell = Text(f"{o:.1f}→{c:.1f}")
-                open_cell.append_text(fmt_open_to_now_pct(o, c))
-            elif c:
-                open_cell = Text(f"{c:.1f}")
-            else:
-                open_cell = Text("—", style="dim")
+            open_cell = mk_open_to_now_cell(o, c)
             t_confirmed.add_row(
                 Text(tactic, style="dim"),
                 stars(pri), f"{tk} {item['name']}",
@@ -2414,13 +2418,7 @@ def render_watch_sectioned(
                 c = d.get('c', 0)
                 o = d.get('o', 0)
                 ref = item.get('ref_close') or 0
-                if o:
-                    open_cell = Text(f"{o:.1f}→{c:.1f}")
-                    open_cell.append_text(fmt_open_to_now_pct(o, c))
-                elif c:
-                    open_cell = Text(f"{c:.1f}")
-                else:
-                    open_cell = Text("—", style="dim")
+                open_cell = mk_open_to_now_cell(o, c)
                 t_watching.add_row(
                     Text(tactic, style="dim"),
                     stars(pri), f"{tk} {item['name']}",
@@ -2566,9 +2564,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             if no_data:
                 open_cell = Text(f"昨{c:.1f}", style="dim")
             else:
-                open_cell = Text(f"{o:.1f}→{c:.1f}") if o else Text(f"{c:.1f}")
-                if o:
-                    open_cell.append_text(fmt_open_to_now_pct(o, c))
+                open_cell = mk_open_to_now_cell(o, c)
             t_held_p2.add_row(
                 f"{tk} {name}",
                 open_cell,
