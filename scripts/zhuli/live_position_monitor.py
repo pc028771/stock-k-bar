@@ -274,6 +274,14 @@ WATCH = [
         'sector': '記憶體',
         'note': '⚠️ 主流但「已 50%、不要再追」、觀察回測'
     },
+    {
+        'ticker': '1303', 'name': '南亞',
+        'ref_close': 113.0, 'stop': None,
+        'tactic': '題材', 'priority': 2,
+        'source': '黃大推薦 6/4 (留尾盤確認)',
+        'sector': '塑化/ABF載板',
+        'note': '⚠️ 老師 5/26 排除「南亞那塊我不做了」、但黃大 6/4 推薦、距 MA10 +16.6% 偏遠、等 13:00 Closing_check 5/5 才考慮'
+    },
     # 6/2 收盤後三軸狀態追蹤
     {
         'ticker': '6207', 'name': '雷科',
@@ -479,17 +487,27 @@ def check_strategy_exit_alert(item: dict, now: datetime | None = None) -> str | 
             return f"🌅 {ticker} {name} 隔日沖 15 分鐘後 9:00 要出場"
     return None
 
+# ── Win rate by session (v8 backtest 2026-06-04) ────────────────────────────
+# 來源: phase3_v8_intraday_vs_closing_compare.py  commit b7e56fe
+# 更新此 dict 即可讓整個 monitor 數字同步
+WIN_RATE_BY_SESSION: dict[str, int] = {
+    "pump_dump":  41,   # 09:15-09:45 拉高出貨期
+    "healthy":    58,   # 09:45-11:00 健康時段
+    "closing":    80,   # 13:00-13:25 老師尾盤
+}
+
 # Trigger 顯示格式
 TRIGGER_DISPLAY = {
     'Ch5-3':             '🟢 Ch5-3 confirmed (守住進場)',
     'Ch5-3_pullback':    '🟡 Ch5-3 pullback (回踩中)',
     'Ch5-3_signal':      '🟡 Ch5-3 signal (訊號、等回踩)',
     'T1':                '🟢 T1 confirmed',
+    'T1_watch':          '🟡 T1 watch (等 9:45+)',
     'T2':                '🎯 T2 confirmed',
     'TC':                '🔴 TC confirmed',
-    'T2_watch':          '🟡 T2 watch',
+    'T2_watch':          '🟡 T2 watch (等 9:45+)',
     # 尾盤進場確認 (13:00-13:25)
-    'Closing_confirmed': '🟢 Closing 5/5 尾盤可進',
+    'Closing_confirmed': '🟢 ⭐ Closing 5/5 尾盤可進',
     'Closing_watch':     '🟡 Closing 3-4/5 尾盤觀察',
     'Closing_skip':      '🔴 Closing <3/5 尾盤不進',
     'none': '⚪ 無訊號',
@@ -507,9 +525,10 @@ TRIGGER_RANK = {
     'T1':                6,
     'TC':                7,
     'Closing_skip':      8,
-    'T2_watch':          9,
-    'none': 10,
-    None: 11,
+    'T1_watch':          9,
+    'T2_watch':          10,
+    'none': 11,
+    None: 12,
 }
 
 # 全域排序切換（快捷鍵 1-6 更新這個）
@@ -636,33 +655,33 @@ def _get_market_regime_chip() -> tuple[str, str]:
 def _get_session_chip(now: datetime | None = None) -> tuple[str, str]:
     """依當前時間回傳時段分類 chip (label, style)。
 
-    時段定義 (v6 backtest 2026-06-04 更新):
+    時段定義 (v8 backtest 2026-06-04、含 Win rate):
       09:00-09:15  ⏳ 觀察期 (紅線 #3)
-      09:15-09:45  ⚠️ 拉高出貨期  (v6 backtest: 9:20+1.08% / 9:45+2.69%)
-      09:45-11:00  ✅ 健康時段
-      11:00-12:00  ⚪ 整理時段
-      12:00-13:00  🌀 殺盤考驗
-      13:00-13:25  ⭐ 老師尾盤 (最佳)
-      13:25-13:30  🎯 試撮限價
+      09:15-09:45  ⛔ 拉高出貨期  Win 41%  (v8 backtest)
+      09:45-11:00  🟡 健康時段   Win 58%
+      11:00-13:00  ⚪ 整理/殺盤考驗
+      13:00-13:25  🟢 ⭐ 老師尾盤  Win 80%  (最佳)
+      13:25-13:30  🎯 試撮限價接
     """
     t = (now or datetime.now()).time()
     from datetime import time as _time
+    wd = WIN_RATE_BY_SESSION  # 縮短引用
     if t < _time(9, 0):
         return "⏸ 盤前", "dim"
     elif t < _time(9, 15):
-        return "⏳ 觀察期", "yellow"
+        return "⏳ 觀察期 (紅線 #3)", "yellow"
     elif t < _time(9, 45):
-        return "⚠️ 拉高出貨期", "bold yellow"
+        return f"⛔ 拉高出貨期 Win {wd['pump_dump']}%", "bold yellow"
     elif t < _time(11, 0):
-        return "✅ 健康時段", "bold green"
+        return f"🟡 健康時段 Win {wd['healthy']}%", "bold green"
     elif t < _time(12, 0):
         return "⚪ 整理時段", "white"
     elif t < _time(13, 0):
         return "🌀 殺盤考驗", "cyan"
     elif t < _time(13, 25):
-        return "⭐ 老師尾盤", "bold magenta"
+        return f"🟢 ⭐ 老師尾盤 Win {wd['closing']}%", "bold magenta"
     elif t < _time(13, 30):
-        return "🎯 試撮限價", "magenta"
+        return "🎯 試撮限價接", "magenta"
     else:
         return "⏹ 盤後", "dim"
 
@@ -1096,23 +1115,30 @@ def fmt_trigger_age(ticker: str, trig_key: str,
 
 
 def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str:
-    """9:15-9:45 觸發加「拉高出貨時段」警示文字。
+    """進場類 trigger 附加時段警示 + Win rate 提示文字。
 
     Args:
         trig_key:  trigger key (Ch5-3 / T1 / T2 / TC / …)
         fire_time: 觸發時間 (datetime)、None 則用 now
 
     Returns:
-        若在 9:15-9:45 時段且是進場類 trigger → '⚠️ 拉高出貨時段、等 9:45+ '
-        否則 → ''
+        時段警示字串、或空字串。
     """
     if trig_key not in ('Ch5-3', 'T1', 'T2'):
         return ''
-    t = fire_time or datetime.now()
-    # 比較 time 部分
+    t = (fire_time or datetime.now()).time()
     from datetime import time as _time
-    if _time(9, 15) <= t.time() < _time(9, 45):
-        return ' ⚠️ 拉高出貨時段、等 9:45+ '
+    wd = WIN_RATE_BY_SESSION
+    # 9:15-9:45 拉高出貨期
+    if _time(9, 15) <= t < _time(9, 45):
+        return (f' ⚠️ Win {wd["pump_dump"]}% (拉高出貨、等 9:45+ Win {wd["healthy"]}%、'
+                f'等尾盤 Win {wd["closing"]}%)')
+    # 9:45-13:00 健康/整理時段
+    if _time(9, 45) <= t < _time(13, 0):
+        return (f' Win {wd["healthy"]}% (等 13:00 尾盤可達 Win {wd["closing"]}%)')
+    # 13:00-13:25 尾盤
+    if _time(13, 0) <= t < _time(13, 25):
+        return f' ⭐ Win {wd["closing"]}% (最佳進場時機)'
     return ''
 
 
