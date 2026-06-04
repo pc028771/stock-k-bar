@@ -779,8 +779,9 @@ class StageTrigger:
 
         if _regime in ("strong", "normal"):
             # ── 正常盤 / 強勢盤 SOP：過第一根高 + 紅K = confirmed (直接進場) ──
-            # ⚠️ 雙重過濾 (6/4 8046 南電 教訓):
-            #   1. 9:15-9:30 = 拉高出貨高峰 → 降為 signal、等 9:30 後確認
+            # ⚠️ 雙重過濾 (6/4 8046 南電 教訓 + v6 backtest 9:15-9:45 系統性差):
+            #   1. 9:15-9:45 = 拉高出貨時段 → 降為 signal、等 9:45 後確認
+            #      (v6 backtest: 9:20 +1.08% / 9:25 +0.78% / 9:30 +1.62% / 9:35 +2.43% / 9:45 +2.69%)
             #   2. 進場價距日內最高 < 1% → 降為 signal、等回測 -1% 再切入
             for i in range(1, len(k5)):
                 t_str = _t(k5.index[i])
@@ -789,20 +790,20 @@ class StageTrigger:
                 bar_close = float(k5.iloc[i]["close"])
                 bar_open  = float(k5.iloc[i]["open"])
                 if bar_close > first_high and bar_close > bar_open:
-                    # 過濾 1: 9:15-9:30 拉高出貨時段
-                    if "09:15" <= t_str < "09:30":
+                    # 過濾 1: 9:15-9:45 拉高出貨時段
+                    if "09:15" <= t_str < "09:45":
                         result["level"] = "signal"
                         result["reason"] = (
                             f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
-                            f"但 9:15-9:30 拉高出貨時段、等 9:30 後確認"
+                            f"但 9:15-9:45 拉高出貨時段、等 9:45 後確認"
                         )
                         result["regime"] = _regime
                         return result
 
-                    # 過濾 2: 9:30 後才生效 — 進場價太接近日內最高 (距日高 < 1%)
+                    # 過濾 2: 9:45 後才生效 — 進場價太接近日內最高 (距日高 < 1%)
                     # 說明: 9:10 breakout 本身就是 day high、不適用此過濾；
                     #       9:30 後日高已具參考意義、才比較
-                    if t_str >= "09:30":
+                    if t_str >= "09:45":
                         day_high_so_far = float(k5["high"].iloc[:i+1].max())
                         if bar_close >= day_high_so_far * 0.99:
                             result["level"] = "signal"

@@ -624,6 +624,40 @@ def _get_market_regime_chip() -> tuple[str, str]:
     except Exception:
         return "市場: ⚪ ?", "dim"
 
+
+def _get_session_chip(now: datetime | None = None) -> tuple[str, str]:
+    """依當前時間回傳時段分類 chip (label, style)。
+
+    時段定義 (v6 backtest 2026-06-04 更新):
+      09:00-09:15  ⏳ 觀察期 (紅線 #3)
+      09:15-09:45  ⚠️ 拉高出貨期  (v6 backtest: 9:20+1.08% / 9:45+2.69%)
+      09:45-11:00  ✅ 健康時段
+      11:00-12:00  ⚪ 整理時段
+      12:00-13:00  🌀 殺盤考驗
+      13:00-13:25  ⭐ 老師尾盤 (最佳)
+      13:25-13:30  🎯 試撮限價
+    """
+    t = (now or datetime.now()).time()
+    from datetime import time as _time
+    if t < _time(9, 0):
+        return "⏸ 盤前", "dim"
+    elif t < _time(9, 15):
+        return "⏳ 觀察期", "yellow"
+    elif t < _time(9, 45):
+        return "⚠️ 拉高出貨期", "bold yellow"
+    elif t < _time(11, 0):
+        return "✅ 健康時段", "bold green"
+    elif t < _time(12, 0):
+        return "⚪ 整理時段", "white"
+    elif t < _time(13, 0):
+        return "🌀 殺盤考驗", "cyan"
+    elif t < _time(13, 25):
+        return "⭐ 老師尾盤", "bold magenta"
+    elif t < _time(13, 30):
+        return "🎯 試撮限價", "magenta"
+    else:
+        return "⏹ 盤後", "dim"
+
 # 抑制 stage_helper 的 log 訊息、避免噴到 monitor alt-screen 破版
 import logging as _logging
 _logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
@@ -1049,14 +1083,14 @@ def fmt_trigger_age(ticker: str, trig_key: str,
 
 
 def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str:
-    """9:15-9:30 觸發加「拉高出貨時段」警示文字。
+    """9:15-9:45 觸發加「拉高出貨時段」警示文字。
 
     Args:
         trig_key:  trigger key (Ch5-3 / T1 / T2 / TC / …)
         fire_time: 觸發時間 (datetime)、None 則用 now
 
     Returns:
-        若在 9:15-9:30 時段且是進場類 trigger → '⚠️ 拉高出貨時段、等 9:30+ '
+        若在 9:15-9:45 時段且是進場類 trigger → '⚠️ 拉高出貨時段、等 9:45+ '
         否則 → ''
     """
     if trig_key not in ('Ch5-3', 'T1', 'T2'):
@@ -1064,8 +1098,8 @@ def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str
     t = fire_time or datetime.now()
     # 比較 time 部分
     from datetime import time as _time
-    if _time(9, 15) <= t.time() < _time(9, 30):
-        return ' ⚠️ 拉高出貨時段、等 9:30+ '
+    if _time(9, 15) <= t.time() < _time(9, 45):
+        return ' ⚠️ 拉高出貨時段、等 9:45+ '
     return ''
 
 
@@ -1074,7 +1108,7 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
     """Trigger label + reason + 觸發時間 + 拉高出貨警示、rich Text。
 
     ticker 給的話會附 [HH:MM, Nm前]、依新鮮度上色。
-    9:15-9:30 觸發進場類 trigger 附 ⚠️ 拉高出貨警示。
+    9:15-9:45 觸發進場類 trigger 附 ⚠️ 拉高出貨警示。
     """
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     if trig_key == 'Ch5-3':
@@ -1096,7 +1130,7 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
         age_text, age_style = fmt_trigger_age(ticker, trig_key)
         if age_text:
             t.append(age_text, style=age_style)
-        # 9:15-9:30 拉高出貨警示
+        # 9:15-9:45 拉高出貨警示
         fire_t = _trigger_fired_at.get((ticker, trig_key))
         warn = fmt_trigger_warning(trig_key, fire_t)
         if warn:
@@ -3028,6 +3062,9 @@ def main():
         # 大盤環境 chip
         regime_label, regime_style = _get_market_regime_chip()
         header.append(f"  [{regime_label}]", style=regime_style)
+        # 時段 chip
+        session_label, session_style = _get_session_chip(now)
+        header.append(f"  [{session_label}]", style=session_style)
         # WS cache stats + data cache stats
         try:
             tot, stale, errs = _cache.stats()
