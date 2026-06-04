@@ -74,6 +74,7 @@ HELD = [
     {
         'ticker': '6285', 'name': '啟碁',
         'cost': 315.0, 'shares': 1000, 'stop': 301.0,
+        'strategy_mode': 'core',       # 核心持倉、結構底停損
         'tactic': '核心', 'priority': 2,
         'source': '老師明示',
         'sector': '低軌衛星',
@@ -82,6 +83,7 @@ HELD = [
     {
         'ticker': '1605', 'name': '華新',
         'cost': 40.23, 'shares': 12000, 'stop': 38.75,
+        'strategy_mode': 'core',       # 核心持倉、結構底停損
         'tactic': '核心', 'priority': 3,
         'source': '老師重壓',
         'sector': '紅海第二棒',
@@ -90,6 +92,7 @@ HELD = [
     {
         'ticker': '2885', 'name': '元大金',
         'cost': 58.0, 'shares': 10000, 'stop': 55.71,
+        'strategy_mode': 'core',       # 核心配置、結構底停損
         'tactic': '配置', 'priority': 1,
         'source': '配置部位',
         'sector': '金融',
@@ -98,6 +101,7 @@ HELD = [
     {
         'ticker': '3481', 'name': '群創',
         'cost': 58.7, 'shares': 2000, 'stop': 56.2,
+        'strategy_mode': 'overnight',  # 隔日沖、隔日 9:00 出 (backtest +1.85%/筆)
         'tactic': '短打', 'priority': 3,
         'source': '老師明示 6/3 (夜盤訊號)',
         'sector': '面板/族群補漲',
@@ -344,6 +348,133 @@ SORT_KEY_LABEL = {
     'pnl':      '💰 P&L',
     'sector':   '🏷️  族群',
 }
+
+# ─────────────────────────────────────────────────────────────────────────
+# Strategy mode chip (決定出場規則、與 trigger 無關)
+# ─────────────────────────────────────────────────────────────────────────
+# strategy_mode 選項：
+#   'intraday'  當沖、13:30 出 (backtest -0.80%、不推薦)
+#   'overnight' 隔日沖、隔日 9:00 出 (backtest +1.85%、⭐主推)
+#   'swing'     波段、3-5 天看結構 (現有 default)
+#   'core'      核心持倉、結構底停損
+
+STRATEGY_CHIP = {
+    'intraday':  '⚡ 當沖',
+    'overnight': '🌅 隔日沖',
+    'swing':     '📈 波段',
+    'core':      '🏛️ 核心',
+}
+
+STRATEGY_EXIT_LABEL = {
+    'intraday':  '[exit: 13:30]',
+    'overnight': '[exit: 明日 9:00]',
+    'swing':     '[exit: 結構底/MA10]',
+    'core':      '[exit: 結構底]',
+}
+
+STRATEGY_EXIT_STYLE = {
+    'intraday':  'bold red',
+    'overnight': 'bold cyan',
+    'swing':     'dim',
+    'core':      'dim',
+}
+
+# 沒填 strategy_mode 時的 fallback (向後相容)
+_DEFAULT_STRATEGY_MODE = 'swing'
+
+
+def get_strategy_mode(item: dict) -> str:
+    """取 item 的 strategy_mode，未填則由 tactic 推斷。"""
+    mode = item.get('strategy_mode')
+    if mode in STRATEGY_CHIP:
+        return mode
+    # 向後相容：依 tactic 推斷
+    tactic = (item.get('tactic') or '').lower()
+    if '核心' in tactic or 'core' in tactic:
+        return 'core'
+    if '配置' in tactic:
+        return 'core'
+    return _DEFAULT_STRATEGY_MODE
+
+
+def r_strategy_chip(item: dict, now: datetime | None = None) -> Text:
+    """Strategy mode chip + exit 提醒文字、rich Text。
+
+    根據 strategy_mode 顯示：
+    - intraday:  ⚡ 當沖  [exit: 13:30 ← Xh Ym 後]
+    - overnight: 🌅 隔日沖 [exit: 明日 9:00]
+    - swing:     📈 波段  [exit: 結構底/MA10]
+    - core:      🏛️ 核心  [exit: 結構底]
+    """
+    now = now or datetime.now()
+    mode = get_strategy_mode(item)
+    chip = STRATEGY_CHIP.get(mode, mode)
+    exit_label = STRATEGY_EXIT_LABEL.get(mode, '')
+    exit_style = STRATEGY_EXIT_STYLE.get(mode, 'dim')
+
+    t = Text()
+    if mode == 'intraday':
+        t.append(chip, style='bold yellow')
+        # 計算距 13:30 剩餘
+        close_min = 13 * 60 + 30
+        cur_min   = now.hour * 60 + now.minute
+        remaining = close_min - cur_min
+        if remaining > 0:
+            h, m = divmod(remaining, 60)
+            remain_str = f"{h}h{m:02d}m後" if h else f"{m}m後"
+            t.append(f" [exit: 13:30 ← {remain_str}]", style=exit_style)
+        else:
+            t.append(" [exit: 13:30 ← 已到時限!]", style='bold red blink')
+    elif mode == 'overnight':
+        t.append(chip, style='bold cyan')
+        # 計算距隔日 9:00
+        h_now, m_now = now.hour, now.minute
+        if h_now < 9:
+            # 還沒開盤（隔日）
+            remain_min = (9 * 60) - (h_now * 60 + m_now)
+            h, m = divmod(remain_min, 60)
+            remain_str = f"{h}h{m:02d}m後" if h else f"{m}m後"
+            t.append(f" [exit: 09:00 ← {remain_str}]", style=exit_style)
+        elif h_now >= 9 and h_now < 13:
+            # 今天盤中持有中
+            t.append(f" {exit_label}", style=exit_style)
+        else:
+            # 今天收盤後、隔日開盤前
+            # 距明日 9:00 = 24h - (now - 9:00 yesterday) → 簡單算
+            remain_to_next_open = ((24 - h_now) * 60 - m_now) + 9 * 60
+            h, m = divmod(remain_to_next_open, 60)
+            remain_str = f"{h}h{m:02d}m後" if h else f"{m}m後"
+            t.append(f" [exit: 明日 09:00 ← {remain_str}]", style=exit_style)
+    else:
+        t.append(chip, style='dim')
+        t.append(f" {exit_label}", style=exit_style)
+    return t
+
+
+def check_strategy_exit_alert(item: dict, now: datetime | None = None) -> str | None:
+    """檢查是否需要發出出場提醒。回傳提醒標題或 None。
+
+    - intraday: 13:25 預警 / 13:30 強制
+    - overnight: 8:45 預警 / 9:00 強制
+    - swing/core: None（現有結構底監控）
+    """
+    now = now or datetime.now()
+    mode = get_strategy_mode(item)
+    h, m = now.hour, now.minute
+    ticker = item.get('ticker', '')
+    name   = item.get('name', ticker)
+
+    if mode == 'intraday':
+        if h == 13 and m >= 30:
+            return f"🚨 {ticker} {name} 當沖時限到、請立即出場！"
+        if h == 13 and m >= 25:
+            return f"⚡ {ticker} {name} 當沖 5 分鐘後收盤、準備出場"
+    elif mode == 'overnight':
+        if h == 9 and m >= 0 and m < 5:
+            return f"🌅 {ticker} {name} 隔日沖 9:00 開盤出場時間到"
+        if h == 8 and m >= 45:
+            return f"🌅 {ticker} {name} 隔日沖 15 分鐘後 9:00 要出場"
+    return None
 
 # Trigger 顯示格式
 TRIGGER_DISPLAY = {
@@ -1796,7 +1927,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
     else:
         t_h = Table(title="📊 持倉", title_style="bold",
                     box=box.SIMPLE, expand=True)
-        t_h.add_column("戰術", no_wrap=True)
+        t_h.add_column("策略", no_wrap=True)
         t_h.add_column("⭐", no_wrap=True)
         t_h.add_column("Ticker", no_wrap=True)
         t_h.add_column("Name", no_wrap=True)
@@ -1805,8 +1936,9 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
         t_h.add_column("P&L", justify="right", no_wrap=True)
         t_h.add_column("距停", justify="right", no_wrap=True)
         t_h.add_column("Trigger")
-        t_h.add_column("族群")
+        t_h.add_column("出場提醒")
         t_h.add_column("狀", no_wrap=True)
+        _now_render = datetime.now()
         for item in sort_items(held_enriched, sort_mode, live_data):
             tk     = item['ticker']
             name   = item['name']
@@ -1817,9 +1949,12 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             sector = item.get('sector', '?')
             d = live_data.get(tk, {})
             if 'error' in d:
-                t_h.add_row(tactic, stars(pri), tk, name,
-                            Text(f"err {d['error']}", style="red"),
-                            "", "", "", "", sector, "?")
+                _smode_err = get_strategy_mode(item)
+                t_h.add_row(
+                    Text(STRATEGY_CHIP.get(_smode_err, _smode_err), style='dim'),
+                    stars(pri), tk, name,
+                    Text(f"err {d['error']}", style="red"),
+                    "", "", "", "", "", "?")
                 continue
             c        = d.get('c', entry)
             pnl      = d.get('pnl', 0)
@@ -1839,6 +1974,14 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             else:
                 notified.discard(key)
 
+            # 策略出場提醒 (intraday / overnight)
+            exit_alert_msg = check_strategy_exit_alert(item, _now_render)
+            if exit_alert_msg and do_notify:
+                exit_key = f"{tk}_exit_{get_strategy_mode(item)}"
+                if exit_key not in notified:
+                    notified.add(exit_key)
+                    notify_mac(exit_alert_msg, f"{tk} {name} 現 ${c:.1f}")
+
             stop_tag = '🔴' if dist < 0 else ('⚠️' if dist < 1 else '🟢')
             # 取 open + volume 算 開→現% + 量比
             snap2 = client.get_realtime_snapshot(tk) or {}
@@ -1851,14 +1994,19 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 open_cell = Text(f"{o:.1f}→{c:.1f}") if o else Text(f"{c:.1f}")
                 if o:
                     open_cell.append_text(fmt_open_to_now_pct(o, c))
+            # strategy chip (chip 名稱) + 出場提醒 (時間)
+            _smode = get_strategy_mode(item)
+            chip_text  = Text(STRATEGY_CHIP.get(_smode, _smode),
+                              style=STRATEGY_EXIT_STYLE.get(_smode, 'dim'))
+            exit_text  = r_strategy_chip(item, _now_render)  # 含倒數
             t_h.add_row(
-                tactic, stars(pri), tk, name,
+                chip_text, stars(pri), tk, name,
                 open_cell,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
                 r_trigger(trig_key, trig_reason, short=30, ticker=tk),
-                sector,
+                exit_text,
                 stop_tag,
             )
         renderables.append(t_h)
@@ -2168,6 +2316,19 @@ CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
         ("4722 國精化案例",   "D+6 觀察中、6/5 (D-2) 切入時機"),
     ]),
     # Page 6
+    ("⚡🌅 策略模式 (strategy_mode)", [
+        ("⚡ intraday 當沖",    "13:30 出清、backtest -0.80%/筆 ❌ 不推薦"),
+        ("13:25 預警",          "macOS 通知「準備出當沖」"),
+        ("13:30 強制",          "macOS alert「當沖時限到、請出場」"),
+        ("🌅 overnight 隔日沖", "隔日 9:00 開盤出、backtest +1.85%/筆 ⭐ 主推"),
+        ("8:45 預警",           "macOS 通知「9:00 開盤要出、隔日沖」"),
+        ("9:00 強制",           "macOS alert「開盤出場時間到」"),
+        ("📈 swing 波段",       "3-5 天、結構底/MA10 停損 (現有規則)"),
+        ("🏛️ core 核心",        "結構底停損、長持倉 (現有規則)"),
+        ("切換方式",            "HELD dict 加 'strategy_mode' 欄位、編輯腳本即可"),
+        ("--strategy filter",   "CLI: --strategy intraday/overnight/swing/core/all"),
+    ]),
+    # Page 7 (原 Page 6)
     ("🎭 老師信號分級", [
         ("黑盒 vs 白盒",      "黑盒=老師明示時點 (sizing 走 Stage); 白盒=技術派訊號 (館前哥小結構可 all-in)"),
         ("明示時點",          "「看進場」/「今天買」≠ 只 mention; 必須明確時點"),
@@ -2718,6 +2879,9 @@ def main():
                    help='Demo 模式: 循環顯示所有 mock scenarios、驗證 layout')
     p.add_argument('--watch-limit', type=int, default=5,
                    help='WATCH 觀察可能段「每分類」最多顯示 N 檔 (預設 5、超過 collapse、0=全顯、+/-/0 鍵即時調)')
+    p.add_argument('--strategy', default='all',
+                   choices=['all', 'intraday', 'overnight', 'swing', 'core'],
+                   help='篩選 strategy_mode (預設 all、可指定 intraday/overnight/swing/core)')
     args = p.parse_args()
     # backward compat: --interval 覆寫 --data-interval
     if args.interval is not None:
@@ -2729,6 +2893,15 @@ def main():
 
     _current_sort[0] = args.sort
     do_notify = not args.no_notify
+
+    # --strategy filter: 過濾 HELD (PLAN/WATCH 不過濾、保持完整觀察)
+    if args.strategy != 'all':
+        global HELD  # noqa: PLW0603
+        HELD = [it for it in HELD
+                if get_strategy_mode(it if isinstance(it, dict) else {}) == args.strategy
+                or (isinstance(it, tuple))]  # tuple 格式向後相容、不過濾
+        if not HELD:
+            print(f"[warn] --strategy {args.strategy!r} 過濾後 HELD 為空", flush=True)
 
     # Demo 模式: 不連 Fubon、跑 mock scenarios
     if args.demo:
