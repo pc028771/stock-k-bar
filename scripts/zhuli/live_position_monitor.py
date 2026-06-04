@@ -870,6 +870,9 @@ def _load_stage_trigger():
 
 _stage_engine, _fetch_5min, _get_prev = _load_stage_trigger()
 
+# Extras 啟用集合（main() 從 --extras 解析）
+_EXTRAS_ENABLED: set[str] = set()
+
 
 def _get_market_regime_chip() -> tuple[str, str]:
     """取大盤環境 chip。回傳 (label, style)。"""
@@ -1166,13 +1169,30 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
         reason = result.get('reason', '')
         triggered = result.get('triggered', False)
 
+        # base trigger
         if not triggered:
-            # 若紀律擋住也回報
             if not pass_disc:
-                return 'none', disc_reason
-            return 'none', reason
+                base = ('none', disc_reason)
+            else:
+                base = ('none', reason)
+        else:
+            base = (det, reason)
 
-        return det, reason
+        # Ch5 補強 + extras 合成（always-on Ch5、extras 看 --extras flag）
+        try:
+            from zhuli.intraday_indicators import compose_trigger
+            # 註: monitor 目前不直接拿 1m K + daily closes、Ch5 補強條件多數會 no-op
+            # 由於 base 'none' 時才會嘗試補強、不影響既有 trigger 邏輯
+            return compose_trigger(
+                base_trigger=base,
+                ticker=ticker,
+                extras_enabled=_EXTRAS_ENABLED,
+                k5=k5,
+                prev_close=prev_close if prev_close > 0 else None,
+                position_side='long',
+            )
+        except Exception:
+            return base
 
     except Exception as e:
         return 'none', f'(err: {e})'
@@ -3958,9 +3978,24 @@ def main():
                    help='WATCH 只看老師明示 (預設 ON、避免 scanner 候選干擾)')
     p.add_argument('--all-watch', action='store_true',
                    help='WATCH 顯示全部分類 (覆蓋 --teacher-only)')
+    p.add_argument('--extras', type=str, default=None,
+                   help='啟用 extras (逗號分隔)、預設 OFF。'
+                        '例: --extras macd_diff_huangda '
+                        '(課程外條件、見 scripts/zhuli/extras/README.md)')
     args = p.parse_args()
     if args.all_watch:
         args.teacher_only = False
+
+    # 解析 --extras → 設 global 給 check_trigger_inline 用
+    from zhuli.intraday_indicators import parse_extras
+    global _EXTRAS_ENABLED
+    _EXTRAS_ENABLED = parse_extras(args.extras)
+    if _EXTRAS_ENABLED:
+        # 註冊 huangda registry hooks
+        if "macd_diff_huangda" in _EXTRAS_ENABLED:
+            from zhuli.extras import register_macd_diff_huangda
+            register_macd_diff_huangda()
+        print(f"  extras 啟用: {sorted(_EXTRAS_ENABLED)}", flush=True)
     # backward compat: --interval 覆寫 --data-interval
     if args.interval is not None:
         args.data_interval = args.interval

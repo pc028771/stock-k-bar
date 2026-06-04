@@ -18,12 +18,24 @@ from .ch5_complement import (
     check_b5_3_quarterly_ma_short_filter,
     is_bar_closed,
 )
+from .monitor_hook import (
+    parse_extras,
+    run_ch5_complement,
+    run_huangda_if_enabled,
+    compose_trigger,
+)
 
 __all__ = [
+    # ch5 complement indicators
     "check_first5min_skip",
     "check_ma_divergence",
     "check_b5_1_stop_profit",
     "check_b5_2_limit_up_pattern",
     "check_b5_3_quarterly_ma_short_filter",
     "is_bar_closed",
+    # monitor hook
+    "parse_extras",
+    "run_ch5_complement",
+    "run_huangda_if_enabled",
+    "compose_trigger",
 ]
