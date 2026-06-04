@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""快速個股檢查工具.
+"""[FOR AGENT USE] 快速個股檢查工具.
 
-每次 user 問「看一下 XXXX」就用這個、不用每次寫新 script。
+⚠️ This script is for AI agent use, NOT for interactive user.
+   每次 user 問「看一下 XXXX」、agent 用這個替代寫 /tmp script。
 
-Usage:
+Usage (agent 跑):
     python scripts/zhuli/check.py 8046                # 單檔
     python scripts/zhuli/check.py 8046 3264 1303      # 多檔
-    python scripts/zhuli/check.py 8046 --cost 900     # 含 P&L
     python scripts/zhuli/check.py 8046 --cost 900 --shares 1000 --stop 856
+    python scripts/zhuli/check.py 8046 --days 14      # 近 14 日 K
 """
 from __future__ import annotations
 
