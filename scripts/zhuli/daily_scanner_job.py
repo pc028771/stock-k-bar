@@ -1140,6 +1140,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     """產出 Tier-based 打擊區候選 markdown."""
     # 分離 post_attack_watchlist (DataFrame) + ma5_pivot/glued_ma5 (list) vs 其他 scanner (list[dict])
     pa_wl = results.pop('post_attack_watchlist', pd.DataFrame())
+    uma_wl = results.pop('uniform_ma_above', pd.DataFrame())  # DataFrame → 獨立段落
     ma5_pivot_hits = results.pop('ma5_pivot', [])
     glued_ma5_hits = results.pop('glued_ma5', [])
     # 法人 scanner 獨立段落、不進 all_hits
@@ -1188,7 +1189,10 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     pa_tickers = []
     if pa_wl is not None and not pa_wl.empty and 'ticker' in pa_wl.columns:
         pa_tickers = pa_wl['ticker'].tolist()
-    all_chip_tickers = list(set(all_chip_tickers + pa_tickers))
+    uma_tickers = []
+    if uma_wl is not None and not uma_wl.empty and 'ticker' in uma_wl.columns:
+        uma_tickers = uma_wl['ticker'].tolist()
+    all_chip_tickers = list(set(all_chip_tickers + pa_tickers + uma_tickers))
 
     chip_map: dict[str, dict] = {}
     if db_path and all_chip_tickers:
@@ -1212,6 +1216,8 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
                 glued_ma5_hits = [h for h in glued_ma5_hits if h['ticker'] not in missing_tickers]
                 if isinstance(pa_wl, pd.DataFrame) and not pa_wl.empty and 'ticker' in pa_wl.columns:
                     pa_wl = pa_wl[~pa_wl['ticker'].isin(missing_tickers)].reset_index(drop=True)
+                if isinstance(uma_wl, pd.DataFrame) and not uma_wl.empty and 'ticker' in uma_wl.columns:
+                    uma_wl = uma_wl[~uma_wl['ticker'].isin(missing_tickers)].reset_index(drop=True)
             else:
                 raise
         tag_counts: dict[str, int] = {}
@@ -1300,7 +1306,9 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     for s, hits in results.items():
         md.append(f"| {s} | {len(hits)} |")
     pa_count = len(pa_wl) if pa_wl is not None and not pa_wl.empty else 0
+    uma_count = len(uma_wl) if uma_wl is not None and not uma_wl.empty else 0
     md.append(f"| post_attack_watchlist | {pa_count} |")
+    md.append(f"| uniform_ma_above | {uma_count} |")
     md.append(f"| ma5_pivot | {len(ma5_pivot_hits)} |")
     md.append(f"| glued_ma5_platform | {len(glued_ma5_hits)} |")
     md.append(f"| institutional_firstbuy (J) | {len(j_hits)} |")
@@ -1488,6 +1496,40 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         md.append(f"")
     else:
         md += [f"> {target_date} 無黏 MA5 平台命中", f""]
+
+    # === 均線全順向 watchlist ===
+    md += [
+        f"## 📈 均線全順向 + 站 MA5 (uniform_ma_above)",
+        f"",
+        f"> 條件：MA5 > MA10 > MA20 > MA60 > MA240 全順向 + close ≥ MA5",
+        f"> sector_all universe 過濾；純觀察清單、搭配其他 trigger 進場",
+        f"",
+    ]
+    if uma_wl is not None and not uma_wl.empty:
+        cols_avail = set(uma_wl.columns)
+        has_dist = 'dist_ma10_pct' in cols_avail
+        has_vol = 'vol_ratio_20' in cols_avail
+        md += [
+            f"| Ticker | 名稱 | 收盤 | 距MA10 | 量比 | 族群 | 外資5d | 投信5d | 籌碼 |",
+            f"|---|---|---|---|---|---|---|---|---|",
+        ]
+        for _, r in uma_wl.iterrows():
+            ticker = str(r.get('ticker', ''))
+            name = str(r.get('name', ''))
+            close = r.get('close', 0)
+            dist = r.get('dist_ma10_pct')
+            dist_str = f"{dist:+.1f}%" if dist is not None and not pd.isna(dist) else '—'
+            vol = r.get('vol_ratio_20')
+            vol_str = f"{vol:.1f}x" if vol is not None and not pd.isna(vol) else '—'
+            sectors_str = '/'.join(r.get('teacher_sectors', [])) if isinstance(r.get('teacher_sectors'), list) else str(r.get('industry', '') or '')
+            chip = chip_map.get(ticker, {})
+            f_str = f"{chip.get('foreign_5d', 0):+,}" if chip else '—'
+            s_str = f"{chip.get('sitc_5d', 0):+,}" if chip else '—'
+            tag = chip.get('tag', '⚪ 中性') if chip else '—'
+            md.append(f"| {ticker} | {name} | {close:.2f} | {dist_str} | {vol_str} | {sectors_str} | {f_str} | {s_str} | {tag} |")
+        md.append(f"")
+    else:
+        md += [f"> {target_date} 無均線全順向命中", f""]
 
     # === 老師 core 但 scanner 未抓到 ===
     md += [
