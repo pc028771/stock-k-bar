@@ -280,7 +280,7 @@ WATCH = [
         'tactic': '題材', 'priority': 2,
         'source': '黃大推薦 6/4 (留尾盤確認)',
         'sector': '塑化/ABF載板',
-        'note': '⚠️ 老師 5/26 排除「南亞那塊我不做了」、但黃大 6/4 推薦、距 MA10 +16.6% 偏遠、等 13:00 Closing_check 5/5 才考慮'
+        'note': '⚠️ 老師 5/26 排除「南亞那塊我不做了」、但黃大 6/4 推薦、距 MA10 +16.6% 偏遠、等 13:00 Closing_check 3-4/5 watch (5/5 反而是過熱、v7 Win 40%)'
     },
     # 6/2 收盤後三軸狀態追蹤
     {
@@ -928,7 +928,8 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     """Trigger 觸發時、30 分鐘 cooldown 通知。"""
     if not do_notify:
         return
-    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T2', 'TC',
+    if trig_key not in ('Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T1_watch',
+                        'T2', 'T2_watch', 'TC',
                         'Closing_confirmed', 'Closing_watch', 'Closing_skip'):
         return
     cd_key = f"{ticker}_{trig_key}"
@@ -942,15 +943,19 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
         'Ch5-3_pullback':    f"🟡 {ticker} {name} Ch5-3 回踩 MA10 中",
         'Ch5-3_signal':      f"🟡 {ticker} {name} Ch5-3 訊號觸發、等回踩",
         'T1':                f"🟢 {ticker} {name} T1 強勢延續",
+        'T1_watch':          f"🟡 {ticker} {name} T1 watch → 等 9:45+",
         'T2':                f"🎯 {ticker} {name} T2 反彈訊號",
+        'T2_watch':          f"🟡 {ticker} {name} T2 watch → 等 9:45+",
         'TC':                f"🚨 {ticker} {name} TC 結構失敗",
-        'Closing_confirmed': f"🟢 {ticker} {name} 尾盤 5/5 → 可進",
+        'Closing_confirmed': f"🟢 ⭐ {ticker} {name} 尾盤 5/5 Win 80% → 可進",
         'Closing_watch':     f"🟡 {ticker} {name} 尾盤 3-4/5 → 觀察",
         'Closing_skip':      f"🔴 {ticker} {name} 尾盤 <3/5 → 不進",
     }
     sounds = {
         'Ch5-3': 'Glass', 'Ch5-3_signal': 'Tink', 'Ch5-3_pullback': 'Tink',
-        'T1': 'Glass', 'T2': 'Glass', 'TC': 'Sosumi',
+        'T1': 'Glass', 'T1_watch': 'Tink',
+        'T2': 'Glass', 'T2_watch': 'Tink',
+        'TC': 'Sosumi',
         'Closing_confirmed': 'Glass', 'Closing_watch': 'Tink', 'Closing_skip': 'Basso',
     }
     try:
@@ -1144,10 +1149,11 @@ def fmt_trigger_warning(trig_key: str, fire_time: datetime | None = None) -> str
 
 def r_trigger(trig_key: str, reason: str = '', short: int = 40,
               ticker: str = '') -> Text:
-    """Trigger label + reason + 觸發時間 + 拉高出貨警示、rich Text。
+    """Trigger label + reason + 觸發時間 + 時段警示 + Win rate、rich Text。
 
     ticker 給的話會附 [HH:MM, Nm前]、依新鮮度上色。
-    9:15-9:45 觸發進場類 trigger 附 ⚠️ 拉高出貨警示。
+    進場類 trigger 附時段 Win rate 提示 (9:15-9:45/9:45-13:00/尾盤 3 段)。
+    Closing_confirmed 加 ⭐ Win 80% 標記。
     """
     label = TRIGGER_DISPLAY.get(trig_key, '⚪ 無訊號')
     if trig_key == 'Ch5-3':
@@ -1158,8 +1164,14 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
         style = 'green'
     elif trig_key == 'TC':
         style = 'red'
-    elif trig_key == 'T2_watch':
+    elif trig_key in ('T1_watch', 'T2_watch'):
         style = 'yellow'
+    elif trig_key == 'Closing_confirmed':
+        style = 'bold magenta'
+    elif trig_key == 'Closing_watch':
+        style = 'yellow'
+    elif trig_key == 'Closing_skip':
+        style = 'red dim'
     else:
         style = 'dim'
     t = Text(label, style=style)
@@ -1169,11 +1181,17 @@ def r_trigger(trig_key: str, reason: str = '', short: int = 40,
         age_text, age_style = fmt_trigger_age(ticker, trig_key)
         if age_text:
             t.append(age_text, style=age_style)
-        # 9:15-9:45 拉高出貨警示
+        # 時段警示 + Win rate 提示
         fire_t = _trigger_fired_at.get((ticker, trig_key))
         warn = fmt_trigger_warning(trig_key, fire_t)
         if warn:
-            t.append(warn, style='bold yellow')
+            # 尾盤用 magenta bold、拉高出貨用 yellow bold、其他時段用 dim cyan
+            if '⭐' in warn:
+                t.append(warn, style='bold magenta')
+            elif '⚠️' in warn:
+                t.append(warn, style='bold yellow')
+            else:
+                t.append(warn, style='dim cyan')
     return t
 
 
@@ -1809,7 +1827,7 @@ def _classify_watch_item(item: dict, d: dict) -> str:
         return 'confirmed'
     if trig_key == 'TC':
         return 'excluded'
-    if trig_key == 'T2_watch':
+    if trig_key in ('T1_watch', 'T2_watch'):
         return 'watching'
     # 無訊號: 依 priority 分
     if pri >= 2:
