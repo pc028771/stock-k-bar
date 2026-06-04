@@ -24,6 +24,13 @@ from .monitor_hook import (
     run_huangda_if_enabled,
     compose_trigger,
 )
+from .data_provider import (
+    get_k1m_today,
+    get_k1m_prev_days,
+    get_daily_closes,
+    was_prev_limit_up,
+    clear_cache,
+)
 
 __all__ = [
     # ch5 complement indicators
@@ -38,4 +45,10 @@ __all__ = [
     "run_ch5_complement",
     "run_huangda_if_enabled",
     "compose_trigger",
+    # data provider
+    "get_k1m_today",
+    "get_k1m_prev_days",
+    "get_daily_closes",
+    "was_prev_limit_up",
+    "clear_cache",
 ]

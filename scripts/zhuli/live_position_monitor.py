@@ -728,11 +728,21 @@ TRIGGER_DISPLAY = {
     'Closing_overheated': '🔴 尾盤過熱 5/5 Win 40% (已被拉走、別追)',
     'Closing_watch':     '🟡 尾盤 watch (3-4/5)',  # legacy alias
     'Closing_skip':      '⚪ 尾盤 skip <3/5 (不進)',
+    # Ch5 補強 (intraday_indicators/ch5_complement)
+    'Ch5_skip':              '🚫 紅線 #9 前 5 分 >5%',
+    'Ch5_B5-1_exit':         '⚠️ B5-1 大紅棒必停利',
+    'Ch5_B5-2_skip':         '🚫 B5-2 B 型隔日沖出貨',
+    'Ch5_B5-3_filter':       '🛡 B5-3 季線往上不空',
+    'Ch5_divergence_filter': '🛡 均線發散過濾',
+    # 黃大 extras (scripts/zhuli/extras/macd_diff_huangda)
+    'extras.macd_diff_huangda.bear_resonance': '🛡 黃大 60/30/5m DIF 空方共振',
+    'extras.macd_diff_huangda.h1_flip_long':   '🔁 黃大 60m DIF 翻正 (空單回補)',
+    'extras.macd_diff_huangda.bull_resonance': '➕ 黃大 60/30m DIF 多方 (scoring)',
     'none': '⚪ 無訊號',
     None: '⚪ 無訊號',
 }
 
-# sort by trigger 優先順序: 首攻 confirmed > pullback > signal > 尾盤 > 反彈 > 續攻 > 破底 > none
+# sort by trigger 優先順序: 首攻 confirmed > pullback > signal > 尾盤 > 反彈 > 續攻 > 破底 > Ch5 補強 > extras > none
 TRIGGER_RANK = {
     # 新中文命名 (primary)
     '首攻':           0,
@@ -759,8 +769,18 @@ TRIGGER_RANK = {
     'Closing_skip':      8,
     'T1_watch':          9,
     'T2_watch':          10,
-    'none': 11,
-    None: 12,
+    # Ch5 補強：危險（skip/exit）優先級高於過濾
+    'Ch5_B5-1_exit':         11,
+    'Ch5_skip':              12,
+    'Ch5_B5-2_skip':         13,
+    'Ch5_B5-3_filter':       14,
+    'Ch5_divergence_filter': 15,
+    # extras：永遠排在課程內之後
+    'extras.macd_diff_huangda.h1_flip_long':   16,
+    'extras.macd_diff_huangda.bear_resonance': 17,
+    'extras.macd_diff_huangda.bull_resonance': 18,
+    'none': 19,
+    None: 20,
 }
 
 # 全域排序切換（快捷鍵 1-6 更新這個）
@@ -1181,14 +1201,31 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
         # Ch5 補強 + extras 合成（always-on Ch5、extras 看 --extras flag）
         try:
             from zhuli.intraday_indicators import compose_trigger
-            # 註: monitor 目前不直接拿 1m K + daily closes、Ch5 補強條件多數會 no-op
-            # 由於 base 'none' 時才會嘗試補強、不影響既有 trigger 邏輯
+            from zhuli.intraday_indicators.data_provider import (
+                get_k1m_today, get_k1m_prev_days,
+                get_daily_closes, was_prev_limit_up,
+            )
+
+            # data_provider 內建 cache、不會每秒打 FinMind
+            k1m_today = get_k1m_today(ticker, now.date())
+            daily_closes = get_daily_closes(ticker, n=80)
+            prev_limit_up = (was_prev_limit_up(ticker, prev_close, now.date())
+                             if prev_close > 0 else False)
+
+            # 黃大 60m DIF 才需要 trailing 7 天、Ch5 補強不用
+            k1m_prev = (get_k1m_prev_days(ticker, now.date(), days=7)
+                        if 'macd_diff_huangda' in _EXTRAS_ENABLED else None)
+
             return compose_trigger(
                 base_trigger=base,
                 ticker=ticker,
                 extras_enabled=_EXTRAS_ENABLED,
+                k1m=k1m_today,
                 k5=k5,
+                daily_closes=daily_closes,
+                k1m_prev=k1m_prev,
                 prev_close=prev_close if prev_close > 0 else None,
+                prev_was_limit_up=prev_limit_up,
                 position_side='long',
             )
         except Exception:
@@ -1202,7 +1239,7 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
     """Trigger 觸發時、30 分鐘 cooldown 通知。支援新中文名及舊英文名 alias。"""
     if not do_notify:
         return
-    # 支援新中文名及舊英文名 alias
+    # 支援新中文名及舊英文名 alias + Ch5 補強 + extras
     valid_keys = (
         '首攻', '首攻_signal', '首攻_pullback',
         '續攻', '續攻_watch',
@@ -1213,6 +1250,10 @@ def maybe_notify_trigger(ticker: str, name: str, trig_key: str, reason: str, do_
         'Ch5-3', 'Ch5-3_signal', 'Ch5-3_pullback', 'T1', 'T1_watch',
         'T2', 'T2_watch', 'TC',
         'Closing_confirmed', 'Closing_overheated', 'Closing_watch', 'Closing_skip',
+        # Ch5 補強：危險訊號要通知
+        'Ch5_B5-1_exit', 'Ch5_skip', 'Ch5_B5-2_skip',
+        # extras：強制回補要通知
+        'extras.macd_diff_huangda.h1_flip_long',
     )
     if trig_key not in valid_keys:
         return
