@@ -1492,7 +1492,7 @@ COLS_HELD_P2 = [
     ("P&L",       20, "right", True),
     ("距停",       8, "right", True),
     ("狀",         3, "left",  True),
-    ("Trigger",   48, "left",  True),
+    ("Trigger",    0, "left",  False),
 ]
 
 # 已持倉開盤健康度 (Phase 1 t_held)
@@ -1505,7 +1505,7 @@ COLS_HELD_P1 = [
     ("P&L",       20, "right", True),
     ("停",         8, "right", True),
     ("開盤評語",  28, "left",  True),
-    ("Trigger",   48, "left",  True),
+    ("Trigger",    0, "left",  False),
 ]
 
 # WATCH confirmed/watching: 同 HELD 風格、更豐富資訊
@@ -1521,7 +1521,7 @@ COLS_WATCH_CONFIRMED = [
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
     ("族群",      14, "left",  True),
-    ("Trigger",   40, "left",  True),
+    ("Trigger",    0, "left",  False),
 ]
 
 COLS_WATCH_WATCHING = [
@@ -1533,7 +1533,7 @@ COLS_WATCH_WATCHING = [
     ("距MA10",     8, "right", True),
     ("距ref",      8, "right", True),
     ("族群",      14, "left",  True),
-    ("Trigger",   40, "left",  True),
+    ("Trigger",    0, "left",  False),
 ]
 
 # Phase 2 watchlist (非 status mode)
@@ -1547,7 +1547,7 @@ COLS_WATCH_P2 = [
     ("距停",       8, "right", True),
     ("族群",      16, "left",  True),
     ("狀",         5, "left",  True),
-    ("Trigger",   40, "left",  True),
+    ("Trigger",    0, "left",  False),
 ]
 
 
@@ -1565,7 +1565,12 @@ def _mk_aligned_table(cols: list, show_header: bool) -> Table:
         expand=False,
     )
     for name, width, justify, no_wrap in cols:
-        t.add_column(name, width=width, justify=justify, no_wrap=no_wrap)
+        kw = {"justify": justify, "no_wrap": no_wrap}
+        if width:
+            kw["width"] = width
+        else:
+            kw["overflow"] = "fold"  # auto width、容許折行
+        t.add_column(name, **kw)
     return t
 
 
