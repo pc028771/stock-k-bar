@@ -1,11 +1,10 @@
 light_id: pressure_layer_no_support
 trigger_condition:
   all:
-    - "today.close": "< prev_high_60"
-    - "today.low": "> prior_low_60"
+    - "today.at_pressure_retest": true
 severity: warn
 course_citation:
   source: "明日 K 線 §08 壓力的分類"
   article_id: "B5DB7A687DA4FA572833411DE9CD88D8"
-  quote: "套牢賣壓、波動賣壓、獲利了結三類；K 線位置無支撐才是真壓力"
-recommendation_text: "股價位於壓力區（前高下方）且下方支撐尚未確認。需辨別此處賣壓屬套牢型、波動型或獲利了結型，結構性支撐缺失時壓力意義更重。"
+  quote: "套牢賣壓、波動賣壓、獲利了結三類；K 線上只有壓力沒有支撐"
+recommendation_text: "股價回測壓力區（前高下方 10% 內未突破）。需辨別此處賣壓屬套牢型、波動型或獲利了結型。課程明示「K 線上只有壓力沒有支撐」，不要尋找下方支撐當作安心理由。"

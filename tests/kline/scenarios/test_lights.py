@@ -223,6 +223,44 @@ class TestTriggerConditionDSL:
         light = lights["manipulator_distribution_warning"]
         assert light.severity == "critical"
 
+    def test_new_high_next_day_attack_required_triggers_only_when_new_high(self):
+        """T2.3.2i: new_high_next_day_attack_required NOT always-true — only fires when high+close >= prev_high_60.
+
+        Bug fix test: prev_high_60 was missing from add_features() output,
+        causing scalar eval to return None (pending) → always included.
+        Now prev_high_60 is an alias for prior_high_60 in features.py.
+        """
+        lights = load_lights([LIGHTS_DIR])
+        light = lights["new_high_next_day_attack_required"]
+
+        # Should fire: high=110 >= prev_high_60=105 AND close=108 >= prev_high_60=105
+        row_fire = self._make_row(high=110.0, close=108.0, prev_high_60=105.0)
+        result_fire = evaluate(light.trigger_condition, row_fire, self._make_ctx())
+        assert result_fire is True, "expected True when high+close >= prev_high_60"
+
+        # Should NOT fire: close=100 < prev_high_60=105 (close didn't clear the high)
+        row_no_fire = self._make_row(high=110.0, close=100.0, prev_high_60=105.0)
+        result_no_fire = evaluate(light.trigger_condition, row_no_fire, self._make_ctx())
+        assert result_no_fire is False, "expected False when close < prev_high_60"
+
+    def test_pressure_meeting_unresolved_not_always_true(self):
+        """T2.3.2j: pressure_meeting_unresolved NOT always-true — only fires when high touched but close below.
+
+        Bug fix test: same root cause as T2.3.2i — prev_high_60 missing from df.
+        """
+        lights = load_lights([LIGHTS_DIR])
+        light = lights["pressure_meeting_unresolved"]
+
+        # Should NOT fire: close=108 >= prev_high_60=105 → pressure resolved
+        row_no_fire = self._make_row(high=110.0, close=108.0, prev_high_60=105.0)
+        result_no_fire = evaluate(light.trigger_condition, row_no_fire, self._make_ctx())
+        assert result_no_fire is False, "expected False when close >= prev_high_60 (pressure resolved)"
+
+        # Should NOT fire: high=100 < prev_high_60=105 → never touched resistance
+        row_no_touch = self._make_row(high=100.0, close=98.0, prev_high_60=105.0)
+        result_no_touch = evaluate(light.trigger_condition, row_no_touch, self._make_ctx())
+        assert result_no_touch is False, "expected False when high < prev_high_60 (never touched)"
+
 
 # ---------------------------------------------------------------------------
 # T2.3.3 — advisor.analyze() returns active_lights with correct structure

@@ -267,6 +267,15 @@ MERGED_DOJI_BODY_RATIO: float = 0.25  # [STUB-NEED-USER]
 MERGED_DOJI_SHADOW_MIN_RATIO: float = 0.2  # [STUB-NEED-USER]
 
 # =============================================================================
+# T8d. at_pressure_retest_pct — 壓力區回測門檻 (明日 K 線 §08 壓力的分類)
+# =============================================================================
+# COURSE CONCEPT: 套牢/波動/獲利了結三類壓力的共通前提 = close 回測前高附近。
+# COURSE QUOTE: 「K 線上只有壓力沒有支撐」「碰到了賣壓之後，接下來股價會怎樣走呢？」
+# COURSE NUMBER? No — [STUB-NEED-USER]，老師未明示「多接近才算回測壓力」。
+# PROXY VALUE: 0.10（close ≥ prev_high_60 × 0.9 且 close < prev_high_60）。
+AT_PRESSURE_RETEST_PCT: float = 0.10  # [STUB-NEED-USER]
+
+# =============================================================================
 # T9. rebound_lookback_n — 反撲 短期 N 上限 (P23)
 # =============================================================================
 # COURSE CONCEPT: 反撲 D-1 「短期內」創新低 / 新高.
@@ -460,6 +469,7 @@ __all__ = [
     "WEAK_BULL_MA_DAYS",
     "MERGED_DOJI_BODY_RATIO",
     "MERGED_DOJI_SHADOW_MIN_RATIO",
+    "AT_PRESSURE_RETEST_PCT",
     # A20 attack_cost_displayed constants
     "ATTACK_COST_LIMIT_UP_THRESHOLD",
     "ATTACK_COST_VOL_RATIO",

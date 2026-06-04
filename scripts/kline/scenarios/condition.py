@@ -43,7 +43,7 @@ from ._schema import ContextSnapshot
 # Whitelist of allowed field tokens
 # ---------------------------------------------------------------------------
 
-_TODAY_FIELDS = frozenset({"open", "high", "low", "close", "volume"})
+_TODAY_FIELDS = frozenset({"open", "high", "low", "close", "volume", "at_pressure_retest"})
 _PREV_FIELDS = frozenset({"open", "high", "low", "close"})
 _NEXT_DAY_FIELDS = frozenset({"open", "high", "low", "close", "gap_up", "gap_down", "fills_gap"})
 _CONTEXT_FIELDS = frozenset({
@@ -80,6 +80,7 @@ _ALL_ALLOWED_FIELDS: frozenset[str] = (
 
 # Boolean-only fields (only accept true/false)
 _BOOL_FIELDS = frozenset({
+    "today.at_pressure_retest",
     "next_day.gap_up",
     "next_day.gap_down",
     "next_day.fills_gap",

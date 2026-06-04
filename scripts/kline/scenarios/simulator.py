@@ -388,6 +388,12 @@ def _batch_save_runs(
             saved += 1
 
             for scenario_idx, scenario in enumerate(result.scenarios):
+                # Extract pattern_name from the scenario's pattern_hit
+                pattern_name = getattr(scenario, "pattern_hit", None)
+                if pattern_name is not None:
+                    pattern_name = getattr(pattern_name, "pattern", "")
+                pattern_name = pattern_name or ""
+
                 for branch_id in scenario.enabled_branches:
                     # Look up full branch object
                     branch_obj = branch_meta.get(
@@ -413,13 +419,15 @@ def _batch_save_runs(
                         """
                         INSERT INTO advisor_branches
                             (run_id, scenario_idx, branch_id,
+                             pattern_name,
                              when_json, confirm_at, next_day_n,
                              action_type, course_citation_json,
                              matched_after_n_days)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             run_id, scenario_idx, branch_id,
+                            pattern_name,
                             when_json, confirm_at, next_day_n,
                             action_type, citation_json, None,
                         ),
@@ -704,22 +712,39 @@ def compute_branch_hit_rates(
     # in practice due to naming convention like "B1_attack_cost_hold").
 
     with sqlite3.connect(str(db_path)) as conn:
-        # Attempt to fetch per-run pattern information via a cross-join approach.
-        # advisor_branches doesn't store pattern directly; we derive it from
-        # playbook names stored in memory (not in DB in Phase 1 schema).
-        # We fall back to grouping by branch_id only.
-        rows_df = pd.read_sql_query(
-            """
-            SELECT
-                COALESCE(ab.action_type, 'unknown') as action_type,
-                ab.branch_id,
-                ab.matched_after_n_days
-            FROM advisor_branches ab
-            JOIN advisor_runs ar ON ar.run_id = ab.run_id
-            WHERE ab.matched_after_n_days IS NOT NULL
-            """,
-            conn,
-        )
+        # Check if pattern_name column exists (Phase 4.3+ schema).
+        # Older DBs without this column fall back to action_type as proxy.
+        col_info = conn.execute("PRAGMA table_info(advisor_branches)").fetchall()
+        col_names = {row[1] for row in col_info}
+        has_pattern_name = "pattern_name" in col_names
+
+        if has_pattern_name:
+            rows_df = pd.read_sql_query(
+                """
+                SELECT
+                    COALESCE(NULLIF(ab.pattern_name, ''), ab.action_type, 'unknown') as pattern,
+                    ab.branch_id,
+                    ab.matched_after_n_days
+                FROM advisor_branches ab
+                JOIN advisor_runs ar ON ar.run_id = ab.run_id
+                WHERE ab.matched_after_n_days IS NOT NULL
+                """,
+                conn,
+            )
+        else:
+            # Fallback for old DBs without pattern_name column
+            rows_df = pd.read_sql_query(
+                """
+                SELECT
+                    COALESCE(ab.action_type, 'unknown') as pattern,
+                    ab.branch_id,
+                    ab.matched_after_n_days
+                FROM advisor_branches ab
+                JOIN advisor_runs ar ON ar.run_id = ab.run_id
+                WHERE ab.matched_after_n_days IS NOT NULL
+                """,
+                conn,
+            )
 
     if rows_df.empty:
         return pd.DataFrame(
@@ -727,13 +752,6 @@ def compute_branch_hit_rates(
                      "hit_rate", "avg_matched_days"]
         )
 
-    # Derive "pattern" from branch_id prefix convention:
-    # Branch ids like "B1_明日續強" don't encode the pattern name.
-    # We use action_type as a proxy for grouping; the caller can join
-    # with playbook metadata if needed.
-    # Per spec: columns must be (pattern, branch_id, n_runs, n_matched, hit_rate, avg_matched_days)
-    # We use action_type as the "pattern" column in the absence of pattern column in DB.
-    rows_df = rows_df.rename(columns={"action_type": "pattern"})
     rows_df["matched"] = rows_df["matched_after_n_days"] > 0
 
     grouped = rows_df.groupby(["pattern", "branch_id"])

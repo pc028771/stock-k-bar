@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS advisor_branches (
     run_id                  INTEGER NOT NULL,
     scenario_idx            INTEGER NOT NULL,
     branch_id               TEXT    NOT NULL,
+    pattern_name            TEXT    NOT NULL DEFAULT '',
     when_json               TEXT    NOT NULL,
     confirm_at              TEXT    NOT NULL,
     next_day_n              INTEGER NOT NULL,
@@ -152,20 +153,26 @@ def save(
             # structures stored in scenario.  In Phase 1 the Scenario only
             # stores enabled_branch_ids (strings), not full Branch objects.
             # We store what we have; Phase 4 can backfill when_json etc.
+            pattern_name = getattr(scenario, "pattern_hit", None)
+            if pattern_name is not None:
+                pattern_name = getattr(pattern_name, "pattern", "")
+            pattern_name = pattern_name or ""
             for branch_id in scenario.enabled_branches:
                 conn.execute(
                     """
                     INSERT INTO advisor_branches
                         (run_id, scenario_idx, branch_id,
+                         pattern_name,
                          when_json, confirm_at, next_day_n,
                          action_type, course_citation_json,
                          matched_after_n_days)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         run_id,
                         scenario_idx,
                         branch_id,
+                        pattern_name,
                         json.dumps({}),   # when_json: full branch detail Phase 4
                         "next_close",     # confirm_at default; Phase 4 will use real value
                         1,                # next_day_n default

@@ -40,6 +40,9 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Earlier `g["x"].shift(1).rolling(N)` rolled across ticker boundaries
     # because the rolling ran on a flat Series after the groupwise shift.
     df["prior_high_60"] = g["high"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).max())
+    # DSL alias: condition YAML uses "prev_high_60"; features.py uses "prior_high_60".
+    # Both columns carry the same value. "prev_high_60" is whitelisted in condition.py.
+    df["prev_high_60"] = df["prior_high_60"]
     df["prior_high_20"] = g["high"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).max())
     df["prior_low_60"] = g["low"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).min())
     df["prior_low_20"] = g["low"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).min())
@@ -607,6 +610,22 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     #   上述數字待 user 拍板；回測時可傳入不同 K/J 至 _common.is_anomalous_volume。
     #   實作已抽到 patterns/_common.py — 調整 K/J 只需改該 helper 的參數。
     df["is_anomalous_volume"] = _is_anomalous_volume(df)
+
+    # === at_pressure_retest: 壓力區回測（套牢/波動/獲利了結三類賣壓共通前提） ===
+    # Course source: 明日 K 線 §08「壓力的分類」B5DB7A687DA4FA572833411DE9CD88D8
+    #   「碰到了賣壓之後，接下來股價會怎樣走呢？」
+    #   壓力 = 接近過去高點但尚未突破；課程明示「K 線上只有壓力沒有支撐」
+    #
+    # 條件：close 接近 prev_high_60（在門檻內回測）且尚未突破
+    #   close >= prev_high_60 * (1 - AT_PRESSURE_RETEST_PCT)
+    #   close <  prev_high_60
+    #
+    # [STUB-NEED-USER]: AT_PRESSURE_RETEST_PCT 在 course_proxy_constants.py，老師未明示。
+    from .course_proxy_constants import AT_PRESSURE_RETEST_PCT
+    df["at_pressure_retest"] = (
+        (df["close"] < df["prior_high_60"])
+        & (df["close"] >= df["prior_high_60"] * (1 - AT_PRESSURE_RETEST_PCT))
+    ).fillna(False)
 
     # =====================================================================
     # Task 3.E additions — 明日 K 線 INVENTORY C12

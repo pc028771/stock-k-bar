@@ -101,17 +101,33 @@ def _get_pattern_trigger_stats(db_path: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
     with sqlite3.connect(str(db_path)) as conn:
-        # Get runs that fired at least 1 pattern
-        df = pd.read_sql_query(
-            """
-            SELECT ar.ticker, ar.trade_date, ar.fired_pattern_count,
-                   ar.scenario_count, ab.branch_id, ab.action_type,
-                   ab.matched_after_n_days
-            FROM advisor_runs ar
-            LEFT JOIN advisor_branches ab ON ar.run_id = ab.run_id
-            """,
-            conn,
-        )
+        # Detect schema version (pattern_name column may not exist in older DBs)
+        col_info = conn.execute("PRAGMA table_info(advisor_branches)").fetchall()
+        col_names = {row[1] for row in col_info}
+        has_pattern_name = "pattern_name" in col_names
+
+        if has_pattern_name:
+            df = pd.read_sql_query(
+                """
+                SELECT ar.ticker, ar.trade_date, ar.fired_pattern_count,
+                       ar.scenario_count, ab.branch_id, ab.action_type,
+                       ab.pattern_name, ab.matched_after_n_days
+                FROM advisor_runs ar
+                LEFT JOIN advisor_branches ab ON ar.run_id = ab.run_id
+                """,
+                conn,
+            )
+        else:
+            df = pd.read_sql_query(
+                """
+                SELECT ar.ticker, ar.trade_date, ar.fired_pattern_count,
+                       ar.scenario_count, ab.branch_id, ab.action_type,
+                       ab.matched_after_n_days
+                FROM advisor_runs ar
+                LEFT JOIN advisor_branches ab ON ar.run_id = ab.run_id
+                """,
+                conn,
+            )
     return df
 
 
