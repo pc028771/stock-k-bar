@@ -627,6 +627,22 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         & (df["close"] >= df["prior_high_60"] * (1 - AT_PRESSURE_RETEST_PCT))
     ).fillna(False)
 
+    # === 扣抵值 (kou values) 預判明日 MA 方向 ===
+    # Course sources: 入門 + 行進ing 均明示，N 天前 close 是「明日扣抵」
+    # 預判邏輯（假設明日 close ≈ 今日 close）:
+    #   明日 MA_N > 今日 MA_N  iff  今日 close > N 天前的 close（扣抵值）
+    # 故 ma_will_rise = today.close > shift(N).close
+    df["ma5_kou"] = g["close"].shift(5)
+    df["ma10_kou"] = g["close"].shift(10)
+    df["ma20_kou"] = g["close"].shift(20)
+    df["ma60_kou"] = g["close"].shift(60)
+    # Use plain bool comparison; kou NaN propagates → False. Consumers can
+    # check ma{N}_kou notna() to distinguish "no data" from "will fall".
+    df["ma5_will_rise"] = (df["close"] > df["ma5_kou"]).fillna(False).astype(bool)
+    df["ma10_will_rise"] = (df["close"] > df["ma10_kou"]).fillna(False).astype(bool)
+    df["ma20_will_rise"] = (df["close"] > df["ma20_kou"]).fillna(False).astype(bool)
+    df["ma60_will_rise"] = (df["close"] > df["ma60_kou"]).fillna(False).astype(bool)
+
     # =====================================================================
     # Task 3.E additions — 明日 K 線 INVENTORY C12
     # Added at the END; no existing column is modified.

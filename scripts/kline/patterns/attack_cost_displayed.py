@@ -193,7 +193,8 @@ def detect(df: pd.DataFrame) -> pd.Series:
     ).fillna(False)
 
     # 分K覆寫（只對有分K DB 且通過條件 1+2 的少數 row 才做 DB 查詢）
-    minute_db_available = _MINUTE_BAR_DB.exists()
+    from ..minute_bars import MAIN_DB_SYMLINK
+    minute_db_available = MAIN_DB_SYMLINK.exists()
     date_col = "trade_date" if "trade_date" in df.columns else "date"
 
     if minute_db_available and "ticker" in df.columns and date_col in df.columns:
