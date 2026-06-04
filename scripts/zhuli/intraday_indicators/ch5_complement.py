@@ -212,24 +212,41 @@ def check_b5_2_limit_up_pattern(
     open_1  = float(first["open"])
     close_1 = float(first["close"])
     high_1  = float(first["high"])
+    low_1   = float(first["low"])
     close_2 = float(second["close"])
 
     gap_pct = (open_1 / prev_close - 1) * 100
     body_1  = abs(close_1 - open_1)
     upper_1 = high_1 - max(close_1, open_1)
+    bar_range_1 = high_1 - low_1
 
-    # B 型：跳空 ≥ 3% + 第 1 根衝高
-    # 含十字星 case：body ≈ 0 但有顯著上影、視為極端 B 型
-    body_threshold = max(body_1, open_1 * 0.001)
-    if gap_pct >= 3.0 and upper_1 >= body_threshold * 1.5:
-        return {
-            "triggered": True,
-            "level": "B",
-            "reason": (f"B5-2 B 型：跳空 +{gap_pct:.1f}% + 第 1 根衝高 "
-                       f"(上影 {upper_1:.2f} ≥ body {body_1:.2f} × 1.5) "
-                       f"→ 隔日沖出貨、不做"),
-            "gap_pct": gap_pct,
-        }
+    # B 型：跳空 ≥ 3% + 第 1 根「衝高灌下」
+    # 兩種衝高灌下子形態（任一即可）：
+    #   (a) 大上影：upper_1 ≥ body × 1.5（含十字星 case）
+    #   (b) 開高即灌：黑 K + 收盤落在 K 棒下半部
+    if gap_pct >= 3.0:
+        body_threshold = max(body_1, open_1 * 0.001)
+        large_upper = upper_1 >= body_threshold * 1.5
+        is_black = close_1 < open_1
+        close_in_lower_half = (
+            bar_range_1 > 0
+            and (close_1 - low_1) <= bar_range_1 * 0.5
+        )
+        burst_then_dump = is_black and close_in_lower_half
+
+        if large_upper or burst_then_dump:
+            sub_reason = (
+                f"大上影 {upper_1:.2f} ≥ body {body_1:.2f} × 1.5"
+                if large_upper
+                else f"開高灌下 (黑K + 收 {close_1:.2f} 在 K 棒下半部)"
+            )
+            return {
+                "triggered": True,
+                "level": "B",
+                "reason": (f"B5-2 B 型：跳空 +{gap_pct:.1f}% + 第 1 根衝高 "
+                           f"({sub_reason}) → 隔日沖出貨、不做"),
+                "gap_pct": gap_pct,
+            }
 
     # A 型：跳空 < 2% + 第 2 根守住第 1 根開盤
     if gap_pct < 2.0 and close_2 >= open_1:
