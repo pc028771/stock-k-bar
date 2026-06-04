@@ -1755,6 +1755,174 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     return "\n".join(md)
 
 
+def write_daily_watchlist_json(
+    target_date: str,
+    results: dict,
+    taiex_pct: float | None = None,
+    regime: str | None = None,
+) -> Path:
+    """收集所有 scanner 命中、dedup + 彙整成 daily_watchlist JSON 寫進 repo.
+
+    格式:
+      docs/主力大課程/daily_watchlist/{target_date}.json
+
+    每個 candidate:
+      ticker, name, sources, priority, sector, tactic, ref_close, dist_ma10_pct, note
+    priority:
+      3 = Tier-A/B 進場可進 (距 MA10 ≤ 15%) 或 dual_axis 命中
+      2 = uniform_ma_above / small_structure / w_bottom_launch / ma5_pivot / glued_ma5
+      1 = post_attack_watchlist (盤整觀察)
+    """
+    import json as _json
+
+    out_dir = _REPO / "docs" / "主力大課程" / "daily_watchlist"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── 從 results 收集所有命中 ticker ──────────────────────────────────────
+    # ticker → { sources: set, hits: list[dict] }
+    by_ticker: dict[str, dict] = {}
+
+    def _add(ticker: str, source: str, hit: dict):
+        if ticker not in by_ticker:
+            by_ticker[ticker] = {'sources': set(), 'hits': []}
+        by_ticker[ticker]['sources'].add(source)
+        by_ticker[ticker]['hits'].append(hit)
+
+    # 標準 list[dict] scanner
+    list_scanners = [
+        'shakeout_strong', 'small_structure', 'w_bottom_launch',
+        'ma5_pivot', 'glued_ma5',
+        'institutional_firstbuy', 'institutional_swing',
+        'foreign_buy_on_black_k',
+    ]
+    for s in list_scanners:
+        for h in results.get(s, []):
+            if isinstance(h, dict) and h.get('ticker'):
+                _add(h['ticker'], s, h)
+
+    # post_attack_watchlist (DataFrame)
+    pa_wl = results.get('post_attack_watchlist')
+    if pa_wl is not None and hasattr(pa_wl, 'iterrows') and not pa_wl.empty:
+        for _, row in pa_wl.iterrows():
+            t = str(row.get('ticker', ''))
+            if t:
+                _add(t, 'post_attack_watchlist', dict(row))
+
+    # uniform_ma_above (DataFrame)
+    uma_wl = results.get('uniform_ma_above')
+    if uma_wl is not None and hasattr(uma_wl, 'iterrows') and not uma_wl.empty:
+        for _, row in uma_wl.iterrows():
+            t = str(row.get('ticker', ''))
+            if t:
+                _add(t, 'uniform_ma_above', dict(row))
+
+    # ── 組合 candidates list ────────────────────────────────────────────────
+    candidates = []
+    for ticker, info in by_ticker.items():
+        sources = sorted(info['sources'])
+        hits = info['hits']
+
+        # 取最佳 hit (tier 排序)
+        def _hit_rank(h):
+            t = h.get('tier', '一般')
+            if t == '🔥 Tier-A':
+                return 0
+            if t == '⭐ Tier-B':
+                return 1
+            if t == '➕ 加碼用':
+                return 2
+            return 3
+        best = sorted(hits, key=_hit_rank)[0]
+
+        # priority 邏輯
+        tier = best.get('tier', '一般')
+        has_pa = 'post_attack_watchlist' in sources
+        has_uma = 'uniform_ma_above' in sources
+        has_entry = any(s in sources for s in (
+            'w_bottom_launch', 'small_structure', 'ma5_pivot',
+            'glued_ma5', 'institutional_firstbuy', 'institutional_swing',
+        ))
+        dist = best.get('dist_ma10_pct')
+        if tier in ('🔥 Tier-A', '⭐ Tier-B') and (dist is None or dist <= 15.0):
+            priority = 3
+        elif has_entry or has_uma:
+            priority = 2
+        elif has_pa:
+            priority = 1
+        else:
+            priority = 2  # shakeout / fbk
+
+        # sector: 從 teacher_sector_map 反查
+        teacher_secs = TEACHER_SECTOR_MAP.get(ticker, [])
+        sector = '/'.join(teacher_secs) if teacher_secs else best.get('industry', '')
+
+        # tactic: 依 priority / scanner 推斷
+        if priority == 3:
+            tactic = '短打'
+        elif 'post_attack_watchlist' in sources:
+            tactic = '觀察'
+        else:
+            tactic = '短打'
+
+        # ref_close
+        ref_close = float(best.get('close', 0) or 0)
+
+        # note: 組合多 source 的簡短描述
+        note_parts = []
+        if 'uniform_ma_above' in sources:
+            note_parts.append('均線全順向')
+        if 'small_structure' in sources:
+            note_parts.append('小結構')
+        if 'w_bottom_launch' in sources:
+            note_parts.append('W底')
+        if 'shakeout_strong' in sources:
+            note_parts.append('Shakeout')
+        if 'ma5_pivot' in sources:
+            note_parts.append('MA5 Pivot')
+        if 'glued_ma5' in sources:
+            note_parts.append('黏MA5平台')
+        if 'institutional_firstbuy' in sources:
+            note_parts.append('投信首買(J)')
+        if 'institutional_swing' in sources:
+            note_parts.append('投信跟單(I)')
+        if 'foreign_buy_on_black_k' in sources:
+            note_parts.append('外資黑K連2')
+        if 'post_attack_watchlist' in sources:
+            note_parts.append('攻擊後盤整')
+        tier_label = tier if tier != '一般' else ''
+        if tier_label:
+            note_parts.insert(0, tier_label)
+        note = ' + '.join(note_parts) if note_parts else ''
+
+        c: dict = {
+            'ticker': ticker,
+            'name': best.get('name', TEACHER_NAME.get(ticker, '')),
+            'sources': sources,
+            'priority': priority,
+            'sector': sector,
+            'tactic': tactic,
+            'ref_close': round(ref_close, 2),
+            'dist_ma10_pct': dist,
+            'note': note,
+        }
+        candidates.append(c)
+
+    # 依 priority 降冪、ticker 升冪排序
+    candidates.sort(key=lambda c: (-c['priority'], c['ticker']))
+
+    payload = {
+        'date': target_date,
+        'generated_at': datetime.now().isoformat(timespec='seconds'),
+        'taiex_pct': taiex_pct,
+        'regime': regime or ('weak' if (taiex_pct is not None and taiex_pct < -1.0) else 'normal'),
+        'candidates': candidates,
+    }
+
+    out_path = out_dir / f"{target_date}.json"
+    out_path.write_text(_json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    return out_path
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=None, help="目標收盤日（預設今天）")
@@ -1790,6 +1958,35 @@ def main():
     print(f"\n結果:")
     for s, hits in results.items():
         print(f"  {s}: {len(hits)} 檔")
+
+    # ── 取 TAIEX 漲跌幅 (給 JSON regime 判斷用) ──────────────────────────
+    _taiex_pct_for_json: float | None = None
+    try:
+        _con_tx = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+        _r = _con_tx.execute(
+            "SELECT close FROM standard_daily_bar WHERE ticker='TAIEX' AND trade_date=?",
+            (target_date,),
+        ).fetchone()
+        _p = _con_tx.execute(
+            "SELECT close FROM standard_daily_bar "
+            "WHERE ticker='TAIEX' AND trade_date<? ORDER BY trade_date DESC LIMIT 1",
+            (target_date,),
+        ).fetchone()
+        _con_tx.close()
+        if _r and _p:
+            _taiex_pct_for_json = round((_r[0] / _p[0] - 1) * 100, 2)
+    except Exception as _e:
+        print(f"  [taiex_pct] 查詢失敗: {_e}、JSON taiex_pct=null", flush=True)
+
+    # ── 寫 daily_watchlist JSON 進 repo ──────────────────────────────────
+    json_path = write_daily_watchlist_json(
+        target_date,
+        results,
+        taiex_pct=_taiex_pct_for_json,
+    )
+    import json as _json_count
+    _jcount = len(_json_count.loads(json_path.read_text(encoding='utf-8')).get('candidates', []))
+    print(f"→ watchlist JSON: {json_path} ({_jcount} candidates)")
 
     # 處置股分型（--enable-disposal 啟用時）
     disposal_map: dict = {}

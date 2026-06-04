@@ -1,0 +1,1696 @@
+{
+  "date": "2026-06-04",
+  "generated_at": "2026-06-05T00:44:39",
+  "taiex_pct": -1.68,
+  "regime": "weak",
+  "candidates": [
+    {
+      "ticker": "1303",
+      "name": "南亞",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "ABF載板/CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 111.0,
+      "dist_ma10_pct": 11.8,
+      "note": "⭐ Tier-B + 小結構 + 攻擊後盤整"
+    },
+    {
+      "ticker": "2317",
+      "name": "鴻海",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "PCB/散熱/機器人",
+      "tactic": "短打",
+      "ref_close": 293.0,
+      "dist_ma10_pct": 5.3,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "2345",
+      "name": "智邦",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "光通訊/CPO/網通",
+      "tactic": "短打",
+      "ref_close": 2510.0,
+      "dist_ma10_pct": -0.2,
+      "note": "⭐ Tier-B + 小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "2368",
+      "name": "金像電",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "CCL材料/PCB/低軌衛星",
+      "tactic": "短打",
+      "ref_close": 1350.0,
+      "dist_ma10_pct": -0.3,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "2454",
+      "name": "聯發科",
+      "sources": [
+        "glued_ma5",
+        "ma5_pivot",
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "IC設計/光通訊/CPO/網通",
+      "tactic": "短打",
+      "ref_close": 4430.0,
+      "dist_ma10_pct": 1.2,
+      "note": "🔥 Tier-A + 小結構 + MA5 Pivot + 黏MA5平台 + 攻擊後盤整"
+    },
+    {
+      "ticker": "2467",
+      "name": "志聖",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "PCB/主流設備/封測",
+      "tactic": "短打",
+      "ref_close": 626.0,
+      "dist_ma10_pct": -0.5,
+      "note": "⭐ Tier-B + 小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "3037",
+      "name": "欣興",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "ABF載板/CCL材料/PCB/封測",
+      "tactic": "短打",
+      "ref_close": 971.0,
+      "dist_ma10_pct": -4.8,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "3189",
+      "name": "景碩",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "ABF載板/CCL材料/PCB/封測",
+      "tactic": "短打",
+      "ref_close": 692.0,
+      "dist_ma10_pct": -1.6,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "3715",
+      "name": "定穎投控",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 169.0,
+      "dist_ma10_pct": -4.1,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "6213",
+      "name": "聯茂",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 260.5,
+      "dist_ma10_pct": -3.8,
+      "note": "⭐ Tier-B + 小結構 + 攻擊後盤整"
+    },
+    {
+      "ticker": "6239",
+      "name": "力成",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "光通訊/CPO/封測/記憶體",
+      "tactic": "短打",
+      "ref_close": 354.0,
+      "dist_ma10_pct": 3.4,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "8021",
+      "name": "尖點",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "ABF載板/CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 441.0,
+      "dist_ma10_pct": -1.4,
+      "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "8046",
+      "name": "南電",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 3,
+      "sector": "ABF載板/CCL材料/PCB/封測",
+      "tactic": "短打",
+      "ref_close": 878.0,
+      "dist_ma10_pct": -1.3,
+      "note": "⭐ Tier-B + 小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "1443",
+      "name": "立益物流",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "其他",
+      "tactic": "短打",
+      "ref_close": 26.4,
+      "dist_ma10_pct": 3.6,
+      "note": "W底"
+    },
+    {
+      "ticker": "1514",
+      "name": "亞力",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電機機械",
+      "tactic": "短打",
+      "ref_close": 149.5,
+      "dist_ma10_pct": 16.7,
+      "note": "W底"
+    },
+    {
+      "ticker": "1815",
+      "name": "富喬",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 104.0,
+      "dist_ma10_pct": -2.4,
+      "note": "小結構"
+    },
+    {
+      "ticker": "1903",
+      "name": "士紙",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "造紙工業",
+      "tactic": "短打",
+      "ref_close": 50.3,
+      "dist_ma10_pct": 1.9,
+      "note": "W底"
+    },
+    {
+      "ticker": "2064",
+      "name": "晉椿",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "鋼鐵工業",
+      "tactic": "短打",
+      "ref_close": 14.95,
+      "dist_ma10_pct": 6.4,
+      "note": "W底"
+    },
+    {
+      "ticker": "2301",
+      "name": "光寶科",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU/功率元件/散熱",
+      "tactic": "短打",
+      "ref_close": 248.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2308",
+      "name": "台達電",
+      "sources": [
+        "post_attack_watchlist",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU/功率元件/散熱/機器人",
+      "tactic": "觀察",
+      "ref_close": 2425.0,
+      "dist_ma10_pct": 2.1052631578947367,
+      "note": "均線全順向 + 攻擊後盤整"
+    },
+    {
+      "ticker": "2313",
+      "name": "華通",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "CCL材料/PCB/低軌衛星",
+      "tactic": "短打",
+      "ref_close": 265.5,
+      "dist_ma10_pct": -4.2,
+      "note": "小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "2316",
+      "name": "楠梓電",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "PCB",
+      "tactic": "短打",
+      "ref_close": 160.0,
+      "dist_ma10_pct": -3.1,
+      "note": "小結構"
+    },
+    {
+      "ticker": "2330",
+      "name": "台積電",
+      "sources": [
+        "small_structure",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/IC設計/光通訊/CPO/功率元件/封測",
+      "tactic": "短打",
+      "ref_close": 2385.0,
+      "dist_ma10_pct": 2.2,
+      "note": "均線全順向 + 小結構"
+    },
+    {
+      "ticker": "2360",
+      "name": "致茂",
+      "sources": [
+        "ma5_pivot",
+        "small_structure",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "IC設計/主流設備/光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 2620.0,
+      "dist_ma10_pct": 4.3,
+      "note": "均線全順向 + 小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "2379",
+      "name": "瑞昱",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "IC設計/網通",
+      "tactic": "短打",
+      "ref_close": 624.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2382",
+      "name": "廣達",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/PCB/散熱",
+      "tactic": "觀察",
+      "ref_close": 404.0,
+      "dist_ma10_pct": 15.3,
+      "note": "小結構 + 攻擊後盤整"
+    },
+    {
+      "ticker": "2383",
+      "name": "台光電",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/CCL材料/PCB/低軌衛星/封測",
+      "tactic": "觀察",
+      "ref_close": 4830.0,
+      "dist_ma10_pct": -5.1,
+      "note": "小結構 + 攻擊後盤整"
+    },
+    {
+      "ticker": "2395",
+      "name": "研華",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "工業電腦/機器人",
+      "tactic": "短打",
+      "ref_close": 522.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2397",
+      "name": "友通",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "工業電腦",
+      "tactic": "短打",
+      "ref_close": 65.4,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2402",
+      "name": "毅嘉",
+      "sources": [
+        "glued_ma5",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "PCB/光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 69.3,
+      "dist_ma10_pct": 1.1,
+      "note": "小結構 + 黏MA5平台"
+    },
+    {
+      "ticker": "2421",
+      "name": "建準",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "散熱",
+      "tactic": "短打",
+      "ref_close": 168.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2440",
+      "name": "太空梭",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 20.5,
+      "dist_ma10_pct": 13.1,
+      "note": "W底"
+    },
+    {
+      "ticker": "2449",
+      "name": "京元電子",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/封測",
+      "tactic": "短打",
+      "ref_close": 322.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2451",
+      "name": "創見",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "記憶體",
+      "tactic": "短打",
+      "ref_close": 357.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "2455",
+      "name": "全新",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO/網通",
+      "tactic": "短打",
+      "ref_close": 402.0,
+      "dist_ma10_pct": -3.2,
+      "note": "小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "2493",
+      "name": "揚博",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 177.5,
+      "dist_ma10_pct": 13.1,
+      "note": "W底"
+    },
+    {
+      "ticker": "2885",
+      "name": "元大金",
+      "sources": [
+        "post_attack_watchlist",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "金融/券商",
+      "tactic": "觀察",
+      "ref_close": 63.9,
+      "dist_ma10_pct": 7.73899848254931,
+      "note": "均線全順向 + 攻擊後盤整"
+    },
+    {
+      "ticker": "3003",
+      "name": "健和興",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU",
+      "tactic": "短打",
+      "ref_close": 62.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3008",
+      "name": "大立光",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "低軌衛星/光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 3825.0,
+      "dist_ma10_pct": 3.4,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3010",
+      "name": "華立",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "特化/面板",
+      "tactic": "短打",
+      "ref_close": 140.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3028",
+      "name": "增你強",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "產業通路",
+      "tactic": "短打",
+      "ref_close": 83.7,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3044",
+      "name": "健鼎",
+      "sources": [
+        "glued_ma5",
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 512.0,
+      "dist_ma10_pct": 0.8,
+      "note": "小結構 + MA5 Pivot + 黏MA5平台"
+    },
+    {
+      "ticker": "3211",
+      "name": "順達",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU",
+      "tactic": "短打",
+      "ref_close": 454.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3231",
+      "name": "緯創",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "PCB/散熱",
+      "tactic": "短打",
+      "ref_close": 176.0,
+      "dist_ma10_pct": 8.5,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3234",
+      "name": "光環",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 136.5,
+      "dist_ma10_pct": 17.7,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3264",
+      "name": "欣銓",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "封測",
+      "tactic": "短打",
+      "ref_close": 236.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3289",
+      "name": "宜特",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "主流設備",
+      "tactic": "短打",
+      "ref_close": 179.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3290",
+      "name": "東浦",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 50.1,
+      "dist_ma10_pct": 3.6,
+      "note": "W底"
+    },
+    {
+      "ticker": "3312",
+      "name": "弘憶股",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子通路業",
+      "tactic": "短打",
+      "ref_close": 73.2,
+      "dist_ma10_pct": 31.7,
+      "note": "W底"
+    },
+    {
+      "ticker": "3323",
+      "name": "加百裕",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU",
+      "tactic": "短打",
+      "ref_close": 38.9,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "3372",
+      "name": "典範",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "半導體業",
+      "tactic": "短打",
+      "ref_close": 22.9,
+      "dist_ma10_pct": 4.8,
+      "note": "W底"
+    },
+    {
+      "ticker": "3450",
+      "name": "聯鈞",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO/網通",
+      "tactic": "短打",
+      "ref_close": 520.0,
+      "dist_ma10_pct": 1.6,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3520",
+      "name": "華盈",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 15.5,
+      "dist_ma10_pct": 4.7,
+      "note": "W底"
+    },
+    {
+      "ticker": "3550",
+      "name": "聯穎",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 23.95,
+      "dist_ma10_pct": 12.6,
+      "note": "W底"
+    },
+    {
+      "ticker": "3563",
+      "name": "牧德",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "PCB",
+      "tactic": "短打",
+      "ref_close": 807.0,
+      "dist_ma10_pct": -4.2,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3615",
+      "name": "安可",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "光電業",
+      "tactic": "短打",
+      "ref_close": 57.9,
+      "dist_ma10_pct": 13.7,
+      "note": "W底"
+    },
+    {
+      "ticker": "3617",
+      "name": "碩天",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子工業",
+      "tactic": "短打",
+      "ref_close": 221.5,
+      "dist_ma10_pct": 4.8,
+      "note": "W底"
+    },
+    {
+      "ticker": "3701",
+      "name": "大眾控",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 58.5,
+      "dist_ma10_pct": 3.9,
+      "note": "小結構"
+    },
+    {
+      "ticker": "3711",
+      "name": "日月光投控",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/IC設計/光通訊/CPO/封測",
+      "tactic": "觀察",
+      "ref_close": 593.0,
+      "dist_ma10_pct": -2.3,
+      "note": "小結構 + 攻擊後盤整"
+    },
+    {
+      "ticker": "4958",
+      "name": "臻鼎-KY",
+      "sources": [
+        "ma5_pivot"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 492.5,
+      "dist_ma10_pct": -5.1,
+      "note": "MA5 Pivot"
+    },
+    {
+      "ticker": "4977",
+      "name": "眾達-KY",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 209.0,
+      "dist_ma10_pct": -4.4,
+      "note": "小結構"
+    },
+    {
+      "ticker": "5227",
+      "name": "立凱-KY",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 26.3,
+      "dist_ma10_pct": 5.2,
+      "note": "W底"
+    },
+    {
+      "ticker": "5269",
+      "name": "祥碩",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "IC設計/連接器",
+      "tactic": "短打",
+      "ref_close": 1570.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "5285",
+      "name": "界霖",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "功率元件",
+      "tactic": "短打",
+      "ref_close": 99.3,
+      "dist_ma10_pct": 11.5,
+      "note": "W底"
+    },
+    {
+      "ticker": "5439",
+      "name": "高技",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "PCB/低軌衛星",
+      "tactic": "短打",
+      "ref_close": 366.0,
+      "dist_ma10_pct": -3.6,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6121",
+      "name": "新普",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "BBU",
+      "tactic": "短打",
+      "ref_close": 410.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "6205",
+      "name": "詮欣",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "連接器",
+      "tactic": "短打",
+      "ref_close": 86.0,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "6223",
+      "name": "旺矽",
+      "sources": [
+        "ma5_pivot",
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "IC設計/主流設備/光通訊/CPO/封測",
+      "tactic": "短打",
+      "ref_close": 6070.0,
+      "dist_ma10_pct": 1.3,
+      "note": "小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "6274",
+      "name": "台燿",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "CCL材料/PCB/低軌衛星/封測",
+      "tactic": "短打",
+      "ref_close": 1695.0,
+      "dist_ma10_pct": 4.8,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6414",
+      "name": "樺漢",
+      "sources": [
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "工業電腦",
+      "tactic": "短打",
+      "ref_close": 389.5,
+      "dist_ma10_pct": null,
+      "note": "均線全順向"
+    },
+    {
+      "ticker": "6451",
+      "name": "訊芯-KY",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 680.0,
+      "dist_ma10_pct": 10.3,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6512",
+      "name": "啟發電",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "其他電子類",
+      "tactic": "短打",
+      "ref_close": 19.85,
+      "dist_ma10_pct": 2.6,
+      "note": "W底"
+    },
+    {
+      "ticker": "6515",
+      "name": "穎崴",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "主流設備/光通訊/CPO/封測",
+      "tactic": "短打",
+      "ref_close": 8650.0,
+      "dist_ma10_pct": -1.4,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6526",
+      "name": "達發",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "IC設計/光通訊/CPO/網通",
+      "tactic": "短打",
+      "ref_close": 687.0,
+      "dist_ma10_pct": -1.3,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6664",
+      "name": "群翊",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "CCL材料/PCB",
+      "tactic": "短打",
+      "ref_close": 409.0,
+      "dist_ma10_pct": -5.5,
+      "note": "小結構"
+    },
+    {
+      "ticker": "6669",
+      "name": "緯穎",
+      "sources": [
+        "small_structure",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "ABF載板/PCB",
+      "tactic": "短打",
+      "ref_close": 5570.0,
+      "dist_ma10_pct": 3.1,
+      "note": "均線全順向 + 小結構"
+    },
+    {
+      "ticker": "6672",
+      "name": "騰輝電子-KY",
+      "sources": [
+        "post_attack_watchlist",
+        "uniform_ma_above"
+      ],
+      "priority": 2,
+      "sector": "低軌衛星",
+      "tactic": "觀察",
+      "ref_close": 222.0,
+      "dist_ma10_pct": 3.7140854940434425,
+      "note": "均線全順向 + 攻擊後盤整"
+    },
+    {
+      "ticker": "6789",
+      "name": "采鈺",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 524.0,
+      "dist_ma10_pct": -3.1,
+      "note": "小結構"
+    },
+    {
+      "ticker": "7747",
+      "name": "昕奇雲端",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "數位雲端類",
+      "tactic": "短打",
+      "ref_close": 127.0,
+      "dist_ma10_pct": -0.4,
+      "note": "W底"
+    },
+    {
+      "ticker": "7769",
+      "name": "鴻勁",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 2,
+      "sector": "IC設計/主流設備/光通訊/CPO",
+      "tactic": "短打",
+      "ref_close": 7385.0,
+      "dist_ma10_pct": -3.6,
+      "note": "小結構"
+    },
+    {
+      "ticker": "7788",
+      "name": "松川精密",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 204.0,
+      "dist_ma10_pct": 6.8,
+      "note": "W底"
+    },
+    {
+      "ticker": "8067",
+      "name": "志旭",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "電子通路業",
+      "tactic": "短打",
+      "ref_close": 13.5,
+      "dist_ma10_pct": 1.2,
+      "note": "W底"
+    },
+    {
+      "ticker": "8931",
+      "name": "大汽電",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "油電燃氣業",
+      "tactic": "短打",
+      "ref_close": 43.2,
+      "dist_ma10_pct": 1.6,
+      "note": "W底"
+    },
+    {
+      "ticker": "9103",
+      "name": "美德醫療-DR",
+      "sources": [
+        "w_bottom_launch"
+      ],
+      "priority": 2,
+      "sector": "存託憑證",
+      "tactic": "短打",
+      "ref_close": 5.98,
+      "dist_ma10_pct": 11.3,
+      "note": "W底"
+    },
+    {
+      "ticker": "1802",
+      "name": "台玻",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "CCL材料",
+      "tactic": "觀察",
+      "ref_close": 68.9,
+      "dist_ma10_pct": -4.065719855193523,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2337",
+      "name": "旺宏",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "記憶體",
+      "tactic": "觀察",
+      "ref_close": 156.5,
+      "dist_ma10_pct": -2.552926525529262,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2344",
+      "name": "華邦電",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "記憶體",
+      "tactic": "觀察",
+      "ref_close": 179.5,
+      "dist_ma10_pct": 14.99039077514414,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2359",
+      "name": "所羅門",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "機器人",
+      "tactic": "觀察",
+      "ref_close": 143.0,
+      "dist_ma10_pct": 0.06997900629810658,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2408",
+      "name": "南亞科",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "記憶體",
+      "tactic": "觀察",
+      "ref_close": 395.0,
+      "dist_ma10_pct": 13.164303108437183,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2441",
+      "name": "超豐",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "封測",
+      "tactic": "觀察",
+      "ref_close": 136.5,
+      "dist_ma10_pct": 1.486988847583643,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2478",
+      "name": "大毅",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 137.5,
+      "dist_ma10_pct": 4.642313546423131,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3013",
+      "name": "晟銘電",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "散熱",
+      "tactic": "觀察",
+      "ref_close": 129.5,
+      "dist_ma10_pct": 4.8582995951417,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3090",
+      "name": "日電貿",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 221.0,
+      "dist_ma10_pct": -1.3613032805177465,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3152",
+      "name": "璟德",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "低軌衛星",
+      "tactic": "觀察",
+      "ref_close": 181.0,
+      "dist_ma10_pct": -5.532359081419622,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3167",
+      "name": "大量",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "CCL材料",
+      "tactic": "觀察",
+      "ref_close": 901.0,
+      "dist_ma10_pct": 7.287449392712557,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3444",
+      "name": "利機",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "散熱",
+      "tactic": "觀察",
+      "ref_close": 104.0,
+      "dist_ma10_pct": -2.1176470588235294,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3479",
+      "name": "安勤",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦",
+      "tactic": "觀察",
+      "ref_close": 129.0,
+      "dist_ma10_pct": -2.5311673592746464,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3653",
+      "name": "健策",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "散熱",
+      "tactic": "觀察",
+      "ref_close": 3730.0,
+      "dist_ma10_pct": 0.0536480686695279,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "3675",
+      "name": "德微",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "功率元件",
+      "tactic": "觀察",
+      "ref_close": 361.0,
+      "dist_ma10_pct": -0.3863134657836582,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "4540",
+      "name": "全球傳動",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "機器人",
+      "tactic": "觀察",
+      "ref_close": 70.9,
+      "dist_ma10_pct": -0.7141856882789398,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "4722",
+      "name": "國精化",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "特化",
+      "tactic": "觀察",
+      "ref_close": 278.0,
+      "dist_ma10_pct": -0.5188763642869882,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "4916",
+      "name": "事欣科",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦",
+      "tactic": "觀察",
+      "ref_close": 122.5,
+      "dist_ma10_pct": 11.902804421302642,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "4919",
+      "name": "新唐",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "BMC/IC設計/成熟製程",
+      "tactic": "觀察",
+      "ref_close": 194.0,
+      "dist_ma10_pct": -4.527559055118105,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "5274",
+      "name": "信驊",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "BMC/IC設計",
+      "tactic": "觀察",
+      "ref_close": 18265.0,
+      "dist_ma10_pct": 1.1351052048726467,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "5425",
+      "name": "台半",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "功率元件",
+      "tactic": "觀察",
+      "ref_close": 101.5,
+      "dist_ma10_pct": -1.570985259891393,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "5475",
+      "name": "德宏",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "CCL材料",
+      "tactic": "觀察",
+      "ref_close": 303.0,
+      "dist_ma10_pct": 3.148936170212766,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "5483",
+      "name": "中美晶",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "功率元件/矽晶圓",
+      "tactic": "觀察",
+      "ref_close": 160.5,
+      "dist_ma10_pct": -0.9870450339296696,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "5864",
+      "name": "致和證",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "金融/券商",
+      "tactic": "觀察",
+      "ref_close": 50.6,
+      "dist_ma10_pct": 22.562674094707514,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6127",
+      "name": "九豪",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 75.2,
+      "dist_ma10_pct": 15.284378353518315,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6138",
+      "name": "茂達",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "連接器",
+      "tactic": "觀察",
+      "ref_close": 325.5,
+      "dist_ma10_pct": -4.824561403508771,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6166",
+      "name": "凌華",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦/機器人",
+      "tactic": "觀察",
+      "ref_close": 129.5,
+      "dist_ma10_pct": -0.8422664624808532,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6196",
+      "name": "帆宣",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "主流設備/廠務設備",
+      "tactic": "觀察",
+      "ref_close": 504.0,
+      "dist_ma10_pct": 1.103309929789368,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6197",
+      "name": "佳必琪",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "連接器",
+      "tactic": "觀察",
+      "ref_close": 316.5,
+      "dist_ma10_pct": 7.799727520435959,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6290",
+      "name": "良維",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "連接器",
+      "tactic": "觀察",
+      "ref_close": 363.5,
+      "dist_ma10_pct": 7.449009754655628,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6435",
+      "name": "大中",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "功率元件",
+      "tactic": "觀察",
+      "ref_close": 289.5,
+      "dist_ma10_pct": 4.2867435158501355,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6449",
+      "name": "鈺邦",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 385.0,
+      "dist_ma10_pct": 4.890341915270396,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6548",
+      "name": "長科*",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "功率元件",
+      "tactic": "觀察",
+      "ref_close": 98.1,
+      "dist_ma10_pct": 38.91248937977908,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6658",
+      "name": "聯策",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "小設備",
+      "tactic": "觀察",
+      "ref_close": 203.0,
+      "dist_ma10_pct": -4.267861353454379,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6805",
+      "name": "富世達",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "散熱",
+      "tactic": "觀察",
+      "ref_close": 1985.0,
+      "dist_ma10_pct": 3.709508881922675,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "6922",
+      "name": "宸曜",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦",
+      "tactic": "觀察",
+      "ref_close": 188.0,
+      "dist_ma10_pct": -3.0678009796339207,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "7795",
+      "name": "長廣",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "ABF載板",
+      "tactic": "觀察",
+      "ref_close": 389.5,
+      "dist_ma10_pct": -4.064039408866995,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8027",
+      "name": "鈦昇",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "主流設備",
+      "tactic": "觀察",
+      "ref_close": 292.5,
+      "dist_ma10_pct": 10.41902604756513,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8028",
+      "name": "昇陽半導體",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "矽晶圓",
+      "tactic": "觀察",
+      "ref_close": 341.0,
+      "dist_ma10_pct": 4.505056696291752,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8043",
+      "name": "蜜望實",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 145.0,
+      "dist_ma10_pct": 4.391648668106547,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8050",
+      "name": "廣積",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦",
+      "tactic": "觀察",
+      "ref_close": 57.1,
+      "dist_ma10_pct": -1.3476157567380687,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8110",
+      "name": "華東",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "記憶體",
+      "tactic": "觀察",
+      "ref_close": 59.6,
+      "dist_ma10_pct": 1.3002464519418724,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8234",
+      "name": "新漢",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "工業電腦/機器人",
+      "tactic": "觀察",
+      "ref_close": 69.6,
+      "dist_ma10_pct": -2.9153298925931144,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "8271",
+      "name": "宇瞻",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "記憶體",
+      "tactic": "觀察",
+      "ref_close": 245.0,
+      "dist_ma10_pct": 2.1046051260679355,
+      "note": "攻擊後盤整"
+    }
+  ]
+}
