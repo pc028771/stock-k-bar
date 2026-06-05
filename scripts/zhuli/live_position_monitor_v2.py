@@ -131,7 +131,7 @@ DataTable {
 }
 
 .confirmed-pane DataTable {
-    border: solid bold green;
+    border: heavy green;
     background: rgb(0, 30, 0);
 }
 
