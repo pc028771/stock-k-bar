@@ -543,11 +543,37 @@ class MonitorApp(App[None]):
         failed_tag  = "[f:ON]" if self.show_failed  else ""
         pinned_tag  = f"[pin:{len(self.pinned_tickers)}]" if self.pinned_tickers else ""
         mode_tag    = "[DEMO]" if self._demo_mode else ""
+        pagination  = self._fmt_pagination()
         bar = self.query_one("#status-bar", StatusBar)
         text = (f"{mode_tag} {regime_label} | {session_label} | "
                 f"{teacher_tag} {failed_tag} {pinned_tag} | "
+                f"{pagination} | "
                 f"{now.strftime('%H:%M:%S')}")
         bar.status_text = text
+
+    def _fmt_pagination(self) -> str:
+        """當前 tab DataTable 的「row X/Y」+ 「page N/M」資訊。"""
+        try:
+            tabbed = self.query_one(TabbedContent)
+            active = tabbed.active_pane
+            if not active:
+                return ""
+            dt = active.query_one(DataTable)
+            total = dt.row_count
+            if total == 0:
+                return "row 0/0"
+            cursor = (dt.cursor_row + 1) if dt.cursor_row is not None else 1
+            # 計算可見行數 (DataTable 內部高、扣 header)
+            visible_h = max(1, int(dt.size.height) - 1)
+            cur_page = ((cursor - 1) // visible_h) + 1
+            total_pages = ((total - 1) // visible_h) + 1
+            return f"row {cursor}/{total} | page {cur_page}/{total_pages}"
+        except Exception:
+            return ""
+
+    def on_resize(self, event) -> None:
+        """terminal 大小改變時、重算 pagination + table 列。"""
+        self._update_status_bar()
 
     # ── table refresh ─────────────────────────────────────────────────────────
     def _update_all_tables(self) -> None:
