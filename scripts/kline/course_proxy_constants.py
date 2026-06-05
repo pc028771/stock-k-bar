@@ -456,6 +456,31 @@ HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT: float = 0.04  # [STUB-NEED-USER]
 ZHONGSHU_RANGE_MAX_PCT: float = 0.10  # [STUB-NEED-USER]
 
 
+# =============================================================================
+# A24. merged_doji_carry_days — 合併十字線 forward-fill 窗口 (明日 K 線 §24)
+# =============================================================================
+# COURSE CONCEPT: 合併十字線「剛創新高」位置後 N 日，merged_high/merged_low 仍有效。
+# COURSE QUOTE: 第 24 篇「收盤確認了 K 線圖兩根合併就是長十字線，位置也沒有錯誤，
+#   表示股價已經具備了攻擊意圖，隔日就得有攻擊企圖」— 暗示「隔日」即為判斷窗口。
+# COURSE NUMBER? No — 課程只說「隔日就得有攻擊企圖」，未明示多少天內有效。
+#   5 日 = 一週交易天數，作為「短期有效」的最小保守窗口。
+# PROXY VALUE: 5 個交易日。
+# [STUB-NEED-USER]: 老師未明示合併十字線高低點向前 forward-fill 的天數；
+#   提議 5 日（一週），若 user 認為太長可縮短至 2~3 日。
+MERGED_DOJI_CARRY_DAYS: int = 5  # [STUB-NEED-USER]
+
+# =============================================================================
+# A26. defensive_low_lookback_days — 防守低點回看天數 (明日 K 線 §26)
+# =============================================================================
+# COURSE CONCEPT: 防守姿態「過去六天的低點」— 老師 9945 案例明示。
+# COURSE QUOTE: 第 26 篇「過去六天的低點」（9945 潤泰新 案例）
+# COURSE NUMBER? Partial — 「六天」是個案說明、課程未明示通則適用所有股票。
+#   以 9945 案例數字作為代理，待 user 確認是否適用通則。
+# PROXY VALUE: 6 個交易日（與 9945 案例一致）。
+# [STUB-NEED-USER]: 「過去 N 日最低收盤」的通則天數老師未明示；
+#   此處沿用 9945 案例的「六天」，為個案 proxy，需 user 確認通則。
+DEFENSIVE_LOW_LOOKBACK_DAYS: int = 6  # [STUB-NEED-USER] — 老師 9945 案例個案數字
+
 __all__ = [
     "ATTACK_HIGHER_LOW_MIN_5DAY",
     "ATTACK_HIGHER_HIGH_MIN_5DAY",
@@ -508,4 +533,7 @@ __all__ = [
     "LOW_PRICE_THRESHOLD",
     "HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT",
     "ZHONGSHU_RANGE_MAX_PCT",
+    # A24/A26 advanced field wiring STUB constants (2026-06-05)
+    "MERGED_DOJI_CARRY_DAYS",
+    "DEFENSIVE_LOW_LOOKBACK_DAYS",
 ]

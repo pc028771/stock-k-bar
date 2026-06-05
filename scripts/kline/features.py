@@ -12,13 +12,18 @@ import pandas as pd
 
 from .patterns._common import is_anomalous_volume as _is_anomalous_volume
 from .course_proxy_constants import (
+    ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS,
     ATTACK_HIGHER_HIGH_MIN_5DAY,
     ATTACK_HIGHER_LOW_MIN_5DAY,
     ATTACK_WINDOW_DAYS,
+    DEFENSIVE_LOW_LOOKBACK_DAYS,
     DOJI_MAX_BODY_PCT,
     DOJI_MIN_RANGE_PCT,
     FIRST_BREAKOUT_LOOKBACK,
     INTEGRATION_DAYS as _INTEGRATION_DAYS,
+    MERGED_DOJI_BODY_RATIO as _MERGED_DOJI_BODY_RATIO,
+    MERGED_DOJI_CARRY_DAYS,
+    MERGED_DOJI_SHADOW_MIN_RATIO as _MERGED_DOJI_SHADOW_MIN_RATIO,
     RISING_LOWS_MIN_FRAC,
     STABLE_UPPER_MAX_SPREAD as _STABLE_UPPER_MAX_SPREAD,
 )
@@ -727,5 +732,153 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     high_5 = g["high"].transform(lambda s: s.rolling(5, min_periods=5).max())
     low_5 = g["low"].transform(lambda s: s.rolling(5, min_periods=5).min())
     df["recent_range_pct_5"] = ((high_5 - low_5) / df["close"].replace(0, np.nan)).fillna(1.0)
+
+    # =====================================================================
+    # Advanced field wiring (2026-06-05) — 4 toplevel context fields
+    # Required so lt_attack_cost_breakdown / lt_defensive_low_break /
+    # lt_merged_doji_high_break / lt_merged_doji_low_break lights fire.
+    # =====================================================================
+
+    # === merged_high / merged_low — 合併十字線高低點 (§24) ===
+    # Course source: 明日 K 線 第 24 篇《合併十字線》
+    # 「兩根合併就是長十字線，位置也沒有錯誤，表示股價已經具備了攻擊意圖」
+    # 命中日 = merged_doji pattern 觸發日；merged_high/merged_low = 兩根 K 合併後的高低點。
+    # Forward-fill MERGED_DOJI_CARRY_DAYS 日（[STUB-NEED-USER] — 老師僅說「隔日就得有攻擊企圖」）。
+    #
+    # [STUB-NEED-USER]: MERGED_DOJI_CARRY_DAYS = 5（一週交易日）作為「短期有效」代理。
+    # 課程未明示 forward-fill 天數；若 user 認為太長可縮短至 2~3 日。
+    #
+    # Inline computation reusing already-computed features.py columns for performance.
+    # Logic mirrors patterns/merged_doji.detect() but avoids redundant groupby.shift().
+    # Constants come from course_proxy_constants (same as merged_doji.py imports).
+    _MD_BODY_RATIO = _MERGED_DOJI_BODY_RATIO
+    _MD_SHADOW_RATIO = _MERGED_DOJI_SHADOW_MIN_RATIO
+
+    # Condition 1: 剛創新高位置（use is_just_broke_high_intraday already computed above）
+    _md_just_broke = df["is_just_broke_high_intraday"].fillna(False)
+
+    # Condition 2: 前根上影線為主（prev_upper_shadow > prev_lower_shadow）
+    # prev_open/close computed at top of add_features; prev_high/prev_low also.
+    _prev_body_top = df[["prev_open", "prev_close"]].max(axis=1)
+    _prev_body_bot = df[["prev_open", "prev_close"]].min(axis=1)
+    _prev_upper_sh = df["prev_high"] - _prev_body_top
+    _prev_lower_sh = _prev_body_bot - df["prev_low"]
+    _prev_upper_dom = _prev_upper_sh > _prev_lower_sh
+
+    # 今根下影線為主（lower_shadow > upper_shadow，use already-computed columns）
+    _today_lower_dom = df["lower_shadow"] > df["upper_shadow"]
+
+    # Condition 3: 合併後為十字線
+    _merged_h = df[["prev_high", "high"]].max(axis=1)
+    _merged_l = df[["prev_low", "low"]].min(axis=1)
+    _merged_open = df["prev_open"]
+    _merged_close = df["close"]
+    _merged_range = (_merged_h - _merged_l).replace(0, np.nan)
+    _body = (_merged_open - _merged_close).abs()
+    _body_ratio = _body / _merged_range
+    _upper_body = df[["prev_open", "close"]].max(axis=1)
+    _lower_body = df[["prev_open", "close"]].min(axis=1)
+    _upper_sh_m = _merged_h - _upper_body
+    _lower_sh_m = _lower_body - _merged_l
+    _is_merged_doji = (
+        (_body_ratio <= _MD_BODY_RATIO)
+        & ((_upper_sh_m / _merged_range) >= _MD_SHADOW_RATIO)
+        & ((_lower_sh_m / _merged_range) >= _MD_SHADOW_RATIO)
+    ).fillna(False)
+
+    _md_signal = (_md_just_broke & _prev_upper_dom & _today_lower_dom & _is_merged_doji).fillna(False)
+
+    _merged_high_raw = _merged_h.where(_md_signal, other=np.nan)
+    _merged_low_raw = _merged_l.where(_md_signal, other=np.nan)
+
+    df["merged_high"] = (
+        _merged_high_raw
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=MERGED_DOJI_CARRY_DAYS))
+    )
+    df["merged_low"] = (
+        _merged_low_raw
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=MERGED_DOJI_CARRY_DAYS))
+    )
+
+    # === attack_cost — 攻擊成本顯現日的漲停價 (§20) ===
+    # Course source: 明日 K 線 第 20 篇《攻擊成本顯現日》
+    # 「突破前高的當日，股價鎖住漲停板，且最大量就是在這個漲停板的價位」
+    # 攻擊成本 = 漲停鎖住當日的 close（漲停價 proxy）。
+    # Forward-fill ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS 日（= 20，同 state-machine 窗口）。
+    #
+    # Implementation (inline, reusing already-computed df columns):
+    #   raw_signal = is_limit_up_locked & close > prior_high_60
+    #   (volume_condition: ATTACK_COST_VOL_RATIO = 1.0 = no-op in day-K fallback)
+    #   State-machine suppression: forward-fill with limit achieves equivalent result —
+    #   once attack_cost is seeded, it persists for N days, preventing re-seeding
+    #   (a new signal only overwrites if the old value is already NaN'd out).
+    #
+    # Note: this inline skips the per-row intraday minute-bar check (分K覆寫) which
+    # attack_cost_displayed.detect() does. Full intraday check available via the
+    # pattern detector directly; this is the features.py vectorized approximation.
+    #
+    # State-machine suppression via groupby rolling max (vectorized, no lambda):
+    _ac_n = ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS
+    _ac_raw = (df["is_limit_up_locked"].fillna(False)
+               & (df["close"] > df["prior_high_60"]).fillna(False)).astype(np.int8)
+
+    _prior_ac = (
+        _ac_raw
+        .groupby(df["ticker"])
+        .shift(1)
+        .fillna(0)
+    )
+    _prior_ac_rolling = (
+        _prior_ac
+        .groupby(df["ticker"])
+        .rolling(_ac_n, min_periods=1)
+        .max()
+        .reset_index(level=0, drop=True)
+    )
+    _acd_sig = (_ac_raw.astype(bool)) & (_prior_ac_rolling < 1)
+    _ac_seed = df["close"].where(_acd_sig, other=pd.NA)
+
+    df["attack_cost"] = (
+        _ac_seed
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=_ac_n))
+    )
+
+    # === defensive_low — 防守姿態低點 (§26) ===
+    # Course source: 明日 K 線 第 26 篇《防守姿態》
+    # 老師 9945 案例原話：「過去六天的低點」作為防守價位。
+    # 課程未明示通則天數 — 以 9945 案例的「六天」為代理。
+    #
+    # 課程脈絡：「防守姿態」發生在股價剛創新高（is_just_broke_high）後，
+    # 主力「防守」表示不讓股價跌回原本位置。
+    # 非剛創新高位置不適用防守點邏輯（老師未說所有個股通用）。
+    #
+    # Implementation:
+    #   Step 1: 計算過去 N 日的最低 K 棒 low 作為「防守支撐」seed。
+    #   Step 2: 僅在 is_just_broke_high = True 的 bar 保留 seed（限制在攻擊位置）。
+    #   Step 3: Forward-fill DEFENSIVE_LOW_LOOKBACK_DAYS 日（防守期間持續有效）。
+    #
+    # 「跌破防守價」= today.close < defensive_low（收盤跌破 K 棒支撐低點）。
+    #
+    # [STUB-NEED-USER]: DEFENSIVE_LOW_LOOKBACK_DAYS = 6（老師 9945 案例個案數字）。
+    # 課程未明示是否適用所有個股、也未明示通則天數。
+    # [STUB-NEED-USER]: 限制在 is_just_broke_high = True 是我們加的「攻擊位置」前提，
+    # 課程未明示觸發條件（§26 討論的都是剛創新高的情境）。
+    _def_low_6d = g["low"].transform(
+        lambda s: s.shift(1).rolling(
+            DEFENSIVE_LOW_LOOKBACK_DAYS,
+            min_periods=DEFENSIVE_LOW_LOOKBACK_DAYS,
+        ).min()
+    )
+    # Only populate when stock is at "just broke high" position (§26 context)
+    _def_low_seed = _def_low_6d.where(df["is_just_broke_high"].fillna(False), other=np.nan)
+    # Forward-fill to keep defensive_low active during the defensive window
+    df["defensive_low"] = (
+        _def_low_seed
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=DEFENSIVE_LOW_LOOKBACK_DAYS))
+    )
 
     return df

@@ -90,8 +90,13 @@ def _build_context_snapshot(
 ) -> ContextSnapshot:
     """Build a ContextSnapshot from today's enriched row + overrides.
 
-    Fields that features.py does NOT produce (attack_cost, defensive_low,
-    ma*_will_rise, etc.) default to None unless provided via overrides.
+    Fields that features.py NOW produces as row columns:
+      attack_cost, defensive_low — wired in features.py (2026-06-05)
+      merged_high, merged_low — wired in features.py (2026-06-05), read via row.get()
+        (not in ContextSnapshot schema; condition.py resolves them from row first)
+    Fields still needing overrides:
+      ma*_will_rise — computed from扣抵 logic; features.py produces these but
+        _build_context_snapshot reads them via _get() → row → ctx chain.
     Each missing required field that a branch depends on is warned
     at eval time (not here), per fail-loud principle.
 
@@ -127,8 +132,10 @@ def _build_context_snapshot(
         return val
 
     # Build the snapshot field by field.
-    # Features.py does NOT produce ma*_will_rise, attack_cost, etc. —
-    # those must come from overrides.
+    # attack_cost / defensive_low — now produced by features.py (2026-06-05);
+    # _get() reads from row first, so overrides can still inject/override.
+    # merged_high / merged_low — NOT in ContextSnapshot schema (extra=forbid);
+    # condition.py reads them directly from row via _resolve_scalar("merged_high", row, ctx).
     snapshot = ContextSnapshot(
         ma5_will_rise=_get("ma5_will_rise"),
         ma10_will_rise=_get("ma10_will_rise"),
