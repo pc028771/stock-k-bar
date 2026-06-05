@@ -57,6 +57,20 @@ _SEVERITY_EMOJI: dict[str, str] = {
     "info": "⚪",
 }
 
+# Lights that reference forward-filled context fields. The annotation clarifies
+# that the threshold value (merged_high/low, attack_cost) came from a pattern
+# that fired up to N days ago, not necessarily today.
+_FORWARD_FILL_NOTES: dict[str, str] = {
+    "lt_merged_doji_high_break":
+        "merged_high 為過去 5 日內合併十字線觸發的高點（forward-fill）；今日不一定是觸發當日",
+    "lt_merged_doji_low_break":
+        "merged_low 為過去 5 日內合併十字線觸發的低點（forward-fill）；今日不一定是觸發當日",
+    "lt_attack_cost_breakdown":
+        "attack_cost 為過去 20 日內攻擊成本顯現日的漲停價（forward-fill）；今日不一定是顯現當日",
+    "lt_defensive_low_break":
+        "defensive_low 為過去 6 日 K 棒最低（rolling）；持續更新、非單一事件觸發",
+}
+
 # ---------------------------------------------------------------------------
 # MA 扣抵狀態 emoji
 # ---------------------------------------------------------------------------
@@ -341,6 +355,9 @@ def format_advisor_result(
             sev_emoji = _SEVERITY_EMOJI.get(light.severity, "⚫")
             lines.append(f"  {sev_emoji} {light.light_id} — \"{light.recommendation_text}\"")
             lines.append(f"     來源: {light.course_citation.source}")
+            fwfill_note = _FORWARD_FILL_NOTES.get(light.light_id)
+            if fwfill_note:
+                lines.append(f"     ℹ️  {fwfill_note}")
     lines.append("")
 
     # ------------------------------------------------------------------
