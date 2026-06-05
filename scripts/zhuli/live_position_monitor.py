@@ -282,13 +282,15 @@ WATCH = [
         'sector': '記憶體',
         'note': '⚠️ 漲多 50%、不主動推、等回測 MA10 才進、持續監控'
     },
+    # 1303 6/5 已進 HELD、從 WATCH 移除
+    # 黃大標的、跟老師明示一起在 t 鍵 filter 顯示
     {
-        'ticker': '1303', 'name': '南亞',
-        'ref_close': 113.0, 'stop': None,
-        'tactic': '題材', 'priority': 2,
-        'source': '黃大推薦 6/4 (留尾盤確認)',
-        'sector': '塑化/ABF載板',
-        'note': '⭐ 黃大 6/4 推薦、ABF/塑化族群、距 MA10 +16.6% 偏遠等回測、進場條件: 13:00 Closing_check 3-4/5 watch (5/5 反而是過熱)'
+        'ticker': '4939', 'name': '亞電',
+        'ref_close': 59.7, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '黃大推薦 6/3、6/4-5 漲停 +20%',
+        'sector': '電池 / IC 通路',
+        'note': '⭐ 黃大 6/3 推薦、6/4 V反彈 $52→$58、6/5 漲停 $59.7 (+10%)、6/4 距 MA10 +8.8% 打擊區可進、現在距 MA20 +35% 過遠、等回測 MA10 ~$50 再評估'
     },
     # 6/2 收盤後三軸狀態追蹤
     {
@@ -2631,8 +2633,10 @@ def _confirmed_quality_key(item: dict, d: dict) -> tuple:
 def _classify_watch_source(item: dict) -> str:
     """依 source 欄位分 4 類 (給 WATCH watching 段分組顯示)。"""
     src = (item.get('source') or '').lower()
-    if '老師' in (item.get('source') or '') or 'teacher' in src:
-        return '🎓 老師明示'
+    src_raw = item.get('source') or ''
+    # 老師明示 + 黃大推薦 都歸「明示」類、t 鍵 filter 一起顯示
+    if '老師' in src_raw or '黃大' in src_raw or 'teacher' in src:
+        return '🎓 老師/黃大明示'
     if 'shakeout' in src:
         return '💥 Shakeout 補進'
     if 'scanner' in src or '框架' in (item.get('source') or '') or '處置' in (item.get('source') or ''):
@@ -2772,9 +2776,9 @@ def render_watch_sectioned(
             groups.setdefault(cat, []).append((item, d))
         # 顯示順序、所有分類統一規則 (每類最多 limit 檔)
         if _teacher_only[0]:
-            order = ['🎓 老師明示']
+            order = ['🎓 老師/黃大明示']
         else:
-            order = ['🎓 老師明示', '💥 Shakeout 補進', '🔍 Scanner 命中',
+            order = ['🎓 老師/黃大明示', '💥 Shakeout 補進', '🔍 Scanner 命中',
                      '🙋 自選', '📌 其他']
         out.append(Text(f"🔍 WATCH 觀察可能 (共 {watching_total} 檔、分類顯示)",
                         style="bold"))

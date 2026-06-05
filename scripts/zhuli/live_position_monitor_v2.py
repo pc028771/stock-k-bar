@@ -851,7 +851,7 @@ class MonitorApp(App[None]):
         if not self.teacher_only:
             return items
         return [i for i in items
-                if '老師' in str(i.get('source', ''))]
+                if '老師' in str(i.get('source', '')) or '黃大' in str(i.get('source', ''))]
 
     def _refresh_confirmed_table(self, ld: dict) -> None:
         # 可進場 = WATCH 中 classify → 'confirmed'
