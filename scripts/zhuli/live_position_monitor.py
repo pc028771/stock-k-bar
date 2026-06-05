@@ -1704,37 +1704,43 @@ def _mk_trigger_cell(trig_key: str, trig_reason: str,
     t = Text()
     has_exit = bool(exit_alert)
     has_trig = trig_key and trig_key not in ('none', None)
-
-    if not has_exit and not has_trig:
-        t.append("-", style="dim")
-        return t
+    parts_added = False  # 追蹤是否已 append 任何東西、決定是否需要 "-"
 
     if has_exit:
         t.append(exit_alert, style="bold red")  # type: ignore[arg-type]
-        if has_trig or trig_reason:
-            t.append(" | ", style="dim")
+        parts_added = True
 
     if has_trig:
+        if parts_added:
+            t.append(" | ", style="dim")
         disp = TRIGGER_DISPLAY.get(trig_key, trig_key)
         t.append(disp)
-    elif not has_exit:
-        t.append("-", style="dim")
+        parts_added = True
 
     if trig_reason:
-        if has_exit or has_trig:
+        if parts_added:
             t.append(" | ", style="dim")
         t.append(trig_reason, style="dim")
+        parts_added = True
 
+    # chip + sizing 即使沒 trigger 也要顯示 (live 計算、過門檻才顯示)
     if ticker:
         chip = mk_chip_signal_text(ticker)
         if chip:
-            t.append(" | ", style="dim")
+            if parts_added:
+                t.append(" | ", style="dim")
             t.append_text(chip)
+            parts_added = True
         if current_price > 0:
             sizing = mk_sizing_suggestion(ticker, current_price, held_shares)
             if sizing:
-                t.append(" | ", style="dim")
+                if parts_added:
+                    t.append(" | ", style="dim")
                 t.append_text(sizing)
+                parts_added = True
+
+    if not parts_added:
+        t.append("-", style="dim")
 
     return t
 
