@@ -1,0 +1,92 @@
+# 自救型突破 playbook (K線力量入門 §34)
+# Source: 9E84C6271EAF67C173279994BF7BFA0C
+#
+# 老師原話（逐字）:
+#   「通常在大盤本來是多方趨勢，檯面上有很多個股在拉抬的階段，突然遇到了重大的利空使大盤
+#    下跌，資金根本來不及從容離開，就會採取防守的做法來暫時先護住股價，但是漸漸的股價又
+#    往上推升來到前高位置，這個背景是必要條件。」
+#   「隨著利空的逐漸鈍化，股價又突破了前高。此時成交量卻出現了比前高萎縮的跡象」
+#   「自救型後的跳空是很重要的研判要點」
+#
+# 結構:
+#   pattern: self_rescue_breakout (features.py is_self_rescue_breakout)
+#     = 突破前高 + 過去 60 日內存在前次突破 + 今日量 < 上次突破量 × 0.95 + 多頭背景
+#   required_context: is_after_negative_news_taiex (近 10 日大盤曾單日跌幅 ≥ 2% proxy)
+#     - 若 context 為 None → advisor 自動略過並 warn (fail loud)
+#     - 若 context 為 False → required_context 不滿足，playbook 不啟動
+#
+# 三條分支對應老師原話:
+#   B1 隔日跳空攻擊 → entry_signal (老師明示「自救型後的跳空是很重要的研判要點」)
+#   B2 隔日無跳空但收盤續強 → watch_only (老師「跳空」是強訊號，無跳空則保留觀察)
+#   B3 隔日攻擊不出現 (close 跌破今日突破點) → exhaust_invalid
+
+pattern: self_rescue_breakout
+
+setup:
+  name: self_rescue_after_negative_news
+  required_context:
+    - is_after_negative_news_taiex
+
+course_sources:
+  - source: "K線力量入門 §34 第二次突破型態的延伸運用之「自救型突破」"
+    article_id: "9E84C6271EAF67C173279994BF7BFA0C"
+    quote: "突然遇到了重大的利空使大盤下跌……採取防守的做法來暫時先護住股價……股價又突破了前高。此時成交量卻出現了比前高萎縮的跡象"
+  - source: "K線力量入門 §34 自救型後的跳空"
+    article_id: "9E84C6271EAF67C173279994BF7BFA0C"
+    quote: "自救型後的跳空是很重要的研判要點，因為攻擊方買了很多持股"
+
+branches:
+  # B1 — 隔日跳空攻擊（老師明示最關鍵的確認訊號）
+  - id: B1_next_day_gap_up_attack
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "自救型突破隔日跳空攻擊，課程明示「自救型後的跳空是很重要的研判要點」；屬最強進場訊號。"
+      course_citation:
+        source: "K線力量入門 §34 自救型後的跳空"
+        article_id: "9E84C6271EAF67C173279994BF7BFA0C"
+        quote: "自救型後的跳空是很重要的研判要點，因為攻擊方買了很多持股，有沒有要攻擊的判斷比一般的突破更加重要"
+      notes:
+        - "搭配 feedback_trading_discipline_checklist 確認 sizing / 大盤位階 / 加碼條件"
+        - "若隔日跳空 ≥ +3% 須對照紅線 #1（漲停隔日跳空不推）"
+    next_branch_ids: []
+
+  # B2 — 隔日無跳空但持續走高 → 觀察
+  - id: B2_next_day_continues_no_gap
+    when:
+      all:
+        - "next_day.gap_up": false
+        - "next_day.close": ">= today.close"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "自救型突破隔日無跳空但收盤未跌破今日突破點，攻擊延續觀察中；課程強調「跳空」才是最強訊號，無跳空只能列觀察。"
+      course_citation:
+        source: "K線力量入門 §34 自救型突破隔日判斷"
+        article_id: "9E84C6271EAF67C173279994BF7BFA0C"
+        quote: "因為攻擊的判斷在於突破後的隔日開盤就跳空攻擊，有出現或者沒出現而已"
+      notes:
+        - "無跳空 ≠ 失效，但不可視為強訊號"
+    next_branch_ids: []
+
+  # B3 — 隔日攻擊不出現 → 失效
+  - id: B3_next_day_no_attack
+    when:
+      "next_day.close": "< today.close"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "自救型突破隔日攻擊不出現（收盤跌破今日突破點），課程明示「突破後攻擊與否是自救型突破的要件」未成立。"
+      course_citation:
+        source: "K線力量入門 §34 自救型突破要件"
+        article_id: "9E84C6271EAF67C173279994BF7BFA0C"
+        quote: "突破後「攻擊與否」是自救型突破的要件"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

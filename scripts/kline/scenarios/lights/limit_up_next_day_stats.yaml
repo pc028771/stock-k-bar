@@ -1,0 +1,13 @@
+light_id: limit_up_next_day_stats
+trigger_condition:
+  all:
+    # 真正漲停：is_limit_up_today (close ≥ prev_close × 1.095, high == close, low ≥ prev_close)
+    - "is_limit_up_today": "== 1"
+    # 創新高漲停（站上 60 日高）— 課程：「第一根創新高的漲停板」
+    - "today.high": ">= prev_high_60"
+severity: info
+course_citation:
+  source: "明日 K 線 §12 漲停板出現後再繼續上漲的機率"
+  article_id: "805F4E23E8C9E61F2020B0FFB014B706"
+  quote: "只要股價沒有回到第一根創新高的漲停板之下，都是強勢的表現，都還不需要考慮出場的問題"
+recommendation_text: "出現第一根創新高漲停板（鎖住、無上影、低點 ≥ 昨收）。依課程，只要股價沒有回到此漲停板之下，都是強勢表現，不需要考慮出場；明日的平盤就是今天的漲停價，視覺上的「高」其實是明日的起點。"

@@ -1,0 +1,59 @@
+pattern: evening_star_abandoned
+setup:
+  name: bull_exhaustion_evening_star
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P12 夜星棄嬰 evening_star_abandoned"
+    article_id: "3F9C5C8C7B81C89FBCA2970EF1855997"
+    quote: "收盤跌破D-2紅K中值，強烈訊號：對稱跳空缺口（傳統夜星型態=島狀反轉）"
+  - source: "PATTERN_DEFINITIONS §3 夜星棄嬰"
+    quote: "Signal Class: exit"
+
+branches:
+  - id: B1_next_day_continues_below_midpoint
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "夜星棄嬰後隔日繼續破低，多方力竭確認；多單持有者應視出場"
+      course_citation:
+        source: "PATTERN_INVENTORY P12 夜星棄嬰"
+        article_id: "3F9C5C8C7B81C89FBCA2970EF1855997"
+        quote: "D-0收盤跌破D-2紅K中值，Signal Class: exit"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_recovers_above_today_high
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日收盤站回夜星棄嬰 K 高點以上，型態失效，多頭攻擊可能恢復"
+      course_citation:
+        source: "PATTERN_INVENTORY P12 夜星棄嬰失效"
+        article_id: "3F9C5C8C7B81C89FBCA2970EF1855997"
+        quote: "遇壓或多方力竭背景；若後續創新高則失效"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_stalls
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日在今日範圍整理，等待後續方向確認；夜星棄嬰意義仍在"
+      course_citation:
+        source: "PATTERN_INVENTORY P12 夜星棄嬰觀察"
+        article_id: "3F9C5C8C7B81C89FBCA2970EF1855997"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

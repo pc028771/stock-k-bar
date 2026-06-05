@@ -1,0 +1,11 @@
+light_id: pressure_meeting_unresolved
+trigger_condition:
+  all:
+    - "today.close": "< prev_high_60"
+    - "today.high": ">= prev_high_60"
+severity: warn
+course_citation:
+  source: "明日 K 線 §04 遇壓狀態"
+  article_id: "65999135E3ED38F3E48F94481D80F54E"
+  quote: "遇壓沒化解就是多一層套牢"
+recommendation_text: "股價觸及前高壓力區但收盤未突破，遇壓未化解。明日若再無紅 K 表態，多一層套牢風險升高。"

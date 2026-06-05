@@ -1,0 +1,13 @@
+light_id: just_high_upper_shadow
+trigger_condition:
+  all:
+    # 剛創 60 日新高 + 收盤未到高點（有上影線）+ 上漲
+    - "today.high": ">= prev_high_60"
+    - "today.close": "< today.high"
+    - "today.close": "> prev.close"
+severity: info
+course_citation:
+  source: "明日 K 線 §10 剛創新高上影線高點"
+  article_id: "BDD39904FC85EE1BC6724C77C45AD522"
+  quote: "剛創新高上影線的高點，通常還是會越過。這一點只對於短線交易、當沖者較為有效"
+recommendation_text: "今日剛創 60 日新高並出現上影線。依課程經驗，「剛創新高的上影線高點通常還是會越過」（偏多方傾向）；不代表壓力意義。短線交易可採攻擊假設、設定停損後續抱，等待越過上影線高點。"

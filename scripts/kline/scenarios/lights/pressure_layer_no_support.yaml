@@ -1,0 +1,14 @@
+light_id: pressure_layer_no_support
+trigger_condition:
+  all:
+    # 課程：盤中「碰到」前高（high >= prior_high_60）但收盤「沒越過」（close < prior_high_60）
+    # 課程明示「碰到」vs「越過」= 二元判斷，無 % 距離門檻。
+    # 老師原話（§08）：「股價第二次又來到 170 元附近⋯⋯隔天要確認是攻擊，
+    #   必須就是一開盤開在 176.5 元以上的跳空攻擊」
+    - "today.at_pressure_retest": true
+severity: warn
+course_citation:
+  source: "明日 K 線 §08 壓力的分類"
+  article_id: "B5DB7A687DA4FA572833411DE9CD88D8"
+  quote: "碰到了賣壓之後，接下來股價會怎樣走呢？股價第二次又來到 170 元附近，倘若對於壓力有正確的體認，應該就可以推演出來，隔天要確認是攻擊，必須就是一開盤開在 176.5 元以上的跳空攻擊。課程明示「碰到」（觸及前高）vs「越過」（突破）= 二元判斷，無 % 距離概念。"
+recommendation_text: "股價盤中觸及前高（碰到）但收盤未突破（未越過）。此為壓力回測訊號，需辨別賣壓屬套牢型、波動型或獲利了結型。課程明示「K 線上只有壓力沒有支撐」，不要尋找下方支撐當作安心理由。"

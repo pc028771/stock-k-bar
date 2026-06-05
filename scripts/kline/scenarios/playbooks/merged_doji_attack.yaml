@@ -1,0 +1,99 @@
+# B03: 合併十字線後攻擊企圖 (entry)
+# Source: INVENTORY B03 §24 (A01 + B03 組合)
+#
+# required_context notes:
+#   merged_high / merged_low — Phase 3 前置依賴 (patterns/merged_doji.py 尚未實作)
+#   is_just_broke_high — 位置條件，合併十字線必須在剛創新高位置
+# 若 merged_high / merged_low 為 None，advisor 自動略過並在 notes 標 warn。
+#
+# [STUB-NEED-USER] S6: merged_high/merged_low 由 merged_doji.py (Phase 3) 計算；
+# 目前 required_context 標出依賴，feature 缺則跳過。
+
+pattern: merged_doji
+
+setup:
+  name: merged_doji_attack_intent
+  required_context:
+    - is_just_broke_high
+
+course_sources:
+  - source: "明日 K 線 §24 合併十字線後攻擊企圖"
+    article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
+    quote: "合併十字線 = 剛創新高位置的一根有上影線 + 一根有下影線；合併後形成長十字線"
+  - source: "INVENTORY A01 merged_doji 識別規則"
+    quote: "先上影線後下影線力量最強；位置不對則無意義"
+
+branches:
+  # B1 — 跳空攻擊（最強訊號）
+  - id: B1_gap_up_attack
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "隔日跳空向上突破合併十字線高點（merged_high），攻擊企圖最強；可進場"
+      course_citation:
+        source: "明日 K 線 §24 合併十字線後攻擊：跳空攻擊"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
+        quote: "隔日 open > prev_high（合併十字線的 merged_high）→ 跳空攻擊"
+      notes:
+        - "[Phase 3 STUB] merged_high 需由 patterns/merged_doji.py 計算；目前退化為 today.high"
+        - "加碼須符合 feedback_add_position_rule：已脫離成本 ≥10%"
+    next_branch_ids: []
+
+  # B2 — 推升攻擊（日K退化版：close > merged_high）
+  - id: B2_push_attack_above_merged_high
+    when:
+      "next_day.close": "> merged_high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "隔日收盤推升超過合併十字線高點（merged_high），攻擊企圖成立（日K退化版）"
+      course_citation:
+        source: "明日 K 線 §24 合併十字線後攻擊：推升攻擊（日K退化版）"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
+        quote: "推升攻擊：盤中 high > 早盤第一個高點；日K退化版用 today_close > prev_high（merged_high）"
+      notes:
+        - "[Phase 3 STUB] merged_high 需由 patterns/merged_doji.py 計算"
+        - "原課程要求盤中推升（09:00~09:15 第一個高點）；日K退化版需文件化誤差"
+    next_branch_ids: []
+
+  # B3 — 失效：跌破合併十字線低點 → 不攻擊
+  - id: B3_break_merged_low
+    when:
+      "next_day.low": "< merged_low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日最低跌破合併十字線低點（merged_low），攻擊意圖失效，不進場"
+      course_citation:
+        source: "明日 K 線 §24 合併十字線失效條件"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
+        quote: "失效：隔日 low < 合併十字線 merged_low → 不攻擊"
+      notes:
+        - "[Phase 3 STUB] merged_low 需由 patterns/merged_doji.py 計算"
+    next_branch_ids: []
+
+  # B4 — 整理觀察（未跌破也未攻擊）
+  - id: B4_consolidation_wait
+    when:
+      all:
+        - "next_day.close": ">= merged_low"
+        - "next_day.close": "<= merged_high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日收盤在合併十字線範圍內整理，尚未攻擊也未跌破；繼續觀察"
+      course_citation:
+        source: "明日 K 線 §24 合併十字線觀察期"
+        article_id: "E9A6F935298C7C5C2E269AA952AA1BB2"
+        quote: "合併十字線後攻擊企圖 — 等待確認方向"
+      notes:
+        - "[Phase 3 STUB] merged_high/merged_low 需由 patterns/merged_doji.py 計算"
+    next_branch_ids: ["B1_gap_up_attack", "B2_push_attack_above_merged_high", "B3_break_merged_low"]
+
+relevant_lights: []

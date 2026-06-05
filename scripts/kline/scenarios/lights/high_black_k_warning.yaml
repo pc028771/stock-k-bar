@@ -1,0 +1,15 @@
+light_id: high_black_k_warning
+trigger_condition:
+  all:
+    # 高檔長黑（body ≥ 4% 開盤、與 §11 威剛案例的「高檔長黑、包覆、實質賣壓」一致）
+    - "today.close": "< today.open"
+    - "today.high": ">= prev_high_60"
+    - "body_pct_today": ">= 0.04"
+    # 包覆要件（proxy）: 今日 body 完整覆蓋前一日 close（黑 K 收盤 < 前日開盤）
+    - "today.close": "< prev.open"
+severity: warn
+course_citation:
+  source: "明日 K 線 §11 當黑 K 出現的時候"
+  article_id: "4C255C33FBEC3AD05DE05F8C0284C4F8"
+  quote: "這根黑K的出現也已經有標準答案，高檔長黑、包覆、實質有賣壓出現……一種股價沒有打算再往上走的型態"
+recommendation_text: "高檔出現長黑包覆 K（body ≥ 4%、覆蓋前一日開盤），符合課程「高檔長黑 + 包覆 + 實質賣壓」三要件。代表「股價沒有打算再往上走」；明日起不能期望股價還有高點，易跌難漲。"

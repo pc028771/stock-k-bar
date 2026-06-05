@@ -1,0 +1,99 @@
+# B04 + B05: 防守姿態 (entry context) + 防守低點跌破 (exit)
+# Source: INVENTORY B04 §26 / EF7308E2336BF7BCE94142944DB580B1
+#         INVENTORY B05 §26
+#
+# required_context notes:
+#   defensive_low — [STUB-NEED-USER] S2: 防守低點數字（近 6~7 日個股低點）
+#                   大盤悲觀期間守住的價位；features.py 待補
+#   is_just_broke_high — 已創 60 日新高（主力曾拉抬）
+# STUB S2: 防守姿態「近 N 日漲幅 ≥ X%、大盤跌幅 ≥ Y%」數字老師未明示 → required_context 標出
+# 若 defensive_low 為 None，advisor 自動略過並在 notes 標 warn。
+
+pattern: defensive_stance
+
+setup:
+  name: defensive_stance_entry_exit
+  required_context:
+    - is_just_broke_high
+
+course_sources:
+  - source: "明日 K 線 §26 防守姿態"
+    article_id: "EF7308E2336BF7BCE94142944DB580B1"
+    quote: "大盤悲觀期間個股守住某個價位，等大盤穩定時應出現攻擊企圖（跳空或推升攻擊）"
+  - source: "INVENTORY B04 B05 防守低點識別"
+    quote: "防守低點 = 個股近 6~7 日 (prior_low_7) 低點；B05 跌破防守低點 → exit"
+
+branches:
+  # B1 — 大盤回穩日，隔日跳空向上（防守有效 + 攻擊企圖）
+  - id: B1_market_stable_gap_up
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "大盤穩定後隔日跳空向上，防守低點守住且攻擊企圖出現，可視為進場訊號"
+      course_citation:
+        source: "明日 K 線 §26 防守姿態 — 大盤穩定後攻擊"
+        article_id: "EF7308E2336BF7BCE94142944DB580B1"
+        quote: "大盤穩定當日 → 該股應出現攻擊企圖（跳空或推升攻擊）"
+      notes:
+        - "[STUB-NEED-USER] S2: 「大盤悲觀期間」條件數字（大盤跌幅 Y%）老師未明示，currently 使用人工判斷觸發此 playbook"
+    next_branch_ids: []
+
+  # B2 — 大盤回穩日，隔日收盤推升攻擊（日K退化版）
+  - id: B2_market_stable_push_attack
+    when:
+      "next_day.close": "> prev_high_60"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: "大盤穩定後隔日收盤突破前高，推升攻擊成立（日K退化版），防守低點守住"
+      course_citation:
+        source: "明日 K 線 §26 防守姿態 — 推升攻擊（日K退化版）"
+        article_id: "EF7308E2336BF7BCE94142944DB580B1"
+        quote: "攻擊企圖：推升攻擊"
+      notes:
+        - "[STUB-NEED-USER] S2: 防守姿態三條件（主力曾拉抬漲幅 X%、大盤跌幅 Y%）老師未明示具體數字"
+    next_branch_ids: []
+
+  # B3 — 跌破防守低點 (B05 exit)
+  - id: B3_break_defensive_low
+    when:
+      "next_day.close": "< defensive_low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: "收盤跌破防守低點，防守失效，沒有守住就不具備攻擊資格，出場"
+      course_citation:
+        source: "明日 K 線 §26 防守低點跌破出場 (B05)"
+        article_id: "EF7308E2336BF7BCE94142944DB580B1"
+        quote: "跌破防守低點 → 沒有防守，不進場 / 已進場者出場"
+      notes:
+        - "[STUB-NEED-USER] S2: defensive_low = 近 6~7 日個股最低點；features.py 待補（Phase 3）"
+        - "收盤確認原則：以收盤為準，不以盤中低點判斷（CLAUDE.md 課程框架規則 §1）"
+    next_branch_ids: []
+
+  # B4 — 防守期間整理觀察（未跌破防守低點，但也未攻擊）
+  - id: B4_holding_defensive_zone
+    when:
+      all:
+        - "next_day.close": ">= defensive_low"
+        - not:
+            "next_day.gap_up": true
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "收盤仍守在防守低點之上，但尚未出現攻擊企圖；繼續觀察大盤是否穩定"
+      course_citation:
+        source: "明日 K 線 §26 防守姿態 — 等待攻擊"
+        article_id: "EF7308E2336BF7BCE94142944DB580B1"
+        quote: "防守低點守住，等大盤穩定時應出現攻擊企圖"
+      notes:
+        - "防守期間觀察：ma60 多頭排列維持中、low_higher_than_prev 結構未破，則等待攻擊企圖出現"
+    next_branch_ids: ["B1_market_stable_gap_up", "B2_market_stable_push_attack", "B3_break_defensive_low"]
+
+relevant_lights: []

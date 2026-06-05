@@ -1,0 +1,43 @@
+pattern: trapped
+setup:
+  name: context_only_internal_trap
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P24 內困型態 internal_trap"
+    article_id: "EBD01861796168390992499149DFE0EE"
+    quote: "Signal Class: context_only；與母子晨星很像但沒有力竭背景，所以是context only"
+  - source: "PATTERN_DEFINITIONS §3 內困型態"
+    quote: "內困翻黑：D-0黑K跌破D-2紅K低點；內困翻紅：D-0紅K突破D-2黑K高點"
+
+branches:
+  - id: B1_next_day_continues_breakout_direction
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "內困型態後方向延續，關鍵突破意義確認；沒有力竭背景，仍 context_only"
+      course_citation:
+        source: "PATTERN_INVENTORY P24 內困型態 context_only"
+        article_id: "EBD01861796168390992499149DFE0EE"
+        quote: "Signal Class: context_only；與母子晨星很像但沒有力竭背景"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_reverses
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "內困突破後隔日又反轉站回，型態意義失效"
+      course_citation:
+        source: "PATTERN_INVENTORY P24 內困型態"
+        article_id: "EBD01861796168390992499149DFE0EE"
+        quote: "內困翻黑：D-0黑K跌破D-2紅K低點；後續站回則失效"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

@@ -1,0 +1,11 @@
+light_id: new_high_next_day_attack_required
+trigger_condition:
+  all:
+    - "today.high": ">= prev_high_60"
+    - "today.close": ">= prev_high_60"
+severity: info
+course_citation:
+  source: "明日 K 線 §03 D 部分 再創新高的隔天"
+  article_id: "6EDAE3B7DBB1A4B273C930871361CBCA"
+  quote: "創新高隔天必看跳空攻擊或推升攻擊；攻擊起源於攻擊企圖"
+recommendation_text: "今日收盤突破 60 日新高，明日必須出現攻擊企圖（跳空攻擊或推升攻擊）。若明日開盤即低開或盤中無法持續創高，攻擊企圖不成立，需重新評估多方力道。"

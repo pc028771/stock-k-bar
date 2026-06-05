@@ -44,7 +44,22 @@ Trigger requires:
   - high-zone context (kept as a guard to suppress noise in
     low-position bars where M1 alone could fire on any gap-down).
 
-Required df columns: ticker, open, high, low, close, prev_high, prev_low.
+§C02 明日 K 線補充 (INVENTORY §C02, 第 03、11 篇):
+  加入「開盤跳空 + 盤中回補缺口 → 收盤跌破前日紅 K 低點」的路徑。
+
+  課程原文（第 03 篇）：「開盤跳空向上 + 當日低點回補到前日收盤之下 +
+  收盤跌破前日紅 K 低點 → 視為高檔長黑的一種形式」
+
+  日 K 退化版 (M_gap_fill_break):
+    open > prev_close (開盤跳空向上 proxy: open > prev_close)
+    AND today_low < prev_close (盤中回補缺口: low 跌破前日收盤)
+    AND close < prev_low (收盤跌破前日低點)
+
+  This path fires INDEPENDENTLY of the 2-of-3 requirement — it represents
+  the course's explicit "intraday gap-fill + close below prev_low" path,
+  which is a standalone 高檔長黑 trigger at the daily K level.
+
+Required df columns: ticker, open, high, low, close, prev_high, prev_low, prev_close.
 """
 from __future__ import annotations
 
@@ -116,4 +131,18 @@ def mark(df: pd.DataFrame, entries: pd.Series | None = None) -> pd.Series:
 
     # Course requirement: 2 or 3 of (M1, M2, M3) AND is_long_black AND high_zone.
     meaning_count = M1.astype(int) + M2.astype(int) + M3.astype(int)
-    return (is_high_zone & is_long_black & (meaning_count >= 2)).fillna(False)
+    primary = (is_high_zone & is_long_black & (meaning_count >= 2)).fillna(False)
+
+    # === §C02: 開盤跳空 + 盤中回補缺口 + 跌破前日低點 (日 K 退化版) ===
+    # Course source: INVENTORY §C02 / 第 03、11 篇
+    # Course quote: 「開盤跳空向上 + 當日低點回補到前日收盤之下 + 收盤跌破前日紅 K 低點」
+    # 日 K 退化：open > prev_close (跳空) AND low < prev_close (盤中回補) AND close < prev_low
+    prev_close_v = g["close"].shift(1)
+    M_gap_fill_break = (
+        (df["open"] > prev_close_v)          # 開盤跳空（open > prev_close 代理盤中跳空）
+        & (df["low"] < prev_close_v)          # 盤中回補缺口（low < prev_close）
+        & (df["close"] < df["prev_low"])      # 收盤跌破前日低點
+        & is_high_zone                        # 仍在高檔背景下
+    ).fillna(False)
+
+    return (primary | M_gap_fill_break).fillna(False)

@@ -1,0 +1,13 @@
+light_id: taiex_down_stock_new_high
+trigger_condition:
+  all:
+    # 個股今日收盤創 60 日新高（強勢）
+    - "today.close": ">= prev_high_60"
+    # 大盤今日下跌（退潮裸泳：盤勢不好時誰是真心想攻擊）
+    - "context.taiex_down_today": true
+severity: info
+course_citation:
+  source: "K線力量入門（強者恆強 / 退潮裸泳） + §49 多頭買在攻擊"
+  article_id: "6D17631B248875335336FB18486AF294"
+  quote: "盤勢不好的時候才知道誰是真心想攻擊｜這一天台股跌了151點，股價卻是帶量突破（109-08-03 宣德 5457 案例）"
+recommendation_text: "大盤今日下跌，個股仍收盤創 60 日新高，符合課程「退潮裸泳 / 盤勢不好時才知道誰是真心想攻擊」的強訊號（109-08-03 宣德案例）。此類個股在資金普遍出走時仍硬扛上攻，代表攻擊資金真實存在。可列為多頭買在攻擊的優先觀察名單；明日仍須看是否有後續攻擊延續（跳空 / 推升）。"

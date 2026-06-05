@@ -1,0 +1,15 @@
+pattern: bull_engulfing
+setup:
+  name: short_source_setup
+branches:
+  - id: B1_test
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    action:
+      type: watch_only
+      description: 觀察中
+      course_citation:
+        source: "§3"  # Only 2 chars — too short (min_length=5)
+course_sources:
+  - source: PATTERN_DEFINITIONS §3

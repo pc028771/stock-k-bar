@@ -1,0 +1,99 @@
+# B06: 突破後不攻擊 (exit)
+# Source: INVENTORY B06 §28 / E4383C1F106A64F729CAD12E0D4B25F2
+#
+# 三類出場條件（老師明示）：
+#   類型1: 跳空攻擊缺口回補 + 跌破攻擊假設（intent zone）
+#   類型2: 高檔推升整理後一根黑K跌破近期低點
+#   類型3: 跌回攻擊意圖區（attack_intent_zone_high 以下）
+#
+# required_context notes:
+#   attack_intent_zone_high / attack_intent_zone_low — C03 features.py
+#   [STUB-NEED-USER] S6: attack_intent_zone_low 邊界（賣壓化解區段起點）老師未明示精確計算
+# 若 attack_intent_zone_high / attack_intent_zone_low 為 None，advisor 標 warn 但仍可評估類型2
+
+pattern: no_attack_after_breakout
+
+setup:
+  name: no_attack_exit_three_types
+  required_context: []
+
+course_sources:
+  - source: "明日 K 線 §28 突破後不攻擊出場"
+    article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+    quote: "突破後三類不攻擊：1.缺口回補+跌破假設 2.黑K改變推升格局 3.跌回攻擊意圖區"
+
+branches:
+  # B1 — 類型1a: 缺口回補（今日曾跳空，隔日回補）
+  - id: B1_gap_filled_and_close_below_intent_low
+    when:
+      all:
+        - "next_day.fills_gap": true
+        - "next_day.close": "< attack_intent_zone_low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: "跳空攻擊缺口回補，且收盤跌破攻擊意圖區低點，攻擊假設被推翻，出場"
+      course_citation:
+        source: "明日 K 線 §28 突破後不攻擊類型1：缺口回補+跌破攻擊假設"
+        article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+        quote: "今日盤中曾跳空 → 回補 → close < 前日攻擊假設低點 → 出場"
+      notes:
+        - "[STUB-NEED-USER] S6: attack_intent_zone_low 邊界（賣壓化解區段起點）退化版 = prior_low_60 突破前 N 日最低點"
+        - "收盤確認原則：跌破以收盤為準"
+    next_branch_ids: []
+
+  # B2 — 類型2: 黑K跌破攻擊意圖區高點（推升整理被改變）
+  - id: B2_black_k_breaks_intent_zone
+    when:
+      "next_day.close": "< attack_intent_zone_high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: "收盤跌回攻擊意圖區（attack_intent_zone_high 以下），突破後不再維持在企圖區，出場"
+      course_citation:
+        source: "明日 K 線 §28 突破後不攻擊類型2：黑K改變推升格局 + 類型3：跌回意圖區"
+        article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+        quote: "跌回攻擊意圖區：close 跌回到突破前高之前的賣壓化解區段 → 出場"
+      notes:
+        - "[STUB-NEED-USER] S6: attack_intent_zone_high = 突破前高的 K 棒 close（C03 features）"
+        - "此 branch 合併類型2（黑K改變推升）與類型3（跌回意圖區）— 日K退化版兩者收斂為同一條件"
+    next_branch_ids: []
+
+  # B3 — 攻擊延續（隔日守在企圖區上方）
+  - id: B3_attack_continues
+    when:
+      "next_day.close": ">= attack_intent_zone_high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日收盤仍守在攻擊意圖區高點以上，攻擊企圖未失效，繼續持有觀察"
+      course_citation:
+        source: "明日 K 線 §28 突破後攻擊延續"
+        article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+        quote: "不跌回攻擊意圖區 = 攻擊意圖維持"
+      notes:
+        - "攻擊意圖維持：可搭配 ma60 多頭排列或 MACD 黃金叉確認趨勢仍健康"
+    next_branch_ids: []
+
+  # B4 — 缺口回補但收盤守在意圖區之上（觀察期）
+  - id: B4_gap_filled_but_holds
+    when:
+      all:
+        - "next_day.fills_gap": true
+        - "next_day.close": ">= attack_intent_zone_high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "缺口雖回補，但收盤仍守在攻擊意圖區之上；攻擊意圖尚未失效，繼續觀察"
+      course_citation:
+        source: "明日 K 線 §28 缺口回補但守住"
+        article_id: "E4383C1F106A64F729CAD12E0D4B25F2"
+        quote: "跳空攻擊缺口回補 + 跌破攻擊假設低點才是出場；守住則觀察"
+      notes: []
+    next_branch_ids: ["B2_black_k_breaks_intent_zone", "B3_attack_continues"]
+
+relevant_lights: []

@@ -1,0 +1,59 @@
+pattern: gap_reversal
+setup:
+  name: bull_exhaustion_gap_down_reversal
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P09 跳空反轉 gap_down_reversal"
+    article_id: "92E64EAB9982ADE91CB903046E5FA04F"
+    quote: "Signal Class: exit；D-0開盤向下跳空open < prev_low，且收盤無力回補close < prev_low"
+  - source: "PATTERN_DEFINITIONS §3 跳空反轉"
+    quote: "缺口越大越強"
+
+branches:
+  - id: B1_next_day_gap_holds_no_fill
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "跳空反轉後隔日仍守在缺口下方，多方力竭意義延續；多單出場訊號強化"
+      course_citation:
+        source: "PATTERN_INVENTORY P09 跳空反轉 Signal Class exit"
+        article_id: "92E64EAB9982ADE91CB903046E5FA04F"
+        quote: "Signal Class: exit；缺口越大越強"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_gap_filled
+    when:
+      "next_day.fills_gap": true
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "向下跳空缺口被回補，跳空反轉意義失效，空方力量消失"
+      course_citation:
+        source: "PATTERN_INVENTORY P27 缺口回補意義"
+        article_id: "5CB9CD820B2BEF0AC861FFEDB89CD6B0"
+        quote: "向上缺口被回補（多方力量消失）；攻擊跳空被回補意義更大"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_stalls_above_today_low
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= prev.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日在缺口區間整理，等待缺口是否回補確認；跳空反轉意義仍在"
+      course_citation:
+        source: "PATTERN_INVENTORY P09 跳空反轉觀察"
+        article_id: "92E64EAB9982ADE91CB903046E5FA04F"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

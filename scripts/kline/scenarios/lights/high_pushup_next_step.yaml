@@ -1,0 +1,15 @@
+light_id: high_pushup_next_step
+trigger_condition:
+  all:
+    # 高檔推升結構：股價站在 60 日高附近（>= 95% × prev_high_60）+ 過去 5 日窄幅整理
+    # 課程：「連續數日股價暫時都沒有持續大幅拉抬，也沒有回檔，呈現出短期內股價看似橫向」
+    - "today.high": ">= prev_high_60"
+    - "recent_range_pct_5": "<= 0.10"
+    # 跌破推升型態：今日收盤跌破過去 5 日最低
+    - "today.close": "< prior_low_5"
+severity: info
+course_citation:
+  source: "明日 K 線 §15 面對高檔推升型態下一步"
+  article_id: "73F058E5D6CDC343602018D337587568"
+  quote: "面對高檔推升，明日如果跌破，表示股價已經不再有攻擊意願……跌破了高檔推升的型態，代表的意義就是這一波的攻擊結束"
+recommendation_text: "高檔推升型態（過去 5 日窄幅 + 站在 60 日高附近）今日跌破推升結構（收盤跌破 5 日低點）。依課程，這代表「攻擊意願消失、這一波的攻擊結束」，可作為移動停利點；不一定立刻大跌，但不再操作此檔的價差。"

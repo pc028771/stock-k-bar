@@ -1,0 +1,43 @@
+pattern: gap_under_pressure_reversal
+setup:
+  name: bull_exhaustion_overhead_gap
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P08b 遇壓跳空 overhead_resistance_gap"
+    article_id: "426EAB98127A5370FC83CB5983BDA385"
+    quote: "Signal Class: exit；股價上漲一段後遇前波高點壓力，出現向下跳空缺口"
+  - source: "PATTERN_DEFINITIONS §3 遇壓跳空"
+    quote: "不限制紅K後第幾天（課程說四根K線都沒上去越過前壓，然後出現往下跳空）"
+
+branches:
+  - id: B1_next_day_gap_fills_up
+    when:
+      "next_day.fills_gap": true
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "遇壓向下跳空缺口被回補，遇壓反轉訊號失效，壓力化解"
+      course_citation:
+        source: "PATTERN_INVENTORY P27 缺口回補意義"
+        article_id: "5CB9CD820B2BEF0AC861FFEDB89CD6B0"
+        quote: "向下缺口被回補（空方力量消失）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_continues_below_gap
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "遇壓後向下跳空缺口持續，未被回補，壓力轉折意義維持"
+      course_citation:
+        source: "PATTERN_INVENTORY P08b 遇壓跳空"
+        article_id: "426EAB98127A5370FC83CB5983BDA385"
+        quote: "Signal Class: exit；股價上漲一段後遇前波高點壓力，然後出現往下跳空"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

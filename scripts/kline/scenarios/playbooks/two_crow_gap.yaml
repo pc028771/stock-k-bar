@@ -1,0 +1,43 @@
+pattern: two_crow_gap
+setup:
+  name: bull_exhaustion_two_crows
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P10 雙鴉躍空 two_crows_gap"
+    article_id: "13041D9897DBD12852724CAD0D994486"
+    quote: "Signal Class: exit；D-3紅K開高 + 雙黑K + D-0向下跳空確認；失敗條件：若D-0開高拉長紅→上升三法"
+  - source: "PATTERN_DEFINITIONS §3 雙鴉躍空"
+    quote: "D-0開盤跳空向下：open < prev_low（這是確認點）"
+
+branches:
+  - id: B1_next_day_rising_three_method
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "雙鴉躍空後隔日開高收紅站上，形成上升三法，課程明示此為失敗條件，方向相反"
+      course_citation:
+        source: "PATTERN_INVENTORY P10 雙鴉躍空失敗條件"
+        article_id: "13041D9897DBD12852724CAD0D994486"
+        quote: "若D-0開高拉長紅，變成上升三法，方向相反 → 不可只看雙黑就提前反應"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_continues_lower
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "雙鴉躍空後繼續下跌，遇壓力竭確認；多單出場訊號強化"
+      course_citation:
+        source: "PATTERN_INVENTORY P10 雙鴉躍空 Signal Class exit"
+        article_id: "13041D9897DBD12852724CAD0D994486"
+        quote: "Signal Class: exit；遇壓背景（不一定創新高）"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

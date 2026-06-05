@@ -1,0 +1,19 @@
+# [EXTRAS] 此 light 含課程外條件：「低價股」門檻 (30 元) 是業界 proxy，課程未明示數字。
+# 課程明示「低價股」概念（§09），但只用「低/中/高」相對描述，無具體價格門檻。
+# LOW_PRICE_THRESHOLD = 30.0 已移至 extras/low_price.py — 不屬於課程內容。
+light_id: lowprice_first_pull_exit
+trigger_condition:
+  all:
+    # [EXTRAS] 低價股前提 (close < LOW_PRICE_THRESHOLD = 30 元，業界 proxy，課程未明示)
+    - "low_price_flag": "== 1"
+    # 曾有拉抬：今日 high 觸過 60 日高 → 表示已經歷過拉抬
+    - "today.high": ">= prev_high_60"
+    # 第一次拉抬結束的訊號：今日收黑且收盤跌破前高
+    - "today.close": "< today.open"
+    - "today.close": "< prev_high_60"
+severity: warn
+course_citation:
+  source: "明日 K 線 §09 低價股的處理節奏"
+  article_id: "5710C4E8D0ACFBD5926A74A54853999C"
+  quote: "對於低價股的正確操作邏輯是，第一次的拉抬結束就可以離場了。後面的區間整理不需要再摸"
+recommendation_text: "[EXTRAS] 低價股（收盤 < 30 元，業界 proxy）出現拉抬後黑 K 跌破前高，符合課程「第一次拉抬結束」訊號。注意：30 元門檻是業界 proxy，課程未明示低價股的具體價格門檻，僅說明「低價股」的操作邏輯。低價股不適用箱型區間操作，第一次拉抬結束應果斷離場。"

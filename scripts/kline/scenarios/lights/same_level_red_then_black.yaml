@@ -1,0 +1,13 @@
+light_id: same_level_red_then_black
+trigger_condition:
+  all:
+    # 今日為黑K
+    - "is_black_today": "== 1"
+    # 過去 5 日內 ≥ 2 根紅K 收盤接近今日 close（「同一個價位反覆紅K接著黑K」）
+    - "same_level_red_count_5d_int": ">= 2"
+severity: warn
+course_citation:
+  source: "K線力量入門 §07 高檔區域的長黑K + §30 研判阻礙上漲的力量"
+  article_id: "C838747B22625440D61F5EA1DD18DFFB"
+  quote: "同一個價位紅K的隔天就出現黑K，次數多了就顯是有實質賣壓存在｜到了某個價位就會多次出現紅K(上漲)接續著黑K(賣盤)的走勢，次數多了、時間久了…頸線成型頭部也隨之出現"
+recommendation_text: "今日黑 K 落在過去 5 日已多次（≥2 根）紅 K 收盤的同一價位（±2%）附近，符合課程「同一價位紅 K 接黑 K 次數多了 = 實質賣壓」的獲利了結賣壓特徵。明日起應視為有實質賣壓存在，後續若搭配「整理區間超過兩個半月 + 季線下彎」即進入中期轉空訊號。注意：「次數多了」課程未明示精確閾值，本 light 採 5 日窗口 + ≥2 紅K + ±2% 為 STUB proxy。"

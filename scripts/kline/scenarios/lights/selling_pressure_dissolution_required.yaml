@@ -1,0 +1,14 @@
+light_id: selling_pressure_dissolution_required
+trigger_condition:
+  all:
+    # 接近前高壓力區（at_pressure_retest，已含 close ≥ prev_high_60 × 90%）
+    - "today.at_pressure_retest": true
+    - "today.close": "> prev.close"
+    # 賣壓化解需有量：要求異常放量（明顯放量），否則只是被消息帶上
+    - "is_anomalous_volume_flag": "== 1"
+severity: info
+course_citation:
+  source: "明日 K 線 §07 賣壓化解"
+  article_id: "910E8BDF113C42643EF26394CDD14007"
+  quote: "明日K線還需要考慮到環境背景條件……解讀到底股價的上漲是真的有力量化解、還是股價只不過是被消息面帶上而已"
+recommendation_text: "股價靠近 60 日前高壓力區並上漲且帶量，符合「賣壓化解進行中」狀態。需確認是否為實質化解（量能持續、不回檔）vs 消息面短暫帶上（量縮即回）。若是利多帶上，不應漲了又回檔。"

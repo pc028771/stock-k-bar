@@ -1,0 +1,14 @@
+light_id: manipulator_distribution_warning
+trigger_condition:
+  all:
+    # 高檔長黑（body ≥ 4% 開盤）+ 高觸前 60 日高（即「高檔」位置）+ 黑 K 收
+    # 課程：「高檔長黑 = 主力獲利了結」→ 接下來變一座山或箱型出貨
+    - "today.close": "< today.open"
+    - "today.high": ">= prev_high_60"
+    - "body_pct_today": ">= 0.04"
+severity: warn
+course_citation:
+  source: "明日 K 線 §31 主力出貨的秘密"
+  article_id: "AE72522C4C2B878F6E62595496366E10"
+  quote: "高檔長黑當然是一種不攻擊，且等同於股價被賣出來的走勢……主力出的順，股價就變一座山，主力出不順，就變成箱型區間"
+recommendation_text: "高檔位置出現長黑 K（body ≥ 4%），符合課程「高檔長黑 = 主力獲利了結」的出貨秘密。接下來主力會以區間整理慢慢出貨；切勿套用箱型底部買進邏輯（拉回、箱底、支撐都是出貨陷阱）。持多者請確認停損位置，空手者避開。"

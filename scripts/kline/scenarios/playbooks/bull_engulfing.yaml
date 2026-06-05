@@ -1,0 +1,59 @@
+pattern: bull_engulfing
+setup:
+  name: bear_exhaustion_after_engulfing
+  required_context: []
+course_sources:
+  - source: "PATTERN_DEFINITIONS §3 多頭吞噬規則"
+    article_id: "E79401532D60CC63B302926C2C33FB50"
+    quote: "多頭吞噬本身不是買點"
+  - source: "PATTERN_INVENTORY P03 bull_engulfing"
+    quote: "Signal Class: exit（空單回補）/ context_only — 課程強調不是進場訊號"
+
+branches:
+  - id: B1_next_day_strong_close_above_today_high
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "空單回補力量延續，今日力竭方向仍強；但多頭吞噬本身不是多方進場訊號，僅列入觀察"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §3 多頭吞噬"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+        quote: "多頭吞噬本身不是買點"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_fall_below_today_low
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "力竭意義失效：隔日收盤跌破今日最低，空方力竭組合被推翻，回到原下跌走勢"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §3 失效條件"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+        quote: "後續 close < engulfing_bar_low 則失效"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_consolidation
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "力竭觀察期，隔日整理於今日範圍內；等待後續方向確認，不進場"
+      course_citation:
+        source: "PATTERN_DEFINITIONS §3 多頭吞噬觀察"
+        article_id: "E79401532D60CC63B302926C2C33FB50"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

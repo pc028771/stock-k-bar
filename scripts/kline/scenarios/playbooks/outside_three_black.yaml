@@ -1,0 +1,58 @@
+pattern: outside_three_black
+setup:
+  name: bull_exhaustion_three_black
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P15 外側三黑 outside_three_black"
+    article_id: "71B4F99819BB5207A78994BEC40FC79D"
+    quote: "Signal Class: exit；D-3創新高紅K + 三根連續黑K；通常出現於長期緩漲冷門高價股"
+  - source: "PATTERN_DEFINITIONS §3 外側三黑"
+    quote: "連續三根黑K後D-3紅K低點被跌破"
+
+branches:
+  - id: B1_next_day_continues_lower
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "外側三黑後繼續下跌，多方力竭確認；多單出場訊號強化"
+      course_citation:
+        source: "PATTERN_INVENTORY P15 外側三黑"
+        article_id: "71B4F99819BB5207A78994BEC40FC79D"
+        quote: "Signal Class: exit；連續三根黑K，多方力量耗盡"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_gap_down
+    when:
+      "next_day.gap_down": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "外側三黑後出現向下跳空，已同時成立跳空反轉，力竭訊號疊加"
+      course_citation:
+        source: "PATTERN_INVENTORY P15 外側三黑變形"
+        article_id: "71B4F99819BB5207A78994BEC40FC79D"
+        quote: "D-2與D-1之間沒有向下跳空缺口（否則已成立跳空反轉，不需等三根）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_attempts_recovery
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日收盤站回三黑前創新高紅K高點，外側三黑力竭意義失效"
+      course_citation:
+        source: "PATTERN_INVENTORY P15 外側三黑失效"
+        article_id: "71B4F99819BB5207A78994BEC40FC79D"
+        quote: "D-3紅K創新高；後續站回則失效"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

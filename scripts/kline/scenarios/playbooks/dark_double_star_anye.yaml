@@ -1,0 +1,59 @@
+pattern: dark_double_star_anye
+setup:
+  name: bull_exhaustion_two_star_pattern
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P08 暗夜雙星 dark_night_two_star"
+    article_id: "426EAB98127A5370FC83CB5983BDA385"
+    quote: "多方力竭背景：股價先大幅拉抬 + 創新高；長黑K跌破兩根併排的低點"
+  - source: "PATTERN_DEFINITIONS §2 暗夜雙星"
+    quote: "Signal Class: exit"
+
+branches:
+  - id: B1_next_day_continues_lower
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "暗夜雙星後隔日繼續收黑，空方力量延續，多單出場訊號強化"
+      course_citation:
+        source: "PATTERN_INVENTORY P08 暗夜雙星 Signal Class exit"
+        article_id: "426EAB98127A5370FC83CB5983BDA385"
+        quote: "長黑K跌破兩根併排的低點，Signal Class: exit"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_recovers_above_twin_high
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日收盤站回前一日高點以上，暗夜雙星型態失效，原多頭攻擊意義可能恢復"
+      course_citation:
+        source: "PATTERN_INVENTORY P08 暗夜雙星失效條件"
+        article_id: "426EAB98127A5370FC83CB5983BDA385"
+        quote: "若D-0黑K同時實體包覆D-1→雙重訊號；反之若隔日站回高點則失效"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_stalls_within_range
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.close": "<= today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日整理於今日範圍，等待後續確認；多單持有者持續警戒"
+      course_citation:
+        source: "PATTERN_INVENTORY P08 暗夜雙星觀察"
+        article_id: "426EAB98127A5370FC83CB5983BDA385"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

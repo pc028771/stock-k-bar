@@ -1,0 +1,17 @@
+light_id: sunrise_vs_rising_three_boundary
+trigger_condition:
+  all:
+    # 今日為長紅 K + 突破 5 日高（模擬日出攻擊「再次拉抬」的長紅）
+    - "today.close": "> today.open"
+    - "body_pct_today": ">= 0.03"
+    - "today.close": "> prior_high_5"
+    # 前一日 high 沒突破 5 日高（D-1 是整理/短十字/黑 K，非攻擊）
+    - "prev.high": "< prior_high_5"
+    # 站在 60 日高之上（高檔位置）
+    - "today.close": ">= prev_high_60"
+severity: info
+course_citation:
+  source: "明日 K 線 §16 日出攻擊結束與上升三法判斷矛盾"
+  article_id: "C9F8EF65E8072450293F3F72D12320D6"
+  quote: "假如沒有原本「正在日出攻擊」的前提，明日K線的角度就得要考慮上升三法的出現了"
+recommendation_text: "今日長紅 K 突破 5 日高、前 1 日為整理 K → 出現「日出攻擊結束 vs 上升三法」邊界訊號。依老師交易傾向：「既然日出攻擊結束就出場」（採用第三種處理方式）；常態做價差者，遇到日出攻擊不期待結束後股價還可以衝更高，看到短十字結束就停利。"

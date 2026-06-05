@@ -1,0 +1,43 @@
+pattern: rising_falling
+setup:
+  name: context_only_step_up_down
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P26 升降組合型態 step_up_down"
+    article_id: "0B1DD310D7685EE74123E5147BB7CFB2"
+    quote: "Signal Class: context_only；之前先有一根原本方向的力量K，後續狹幅整理，再出現同向力量K突破"
+  - source: "PATTERN_DEFINITIONS §3 升降組合型態"
+    quote: "與咬定型態差異：升降之前先有一根原本方向的力量K"
+
+branches:
+  - id: B1_next_day_step_continues
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "升降組合後方向繼續，整理完再出現同向力量K延伸；context_only，配合主力訊號看"
+      course_citation:
+        source: "PATTERN_INVENTORY P26 升降組合型態 context_only"
+        article_id: "0B1DD310D7685EE74123E5147BB7CFB2"
+        quote: "Signal Class: context_only；力量K + 整理 + 同向力量K突破"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_falls_back
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "升降組合突破後隔日回落，整理後突破意義失效"
+      course_citation:
+        source: "PATTERN_INVENTORY P26 升降組合型態"
+        article_id: "0B1DD310D7685EE74123E5147BB7CFB2"
+        quote: "Signal Class: context_only；後續回落則失效"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

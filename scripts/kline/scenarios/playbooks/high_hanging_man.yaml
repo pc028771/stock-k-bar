@@ -1,0 +1,60 @@
+pattern: high_hanging_man
+setup:
+  name: bull_exhaustion_hanging_man
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P05 高檔吊首 hanging_man"
+    article_id: "666C90D7BC58F0E0E9629CAD711FD56F"
+    quote: "Signal Class: exit（多單出場）；排除條件：若隔日創新高則無此意義"
+  - source: "PATTERN_DEFINITIONS §2 高檔吊首"
+    quote: "確認：今日為日落或今日open < prev_low（向下跳空）"
+
+branches:
+  - id: B1_next_day_sunset_confirmation
+    when:
+      all:
+        - "next_day.close": "< today.low"
+        - "next_day.close": "< prev.close"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "高檔吊首後隔日出現日落確認，多方力竭意義成立；多單出場訊號"
+      course_citation:
+        source: "PATTERN_INVENTORY P05 高檔吊首確認"
+        article_id: "666C90D7BC58F0E0E9629CAD711FD56F"
+        quote: "確認：今日為日落（high < prev_high AND low < prev_low）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_gap_down_confirmation
+    when:
+      "next_day.gap_down": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "高檔吊首後隔日向下跳空，課程明示此為確認條件之一"
+      course_citation:
+        source: "PATTERN_INVENTORY P05 高檔吊首"
+        article_id: "666C90D7BC58F0E0E9629CAD711FD56F"
+        quote: "確認：今日open < prev_low（向下跳空）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_breaks_to_new_high
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日創新高，課程明示此時吊首無意義；排除條件成立，力竭意義消失"
+      course_citation:
+        source: "PATTERN_INVENTORY P05 高檔吊首排除條件"
+        article_id: "666C90D7BC58F0E0E9629CAD711FD56F"
+        quote: "排除條件（課程明示）：若隔日創新高則無此意義"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

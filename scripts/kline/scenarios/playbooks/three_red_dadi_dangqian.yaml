@@ -1,0 +1,58 @@
+pattern: three_red_dadi_dangqian
+setup:
+  name: bull_exhaustion_enemy_at_gate
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P07 大敵當前 enemy_at_gate"
+    article_id: "AF12D42CF0CF4600F29D9C4ACA41C5B7"
+    quote: "Signal Class: exit（多單出場）；連續紅K拉不出距離+長黑跌破第一根紅K中值"
+  - source: "PATTERN_DEFINITIONS §3 大敵當前"
+    quote: "跌破中值已算第三天無力，不需等收盤"
+
+branches:
+  - id: B1_next_day_continues_below_midpoint
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "大敵當前後繼續破低，遇壓多方力竭確認；多單持有者出場訊號強化"
+      course_citation:
+        source: "PATTERN_INVENTORY P07 大敵當前 Signal Class exit"
+        article_id: "AF12D42CF0CF4600F29D9C4ACA41C5B7"
+        quote: "D-0：跌破D-3長紅中值：close < (open_{D-3}+close_{D-3})/2，Signal Class: exit"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_gap_down
+    when:
+      "next_day.gap_down": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "大敵當前後出現向下跳空，「跳空缺口被跌破」為課程明示的變形版訊號"
+      course_citation:
+        source: "PATTERN_INVENTORY P07 大敵當前變形版"
+        article_id: "AF12D42CF0CF4600F29D9C4ACA41C5B7"
+        quote: "變形版（重意不重形）：中值未破但跳空缺口被跌破也算"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_recovery_attempt
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日收盤站回前日高點以上，大敵當前遇壓型態失效，壓力化解"
+      course_citation:
+        source: "PATTERN_INVENTORY P07 大敵當前"
+        article_id: "AF12D42CF0CF4600F29D9C4ACA41C5B7"
+        quote: "遇壓背景（注意：不是創新高的力竭，是反彈遇前壓）"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

@@ -1,0 +1,59 @@
+pattern: evening_star_island_reversal
+setup:
+  name: bull_exhaustion_island_reversal_bear
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P13 夜星+島狀反轉 island_reversal_bear"
+    article_id: "6C03240289991A8B7F5D99C5DC2409D5"
+    quote: "Signal Class: exit；比較常用版本：只看右側向下跳空就足夠"
+  - source: "PATTERN_DEFINITIONS §3 夜星島狀反轉"
+    quote: "重意不重形，課程明示"
+
+branches:
+  - id: B1_next_day_gap_down_continues
+    when:
+      "next_day.gap_down": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "右側向下跳空後隔日又出現向下缺口，多方力竭意義深化；多單持有者留意出場"
+      course_citation:
+        source: "PATTERN_INVENTORY P13 夜星島狀反轉"
+        article_id: "6C03240289991A8B7F5D99C5DC2409D5"
+        quote: "右缺口：向下跳空 high < prev_low，重意不重形課程明示"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_rallies_back_above_gap
+    when:
+      "next_day.close": "> prev.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日收盤重新站上缺口，島狀反轉意義失效，原多頭攻擊可能恢復"
+      course_citation:
+        source: "PATTERN_INVENTORY P13 夜星島狀反轉失效"
+        article_id: "6C03240289991A8B7F5D99C5DC2409D5"
+        quote: "股價若再回升，右缺口意義消失"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_drifts_lower
+    when:
+      all:
+        - "next_day.close": "< today.high"
+        - "next_day.close": ">= today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "隔日在今日範圍偏下方整理，方向持續偏空，持續觀察確認"
+      course_citation:
+        source: "PATTERN_INVENTORY P13 夜星島狀反轉觀察"
+        article_id: "6C03240289991A8B7F5D99C5DC2409D5"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

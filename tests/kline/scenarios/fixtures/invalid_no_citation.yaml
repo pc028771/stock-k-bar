@@ -1,0 +1,14 @@
+pattern: bull_engulfing
+setup:
+  name: no_citation_setup
+branches:
+  - id: B1_test
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    action:
+      type: watch_only
+      description: 觀察中，等待後續確認
+      # Missing course_citation entirely
+course_sources:
+  - source: PATTERN_DEFINITIONS §3

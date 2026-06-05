@@ -1,0 +1,43 @@
+pattern: rebound
+setup:
+  name: context_only_counterattack
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P23 反撲型態 counterattack_pattern"
+    article_id: "207FAB90A1222E9DCD7CCE2A26AB19B7"
+    quote: "Signal Class: context_only；區分於吞噬：反撲關鍵在開盤就直接反向"
+  - source: "PATTERN_DEFINITIONS §3 反撲型態"
+    quote: "失效：若反撲伴隨利多/利空消息效果會消失"
+
+branches:
+  - id: B1_next_day_continues_rebound_direction
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "反撲後方向繼續延伸，反撲力量確認；context_only，不是直接進場訊號"
+      course_citation:
+        source: "PATTERN_INVENTORY P23 反撲型態 context_only"
+        article_id: "207FAB90A1222E9DCD7CCE2A26AB19B7"
+        quote: "Signal Class: context_only；開盤就直接反向是反撲的關鍵"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_reverses_again
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "反撲後再次方向反轉，反撲意義失效"
+      course_citation:
+        source: "PATTERN_INVENTORY P23 反撲型態失效"
+        article_id: "207FAB90A1222E9DCD7CCE2A26AB19B7"
+        quote: "失效：若反撲伴隨利多/利空消息效果會消失（無法vectorized）"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

@@ -1,0 +1,19 @@
+pattern: dark_double_star
+setup:
+  name: high_area_reversal
+  required_context: [near_resistance_context]
+branches:
+  - id: B1_break_below_neckline
+    when:
+      "next_day.close": "< neckline_low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: 收盤跌破頸線低點，出場訊號成立
+      course_citation:
+        source: 明日 K 線 §12 雙黑頸線跌破出場
+course_sources:
+  - source: PATTERN_DEFINITIONS §5 雙黑星型態
+relevant_lights:
+  - pressure_meeting_unresolved

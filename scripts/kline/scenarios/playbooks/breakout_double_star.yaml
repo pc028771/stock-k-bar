@@ -1,0 +1,60 @@
+pattern: breakout_double_star
+setup:
+  name: bear_exhaustion_breakout_confirmation
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P11 突破雙星 breakout_two_star"
+    article_id: "EDFE0FB85503F88DFB6696C9EACA00D4"
+    quote: "Signal Class: exit（空單回補）/ 弱勢進場觀察；課程強調沒有跳空就沒意義"
+  - source: "PATTERN_DEFINITIONS §3 突破雙星"
+    quote: "D-0隔日跳空向上確認：open > prev_high"
+
+branches:
+  - id: B1_next_day_gap_up_holds
+    when:
+      "next_day.gap_up": true
+    confirm_at: next_open
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "突破雙星後隔日跳空確認，課程強調跳空是關鍵；空單回補訊號，非直接進場"
+      course_citation:
+        source: "PATTERN_INVENTORY P11 突破雙星"
+        article_id: "EDFE0FB85503F88DFB6696C9EACA00D4"
+        quote: "D-0：隔日跳空向上確認：open > prev_high（課程強調沒有跳空就沒意義）"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_returns_to_consolidation
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exhaust_invalid
+      description: "隔日回到雙星整理區間低點以下，突破雙星失敗，空方走勢繼續"
+      course_citation:
+        source: "PATTERN_INVENTORY P11 突破雙星失敗條件"
+        article_id: "EDFE0FB85503F88DFB6696C9EACA00D4"
+        quote: "D-0又回到併排區間 → 失敗"
+      notes: []
+    next_branch_ids: []
+
+  - id: B3_next_day_holds_above_breakout
+    when:
+      all:
+        - "next_day.close": ">= today.low"
+        - "next_day.gap_up": false
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: watch_only
+      description: "突破後無跳空但收盤仍守住，觀察後續是否補上跳空確認"
+      course_citation:
+        source: "PATTERN_INVENTORY P11 突破雙星"
+        article_id: "EDFE0FB85503F88DFB6696C9EACA00D4"
+        quote: "課程強調沒有跳空就沒意義"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

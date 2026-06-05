@@ -1,0 +1,13 @@
+light_id: top_formation_three_criteria
+trigger_condition:
+  all:
+    # 跌破頸線 proxy: 收盤跌破 60 日低點 + 系統性破底結構（≥2 次破底事件 + MA60 下彎）
+    - "today.close": "< prior_low_60"
+    - "is_breakdown_pattern_flag": "== 1"
+    - "context.ma60_will_rise": false
+severity: critical
+course_citation:
+  source: "明日 K 線 §17 頭部成型"
+  article_id: "77FF4B575AD8B56778449430C25BC47D"
+  quote: "跌破頸線促成頭部成型……跌破時的判斷就是這是真正的轉入空方趨勢了"
+recommendation_text: "警示：收盤已跌破 60 日低點且呈系統性破底結構（多次破底事件 + MA60 下彎），符合課程「跌破頸線、轉入空方趨勢」的頭部成型 K 線特徵。仍需配合大盤狀況、基本面、是否被主力拉抬過三要件研判；持多者應嚴格執行停損。"

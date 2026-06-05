@@ -1,0 +1,10 @@
+light_id: lt_defensive_low_break
+trigger_condition:
+  all:
+    - "today.close": "< defensive_low"
+severity: critical
+course_citation:
+  source: "明日 K 線 §26 防守姿態"
+  article_id: "EF7308E2336BF7BCE94142944DB580B1"
+  quote: "假如沒有，就要堅守看得出來的防守點，主力都把股價拉到創新高了，沒有那種拉不上去的狀況，跌破防守價就是根本沒有要攻擊的意思。"
+recommendation_text: "今日收盤跌破防守價位，課程明示「跌破防守價就是根本沒有要攻擊的意思」。主力沒有那種拉不上去的狀況、表示資金已撤、出場。"

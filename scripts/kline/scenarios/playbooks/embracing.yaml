@@ -1,0 +1,43 @@
+pattern: embracing
+setup:
+  name: context_only_harami_neutral
+  required_context: []
+course_sources:
+  - source: "PATTERN_INVENTORY P21 懷抱型態 harami_neutral"
+    article_id: "161D653D96BB64939DE424B8B5162815"
+    quote: "Signal Class: context_only；前一根力量型K線+隔日醞釀型短K線（孕線）"
+  - source: "PATTERN_DEFINITIONS §3 懷抱型態"
+    quote: "紅黑顏色組合不限——重點是力量型+醞釀"
+
+branches:
+  - id: B1_next_day_continues_power_direction
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "懷抱型態後方向延續，醞釀後力量方向繼續；仍是 context_only 觀察"
+      course_citation:
+        source: "PATTERN_INVENTORY P21 懷抱型態 context_only"
+        article_id: "161D653D96BB64939DE424B8B5162815"
+        quote: "Signal Class: context_only；重點是力量型+醞釀"
+      notes: []
+    next_branch_ids: []
+
+  - id: B2_next_day_breaks_opposite
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: context_only_signal
+      description: "懷抱型態後方向反轉，醞釀後力量方向改變；仍是 context_only 觀察"
+      course_citation:
+        source: "PATTERN_INVENTORY P21 懷抱型態 context_only"
+        article_id: "161D653D96BB64939DE424B8B5162815"
+        quote: "Signal Class: context_only；前一根是力量型K線，隔日是醞釀型短K線"
+      notes: []
+    next_branch_ids: []
+
+relevant_lights: []

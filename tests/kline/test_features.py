@@ -631,6 +631,37 @@ def test_attack_intensity_zero_in_flat_trend():
     assert (df["attack_intensity"] == 0).all()
 
 
+def test_new_pattern_features_columns_present():
+    """Pattern-layer derived columns from features.py 末尾必須存在 + 合理."""
+    rows = [
+        # bar 0: setup
+        {"open": 100, "high": 105, "low": 99, "close": 104, "volume": 1000.0},
+        # bar 1: sunset (high<prev_high, low<prev_low)
+        {"open": 103, "high": 104, "low": 98, "close": 99, "volume": 1000.0},
+        # bar 2: harami inside bar 1 (high<=104, low>=98)
+        {"open": 100, "high": 102, "low": 99, "close": 101, "volume": 1000.0},
+        # bar 3: gap up (low > prev_high=102)
+        {"open": 104, "high": 108, "low": 103, "close": 107, "volume": 1000.0},
+        # bar 4: gap down (high < prev_low=103)
+        {"open": 100, "high": 102, "low": 98, "close": 99, "volume": 1000.0},
+    ]
+    df = add_features(make_bars(rows))
+    for col in ["is_sunset_bar", "is_harami", "midpoint",
+                "is_gap_up_today", "is_gap_down_today",
+                "body_pct_pct_rank_20d"]:
+        assert col in df.columns, f"missing pattern feature column: {col}"
+    # bar 1 should be sunset
+    assert df.loc[1, "is_sunset_bar"]
+    # bar 2 harami of bar 1
+    assert df.loc[2, "is_harami"]
+    # midpoint of bar 0 = (100+104)/2 = 102
+    assert df.loc[0, "midpoint"] == 102.0
+    # bar 3 gap up
+    assert df.loc[3, "is_gap_up_today"]
+    # bar 4 gap down
+    assert df.loc[4, "is_gap_down_today"]
+
+
 def test_overhead_supply_layer_counts_peaks_above_close():
     # Build a bar series with a clear swing high well above later closes.
     # 30 bars: first 10 bars have high=200 (much higher than later closes of ~102),
@@ -650,3 +681,239 @@ def test_overhead_supply_layer_counts_peaks_above_close():
     assert not pd.isna(last["overhead_supply_layer"])
     # There must be at least some peaks from the high section above close=102.
     assert last["overhead_supply_layer"] > 0
+
+
+# ===================================================================
+# Task 2.4 — C03 / C04 / C05 / C07  (明日 K 線 INVENTORY)
+# ===================================================================
+
+
+def test_t2_4_1_attack_intent_zone_fires_after_breakout():
+    """T2.4.1 — C03: 攻擊意圖區上下緣 + intent_zone_break 基礎觸發
+
+    Course source: 明日 K 線 INVENTORY.md §C03 (第 23、32 篇)
+    「攻擊意圖指的是賣壓化解的意願程度，從低檔往上靠近創新高價位的這一段。」
+    「跌回攻擊意圖區 → 出場訊號」
+
+    Scenario:
+      60 priming bars so prior_high_60 is established.
+      Bar 60: breakout (close > prior_high_60 = 101).
+      Bar 61: close falls back below the breakout ceiling → intent_zone_break = True.
+    """
+    rows = []
+    # 60 bars with high capped at 101 so prior_high_60 = 101
+    for i in range(60):
+        rows.append({"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
+                     "volume": 1000.0, "ma60": 90.0})
+    # Bar 60: breakout — close > prior_high_60 (101)
+    rows.append({"open": 101.0, "high": 105.0, "low": 100.5, "close": 104.0,
+                 "volume": 2000.0, "ma60": 90.0})
+    # Bar 61: closes back below breakout ceiling (attack_intent_zone_high ~101)
+    rows.append({"open": 102.0, "high": 103.0, "low": 99.0, "close": 100.0,
+                 "volume": 1200.0, "ma60": 90.0})
+
+    df = add_features(make_bars(rows))
+
+    # attack_intent_zone_high must be populated after breakout
+    assert "attack_intent_zone_high" in df.columns
+    assert "attack_intent_zone_low" in df.columns
+    assert "intent_zone_break" in df.columns
+
+    # Bar 61 close (100) < attack_intent_zone_high (~101) → intent_zone_break True
+    assert df.loc[61, "intent_zone_break"], (
+        "intent_zone_break should be True when close falls back below intent zone ceiling"
+    )
+
+
+def test_t2_4_2_is_just_broke_high_fires_within_2_days():
+    """T2.4.2 — C04: 剛創新高 label — 今日、前 1、前 2 日觸發
+
+    Course source: 明日 K 線 INVENTORY.md §C04 (第 03、10、24、40 篇)
+    「剛創新高 = 今日或前 1~2 日為 60 日新高」
+
+    Scenario:
+      63 bars, last 3 are tested. Bar 60 = breakout day.
+      Bars 60, 61, 62 should all have is_just_broke_high = True.
+      Bars before 60 that didn't touch prior_high_60 should be False.
+    """
+    rows = []
+    for i in range(60):
+        rows.append({"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0,
+                     "volume": 1000.0, "ma60": 90.0})
+    # Bar 60: high >= prior_high_60 (= 101) → is_just_broke_high today
+    rows.append({"open": 101.0, "high": 103.0, "low": 100.0, "close": 102.0,
+                 "volume": 2000.0, "ma60": 90.0})
+    # Bar 61: today's high is lower, but prev 1 day broke high → still just_broke
+    rows.append({"open": 102.0, "high": 102.5, "low": 100.5, "close": 101.5,
+                 "volume": 1500.0, "ma60": 90.0})
+    # Bar 62: today's high is lower, prev 2 days broke high → still just_broke
+    rows.append({"open": 101.0, "high": 102.0, "low": 100.0, "close": 101.0,
+                 "volume": 1000.0, "ma60": 90.0})
+
+    df = add_features(make_bars(rows))
+
+    assert "is_just_broke_high" in df.columns
+    # Bar 60: today touched/exceeded prior_high_60 → True
+    assert df.loc[60, "is_just_broke_high"], "bar 60 = breakout day should be True"
+    # Bar 61: prev 1 bar (60) was the breakout → True
+    assert df.loc[61, "is_just_broke_high"], "bar 61 = 1 day after breakout should be True"
+    # Bar 62: prev 2 bars (60) was the breakout → True
+    assert df.loc[62, "is_just_broke_high"], "bar 62 = 2 days after breakout should be True"
+    # Bars in the priming phase should be False (none touched prior_high_60 from below)
+    assert not df.loc[30, "is_just_broke_high"], "bar 30 = stable priming bar should be False"
+
+
+def test_t2_4_3_is_limit_up_locked_fires_on_clean_lock():
+    """T2.4.3 — C05: 漲停鎖住 — close ≥ prev_close*1.095, high==close, low≥prev_close
+
+    Course source: 明日 K 線 INVENTORY.md §C05 (第 20、28 篇)
+    「鎖住漲停 = close == limit_up_price AND high == close AND low ≥ ref_price」
+
+    Scenario A (locked): bar 1 opens at limit-up and stays there all day.
+    Scenario B (not locked): bar hits limit-up close but has upper shadow (high > close).
+    Scenario C (not locked): close below limit-up threshold.
+    """
+    # Scenario A: clean limit-up lock
+    rows_a = [
+        # bar 0: reference bar (prev_close = 100)
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1000.0},
+        # bar 1: locked limit-up: close=110 (≥100*1.095=109.5), high==close, low≥100
+        {"open": 110.0, "high": 110.0, "low": 105.0, "close": 110.0, "volume": 5000.0},
+    ]
+    df_a = add_features(make_bars(rows_a))
+    assert "is_limit_up_locked" in df_a.columns
+    assert df_a.loc[1, "is_limit_up_locked"], "Scenario A: clean lock should fire"
+
+    # Scenario B: has upper shadow (high > close) — NOT locked
+    rows_b = [
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1000.0},
+        {"open": 109.0, "high": 112.0, "low": 104.0, "close": 110.0, "volume": 3000.0},
+    ]
+    df_b = add_features(make_bars(rows_b))
+    assert not df_b.loc[1, "is_limit_up_locked"], "Scenario B: upper shadow → not locked"
+
+    # Scenario C: close below limit-up threshold — NOT locked
+    rows_c = [
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1000.0},
+        {"open": 105.0, "high": 107.0, "low": 104.0, "close": 106.0, "volume": 1500.0},
+    ]
+    df_c = add_features(make_bars(rows_c))
+    assert not df_c.loc[1, "is_limit_up_locked"], "Scenario C: close < threshold → not locked"
+
+
+def test_t2_4_4_is_anomalous_volume_fires_on_sudden_spike():
+    """T2.4.4 — C07: 異常放量 — vol > vol_ma_60*2 AND vol > vol_max_60.shift(1)*1.5
+
+    Course source: 明日 K 線 INVENTORY.md §C07 (第 40 篇)
+    「明顯放量 = 本來無量，突然出現的大量」
+    [STUB-NEED-USER S1]: K=2.0, J=1.5 退化值
+
+    Scenario: 60 quiet bars (vol=1000), then 1 bar with vol=5000.
+      vol_ma_60 at bar 60 = 1000; vol_max_60_prev = 1000.
+      Threshold vol_ma_60 * 2 = 2000 < 5000 ✓
+      Threshold vol_max_60_prev * 1.5 = 1500 < 5000 ✓  → is_anomalous_volume = True
+    """
+    rows = [
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1000.0}
+        for _ in range(60)
+    ]
+    # Bar 60: sudden volume spike
+    rows.append({"open": 100.0, "high": 105.0, "low": 99.0, "close": 104.0,
+                 "volume": 5000.0})
+
+    df = add_features(make_bars(rows))
+
+    assert "is_anomalous_volume" in df.columns
+    # Before bar 60: 60 prior bars not yet complete → should be False (NaN → filled False)
+    assert not df.loc[59, "is_anomalous_volume"], "bar 59: vol_ma_60 not yet usable"
+    # Bar 60: spike triggers anomalous volume
+    assert df.loc[60, "is_anomalous_volume"], (
+        "bar 60: vol=5000 >> vol_ma_60*2=2000 and vol_max_60*1.5=1500 → True"
+    )
+    # Normal vol bar after the spike should NOT be anomalous
+    rows_extra = rows[:60] + [
+        {"open": 100.0, "high": 101.0, "low": 99.0, "close": 100.0, "volume": 1100.0}
+    ]
+    df2 = add_features(make_bars(rows_extra))
+    assert not df2.loc[60, "is_anomalous_volume"], "normal vol bar should not be anomalous"
+
+
+def test_t2_4_5_fixture_alignment_inventory_example():
+    """T2.4.5 — INVENTORY 老師舉例對齊驗證
+
+    明日 K 線第 20 篇老師舉例：漲停鎖住攻擊成本 (C05) + 剛創新高 (C04) 同時成立。
+    本 fixture 模擬「突破前高的漲停鎖住日」，驗證：
+      1. is_just_broke_high = True（今日觸及 60 日前高）
+      2. is_limit_up_locked = True（收盤達漲停、無上影線、low ≥ prev_close）
+      3. intent_zone_break = False（尚未跌回意圖區）
+
+    Scenario:
+      60 priming bars (high=100), then breakout bar with limit-up lock.
+      That bar should satisfy C04 + C05 simultaneously.
+    """
+    rows = []
+    for _i in range(60):
+        rows.append({"open": 90.0, "high": 100.0, "low": 89.0, "close": 91.0,
+                     "volume": 1000.0, "ma60": 80.0})
+    # Bar 60: breakout + limit-up lock
+    # prev_close = 91, limit_up_threshold = 91 * 1.095 ≈ 99.645
+    # Set close = 100.1 (≥ threshold), high == close, low ≥ prev_close(91)
+    rows.append({"open": 100.0, "high": 100.1, "low": 92.0, "close": 100.1,
+                 "volume": 8000.0, "ma60": 80.0})
+
+    df = add_features(make_bars(rows))
+    bar = df.loc[60]
+
+    # C04: just broke 60-day high (bar 60's high=100.1 >= prior_high_60=100)
+    assert bar["is_just_broke_high"], "C04: bar 60 should be is_just_broke_high"
+
+    # C05: limit-up locked (close=100.1 >= 91*1.095≈99.7, high==close, low=92>=prev_close=91)
+    assert bar["is_limit_up_locked"], "C05: bar 60 should be is_limit_up_locked"
+
+    # C03: intent_zone_break = False (we haven't dropped back yet)
+    assert not bar["intent_zone_break"], (
+        "C03: bar 60 just broke out — should NOT yet be intent_zone_break"
+    )
+
+
+# ============================================================================
+# C12 — transition_inner_to_gap
+# ============================================================================
+
+def test_transition_inner_to_gap_fires_on_harami_then_gap_down():
+    """C12: D-2 創新高紅K, D-1 孕線, D-0 向下跳空 → transition_inner_to_gap=True."""
+    # We need 60+ bars for prior_high_60 to be valid
+    rows_prefix = [
+        {"open": float(90 + i), "high": float(91 + i),
+         "low": float(89 + i), "close": float(90 + i), "volume": 1000.0}
+        for i in range(60)
+    ]
+    # D-2 (index 60): 創新高紅K — close > prior_high_60 (≈149), close > open
+    rows_prefix.append({"open": 148.0, "high": 155.0, "low": 147.0, "close": 154.0, "volume": 2000.0})
+    # D-1 (index 61): 孕線 — high <= 155, low >= 147
+    rows_prefix.append({"open": 151.0, "high": 153.0, "low": 149.0, "close": 150.0, "volume": 1000.0})
+    # D-0 (index 62): 向下跳空 — open < prev_low (149)
+    rows_prefix.append({"open": 145.0, "high": 148.0, "low": 142.0, "close": 144.0, "volume": 1500.0})
+
+    df = add_features(make_bars(rows_prefix))
+    assert df.loc[62, "transition_inner_to_gap"], (
+        "C12: D-2 創新高紅K + D-1 孕線 + D-0 跳空向下 should trigger"
+    )
+
+
+def test_transition_inner_to_gap_not_fire_without_gap_down():
+    """C12: D-0 open >= prev_low → no gap down → should not trigger."""
+    rows_prefix = [
+        {"open": float(90 + i), "high": float(91 + i),
+         "low": float(89 + i), "close": float(90 + i), "volume": 1000.0}
+        for i in range(60)
+    ]
+    rows_prefix.append({"open": 148.0, "high": 155.0, "low": 147.0, "close": 154.0, "volume": 2000.0})
+    rows_prefix.append({"open": 151.0, "high": 153.0, "low": 149.0, "close": 150.0, "volume": 1000.0})
+    # D-0: open >= prev_low (149) — no gap
+    rows_prefix.append({"open": 150.0, "high": 152.0, "low": 148.0, "close": 149.0, "volume": 1500.0})
+
+    df = add_features(make_bars(rows_prefix))
+    assert not df.loc[62, "transition_inner_to_gap"], (
+        "C12: no gap down → should NOT trigger"
+    )

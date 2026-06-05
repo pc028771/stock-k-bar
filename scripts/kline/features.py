@@ -10,15 +10,26 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .patterns._common import is_anomalous_volume as _is_anomalous_volume
 from .course_proxy_constants import (
+    ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS,
     ATTACK_HIGHER_HIGH_MIN_5DAY,
     ATTACK_HIGHER_LOW_MIN_5DAY,
     ATTACK_WINDOW_DAYS,
+    DEFENSIVE_LOW_LOOKBACK_DAYS,
     DOJI_MAX_BODY_PCT,
     DOJI_MIN_RANGE_PCT,
     FIRST_BREAKOUT_LOOKBACK,
     INTEGRATION_DAYS as _INTEGRATION_DAYS,
+    MERGED_DOJI_BODY_RATIO as _MERGED_DOJI_BODY_RATIO,
+    MERGED_DOJI_CARRY_DAYS,
+    MERGED_DOJI_SHADOW_MIN_RATIO as _MERGED_DOJI_SHADOW_MIN_RATIO,
     RISING_LOWS_MIN_FRAC,
+    SAME_LEVEL_LOOKBACK_DAYS,
+    SAME_LEVEL_PRICE_TOLERANCE,
+    SAME_LEVEL_RED_MIN_COUNT,
+    SELF_RESCUE_VOL_RATIO_MAX,
+    SELF_RESCUE_PREV_BREAKOUT_LOOKBACK,
     STABLE_UPPER_MAX_SPREAD as _STABLE_UPPER_MAX_SPREAD,
 )
 
@@ -34,24 +45,20 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["prev_high"] = g["high"].shift(1)
     df["prev_low"] = g["low"].shift(1)
 
-    # Rolling prior highs/lows (exclude today via shift)
-    df["prior_high_60"] = (
-        g["high"].shift(1).rolling(60, min_periods=60).max().reset_index(level=0, drop=True)
-    )
-    df["prior_high_20"] = (
-        g["high"].shift(1).rolling(20, min_periods=20).max().reset_index(level=0, drop=True)
-    )
-    df["prior_low_60"] = (
-        g["low"].shift(1).rolling(60, min_periods=60).min().reset_index(level=0, drop=True)
-    )
-    df["prior_low_20"] = (
-        g["low"].shift(1).rolling(20, min_periods=20).min().reset_index(level=0, drop=True)
-    )
+    # Rolling prior highs/lows (exclude today via shift).
+    # NOTE: must use transform to keep rolling WITHIN each ticker.
+    # Earlier `g["x"].shift(1).rolling(N)` rolled across ticker boundaries
+    # because the rolling ran on a flat Series after the groupwise shift.
+    df["prior_high_60"] = g["high"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).max())
+    # DSL alias: condition YAML uses "prev_high_60"; features.py uses "prior_high_60".
+    # Both columns carry the same value. "prev_high_60" is whitelisted in condition.py.
+    df["prev_high_60"] = df["prior_high_60"]
+    df["prior_high_20"] = g["high"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).max())
+    df["prior_low_60"] = g["low"].transform(lambda s: s.shift(1).rolling(60, min_periods=60).min())
+    df["prior_low_20"] = g["low"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).min())
 
-    # Avg volume (excluding today)
-    df["avg_volume_20"] = (
-        g["volume"].shift(1).rolling(20, min_periods=20).mean().reset_index(level=0, drop=True)
-    )
+    # Avg volume (excluding today) — same cross-ticker fix.
+    df["avg_volume_20"] = g["volume"].transform(lambda s: s.shift(1).rolling(20, min_periods=20).mean())
     df["volume_ratio"] = df["volume"] / df["avg_volume_20"].replace(0, np.nan)
 
     # OHLC-derived
@@ -73,14 +80,9 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Scoring input: consecutive days closing above MA60 prior to today, capped at 20.
     above_ma60 = (df["close"] > df["ma60"]).fillna(False).astype(int)
     df["pre_breakout_trend_days"] = (
-        above_ma60.groupby(df["ticker"])
-        .shift(1)
-        .fillna(0)
-        .groupby(df["ticker"])
-        .rolling(20, min_periods=1)
-        .sum()
-        .reset_index(level=0, drop=True)
-        .astype(int)
+        above_ma60.groupby(df["ticker"]).transform(
+            lambda s: s.shift(1).fillna(0).rolling(20, min_periods=1).sum()
+        ).astype(int)
     )
 
     # Scoring input: count of swing-high peaks above current close in trailing 240 days.
@@ -94,10 +96,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         past_high = g["high"].shift(lag).to_numpy()
         past_max5 = (
             g["high"]
-            .shift(lag)
-            .rolling(5, min_periods=5)
-            .max()
-            .reset_index(level=0, drop=True)
+            .transform(lambda s: s.shift(lag).rolling(5, min_periods=5).max())
             .to_numpy()
         )
         is_peak = (past_high == past_max5) & ~np.isnan(past_max5)
@@ -133,8 +132,11 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
     unfilled_gap_count = np.zeros(n, dtype=float)
     for lag in range(1, GAP_RESISTANCE_LOOKBACK + 1):
-        past_high_l = g["high"].shift(lag).to_numpy()
-        past_prev_low_l = g["prev_low"].shift(lag).to_numpy()
+        # Cast to float64 — for small frames (single ticker, few rows),
+        # all-NaN shifted columns can come back as object dtype which breaks
+        # np.isnan downstream.
+        past_high_l = g["high"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
+        past_prev_low_l = g["prev_low"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
         # Was that historical bar a gap-down day? (strict K-line gap: high < prev_low)
         was_gap_down = past_high_l < past_prev_low_l
         # Gap top = the prev_low on that day (upper bound of the empty zone)
@@ -239,8 +241,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     #   - Triangle pattern: ceiling is the same throughout → spread ≈ 0
     #   - Trending stock: early-half max << late-half max → spread is large
     prior_high_30_early = (
-        g["high"].shift(31).rolling(30, min_periods=30).max()
-        .reset_index(level=0, drop=True)
+        g["high"].transform(lambda s: s.shift(31).rolling(30, min_periods=30).max())
     )
     upper_band_spread = (
         (df["prior_high_60"] - prior_high_30_early) / df["prior_high_60"].replace(0, np.nan)
@@ -423,5 +424,563 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         | (df["open"] > df["prev_high"])
         | (df["high"] > df["prior_high_60"])
     ).fillna(False)
+
+    # === Pattern-layer derived columns (多空轉折組合 K 線 patterns/) ===
+    # Course source: 多空轉折組合K線 26 篇 + PATTERN_DEFINITIONS.md.
+    # These are simple structural facts (no proxy numbers) reused by many
+    # patterns. Added at the END to keep backward compatibility — no existing
+    # column is touched.
+
+    # 日落 (sunset) — high < prev_high AND low < prev_low. Mirror of is_sunrise_bar
+    # used inside attack_intensity above. Used by hanging_man (P05), bear_single_day (P16).
+    df["is_sunset_bar"] = (df["high"] < df["prev_high"]) & (df["low"] < df["prev_low"])
+
+    # 孕線 / 懷抱 (harami) — high <= prev_high AND low >= prev_low (today fully
+    # inside prev day's range). Used by morning_star (P04, P06), harami_neutral (P21),
+    # internal_trap (P24).
+    df["is_harami"] = (df["high"] <= df["prev_high"]) & (df["low"] >= df["prev_low"])
+
+    # K 棒中值 — (open + close) / 2. Course明示 (第 03 篇). Used by morning_star,
+    # enemy_at_gate, evening_star, piercing.
+    df["midpoint"] = (df["open"] + df["close"]) / 2
+
+    # 跳空 (gap up / gap down) — strict K-line gap definition (no overlap with prev range).
+    df["is_gap_up_today"] = df["low"] > df["prev_high"]
+    df["is_gap_down_today"] = df["high"] < df["prev_low"]
+
+    # body_pct percentile rank over trailing 20 days (excluding today).
+    # Used by is_power_bar Option B (currently OFF — see patterns/_common.py).
+    # We rank today's body_pct against the prior 20-bar window.
+    def _pct_rank(s):
+        if s.isna().all() or len(s) < 2:
+            return float("nan")
+        # rank today's value within the prior window
+        prior = s.iloc[:-1].dropna()
+        today = s.iloc[-1]
+        if pd.isna(today) or len(prior) == 0:
+            return float("nan")
+        return (prior < today).sum() / len(prior)
+
+    df["body_pct_pct_rank_20d"] = (
+        df.groupby("ticker")["body_pct"]
+        .rolling(21, min_periods=10)
+        .apply(_pct_rank, raw=False)
+        .reset_index(level=0, drop=True)
+    )
+
+    # =====================================================================
+    # Task 2.4 additions — 明日 K 線 INVENTORY C03 / C04 / C05 / C07
+    # Added at the END; no existing column is modified.
+    # =====================================================================
+
+    # === C03: 攻擊意圖區 / 攻擊企圖區 boundary features ===
+    # Course source: 明日 K 線 INVENTORY.md §C03 (第 23、32 篇)
+    #
+    # 攻擊意圖區 = 從低檔往上靠近前高、賣壓化解的區段（突破前高之前）
+    # 攻擊企圖區 = 突破前高之後的價位區段（突破點往上，不可跌回意圖區）
+    #
+    # Columns:
+    #   attack_intent_zone_high — 意圖區上緣（突破前高當日的高點）
+    #                             = prior_high_60 at the breakout bar
+    #                             Implementation: rolling window max of
+    #                             (high on bars where close > prior_high_60),
+    #                             using a 20-bar lookback.
+    #
+    #   attack_intent_zone_low  — 意圖區下緣（突破前高之前 N 日的最低 close）
+    #                             退化值 [STUB-NEED-USER S6]:
+    #                             min(close) over the 20 bars before breakout.
+    #                             Implementation: rolling 20-bar prior min close.
+    #
+    #   intent_zone_break       — 今日 close 跌回攻擊意圖區（跌破意圖區上緣）
+    #                             = today_close < attack_intent_zone_high
+    #
+    # Note on attack_intent_zone_high:
+    #   We track the most recent prior_high_60 value among bars where a breakout
+    #   occurred in the trailing 20 days. If no breakout occurred, we fall back
+    #   to the current prior_high_60 as the "potential" intent zone ceiling.
+    #
+    # [STUB-NEED-USER S6]: 意圖區下緣（賣壓化解起點）的精確計算需 user 確認。
+    #   退化值：過去 20 日最低收盤，作為賣壓化解區段的下緣估算。
+
+    # 攻擊意圖區上緣：找過去 20 天內最近一次突破前高的當日 prior_high_60
+    # Vectorized: on each day, look back up to 20 bars for a breakout bar
+    # (close > prior_high_60) and pick the prior_high_60 of that bar.
+    # For simplicity / efficiency: roll 20-bar max of (prior_high_60 * breakout_flag).
+    # When no breakout in window, returns NaN.
+    breakout_ph60 = df["prior_high_60"].where(
+        (df["close"] > df["prior_high_60"]).fillna(False)
+    )
+    df["attack_intent_zone_high"] = (
+        g["close"]
+        .transform(lambda _s: breakout_ph60.reindex(_s.index)
+                   .rolling(20, min_periods=1).apply(
+                       lambda x: x.dropna().iloc[-1] if x.dropna().shape[0] > 0 else float("nan"),
+                       raw=False,
+                   ))
+    )
+
+    # 攻擊意圖區下緣：過去 20 日收盤最低值（退化值 STUB S6）
+    df["attack_intent_zone_low"] = g["close"].transform(
+        lambda s: s.shift(1).rolling(20, min_periods=1).min()
+    )
+
+    # 跌回攻擊意圖區 flag
+    df["intent_zone_break"] = (
+        df["close"] < df["attack_intent_zone_high"].fillna(df["prior_high_60"])
+    ).fillna(False)
+
+    # === C04: 剛創新高 label ===
+    # Course source: 明日 K 線 INVENTORY.md §C04 (第 03、10、24、40 篇)
+    #
+    # 「剛創新高」= 今日或前 1~2 日的高點 == 當時的 60 日前高（prior_high_60）
+    # 用途：合併十字線、攻擊成本、防守姿態等多個明日 K 線劇本都需要此位置條件。
+    #
+    # Definition (from INVENTORY §C04):
+    #   is_just_broke_high = (today.high >= prior_high_60)
+    #                      OR (prev.high >= prev.prior_high_60)
+    #                      OR (prev_prev.high >= prev_prev.prior_high_60)
+    #
+    # "≥" is used (not "==") because a gap-up breakout bar may close above
+    # prior_high_60 while the high itself exceeds it. The INVENTORY wording
+    # "(high == prior_high_60)" is a course-level conceptual shorthand for
+    # "touched or broke the 60-day prior high".
+
+    prev_high_ph60_match = (
+        g["high"].shift(1) >= g["prior_high_60"].shift(1)
+    ).fillna(False)
+    prev2_high_ph60_match = (
+        g["high"].shift(2) >= g["prior_high_60"].shift(2)
+    ).fillna(False)
+
+    df["is_just_broke_high"] = (
+        (df["high"] >= df["prior_high_60"])
+        | prev_high_ph60_match
+        | prev2_high_ph60_match
+    ).fillna(False)
+
+    # === C04b: 剛創新高（盤中版）label ===
+    # Course source: 明日 K 線 第 24 篇《合併十字線》
+    #
+    # 老師原文（E9A6F935298C7C5C2E269AA952AA1BB2）：
+    #   「股價在剛創新高的位置，長十字線代表的是盤中有過先上漲的拉抬」
+    #   「創新高的上影線也是攻擊過的意義」
+    #   「位置就在剛創新高的狀態」
+    #
+    # 關鍵差異：
+    #   is_just_broke_high（C04）   = close >= prior_high_60（收盤突破）
+    #   is_just_broke_high_intraday = high  >= prior_high_60（盤中觸及即算）
+    #
+    # 課程明示「盤中有過攻擊的力量」= 上影線創新高（high >= prior_high_60），
+    # 不一定要收盤突破。此變體專為 merged_doji 新增，不改動原有 is_just_broke_high。
+    #
+    # 窗口：今日、前 1 日、前 2 日（同 C04 三天窗口，用 high 取代 close）。
+    #
+    # [STUB-NEED-USER S5]:
+    #   「盤中創新高」的定義已由課程明示（high > prior_high_60），
+    #   但「前 2 日」窗口（今日 + D-1 + D-2）是否足夠，課程未明示窗口天數。
+    #   沿用 C04 的三天窗口作為代理。
+
+    prev_high_ph60_intraday = (
+        g["high"].shift(1) >= g["prior_high_60"].shift(1)
+    ).fillna(False)
+    prev2_high_ph60_intraday = (
+        g["high"].shift(2) >= g["prior_high_60"].shift(2)
+    ).fillna(False)
+
+    df["is_just_broke_high_intraday"] = (
+        (df["high"] >= df["prior_high_60"])
+        | prev_high_ph60_intraday
+        | prev2_high_ph60_intraday
+    ).fillna(False)
+
+    # === C05: 漲停鎖住 flag ===
+    # Course source: 明日 K 線 INVENTORY.md §C05 (第 20、28 篇)
+    #
+    # 漲停鎖住 = 收盤在漲停價 + 全天最高 == 收盤（沒有上影線）+ 全天最低 ≥ 前日收盤
+    #
+    # Taiwan market: 漲停 = prev_close * 1.10（無條件截到 tick 0.1）
+    # Proxy: use close >= prev_close * 1.095 to avoid tick-rounding precision issues.
+    # (INVENTORY definition uses exact == ; 0.095 threshold matches zhuli/entry usage.)
+    #
+    # Conditions (all AND):
+    #   1. close >= prev_close * 1.095   — 收盤達漲停（含 tick 容差）
+    #   2. high == close                 — 無上影線（鎖住，無賣壓突破）
+    #   3. low >= prev_close             — 全天最低 ≥ 參考價（從不跌回昨收）
+    _limit_up_threshold = 1.095  # proxy for +10% limit; see zhuli/entry/open_signal_filter.py
+    df["is_limit_up_locked"] = (
+        (df["close"] >= df["prev_close"] * _limit_up_threshold)
+        & (df["high"] == df["close"])
+        & (df["low"] >= df["prev_close"])
+    ).fillna(False)
+
+    # === C07: 異常放量 flag ===
+    # Course source: 明日 K 線 INVENTORY.md §C07 (第 40 篇)
+    #
+    # 「明顯放量」= 本來無量，突然出現的大量（老師定性描述，無數字）
+    #
+    # [STUB-NEED-USER S1]:
+    #   K (vol_ma_60 multiplier) = 2.0, J (vol_max_60 multiplier) = 1.5（退化預設值）
+    #   上述數字待 user 拍板；回測時可傳入不同 K/J 至 _common.is_anomalous_volume。
+    #   實作已抽到 patterns/_common.py — 調整 K/J 只需改該 helper 的參數。
+    df["is_anomalous_volume"] = _is_anomalous_volume(df)
+
+    # === at_pressure_retest: 壓力區回測（套牢/波動/獲利了結三類賣壓共通前提） ===
+    # Course source: 明日 K 線 §08「壓力的分類」B5DB7A687DA4FA572833411DE9CD88D8
+    #   「碰到了賣壓之後，接下來股價會怎樣走呢？」
+    #   「股價第二次又來到 170 元附近⋯⋯隔天要確認是攻擊，必須就是一開盤開在 176.5 元以上
+    #    的跳空攻擊⋯⋯」
+    #   壓力 = 盤中高點觸及前高（碰到）但收盤未突破（未越過）
+    #   課程明示「碰到」vs「越過」= 二元判斷，無 % 距離概念。
+    #
+    # 課程依據：老師用具體價位（170 元/176.5 元）描述「碰到」vs「越過」，
+    #   不是「距離 X% 以內」的區間概念。
+    #
+    # 條件（課程二元觸及）：
+    #   high >= prior_high_60   → 盤中觸及前高（碰到）
+    #   close < prior_high_60   → 收盤未突破（沒越過）
+    #
+    # 取代舊版 AT_PRESSURE_RETEST_PCT % 範圍方式（已廢棄）。
+    # 預期 fire rate: ~5-15%（vs 舊版 ~55%；舊版含大量「接近但未觸」的 FP）
+    df["at_pressure_retest"] = (
+        (df["high"] >= df["prior_high_60"])
+        & (df["close"] < df["prior_high_60"])
+    ).fillna(False)
+
+    # === 扣抵值 (kou values) 預判明日 MA 方向 ===
+    # Course sources: 入門 + 行進ing 均明示，N 天前 close 是「明日扣抵」
+    # 預判邏輯（假設明日 close ≈ 今日 close）:
+    #   明日 MA_N > 今日 MA_N  iff  今日 close > N 天前的 close（扣抵值）
+    # 故 ma_will_rise = today.close > shift(N).close
+    df["ma5_kou"] = g["close"].shift(5)
+    df["ma10_kou"] = g["close"].shift(10)
+    df["ma20_kou"] = g["close"].shift(20)
+    df["ma60_kou"] = g["close"].shift(60)
+    # Use plain bool comparison; kou NaN propagates → False. Consumers can
+    # check ma{N}_kou notna() to distinguish "no data" from "will fall".
+    df["ma5_will_rise"] = (df["close"] > df["ma5_kou"]).fillna(False).astype(bool)
+    df["ma10_will_rise"] = (df["close"] > df["ma10_kou"]).fillna(False).astype(bool)
+    df["ma20_will_rise"] = (df["close"] > df["ma20_kou"]).fillna(False).astype(bool)
+    df["ma60_will_rise"] = (df["close"] > df["ma60_kou"]).fillna(False).astype(bool)
+
+    # =====================================================================
+    # Task 3.E additions — 明日 K 線 INVENTORY C12
+    # Added at the END; no existing column is modified.
+    # =====================================================================
+
+    # === C12: transition_inner_to_gap — 內困翻黑演進為向下跳空反轉 ===
+    # Course source: 明日 K 線 INVENTORY.md §C12 (第 13 篇)
+    #
+    # 「內困型態（孕線）翻黑後，若隔日向下跳空 → trigger 既有 gap_reversal
+    #   並標註是『內困演進』」 — 明日 K 線對 trapped.py + gap_reversal.py 的串接
+    #
+    # Definition:
+    #   D-2: 創新高紅 K（close > prior_high_60 AND is_red）
+    #   D-1: 孕線（high <= D-2 high AND low >= D-2 low）
+    #   D-0: 向下跳空（open < prev_low）— 無論是否回補，已視為 gap_reversal 演進
+    #
+    # 日 K 退化版：
+    #   D-0 open < prev_low 已是真實跳空（K-line gap），與 gap_reversal.py 一致。
+    #   「是否回補」不在此層判斷（留給 exit/gap_attack_filled.py）。
+    #
+    # Note: INVENTORY §C12 明示「標註是內困演進」，本欄位即提供此 label，
+    # 讓 playbook 或 advisor 知道這是 trapped → gap_reversal 的串接模式。
+    g3 = df.groupby("ticker")
+    open_d2 = g3["open"].shift(2)
+    close_d2 = g3["close"].shift(2)
+    high_d2 = g3["high"].shift(2)
+    low_d2 = g3["low"].shift(2)
+    prior_high_60_d2 = g3["prior_high_60"].shift(2)
+
+    high_d1 = g3["high"].shift(1)
+    low_d1 = g3["low"].shift(1)
+    d1_harami_in_d2 = (high_d1 <= high_d2) & (low_d1 >= low_d2)
+    d2_red_new_high = (close_d2 > open_d2) & (close_d2 > prior_high_60_d2)
+
+    # D-0 gap down open
+    d0_gap_down_open = df["open"] < df["prev_low"]
+
+    df["transition_inner_to_gap"] = (
+        d2_red_new_high & d1_harami_in_d2 & d0_gap_down_open
+    ).fillna(False)
+
+    # =====================================================================
+    # Lights-fix additions (2026-06-04) — toplevel features for YAML lights
+    # to express course-faithful conditions. No existing column modified.
+    # Course sources noted per feature.
+    # =====================================================================
+
+    # === Short-window prior highs/lows (5/10 day windows) ===
+    # Used by §15 高檔推升, §02 中樞窄幅, §10 上影線, §12 漲停隔日, §16 上升三法.
+    df["prior_high_5"] = g["high"].transform(lambda s: s.shift(1).rolling(5, min_periods=5).max())
+    df["prior_low_5"] = g["low"].transform(lambda s: s.shift(1).rolling(5, min_periods=5).min())
+    df["prior_high_10"] = g["high"].transform(lambda s: s.shift(1).rolling(10, min_periods=10).max())
+
+    # === body_pct / range_pct as toplevel scalars (for §11 高檔長黑 body 門檻) ===
+    # Alias existing body_pct/range_pct so YAML can reference them as toplevel.
+    df["body_pct_today"] = df["body_pct"]
+    df["range_pct_today"] = df["range_pct"]
+
+    # === is_limit_up_today — toplevel bool alias for is_limit_up_locked ===
+    # Course source: 明日 K 線 §12 漲停板出現後再繼續上漲的機率
+    # Stored as int (0/1) so vectorized float cast works; consumed via bool field check.
+    df["is_limit_up_today"] = df["is_limit_up_locked"].fillna(False).astype(int)
+
+    # === low_price_flag — close < LOW_PRICE_THRESHOLD [EXTRAS] ===
+    # Course source: 明日 K 線 §09 低價股的處理節奏 (5710C4E8...)
+    # 「八張低價股，跟買一張百元的中價股，價格的風險一樣」
+    # [EXTRAS] LOW_PRICE_THRESHOLD = 30.0 是業界 proxy（課程未明示門檻數字）。
+    # 常數已從 course_proxy_constants.py 移至 extras/low_price.py。
+    # lowprice_first_pull_exit.yaml 標記 [EXTRAS]，提醒此 light 含課程外條件。
+    from .course_proxy_constants import LOW_PRICE_THRESHOLD
+    df["low_price_flag"] = (df["close"] < LOW_PRICE_THRESHOLD).fillna(False).astype(int)
+
+    # === is_breakdown_pattern_flag — toplevel int alias for is_in_breakdown_pattern ===
+    # Course source: 明日 K 線 §17 頭部成型 (跌破頸線). Proxy: ≥2 new-low events + MA60 下彎.
+    df["is_breakdown_pattern_flag"] = df["is_in_breakdown_pattern"].fillna(False).astype(int)
+
+    # === is_anomalous_volume_flag — toplevel int alias for is_anomalous_volume ===
+    # Course source: §40 明顯放量創新高 + 賣壓化解需有量.
+    df["is_anomalous_volume_flag"] = df["is_anomalous_volume"].fillna(False).astype(int)
+
+    # === recent_range_pct_5 — 過去 5 日（含今日）high-low 區間 / close 比 ===
+    # Course source: 明日 K 線 §02 中樞型態 — 「橫向盤整」窄幅判斷
+    # [STUB-NEED-USER L3]: ZHONGSHU_RANGE_MAX_PCT = 0.10
+    high_5 = g["high"].transform(lambda s: s.rolling(5, min_periods=5).max())
+    low_5 = g["low"].transform(lambda s: s.rolling(5, min_periods=5).min())
+    df["recent_range_pct_5"] = ((high_5 - low_5) / df["close"].replace(0, np.nan)).fillna(1.0)
+
+    # =====================================================================
+    # Advanced field wiring (2026-06-05) — 4 toplevel context fields
+    # Required so lt_attack_cost_breakdown / lt_defensive_low_break /
+    # lt_merged_doji_high_break / lt_merged_doji_low_break lights fire.
+    # =====================================================================
+
+    # === merged_high / merged_low — 合併十字線高低點 (§24) ===
+    # Course source: 明日 K 線 第 24 篇《合併十字線》
+    # 「兩根合併就是長十字線，位置也沒有錯誤，表示股價已經具備了攻擊意圖」
+    # 命中日 = merged_doji pattern 觸發日；merged_high/merged_low = 兩根 K 合併後的高低點。
+    # Forward-fill MERGED_DOJI_CARRY_DAYS = 1 日（課程明示「隔日就要表態、無法後天大後天」）。
+    #
+    # 課程依據（§24）：「明天的重點就得要攻擊，且這是一定要發生的，無法變成後天、大後天」
+    # 課程依據（§26）：「明日就得開始攻擊，或者跌破合併十字線的低點作為確認不攻擊。」
+    # 因此 forward-fill 只保留「隔日一天」——課程明示效力窗口。
+    #
+    # Inline computation reusing already-computed features.py columns for performance.
+    # Logic mirrors patterns/merged_doji.detect() but avoids redundant groupby.shift().
+    # Constants come from course_proxy_constants (same as merged_doji.py imports).
+    _MD_BODY_RATIO = _MERGED_DOJI_BODY_RATIO
+    _MD_SHADOW_RATIO = _MERGED_DOJI_SHADOW_MIN_RATIO
+
+    # Condition 1: 剛創新高位置（use is_just_broke_high_intraday already computed above）
+    _md_just_broke = df["is_just_broke_high_intraday"].fillna(False)
+
+    # Condition 2: 前根上影線為主（prev_upper_shadow > prev_lower_shadow）
+    # prev_open/close computed at top of add_features; prev_high/prev_low also.
+    _prev_body_top = df[["prev_open", "prev_close"]].max(axis=1)
+    _prev_body_bot = df[["prev_open", "prev_close"]].min(axis=1)
+    _prev_upper_sh = df["prev_high"] - _prev_body_top
+    _prev_lower_sh = _prev_body_bot - df["prev_low"]
+    _prev_upper_dom = _prev_upper_sh > _prev_lower_sh
+
+    # 今根下影線為主（lower_shadow > upper_shadow，use already-computed columns）
+    _today_lower_dom = df["lower_shadow"] > df["upper_shadow"]
+
+    # Condition 3: 合併後為十字線
+    _merged_h = df[["prev_high", "high"]].max(axis=1)
+    _merged_l = df[["prev_low", "low"]].min(axis=1)
+    _merged_open = df["prev_open"]
+    _merged_close = df["close"]
+    _merged_range = (_merged_h - _merged_l).replace(0, np.nan)
+    _body = (_merged_open - _merged_close).abs()
+    _body_ratio = _body / _merged_range
+    _upper_body = df[["prev_open", "close"]].max(axis=1)
+    _lower_body = df[["prev_open", "close"]].min(axis=1)
+    _upper_sh_m = _merged_h - _upper_body
+    _lower_sh_m = _lower_body - _merged_l
+    _is_merged_doji = (
+        (_body_ratio <= _MD_BODY_RATIO)
+        & ((_upper_sh_m / _merged_range) >= _MD_SHADOW_RATIO)
+        & ((_lower_sh_m / _merged_range) >= _MD_SHADOW_RATIO)
+    ).fillna(False)
+
+    _md_signal = (_md_just_broke & _prev_upper_dom & _today_lower_dom & _is_merged_doji).fillna(False)
+
+    _merged_high_raw = _merged_h.where(_md_signal, other=np.nan)
+    _merged_low_raw = _merged_l.where(_md_signal, other=np.nan)
+
+    df["merged_high"] = (
+        _merged_high_raw
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=MERGED_DOJI_CARRY_DAYS))
+    )
+    df["merged_low"] = (
+        _merged_low_raw
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=MERGED_DOJI_CARRY_DAYS))
+    )
+
+    # === attack_cost — 攻擊成本顯現日的漲停價 (§20) ===
+    # Course source: 明日 K 線 第 20 篇《攻擊成本顯現日》
+    # 「突破前高的當日，股價鎖住漲停板，且最大量就是在這個漲停板的價位」
+    # 攻擊成本 = 漲停鎖住當日的 close（漲停價 proxy）。
+    # Forward-fill ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS 日（= 20，同 state-machine 窗口）。
+    #
+    # Implementation (inline, reusing already-computed df columns):
+    #   raw_signal = is_limit_up_locked & close > prior_high_60
+    #   (volume_condition: ATTACK_COST_VOL_RATIO = 1.0 = no-op in day-K fallback)
+    #   State-machine suppression: forward-fill with limit achieves equivalent result —
+    #   once attack_cost is seeded, it persists for N days, preventing re-seeding
+    #   (a new signal only overwrites if the old value is already NaN'd out).
+    #
+    # Note: this inline skips the per-row intraday minute-bar check (分K覆寫) which
+    # attack_cost_displayed.detect() does. Full intraday check available via the
+    # pattern detector directly; this is the features.py vectorized approximation.
+    #
+    # State-machine suppression via groupby rolling max (vectorized, no lambda):
+    _ac_n = ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS
+    _ac_raw = (df["is_limit_up_locked"].fillna(False)
+               & (df["close"] > df["prior_high_60"]).fillna(False)).astype(np.int8)
+
+    _prior_ac = (
+        _ac_raw
+        .groupby(df["ticker"])
+        .shift(1)
+        .fillna(0)
+    )
+    _prior_ac_rolling = (
+        _prior_ac
+        .groupby(df["ticker"])
+        .rolling(_ac_n, min_periods=1)
+        .max()
+        .reset_index(level=0, drop=True)
+    )
+    _acd_sig = (_ac_raw.astype(bool)) & (_prior_ac_rolling < 1)
+    _ac_seed = df["close"].where(_acd_sig, other=pd.NA)
+
+    df["attack_cost"] = (
+        _ac_seed
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=_ac_n))
+    )
+
+    # === defensive_low — 防守姿態低點 (§26) ===
+    # Course source: 明日 K 線 第 26 篇《防守姿態》
+    # 老師 9945 案例原話：「過去六天的低點」作為防守價位。
+    # 課程未明示通則天數 — 以 9945 案例的「六天」為代理。
+    #
+    # 課程脈絡：「防守姿態」發生在股價剛創新高（is_just_broke_high）後，
+    # 主力「防守」表示不讓股價跌回原本位置。
+    # 非剛創新高位置不適用防守點邏輯（老師未說所有個股通用）。
+    #
+    # Implementation:
+    #   Step 1: 計算過去 N 日的最低 K 棒 low 作為「防守支撐」seed。
+    #   Step 2: 僅在 is_just_broke_high = True 的 bar 保留 seed（限制在攻擊位置）。
+    #   Step 3: Forward-fill DEFENSIVE_LOW_LOOKBACK_DAYS 日（防守期間持續有效）。
+    #
+    # 「跌破防守價」= today.close < defensive_low（收盤跌破 K 棒支撐低點）。
+    #
+    # [STUB-NEED-USER]: DEFENSIVE_LOW_LOOKBACK_DAYS = 6（老師 9945 案例個案數字）。
+    # 課程未明示是否適用所有個股、也未明示通則天數。
+    # [STUB-NEED-USER]: 限制在 is_just_broke_high = True 是我們加的「攻擊位置」前提，
+    # 課程未明示觸發條件（§26 討論的都是剛創新高的情境）。
+    _def_low_6d = g["low"].transform(
+        lambda s: s.shift(1).rolling(
+            DEFENSIVE_LOW_LOOKBACK_DAYS,
+            min_periods=DEFENSIVE_LOW_LOOKBACK_DAYS,
+        ).min()
+    )
+    # Only populate when stock is at "just broke high" position (§26 context)
+    _def_low_seed = _def_low_6d.where(df["is_just_broke_high"].fillna(False), other=np.nan)
+    # Forward-fill to keep defensive_low active during the defensive window
+    df["defensive_low"] = (
+        _def_low_seed
+        .groupby(df["ticker"])
+        .transform(lambda s: s.ffill(limit=DEFENSIVE_LOW_LOOKBACK_DAYS))
+    )
+
+    # =====================================================================
+    # INTRO concepts impl (2026-06-05)
+    # Course sources: 入門 §34 自救型突破 / §07 + §30 同價位賣壓 /
+    #                 §49 + §10 創新高十字線攻擊 / 強者恆強
+    # See docs/kline_course/notes/intro_concepts_impl_2026-06-05.md
+    # =====================================================================
+
+    # === INTRO-1a: is_self_rescue_breakout — 自救型突破 (入門 §34) ===
+    # Course quote:
+    #   「股價又突破了前高。此時成交量卻出現了比前高萎縮的跡象」
+    #   「如果這次突破比上次量增，那就不列為自救型突破的範圍了」
+    # Definition:
+    #   1. 今日為突破 (close > prior_high_60, is_first_breakout_above_level=True)
+    #   2. 過去 N 日內存在「上次突破」(close > prior_high_60 過)
+    #   3. 今日成交量 < 上次突破當日成交量 × SELF_RESCUE_VOL_RATIO_MAX (量縮)
+    # NOTE: 「多頭背景」依入門 §34 一律要求季線多頭 → close > ma60 already in feature D.
+    #       利空背景 (taiex 下跌) 由 context layer 提供（taiex_down_today / is_after_negative_news）
+    #       — light/playbook 在 trigger_condition 串接此 context。
+    breakout_today = (df["close"] > df["prior_high_60"]).fillna(False)
+
+    # Find max volume among prior breakout bars within the lookback window
+    _vol_on_breakout = df["volume"].where(breakout_today, other=np.nan)
+    # Use shift(1) then rolling max to find max breakout-day volume in window (exclude today).
+    _prev_max_breakout_vol = (
+        _vol_on_breakout
+        .groupby(df["ticker"])
+        .shift(1)
+        .groupby(df["ticker"])
+        .transform(
+            lambda s: s.rolling(SELF_RESCUE_PREV_BREAKOUT_LOOKBACK, min_periods=1).max()
+        )
+    )
+    # vol shrinkage condition (only meaningful where prev breakout vol exists)
+    _vol_shrinkage = (
+        df["volume"] < _prev_max_breakout_vol * SELF_RESCUE_VOL_RATIO_MAX
+    ).fillna(False)
+    # multi-head background (close > ma60)
+    _multi_head_bg = (df["close"] > df["ma60"]).fillna(False)
+
+    df["is_self_rescue_breakout"] = (
+        breakout_today
+        & _vol_shrinkage
+        & _multi_head_bg
+        & _prev_max_breakout_vol.notna()
+    ).fillna(False)
+
+    # === INTRO-2: same_level_red_count_5d — 同價位反覆紅K (§07 §30) ===
+    # Course quote (§07): 「同一個價位紅K的隔天就出現黑K，次數多了就顯是有實質賣壓存在」
+    # Course quote (§30): 「到了某個價位就會多次出現紅K(上漲)接續著黑K(賣盤)的走勢」
+    # Definition: count of prior bars in last N days where:
+    #   - that bar was a red K
+    #   - that bar's close was within tolerance of today's close (「同一個價位」)
+    # 「實質賣壓」light 進一步要求 today.is_black + same_level_red_count_5d >= 2.
+    today_close_arr = df["close"].to_numpy()
+    same_level_count = np.zeros(len(df), dtype=float)
+    for lag in range(1, SAME_LEVEL_LOOKBACK_DAYS + 1):
+        prev_close_lag = g["close"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
+        prev_is_red_lag = g["is_red"].shift(lag).fillna(False).to_numpy()
+        # within tolerance band
+        denom = np.where(today_close_arr == 0, np.nan, today_close_arr)
+        diff_pct = np.abs(prev_close_lag - today_close_arr) / denom
+        near_today = diff_pct <= SAME_LEVEL_PRICE_TOLERANCE
+        same_level_count += (prev_is_red_lag & near_today).astype(float)
+
+    df["same_level_red_count_5d"] = same_level_count.astype(int)
+
+    # === INTRO-4: just_high_doji — 剛創新高 + 十字線 (§49 §10 攻擊型態) ===
+    # Course quote (§49):
+    #   「最簡易的攻擊K線當然是跳空、長紅，因為大家都知道這兩種的力量，反而忽略了上影線
+    #    與十字線在剛創新高時代表的攻擊意義」
+    # Course quote (§10):
+    #   「股價創新高的時候，本來就應該視之為攻擊」
+    # Definition: today is_doji AND today.high >= prior_high_60 (剛創新高位置)
+    # 用既有 is_doji + just_high_upper_shadow 的 sister 概念。
+    df["just_high_doji"] = (
+        df["is_doji"].fillna(False)
+        & (df["high"] >= df["prior_high_60"]).fillna(False)
+    ).fillna(False)
+
+    # Toplevel int aliases for YAML DSL (lights reference these)
+    df["same_level_red_count_5d_int"] = df["same_level_red_count_5d"].fillna(0).astype(int)
+    df["is_self_rescue_breakout_flag"] = df["is_self_rescue_breakout"].fillna(False).astype(int)
+    df["just_high_doji_flag"] = df["just_high_doji"].fillna(False).astype(int)
+    df["is_black_today"] = df["is_black"].fillna(False).astype(int)
 
     return df
