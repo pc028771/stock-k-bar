@@ -217,6 +217,17 @@ def format_advisor_result(
     ma60_str = f"{ma60_val:.2f}" if ma60_val is not None else "—"
     lines.append(f"  Close: {close_str}  | MA5/10/20/60: {ma5_str}/{ma10_str}/{ma20_str}/{ma60_str}")
 
+    # 距 MA20 / MA60 百分比 — 讓 user 看到位階過熱與否
+    if close_val is not None:
+        dist_parts = []
+        for ma_name, ma_v in (("MA20", ma20_val), ("MA60", ma60_val)):
+            if ma_v is not None and ma_v != 0:
+                pct = (close_val - ma_v) / ma_v * 100
+                emoji = "🔴" if pct > 30 else ("🟡" if pct > 15 else "🟢")
+                dist_parts.append(f"距 {ma_name} {pct:+.1f}%{emoji}")
+        if dist_parts:
+            lines.append(f"  {'  '.join(dist_parts)}")
+
     # MA 扣抵狀態
     if ctx is not None:
         ma5e = _ma_will_rise_emoji(ctx.ma5_will_rise, close_val, ma5_val)
@@ -343,7 +354,16 @@ def format_advisor_result(
         for note in meaningful_notes:
             lines.append(f"  • {note}")
         if warn_notes:
-            lines.append(f"  • [{len(warn_notes)} 個 context 欄位缺失 (WARN: ContextSnapshot...)]")
+            import re as _re
+            field_names = set()
+            for n in warn_notes:
+                m = _re.search(r"field '([^']+)'", n)
+                if m:
+                    field_names.add(m.group(1))
+            if field_names:
+                lines.append(f"  • Context 欄位缺失：{', '.join(sorted(field_names))}")
+            else:
+                lines.append(f"  • [{len(warn_notes)} 個 context 欄位缺失]")
         lines.append("")
 
     # ------------------------------------------------------------------

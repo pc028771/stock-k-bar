@@ -42,7 +42,7 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH, fill_from_backfill: bool = True) 
         select
             ticker, trade_date,
             open, high, low, close, volume,
-            ma20, ma60, ma240,
+            ma5, ma10, ma20, ma60, ma240,
             vol_ma20, vol_ratio_20,
             is_attention_stock, is_disposition_stock, is_usable
         from standard_daily_bar

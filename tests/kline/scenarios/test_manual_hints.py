@@ -45,27 +45,36 @@ def _ctx(**kwargs) -> ContextSnapshot:
 # ---------------------------------------------------------------------------
 
 
-def test_defensive_stance_triggers_on_taiex_recent_weak() -> None:
+def test_defensive_stance_no_trigger_when_only_taiex_recent_weak() -> None:
+    """After tightening to AND, taiex_recent_weak alone is not enough."""
     row = _make_row()
     ctx = _ctx(taiex_recent_weak=True)
     hint = check_defensive_stance_hint(row, ctx)
-    assert hint is not None
-    assert hint["name"] == "defensive_stance"
-    assert "taiex_recent_weak=True" in hint["trigger_reason"]
+    assert hint is None
 
 
 # ---------------------------------------------------------------------------
-# TMH.2  defensive_stance triggers when defensive_low is set (no taiex_recent_weak)
+# TMH.2  defensive_stance requires BOTH taiex_recent_weak AND defensive_low
+# (course §26: 「市場悲觀氣氛中」+ 個股守住價位 — tightened 2026-06-05 from OR
+#  because defensive_low became always-populated and OR fired on every ticker)
 # ---------------------------------------------------------------------------
 
 
-def test_defensive_stance_triggers_on_defensive_low_only() -> None:
+def test_defensive_stance_triggers_when_both_signals_present() -> None:
     row = _make_row()
-    ctx = _ctx(defensive_low=95.0)
+    ctx = _ctx(defensive_low=95.0, taiex_recent_weak=True)
     hint = check_defensive_stance_hint(row, ctx)
     assert hint is not None
     assert hint["name"] == "defensive_stance"
     assert "defensive_low=95.0" in hint["trigger_reason"]
+
+
+def test_defensive_stance_no_trigger_when_only_defensive_low() -> None:
+    """After tightening to AND, defensive_low alone is not enough (course §26)."""
+    row = _make_row()
+    ctx = _ctx(defensive_low=95.0)
+    hint = check_defensive_stance_hint(row, ctx)
+    assert hint is None
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +201,7 @@ def test_formatter_no_hint_block_when_empty() -> None:
 def test_defensive_stance_course_quotes_verbatim() -> None:
     """Ensure the course quotes in the hint are verbatim from course text."""
     row = _make_row()
-    ctx = _ctx(taiex_recent_weak=True)
+    ctx = _ctx(taiex_recent_weak=True, defensive_low=95.0)
     hint = check_defensive_stance_hint(row, ctx)
     assert hint is not None
     quotes = hint["course_quotes"]

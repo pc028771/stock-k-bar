@@ -66,11 +66,13 @@ def check_defensive_stance_hint(
     If both taiex_recent_weak and defensive_low are None (no context at all),
     we do NOT emit a hint to avoid noise.
     """
-    # Need at least one of the two primary signals to avoid false positive flood
+    # Course §26 requires BOTH 「市場悲觀氣氛中」(taiex weak) AND 個股守住價位.
+    # Previously OR-condition triggered on every ticker once defensive_low became
+    # always-populated (2026-06-05 wiring). Tighten to AND to match course intent.
     has_taiex_signal = ctx.taiex_recent_weak is True
     has_defensive_price = ctx.defensive_low is not None
 
-    if not has_taiex_signal and not has_defensive_price:
+    if not (has_taiex_signal and has_defensive_price):
         return None
 
     # Build trigger_reason from available context
