@@ -3182,26 +3182,32 @@ def _kb_listener(demo_mode: bool = False):
                 _demo_jump[0] = True
                 _render_request[0] = True
                 return
-        # 主 monitor 模式 + 非 cheat sheet: +/-/0 調 watch-limit
-        if not demo_mode and not _cheat_mode[0]:
-            if ch in ('+', '='):  # `=` 是 `+` 無 shift
-                _watch_limit[0] = _watch_limit[0] + 1
-                _render_request[0] = True
-                return
-            if ch == '-':
-                _watch_limit[0] = max(0, _watch_limit[0] - 1)
-                _render_request[0] = True
-                return
-            if ch == '0':
-                _watch_limit[0] = 0  # 0 = 不限
-                _render_request[0] = True
-                return
+        # +/-/0 調 watch-limit (demo mode 0 已被處理)
+        if not _cheat_mode[0]:
+            if not demo_mode:
+                if ch in ('+', '='):
+                    _watch_limit[0] = _watch_limit[0] + 1
+                    _render_request[0] = True
+                    return
+                if ch == '-':
+                    _watch_limit[0] = max(0, _watch_limit[0] - 1)
+                    _render_request[0] = True
+                    return
+                if ch == '0':
+                    _watch_limit[0] = 0
+                    _render_request[0] = True
+                    return
+            # t/f 在 demo + real monitor 都生效 (demo 也要能驗證 UX)
             if ch == 't':
-                _teacher_only[0] = not _teacher_only[0]  # toggle 只看老師明示
+                _teacher_only[0] = not _teacher_only[0]
+                if demo_mode:
+                    _demo_jump[0] = True  # 觸發 demo loop 立即 redraw
                 _render_request[0] = True
                 return
             if ch == 'f':
-                _show_failed[0] = not _show_failed[0]  # toggle 顯示不及格段
+                _show_failed[0] = not _show_failed[0]
+                if demo_mode:
+                    _demo_jump[0] = True
                 _render_request[0] = True
                 return
         if ch in mode_map and not _cheat_mode[0]:
