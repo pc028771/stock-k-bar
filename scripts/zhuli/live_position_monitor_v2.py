@@ -234,7 +234,7 @@ COLS_HELD = [
     ("name",    "股名",    8),
     ("cost",    "均",      7),
     ("gap",     "跳空",    7),
-    ("price",   "現價(%)", 16),
+    ("price",   "現價%",   16),
     ("vol_ratio",   "量比",    9),
     ("pnl",     "P&L",    14),
     ("dist_stop","距停",    8),
@@ -437,6 +437,8 @@ class MonitorApp(App[None]):
         """切 tab 後自動 focus 新 tab 的 DataTable。"""
         self.call_after_refresh(self._focus_active_table)
 
+    _tables_ready: bool = False  # guard against on_resize before on_mount
+
     def _setup_tables(self) -> None:
         """初始化所有 DataTable 的 columns。"""
         for table_id, cols in [
@@ -448,11 +450,11 @@ class MonitorApp(App[None]):
         ]:
             dt: DataTable = self.query_one(f"#{table_id}", DataTable)
             for key, label, width in cols:
-                # Trigger 欄 (width=0 or last col) 不限寬、自動延伸到畫面右
                 if key == "trigger":
                     dt.add_column(label, key=key)
                 else:
                     dt.add_column(label, key=key, width=width)
+        self._tables_ready = True
 
     # ── data refresh ─────────────────────────────────────────────────────────
     def _start_data_refresh(self) -> None:
@@ -588,6 +590,8 @@ class MonitorApp(App[None]):
 
     def on_resize(self, event) -> None:
         """terminal 大小改變時、重算 pagination、確保 current_page 不超出、重繪 table。"""
+        if not self._tables_ready:
+            return  # on_mount 還沒跑、columns 未 setup、skip
         for tab_id in list(self._current_page.keys()):
             total = self._get_total_items_for_tab(tab_id)
             ps    = self._calc_page_size()
@@ -676,6 +680,8 @@ class MonitorApp(App[None]):
 
     # ── table refresh ─────────────────────────────────────────────────────────
     def _update_all_tables(self) -> None:
+        if not self._tables_ready:
+            return  # on_mount 還沒跑、columns 未 setup、skip
         with self._data_lock:
             ld = dict(self._live_data)
 
