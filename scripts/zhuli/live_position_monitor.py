@@ -3831,6 +3831,10 @@ def _run_demo(args):
         header.append(f"=== DEMO MODE  {now_str} === ", style="bold magenta")
         header.append(f"[Scenario {idx+1}/{len(scenarios)}: {name}]  ", style="bold yellow")
         header.append(f"({pause_tag})", style="cyan")
+        if _teacher_only[0]:
+            header.append(" [t:ON]", style="bold cyan")
+        if _show_failed[0]:
+            header.append(" [f:ON]", style="bold cyan")
         hint = Text(
             "← → 切換 | home/0 首個 | end 末個 | space 切 auto-cycle | h cheat sheet | q 退出 | "
             f"Phase {phase}",
@@ -4080,6 +4084,11 @@ def main():
         # 時段 chip
         session_label, session_style = _get_session_chip(now)
         header.append(f"  [{session_label}]", style=session_style)
+        # toggle 狀態 (放 header 避免被長 watchlist 推下去)
+        if _teacher_only[0]:
+            header.append("  [t:ON]", style="bold cyan")
+        if _show_failed[0]:
+            header.append("  [f:ON]", style="bold cyan")
         # WS cache stats + data cache stats
         try:
             tot, stale, errs = _cache.stats()
