@@ -776,6 +776,8 @@ _last_ws_render_signal: list[float] = [0.0]
 # Demo mode 全域 state
 _demo_idx: list[int] = [0]
 _demo_paused: list[bool] = [True]  # 預設暫停 auto-cycle、手動切
+_demo_goto_mode: list[bool] = [False]  # g 開頭、等下個輸入數字
+_demo_goto_buf: list[str] = ['']  # g 後累積的數字
 _demo_jump: list[bool] = [False]   # set 後主迴圈立刻 re-render
 _demo_total: list[int] = [0]
 
@@ -1619,9 +1621,10 @@ def r_change_pct(chg: float) -> Text:
 # 持倉表 (Phase 2 t_h)
 COLS_HELD_P2 = [
     ("Stock",     14, "left",  True),
+    ("均",         7, "right", True),
     ("開→現 (%)", 22, "left",  True),
     ("量比",       8, "left",  True),
-    ("P&L",       16, "right", True),
+    ("P&L",       14, "right", True),
     ("距停",       8, "right", True),
     ("狀",         3, "left",  True),
     ("Trigger",    0, "left",  False),
@@ -1721,15 +1724,19 @@ def _mk_trigger_cell(trig_key: str, trig_reason: str,
                      exit_alert: str | None = None,
                      ticker: str | None = None,
                      current_price: float = 0.0,
-                     held_shares: int = 0) -> Text:
+                     held_shares: int = 0,
+                     is_held: bool = False) -> Text:
     """Trigger 末欄 Text (單行、含出場提醒 + TRIGGER_DISPLAY + reason + live chip)。
+
+    is_held: True 表示這列是已持倉、不顯 sizing「目標差」(已進場、不需加碼建議)
+    chip 仍顯 (持倉看籌碼狀態有用)
 
     組成優先順序:
       1. 若有出場提醒 → 先顯示 (紅色強調)
       2. TRIGGER_DISPLAY[trig_key]
       3. trig_reason (dim)
-      4. mk_chip_signal_text(ticker) 若有 ticker (live 計算、有才顯示)
-      5. mk_sizing_suggestion(ticker, price, held) 若有 ticker + price (live 計算)
+      4. mk_chip_signal_text(ticker) 若有 ticker
+      5. mk_sizing_suggestion(ticker, price, held) 若非持倉、有 ticker + price
     若 trig_key 為 'none'/None 且無出場提醒 → dim '-'
     """
     t = Text()
@@ -1792,7 +1799,8 @@ def _mk_trigger_cell(trig_key: str, trig_reason: str,
                 t.append(" | ", style="dim")
             t.append_text(chip)
             parts_added = True
-        if current_price > 0:
+        if current_price > 0 and not is_held:
+            # 已持倉不顯 sizing (已進場、不需建議加碼)
             sizing = mk_sizing_suggestion(ticker, current_price, held_shares)
             if sizing:
                 if parts_added:
@@ -2357,7 +2365,8 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     f"{stop}",
                     opening_comment,
                     _mk_trigger_cell(trig_key, trig_reason,
-                                     ticker=tk, current_price=c, held_shares=shares),
+                                     ticker=tk, current_price=c, held_shares=shares,
+                                     is_held=True),
                 )
             except Exception as e:
                 t_held.add_row("?", f"{tk} {name}", "err", "", "", Text(str(e), style="red"), "", "", "")
@@ -2930,6 +2939,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             if 'error' in d:
                 t_held_p2.add_row(
                     f"{tk} {name}",
+                    f"{entry:.1f}" if entry else "—",
                     Text(f"err {d['error']}", style="red"),
                     "", "", "", "?",
                     Text("└ ⚠️ 無法取得資料", style="dim"))
@@ -2971,15 +2981,18 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
             else:
                 open_cell = mk_open_to_now_cell(o, c)
             shares_held = item.get('shares', 0)
+            entry_cost = item.get('cost', 0)
             t_held_p2.add_row(
                 f"{tk} {name}",
+                f"{entry_cost:.1f}" if entry_cost else "—",
                 open_cell,
                 fmt_vol_ratio(vol_ratio),
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
                 stop_tag,
                 _mk_trigger_cell(trig_key, trig_reason, exit_alert_msg,
-                                 ticker=tk, current_price=c, held_shares=shares_held),
+                                 ticker=tk, current_price=c, held_shares=shares_held,
+                                 is_held=True),
             )
         renderables.append(Group(Text("📊 持倉", style="bold"), t_held_p2))
 
@@ -3182,6 +3195,40 @@ def _kb_listener(demo_mode: bool = False):
                 _demo_jump[0] = True
                 _render_request[0] = True
                 return
+            # demo 模式: 1-9 直接跳到 scenario N (1-9) — 兩位數用 g + 數字
+            if ch in '123456789':
+                total = _demo_total[0] or 1
+                target = int(ch) - 1
+                if 0 <= target < total:
+                    _demo_idx[0] = target
+                    _demo_jump[0] = True
+                    _render_request[0] = True
+                return
+            # demo 模式: g + 兩位數跳 scenario 10-36 (e.g., g13 = scenario 13)
+            if ch == 'g':
+                _demo_goto_mode[0] = True
+                _demo_goto_buf[0] = ''
+                _render_request[0] = True
+                return
+            if _demo_goto_mode[0]:
+                if ch.isdigit():
+                    _demo_goto_buf[0] += ch
+                    if len(_demo_goto_buf[0]) >= 2:
+                        try:
+                            target = int(_demo_goto_buf[0]) - 1
+                            total = _demo_total[0] or 1
+                            if 0 <= target < total:
+                                _demo_idx[0] = target
+                                _demo_jump[0] = True
+                        except ValueError:
+                            pass
+                        _demo_goto_mode[0] = False
+                        _demo_goto_buf[0] = ''
+                        _render_request[0] = True
+                    return
+                else:
+                    _demo_goto_mode[0] = False
+                    _demo_goto_buf[0] = ''
         # +/-/0 調 watch-limit (demo mode 0 已被處理)
         if not _cheat_mode[0]:
             if not demo_mode:
