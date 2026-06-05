@@ -44,10 +44,11 @@ from zhuli.chip.dual_axis_relative_strength import (  # noqa
     TAIEX_DROP_THRESHOLD as _DUAL_AXIS_TAIEX_THRESHOLD,
 )
 
+from zhuli.entry.intraday import detect as detect_intraday  # noqa  (Ch5-1/5-2 當沖前夜篩、2026-06-05 啟用)
+
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
 # from zhuli.entry.bbands_upper_break import detect as detect_bbands
 # from zhuli.entry.bollinger_pullback import detect as detect_bb_pullback
-# from zhuli.entry.intraday import detect as detect_intraday
 # from zhuli.entry.overnight_swing import detect as detect_overnight
 # from zhuli.entry.open_signal_entry import detect as detect_open_entry
 # from zhuli.entry.open_signal_exit import detect as detect_open_exit
@@ -435,6 +436,7 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         'ma5_pivot': [], 'glued_ma5': [],
         'institutional_firstbuy': [], 'institutional_swing': [],
         'foreign_buy_on_black_k': [],
+        'intraday': [],   # F 當沖前夜篩 (Ch5-1/5-2)
     }
 
     # ⚠️ 只放已驗證門檻的 scanner
@@ -478,6 +480,8 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         df['prev_high'] = df['high'].shift(1)
         df['prev_low'] = df['low'].shift(1)
         df['ma5_slope_5d'] = df['ma5'].diff(5)
+        df['ma10_slope_5d'] = df['ma10'].diff(5)
+        df['ma20_slope_5d'] = df['ma20'].diff(5)
         df['volume_ratio'] = df['vol_ratio_20']  # alias
 
         # ── shakeout_strong 需要的衍生欄位 ──────────────────────────────────
@@ -786,6 +790,78 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
     except Exception as e:
         print(f"  [small_structure] run_scan 失敗: {e}（小結構候選數 0）")
 
+    # ── F 當沖前夜篩 (Ch5-1 + Ch5-2) ─────────────────────────────────────────
+    # 2026-06-05 啟用：把 entry/intraday.py 接進 daily_scanner_job
+    # 用既有 ticker_dfs（combined_df）跑 detect_intraday、target_date 過濾
+    print(f"  [intraday] 跑 F 當沖前夜篩 (Ch5-1/5-2)...", flush=True)
+    try:
+        if ticker_dfs:
+            combined_intra_df = pd.concat(list(ticker_dfs.values()), ignore_index=True)
+            intra_signals = detect_intraday(combined_intra_df, db_path=db_path)
+            if not intra_signals.empty:
+                intra_today = intra_signals[
+                    intra_signals['signal_date'].astype(str).str[:10] == target_date
+                ]
+            else:
+                intra_today = intra_signals
+
+            for _, row in intra_today.iterrows():
+                t = row['ticker']
+                info = stock_info.get(t, {"name": "", "industry": ""})
+                teacher_sectors = TEACHER_SECTOR_MAP.get(t, [])
+                teacher_tier = TEACHER_TIER.get(t, '')
+                days_since = None
+                if t in TEACHER_FIRST:
+                    days_since = (pd.to_datetime(target_date) - pd.to_datetime(TEACHER_FIRST[t])).days
+
+                close_val = float(row.get('close') or 0)
+                df_t = ticker_dfs.get(t)
+                ma10_val = None
+                last_vol_ratio = 0.0
+                prev_close = None
+                if df_t is not None and not df_t.empty:
+                    last_row = df_t.iloc[-1]
+                    ma10_val = float(last_row['ma10']) if pd.notna(last_row.get('ma10')) else None
+                    last_vol_ratio = float(last_row['vol_ratio_20']) if pd.notna(last_row.get('vol_ratio_20')) else 0
+                    if len(df_t) >= 2:
+                        prev_close = float(df_t.iloc[-2]['close'])
+                dist_ma10 = round((close_val - ma10_val) / ma10_val * 100, 1) if ma10_val else None
+                today_change_pct = round((close_val / prev_close - 1) * 100, 1) if prev_close else 0.0
+
+                # 當沖 tier：老師 core/frequent + 距前高近 = Tier-A
+                dist_prev_high_pct = float(row.get('dist_from_prev_high', 0)) * 100
+                if teacher_tier in ('core', 'frequent') and dist_prev_high_pct < 5.0:
+                    tier = '🔥 Tier-A'
+                elif teacher_tier in ('core', 'frequent'):
+                    tier = '⭐ Tier-B'
+                else:
+                    tier = '一般'
+
+                results['intraday'].append({
+                    'ticker': t,
+                    'name': info['name'],
+                    'industry': info['industry'],
+                    'teacher_sectors': teacher_sectors,
+                    'close': close_val,
+                    'prev_close': prev_close,
+                    'today_change_pct': today_change_pct,
+                    'vol_ratio': round(last_vol_ratio, 1),
+                    'dist_prev_high_pct': round(dist_prev_high_pct, 1),
+                    'range_3d_pct': round(float(row.get('range_3d', 0)) * 100, 1),
+                    'turnover_3d_pct': round(float(row.get('turnover_3d', 0)) * 100, 1),
+                    'stop_note': '盤中：第一根 5K 低 (前夜 ref)',
+                    'exit_strategy': 'daytrade',
+                    'tier': tier,
+                    'timing_bonus': '',
+                    'teacher_tier': teacher_tier,
+                    'days_since_first_mention': days_since,
+                    'dist_ma10_pct': dist_ma10,
+                    'entry_note': str(row.get('entry_note', '')),
+                })
+        print(f"  [intraday] 找到 {len(results['intraday'])} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [intraday] 失敗: {_e}", flush=True)
+
     # ── post_attack watchlist（攻擊後盤整早期追蹤）────────────────────────────
     # universe='sector_all'：涵蓋老師「曾明示過」的所有族群（包含 IPC、低軌衛星、航太國防等）
     # 不限「本週主推」(sector_week)，避免漏抓如 4916 事欣科類型的非當週主推但強勢標的
@@ -1011,6 +1087,87 @@ def _wantgoo_link(ticker: str) -> str:
     return f"[chart](https://www.wantgoo.com/stock/{ticker}/technical-chart)"
 
 
+def _intraday_confidence_score(h: dict, today_close: float, prev_close: float | None) -> int:
+    """F 當沖前夜篩 confidence 分數（0-100、越高越有把握）.
+
+    優先：高把握度 + 避免明日跳空鎖死被排除。
+
+    組成：
+    - 老師 tier 30 分
+    - 距前高 sweet spot 25 分 (3-7% 最佳、太近怕被搶、太遠突破不確定)
+    - 量穩定 20 分 (vol_ratio 1.3-2.5 = 主力進場、不過熱)
+    - 今日漲幅溫和 15 分 (避免明日跳空)
+    - 振幅夠 10 分 (範圍夠才有當沖空間)
+    """
+    score = 0
+    # 1. 老師 tier (30)
+    tt = h.get('teacher_tier', '')
+    if tt == 'core':
+        score += 30
+    elif tt == 'frequent':
+        score += 22
+    elif tt:
+        score += 12
+
+    # 2. 距前高 (25) — 中段 sweet spot
+    d = h.get('dist_prev_high_pct', 99)
+    if 3 <= d <= 7:
+        score += 25
+    elif 2 <= d <= 9:
+        score += 18
+    elif d <= 10:
+        score += 8
+
+    # 3. 量穩定 (20) — 1.3-2.5 為主力進場 sweet spot
+    vr = h.get('vol_ratio', 0)
+    if 1.3 <= vr <= 2.5:
+        score += 20
+    elif 1.0 <= vr <= 3.0:
+        score += 12
+    elif 0.8 <= vr <= 4.0:
+        score += 5
+
+    # 4. 今日漲幅 (15) — 避免明日跳空鎖死
+    if prev_close and prev_close > 0:
+        today_change = (today_close / prev_close - 1) * 100
+        if -1 <= today_change <= 3:
+            score += 15  # 溫和上漲、明日可接
+        elif 3 < today_change <= 5:
+            score += 8
+        elif today_change > 7:
+            score -= 10  # 已大漲、明日可能跳空鎖死
+
+    # 5. 振幅夠 (10)
+    r = h.get('range_3d_pct', 0)
+    if 8 <= r <= 15:
+        score += 10
+    elif 7 <= r <= 18:
+        score += 5
+
+    return max(0, min(100, score))
+
+
+def _filter_and_rank_intraday(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
+    """加 confidence、按分排序、過濾今日漲幅過大、取 top_n.
+
+    過濾規則（避免明日開盤被跳空鎖死排除）：
+    - 今日漲幅 > 7% → 移除（明日跳空風險高、且接近漲停）
+    """
+    enriched: list[dict] = []
+    for h in intra_hits:
+        today_change = h.get('today_change_pct', 0)
+        if today_change > 7:
+            continue
+        h2 = dict(h)
+        h2['confidence_score'] = _intraday_confidence_score(
+            h2, h2.get('close', 0), h2.get('prev_close'),
+        )
+        enriched.append(h2)
+
+    enriched.sort(key=lambda x: -x['confidence_score'])
+    return enriched[:top_n]
+
+
 def _format_hit_row(h: dict, show_scanner=False) -> str:
     """單列輸出 markdown (含 wantgoo)."""
     ticker = h['ticker']
@@ -1147,6 +1304,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     j_hits = results.pop('institutional_firstbuy', [])
     i_hits = results.pop('institutional_swing', [])
     fbk_hits = results.pop('foreign_buy_on_black_k', [])
+    intra_hits = results.pop('intraday', [])
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
@@ -1185,6 +1343,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         + [h['ticker'] for h in j_hits]
         + [h['ticker'] for h in i_hits]
         + [h['ticker'] for h in fbk_hits]
+        + [h['ticker'] for h in intra_hits]
     )
     pa_tickers = []
     if pa_wl is not None and not pa_wl.empty and 'ticker' in pa_wl.columns:
@@ -1314,6 +1473,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     md.append(f"| institutional_firstbuy (J) | {len(j_hits)} |")
     md.append(f"| institutional_swing (I) | {len(i_hits)} |")
     md.append(f"| 🐂 外資黑K連2天 | {len(fbk_hits)} |")
+    md.append(f"| 🎯 F 當沖前夜篩 | {len(intra_hits)} (top 10) |")
     md.append(f"| **可進場** (Tier-A/B 距MA10≤15%) | **{len(entry_hits)}** |")
     md.append(f"| **後續觀察** (Tier-A/B 但已起漲) | **{len(extended_hits)}** |")
     md.append(f"| **加碼候選** (Shakeout + 已有訊號) | **{len(add_position_hits)}** |")
@@ -1671,6 +1831,47 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         md.append(f"")
     else:
         md += [f"> {target_date} 無外資黑K連2天命中", f""]
+
+    # === F 當沖前夜篩（Ch5-1 + Ch5-2、top 10 按 confidence）===
+    intra_top = _filter_and_rank_intraday(intra_hits, top_n=10)
+    md += [
+        f"---",
+        f"",
+        f"## 🎯 F 當沖前夜篩 (Top 10 按把握度)",
+        f"",
+        f"> 來源: scripts/zhuli/entry/intraday.py (Ch5-1 + Ch5-2)",
+        f"> 排序: confidence score (老師 tier + 距前高 + 量穩 + 漲幅溫和 + 振幅)",
+        f"> 過濾: 今日漲幅 > 7% 移除（避免明日跳空鎖死）",
+        f"",
+    ]
+    if intra_top:
+        md += [
+            f"| Rank | 把握 | Ticker | 名稱 | 族群 | 收盤 | 今日% | 距前高 | 量比 | 振幅3d | 周轉3d | 老師 | 距MA10 | 老師首提 | wantgoo |",
+            f"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for i, h in enumerate(intra_top, 1):
+            ticker = h['ticker']
+            sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
+            d_ma10 = h.get('dist_ma10_pct')
+            d_ma10_str = f"{d_ma10:+.1f}%" if d_ma10 is not None else '—'
+            tt = h.get('teacher_tier') or '—'
+            days = h.get('days_since_first_mention')
+            days_str = f"{days}d" if days is not None else '—'
+            score = h.get('confidence_score', 0)
+            score_label = '🔥' if score >= 75 else ('⭐' if score >= 60 else '•')
+            md.append(
+                f"| {i} | {score_label}{score} | **{ticker}** | {h['name']} | {sectors_str} | "
+                f"{h['close']:.2f} | {h.get('today_change_pct', 0):+.1f}% | "
+                f"{h.get('dist_prev_high_pct', 0):.1f}% | "
+                f"{h.get('vol_ratio', 0)}x | {h.get('range_3d_pct', 0):.1f}% | "
+                f"{h.get('turnover_3d_pct', 0):.1f}% | {tt} | {d_ma10_str} | {days_str} | "
+                f"{_wantgoo_link(ticker)} |"
+            )
+        md.append("")
+        md.append(f"> 候選總數: {len(intra_hits)}、過濾後 top 10 顯示如上")
+        md.append("")
+    else:
+        md += [f"> {target_date} 無 F 當沖候選（或全被今日 +7% 過濾）", f""]
 
     # === 處置股專區（--enable-disposal 啟用時）===
     if disposal_map:
