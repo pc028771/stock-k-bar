@@ -124,6 +124,7 @@ TabPane {
 
 DataTable {
     height: 1fr;
+    scrollbar-size: 0 0;
 }
 
 /* Bug 2 fix: 統一 focused/unfocused header + cursor 顏色，避免首次 click 後突兀 */
@@ -553,6 +554,7 @@ class MonitorApp(App[None]):
 
     def _fmt_pagination(self) -> str:
         """當前 tab DataTable 的「row X/Y」+ 「page N/M」資訊。"""
+        import math
         try:
             tabbed = self.query_one(TabbedContent)
             active = tabbed.active_pane
@@ -563,10 +565,9 @@ class MonitorApp(App[None]):
             if total == 0:
                 return "row 0/0"
             cursor = (dt.cursor_row + 1) if dt.cursor_row is not None else 1
-            # 計算可見行數 (DataTable 內部高、扣 header)
-            visible_h = max(1, int(dt.size.height) - 1)
-            cur_page = ((cursor - 1) // visible_h) + 1
-            total_pages = ((total - 1) // visible_h) + 1
+            visible_h = max(1, int(dt.size.height) - 1)  # 扣 header
+            cur_page    = math.ceil(cursor / visible_h)
+            total_pages = math.ceil(total / visible_h)
             return f"row {cursor}/{total} | page {cur_page}/{total_pages}"
         except Exception:
             return ""
@@ -900,25 +901,38 @@ class MonitorApp(App[None]):
         self._update_all_tables()
         self.notify("🔄 資料已重整")
 
+    def _page_size(self, dt: DataTable) -> int:
+        return max(1, int(dt.size.height) - 1)
+
     def action_page_up(self) -> None:
-        """當前 tab 的 DataTable 上一頁。"""
+        """當前 tab 的 DataTable 上一頁、cursor 跳到該頁第一列。"""
         try:
             tabbed = self.query_one(TabbedContent)
             active = tabbed.active_pane
-            if active:
-                dt = active.query_one(DataTable)
-                dt.action_page_up()
+            if not active:
+                return
+            dt = active.query_one(DataTable)
+            page = self._page_size(dt)
+            cur = dt.cursor_row or 0
+            target = max(0, cur - page)
+            dt.move_cursor(row=target)
+            self._update_status_bar()
         except Exception:
             pass
 
     def action_page_down(self) -> None:
-        """當前 tab 的 DataTable 下一頁。"""
+        """當前 tab 的 DataTable 下一頁、cursor 跳到該頁第一列。"""
         try:
             tabbed = self.query_one(TabbedContent)
             active = tabbed.active_pane
-            if active:
-                dt = active.query_one(DataTable)
-                dt.action_page_down()
+            if not active:
+                return
+            dt = active.query_one(DataTable)
+            page = self._page_size(dt)
+            cur = dt.cursor_row or 0
+            target = min(dt.row_count - 1, cur + page)
+            dt.move_cursor(row=target)
+            self._update_status_bar()
         except Exception:
             pass
 
