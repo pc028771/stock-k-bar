@@ -766,7 +766,7 @@ _current_sort: list[str] = ['status']
 _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
 _watch_limit: list[int] = [5]   # 每個分類最多顯示 N 檔、超過 collapse、0 = 全顯
-_teacher_only: list[bool] = [False]  # True = WATCH 只看老師明示 (--teacher-only / 按 t 切換)
+_teacher_only: list[bool] = [True]   # 預設 True = 只看老師明示、避免 scanner 候選干擾。按 t 切回全顯
 _show_failed: list[bool] = [False]   # True = WATCH 顯示不及格段 (按 f 切換)
 
 # Render request flag: kb / WS push set True、main loop 0.1s polling 立即重畫
@@ -3950,9 +3950,13 @@ def main():
     p.add_argument('--strategy', default='all',
                    choices=['all', 'intraday', 'overnight', 'swing', 'core'],
                    help='篩選 strategy_mode (預設 all、可指定 intraday/overnight/swing/core)')
-    p.add_argument('--teacher-only', action='store_true',
-                   help='WATCH 只看老師明示 (隱藏 shakeout/scanner/自選/其他)')
+    p.add_argument('--teacher-only', action='store_true', default=True,
+                   help='WATCH 只看老師明示 (預設 ON、避免 scanner 候選干擾)')
+    p.add_argument('--all-watch', action='store_true',
+                   help='WATCH 顯示全部分類 (覆蓋 --teacher-only)')
     args = p.parse_args()
+    if args.all_watch:
+        args.teacher_only = False
     # backward compat: --interval 覆寫 --data-interval
     if args.interval is not None:
         args.data_interval = args.interval
