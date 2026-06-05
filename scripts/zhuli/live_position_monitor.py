@@ -298,6 +298,31 @@ WATCH = [
         'sector': '半導體封測',
         'note': '🛡️ 6/4 圈起來'
     },
+    # 6/5 重電族群 — 同學討論、老師未指名、自選追蹤
+    {
+        'ticker': '8222', 'name': '寶一',
+        'ref_close': 37.3, 'stop': 36.1,
+        'tactic': '短打', 'priority': 2,
+        'source': '6/5 同學討論 重電',
+        'sector': '重電',
+        'note': '⚡ 重電打擊區、距 MA10 +2.5%、結構底 ~$36 (MA20)、老師未明示、追蹤'
+    },
+    {
+        'ticker': '1519', 'name': '華城',
+        'ref_close': 910.0, 'stop': 857.3,
+        'tactic': '短打', 'priority': 2,
+        'source': '6/5 同學討論 重電',
+        'sector': '重電',
+        'note': '⚡ 重電打擊區、距 MA10 +5.0%、結構底 MA20 ~$857、老師未明示、追蹤'
+    },
+    {
+        'ticker': '2371', 'name': '大同',
+        'ref_close': 32.0, 'stop': 29.7,
+        'tactic': '短打', 'priority': 2,
+        'source': '6/5 同學討論 重電',
+        'sector': '重電',
+        'note': '⚡ 重電打擊區、距 MA10 +6.3%、結構底 MA20 ~$29.7、老師未明示、追蹤'
+    },
     {
         'ticker': '4967', 'name': '十銓',
         'ref_close': 0, 'stop': None,
