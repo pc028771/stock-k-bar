@@ -570,6 +570,7 @@ class MonitorApp(App[None]):
 
     def _refresh_held_table(self, ld: dict) -> None:
         dt: DataTable = self.query_one("#dt-held", DataTable)
+        saved_cursor, saved_scroll = self._save_table_state(dt)
         items = self._held
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
@@ -591,6 +592,7 @@ class MonitorApp(App[None]):
                      f"{open_:.1f}→{close_:.1f} {otn}" if open_ else (f"{close_:.1f}" if close_ else "—"),
                      vol, pnl_str, dist_str, stat, trig)
             dt.add_row(*row, key=tk)
+        self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _classify_watch(self, item: dict, d: dict) -> str:
         """分類 WATCH item: confirmed / watching / excluded。
@@ -612,6 +614,7 @@ class MonitorApp(App[None]):
 
     def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict) -> None:
         dt: DataTable = self.query_one(f"#{table_id}", DataTable)
+        saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
         dt.clear()
@@ -636,6 +639,7 @@ class MonitorApp(App[None]):
             row = (tk, stars, name, tactic, open_to_now, vol,
                    dist_str, sector, source, trig)
             dt.add_row(*row, key=tk)
+        self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _filter_watch_items(self, items: list[dict]) -> list[dict]:
         """依 teacher_only 過濾 WATCH items。"""
@@ -679,6 +683,7 @@ class MonitorApp(App[None]):
                                'sector': '—', 'note': ''})
         # 使用 held 格式顯示 pinned
         dt: DataTable = self.query_one("#dt-pinned", DataTable)
+        saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
         dt.clear()
@@ -699,6 +704,7 @@ class MonitorApp(App[None]):
                      f"{open_:.1f}→{close_:.1f} {otn}" if open_ else (f"{close_:.1f}" if close_ else "—"),
                      vol, pnl_str, dist_str, stat, trig)
             dt.add_row(*row, key=tk)
+        self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _refresh_scanner_table(self, ld: dict) -> None:
         # Scanner tab: 全顯 WATCH (不過濾 teacher_only)
@@ -707,12 +713,53 @@ class MonitorApp(App[None]):
             items = [i for i in items if self._match_search(i)]
         self._refresh_watch_table("dt-scanner", items, ld)
 
+    # ── table cursor/scroll preservation ─────────────────────────────────────
+    def _save_table_state(self, dt: DataTable) -> tuple[int, float]:
+        """儲存 cursor row + scroll_y，回傳 (cursor_row, scroll_y)。"""
+        try:
+            cursor = dt.cursor_row
+        except Exception:
+            cursor = 0
+        try:
+            scroll_y = dt.scroll_y
+        except Exception:
+            scroll_y = 0.0
+        return cursor, scroll_y
+
+    def _restore_table_state(self, dt: DataTable, cursor: int, scroll_y: float) -> None:
+        """還原 cursor row + scroll_y。"""
+        try:
+            if dt.row_count > 0 and cursor < dt.row_count:
+                dt.move_cursor(row=cursor)
+        except Exception:
+            pass
+        try:
+            dt.scroll_to(y=scroll_y, animate=False)
+        except Exception:
+            pass
+
+    def _refresh_all_tables(self) -> None:
+        """立即重整所有 table (toggle 後呼叫)。"""
+        with self._data_lock:
+            ld = dict(self._live_data)
+        self._refresh_held_table(ld)
+        self._refresh_confirmed_table(ld)
+        self._refresh_watching_table(ld)
+        self._refresh_pinned_table(ld)
+        self._refresh_scanner_table(ld)
+
     # ── actions ──────────────────────────────────────────────────────────────
     def action_toggle_teacher(self) -> None:
         self.teacher_only = not self.teacher_only
+        self._refresh_all_tables()
+        state = "ON" if self.teacher_only else "OFF"
+        self.notify(f"[t:{state}] 老師 only 過濾 {'開啟' if self.teacher_only else '關閉'}")
 
     def action_toggle_failed(self) -> None:
         self.show_failed = not self.show_failed
+        self._refresh_all_tables()
+        state = "ON" if self.show_failed else "OFF"
+        self.notify(f"[f:{state}] 顯示失敗 {'開啟' if self.show_failed else '關閉'}")
 
     def action_pin_add(self) -> None:
         self.push_screen(PinDialog("Pin 標的 (加入)"),
