@@ -165,8 +165,98 @@ def simulate_daytrade(
             "entry_idx": entry_idx, "exit_idx": len(k5m) - 1}
 
 
-def get_top10_for_date(target_date: str, db_path: Path) -> list[dict]:
-    """跑 entry/intraday + filter + score、取 top 10."""
+def _score_pure_course(h: dict, today_close: float, prev_close: float | None) -> int:
+    """純課程版 scoring — 只用 Ch5-2 距前高、線性遞減 (字面解讀).
+
+    Ch5 課程明示 selection ranking 只有 Ch5-2「距前高越近越好」。
+    其他 (MA 結構/量/振幅/周轉/距月線) 都是 entry filter binary pass/fail。
+    「右下量 > 左前高量」(Ch5-2) 也是 ranking 因子但未實作。
+    """
+    d = h.get('dist_prev_high_pct', 99)
+    if d > 10:
+        return 0
+    return round(100 * (1 - d / 10))
+
+
+def _score_v3_2(h: dict, today_close: float, prev_close: float | None) -> int:
+    """v3.2 嚴格課程 + Ch5 範圍內 backtest 細化.
+
+    移除 v3 自編因子：
+    - vol_ratio sweet spot (課程沒教)
+    - 今日漲幅 +20/-15 (課程沒這個 selection rule、混淆跳空/前 5 分概念)
+
+    保留 (Ch5 範圍內細化):
+    - 距前高 3-7% peak (30) — Ch5-2 「<10%」內 sweet spot
+    - 距前高 > 7% penalty (-15) — backtest finding (Ch5-2 範圍邊緣)
+    - 振幅 8-15% peak (15) — Ch5-1-1 「>8%」內
+    - 周轉率 25-50% peak (10) — Ch5-1-1 「>20%」內
+    - 老師 tier (5) — info、非主導
+    """
+    score = 0.0
+
+    # 1. 距前高 — Ch5-2 範圍內 peak at 5%, > 7% penalty
+    d = h.get('dist_prev_high_pct', 99)
+    if d > 7:
+        score -= 15
+    elif d <= 7:
+        score += 30 * max(0, 1 - abs(d - 5) / 4)
+
+    # 2. 振幅 — Ch5-1-1 「> 8%」內、peak at 12%
+    r = h.get('range_3d_pct', 0)
+    if r > 25:
+        score += 5
+    elif r >= 5:
+        score += 15 * max(0, 1 - abs(r - 12) / 8)
+
+    # 3. 周轉率 — Ch5-1-1 「> 20%」內、peak at 35%
+    turn = h.get('turnover_3d_pct', 0)
+    if turn > 80:
+        score += 3
+    elif turn >= 15:
+        score += 10 * max(0, 1 - abs(turn - 35) / 30)
+
+    # 4. 老師 tier (info)
+    tt = h.get('teacher_tier', '')
+    if tt in ('core', 'frequent'):
+        score += 5
+    elif tt:
+        score += 2
+
+    return round(score)
+
+
+def _filter_pure_course(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
+    """純課程版過濾排序、不額外加 penalty。"""
+    enriched = []
+    for h in intra_hits:
+        h2 = dict(h)
+        h2['confidence_score'] = _score_pure_course(
+            h2, h2.get('close', 0), h2.get('prev_close'),
+        )
+        enriched.append(h2)
+    enriched.sort(key=lambda x: -x['confidence_score'])
+    return enriched[:top_n]
+
+
+def _filter_v3_2(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
+    """v3.2 嚴格課程版過濾排序。"""
+    enriched = []
+    for h in intra_hits:
+        h2 = dict(h)
+        h2['confidence_score'] = _score_v3_2(
+            h2, h2.get('close', 0), h2.get('prev_close'),
+        )
+        enriched.append(h2)
+    enriched.sort(key=lambda x: -x['confidence_score'])
+    return enriched[:top_n]
+
+
+def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3') -> list[dict]:
+    """跑 entry/intraday + filter + score、取 top 10.
+
+    Args:
+        scoring: 'v3' (預設、含跳空 penalty) 或 'pure_course' (僅 Ch5-2 距前高)
+    """
     from zhuli.entry.intraday import detect as detect_intraday
     from zhuli.daily_scanner_job import (
         _intraday_confidence_score, _filter_and_rank_intraday,
@@ -232,6 +322,10 @@ def get_top10_for_date(target_date: str, db_path: Path) -> list[dict]:
             "teacher_tier": "",  # not from db, leave blank for pure structural test
         })
 
+    if scoring == 'pure_course':
+        return _filter_pure_course(intra_hits, top_n=10)
+    if scoring == 'v3_2':
+        return _filter_v3_2(intra_hits, top_n=10)
     return _filter_and_rank_intraday(intra_hits, top_n=10)
 
 
@@ -241,6 +335,8 @@ def main():
     p.add_argument("--end", required=True, help="YYYY-MM-DD")
     p.add_argument("--csv", default=None, help="輸出 CSV 路徑 (預設 /tmp/backtest_top10_<start>_<end>.csv)")
     p.add_argument("--target", type=float, default=1.5, help="達標 % (Ch5 範圍 1.5-3.0)")
+    p.add_argument("--scoring", choices=['v3', 'pure_course', 'v3_2'], default='v3',
+                   help="v3=有自編 penalty / pure_course=純 Ch5-2 距前高 / v3_2=嚴格課程+範圍內細化")
     args = p.parse_args()
 
     from kline.bars import DEFAULT_DB_PATH
@@ -260,7 +356,7 @@ def main():
         sig_date = trade_dates[i]
         next_date = trade_dates[i + 1]
         print(f"\n=== Signal {sig_date} → Next {next_date} ===")
-        top10 = get_top10_for_date(sig_date, DEFAULT_DB_PATH)
+        top10 = get_top10_for_date(sig_date, DEFAULT_DB_PATH, scoring=args.scoring)
         if not top10:
             print(f"  無候選")
             continue
