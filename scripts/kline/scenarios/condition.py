@@ -57,6 +57,9 @@ _CONTEXT_FIELDS = frozenset({
     "taiex_record_limit_down_count",
     "taiex_record_any_criterion",
     "taiex_no_new_low_next_day",
+    # INTRO concepts impl (2026-06-05)
+    "taiex_down_today",
+    "is_after_negative_news_taiex",
 })
 _TOPLEVEL_FIELDS = frozenset({
     "prev_high_60",
@@ -78,6 +81,11 @@ _TOPLEVEL_FIELDS = frozenset({
     "is_breakdown_pattern_flag",
     "is_anomalous_volume_flag",
     "recent_range_pct_5",
+    # INTRO concepts impl (2026-06-05)
+    "same_level_red_count_5d_int",
+    "is_self_rescue_breakout_flag",
+    "just_high_doji_flag",
+    "is_black_today",
 })
 
 # Full whitelist (string representations for fast lookup)
@@ -105,6 +113,9 @@ _BOOL_FIELDS = frozenset({
     "context.taiex_record_limit_down_count",
     "context.taiex_record_any_criterion",
     "context.taiex_no_new_low_next_day",
+    # INTRO concepts impl (2026-06-05)
+    "context.taiex_down_today",
+    "context.is_after_negative_news_taiex",
 })
 
 # Logical operator keys

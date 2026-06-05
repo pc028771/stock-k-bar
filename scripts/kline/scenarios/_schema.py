@@ -275,6 +275,17 @@ class ContextSnapshot(BaseModel):
     # STUB-NEED-USER: 個股相對大盤強勢 — 量化標準課程未明示，由呼叫端注入
     stock_outperforms_taiex: Optional[bool] = None
 
+    # INTRO concepts impl (2026-06-05)
+    # taiex_down_today — 大盤今日下跌（close < prev_close）
+    #   用途: INTRO-3 退潮裸泳 light（大盤跌 + 個股創新高 = 強訊號）
+    #   來源: taiex_history.sqlite (taiex_daily.close)
+    taiex_down_today: Optional[bool] = None
+    # is_after_negative_news_taiex — 近 N 日大盤曾單日大跌（利空背景）
+    #   用途: INTRO-1 自救型突破 playbook required context
+    #   來源: taiex_history.sqlite + SELF_RESCUE_TAIEX_DROP_PCT proxy
+    #   [STUB-NEED-USER]: 「重大利空」課程定性、proxy 2% drop 待確認
+    is_after_negative_news_taiex: Optional[bool] = None
+
 
 class AdvisorResult(BaseModel):
     """The full output of ``advisor.analyze()`` for one ticker × one date."""

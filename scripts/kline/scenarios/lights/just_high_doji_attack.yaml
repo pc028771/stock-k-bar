@@ -1,0 +1,12 @@
+light_id: just_high_doji_attack
+trigger_condition:
+  all:
+    # 剛創 60 日新高 + 十字線（盤中觸及高點，收盤近開盤＝攻擊力量未消失）
+    - "today.high": ">= prev_high_60"
+    - "just_high_doji_flag": "== 1"
+severity: info
+course_citation:
+  source: "K線力量入門 §49 多頭買在攻擊 + §10 十字線與上影線在攻擊階段的意義(下)"
+  article_id: "6D17631B248875335336FB18486AF294"
+  quote: "最簡易的攻擊K線當然是跳空、長紅，因為大家都知道這兩種的力量，反而忽略了上影線與十字線在剛創新高時代表的攻擊意義｜股價創新高的時候，本來就應該視之為攻擊"
+recommendation_text: "今日剛創 60 日新高並出現十字線，依課程「剛創新高的十字線 = 攻擊型態之一」（§49 §10），不應誤判為轉折或壓力訊號。短線交易可採攻擊假設，與「剛創新高上影線」同等對待——停損設於十字線低點，等待越過十字線高點為攻擊延續確認。注意：十字線判定 body_pct ≤ 0.6%、range_pct ≥ 1.5% 為 proxy，課程未明示具體比例。"

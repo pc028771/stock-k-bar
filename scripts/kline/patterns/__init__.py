@@ -64,6 +64,7 @@ from . import (
     piercing_line,
     rebound,
     rising_falling,
+    self_rescue_breakout,
     three_red_dadi_dangqian,
     trapped,
     two_crow_gap,
@@ -97,6 +98,8 @@ PATTERN_REGISTRY = {
     "rising_falling": rising_falling.detect,
     "gap_fill_up": gap_fill_up.detect,
     "gap_fill_down": gap_fill_down.detect,
+    # INTRO concepts impl (2026-06-05) — 入門 §34 自救型突破
+    "self_rescue_breakout": self_rescue_breakout.detect,
 }
 
 __all__ = ["PATTERN_REGISTRY"] + list(PATTERN_REGISTRY.keys())

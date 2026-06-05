@@ -114,6 +114,9 @@ class _TaiexContext:
             "taiex_record_drop_pct": None,
             "taiex_record_limit_down_count": None,
             "taiex_no_new_low_next_day": None,
+            # INTRO-3 / INTRO-1 new fields
+            "taiex_down_today": None,                  # 大盤今日下跌（close < prev_close）
+            "is_after_negative_news_taiex": None,      # 近 N 日內大盤曾單日跌幅 ≥ proxy（利空背景）
         }
 
         if cls._taiex_df is not None and not cls._taiex_df.empty:
@@ -140,6 +143,22 @@ class _TaiexContext:
                 if pd.notna(today_row["drop_pct"]) and not hist.empty and hist["drop_pct"].notna().any():
                     result["taiex_record_drop_pct"] = bool(
                         today_row["drop_pct"] > hist["drop_pct"].max()
+                    )
+
+                # INTRO-3: taiex_down_today (大盤今日下跌)
+                if pd.notna(today_row["drop_point"]):
+                    result["taiex_down_today"] = bool(today_row["drop_point"] > 0)
+
+                # INTRO-1: is_after_negative_news_taiex (近 N 日大盤曾大跌)
+                from ..course_proxy_constants import (
+                    SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK,
+                    SELF_RESCUE_TAIEX_DROP_PCT,
+                )
+                start = max(0, idx - SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK)
+                window = tdf.loc[start:idx]
+                if not window.empty and window["drop_pct"].notna().any():
+                    result["is_after_negative_news_taiex"] = bool(
+                        (window["drop_pct"] >= SELF_RESCUE_TAIEX_DROP_PCT).any()
                     )
 
                 # taiex_no_new_low_next_day: next trading day low > today low
@@ -305,6 +324,9 @@ def build_context_snapshot(
         "taiex_record_limit_down_count",
         "taiex_record_any_criterion",
         "taiex_no_new_low_next_day",
+        # INTRO concepts impl (2026-06-05)
+        "taiex_down_today",
+        "is_after_negative_news_taiex",
     ]
 
     # If any of the four taiex fields is in overrides, use overrides only
@@ -359,6 +381,9 @@ def build_context_snapshot(
         taiex_record_limit_down_count=taiex_vals["taiex_record_limit_down_count"],
         taiex_record_any_criterion=taiex_vals["taiex_record_any_criterion"],
         taiex_no_new_low_next_day=taiex_vals["taiex_no_new_low_next_day"],
+        # --- INTRO concepts impl (2026-06-05) ---
+        taiex_down_today=taiex_vals["taiex_down_today"],
+        is_after_negative_news_taiex=taiex_vals["is_after_negative_news_taiex"],
         # --- §26 防守姿態 manual-hint fields (STUB-NEED-USER) ---
         taiex_recent_weak=taiex_recent_weak,
         stock_outperforms_taiex=stock_outperforms_taiex,

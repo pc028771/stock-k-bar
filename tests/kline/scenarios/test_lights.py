@@ -30,9 +30,10 @@ LIGHTS_DIR = Path(__file__).parents[3] / "scripts" / "kline" / "scenarios" / "li
 
 class TestLoadAllLights:
     def test_load_lights_returns_19(self):
-        """T2.3.1a: loading lights dir returns exactly 24 lights (19 baseline + 5 advanced field lights: lt_attack_cost_breakdown, lt_attack_intent_zone_breakdown, lt_defensive_low_break, lt_merged_doji_high_break, lt_merged_doji_low_break)."""
+        """T2.3.1a: loading lights dir returns exactly 27 lights (24 baseline + 3 INTRO concepts 2026-06-05:
+        same_level_red_then_black, taiex_down_stock_new_high, just_high_doji_attack)."""
         lights = load_lights([LIGHTS_DIR])
-        assert len(lights) == 24
+        assert len(lights) == 27
 
     def test_all_lights_have_severity(self):
         """T2.3.1b: every loaded light has a valid severity value."""
@@ -97,6 +98,10 @@ class TestLoadAllLights:
             "lt_defensive_low_break",
             "lt_merged_doji_high_break",
             "lt_merged_doji_low_break",
+            # INTRO concepts impl (2026-06-05)
+            "same_level_red_then_black",
+            "taiex_down_stock_new_high",
+            "just_high_doji_attack",
         }
         lights = load_lights([LIGHTS_DIR])
         assert set(lights.keys()) == expected_ids
@@ -114,9 +119,12 @@ class TestLoadAllLights:
         # defensive_low_break) = +2, warn (attack_intent_zone_breakdown,
         # merged_doji_low_break) = +2, info (merged_doji_high_break) = +1.
         # Total: 3 critical, 11 warn, 10 info.
+        # INTRO concepts impl (2026-06-05) added: warn +1 (same_level_red_then_black),
+        # info +2 (taiex_down_stock_new_high, just_high_doji_attack).
+        # Total: 3 critical, 12 warn, 12 info.
         assert severity_counts["critical"] == 3
-        assert severity_counts["warn"] == 11
-        assert severity_counts["info"] == 10
+        assert severity_counts["warn"] == 12
+        assert severity_counts["info"] == 12
 
 
 # ---------------------------------------------------------------------------

@@ -283,6 +283,18 @@ MERGED_DOJI_SHADOW_MIN_RATIO: float = 0.2  # [STUB-NEED-USER]
 # AT_PRESSURE_RETEST_PCT: float = 0.10  # 已廢棄 — 課程無 % 門檻、改用二元觸及
 
 # =============================================================================
+# T8e. low_price_threshold — 低價股門檻 (入門 §09 低價股的處理節奏)
+# =============================================================================
+# COURSE CONCEPT: 「低價股」屬於課程概念（入門 §09 低價股的處理節奏）、
+#   老師有專篇講解低價股交易節奏不同。
+# COURSE QUOTE: 入門 §09 — 「低價股」相對概念、低 / 中 / 高分級
+# COURSE NUMBER? No — [STUB-NEED-USER]，老師只用相對概念、未明示具體門檻
+# PROXY VALUE: 30.0（業界粗略 proxy；明基材 8215、錸德 2349 等案例落 10-25 元、
+#   30 元為上界含緩衝）。
+# RATIONALE: 概念在課程內、數字是 proxy → 留 course_proxy_constants.py + STUB-NEED-USER
+LOW_PRICE_THRESHOLD: float = 30.0  # [STUB-NEED-USER]
+
+# =============================================================================
 # T9. rebound_lookback_n — 反撲 短期 N 上限 (P23)
 # =============================================================================
 # COURSE CONCEPT: 反撲 D-1 「短期內」創新低 / 新高.
@@ -494,6 +506,49 @@ MERGED_DOJI_CARRY_DAYS: int = 1  # 課程明示「明日就要表態、無法變
 #   此處沿用 9945 案例的「六天」，為個案 proxy，需 user 確認通則。
 DEFENSIVE_LOW_LOOKBACK_DAYS: int = 6  # [STUB-NEED-USER] — 老師 9945 案例個案數字
 
+# =============================================================================
+# INTRO-1. self_rescue_breakout constants (入門 §34 自救型突破)
+# =============================================================================
+# COURSE CONCEPT: 自救型突破 = 多頭 + 利空背景 → 防守 → 漸推前高 → 量縮突破 → 隔日跳空
+# COURSE QUOTE (入門 §34):
+#   「通常在大盤本來是多方趨勢，檯面上有很多個股在拉抬的階段，突然遇到了重大的利空使大盤
+#    下跌，資金根本來不及從容離開，就會採取防守的做法來暫時先護住股價，但是漸漸的股價又
+#    往上推升來到前高位置，這個背景是必要條件。」
+#   「隨著利空的逐漸鈍化，股價又突破了前高。此時成交量卻出現了比前高萎縮的跡象」
+#   「自救型後的跳空是很重要的研判要點」
+#   「如果這次突破比上次量增，那就不列為自救型突破的範圍了」
+#
+# COURSE NUMBER? Mostly NO — 老師明示「量縮」「時間遠近」但無數字。
+# PROXY:
+#   SELF_RESCUE_VOL_RATIO_MAX = 0.95 — 今日突破量 / 上次突破量 < 0.95 才算「明顯量縮」
+#   SELF_RESCUE_PREV_BREAKOUT_LOOKBACK = 60 — 找「上次突破」的回看窗口（對齊 prior_high_60）
+#   SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK = 10 — 近期大盤下跌的回看窗口（利空背景）
+#   SELF_RESCUE_TAIEX_DROP_PCT = 0.02 — 大盤單日跌 ≥ 2% 視為「重大利空」proxy
+# [STUB-NEED-USER]: 老師「重大利空」是定性描述、未給跌幅 %；2% proxy 待 user 確認
+SELF_RESCUE_VOL_RATIO_MAX: float = 0.95  # [STUB-NEED-USER] 「量縮」門檻
+SELF_RESCUE_PREV_BREAKOUT_LOOKBACK: int = 60  # 對齊 prior_high_60
+SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK: int = 10  # [STUB-NEED-USER] 利空回看窗口
+SELF_RESCUE_TAIEX_DROP_PCT: float = 0.02  # [STUB-NEED-USER] 「重大利空」單日跌幅 proxy
+
+# =============================================================================
+# INTRO-2. same_level_red_then_black light (入門 §07 + §30)
+# =============================================================================
+# COURSE CONCEPT: 同價位反覆紅K → 隔日黑K = 實質賣壓（§30 獲利了結賣壓的第二類）
+# COURSE QUOTE (§07):
+#   「同一個價位紅K的隔天就出現黑K，次數多了就顯是有實質賣壓存在」
+# COURSE QUOTE (§30):
+#   「到了某個價位就會多次出現紅K(上漲)接續著黑K(賣盤)的走勢，次數多了、時間久了…」
+#
+# COURSE NUMBER? NO — 老師明示「次數多了」「時間久了」但無確切數字。
+# PROXY:
+#   SAME_LEVEL_LOOKBACK_DAYS = 5 — 看回 5 日內
+#   SAME_LEVEL_RED_MIN_COUNT = 2 — 至少 2 根紅K 收盤接近今日 close（=「多次」）
+#   SAME_LEVEL_PRICE_TOLERANCE = 0.02 — 「接近」= ±2%
+SAME_LEVEL_LOOKBACK_DAYS: int = 5  # [STUB-NEED-USER] 「次數多了」回看窗口
+SAME_LEVEL_RED_MIN_COUNT: int = 2  # [STUB-NEED-USER] 「次數多了」最小紅K 數
+SAME_LEVEL_PRICE_TOLERANCE: float = 0.02  # [STUB-NEED-USER] 「同一個價位」容差
+
+
 __all__ = [
     "ATTACK_HIGHER_LOW_MIN_5DAY",
     "ATTACK_HIGHER_HIGH_MIN_5DAY",
@@ -543,10 +598,18 @@ __all__ = [
     "ATTACK_COST_VOL_RATIO",
     "ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS",
     # L1-L3 lights-fix STUB constants (2026-06-04)
-    # "LOW_PRICE_THRESHOLD" — 已移至 extras/low_price.py [EXTRAS]
+    "LOW_PRICE_THRESHOLD",  # 入門 §09 概念內、數字 STUB-NEED-USER
     "HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT",
     "ZHONGSHU_RANGE_MAX_PCT",
     # A24/A26 advanced field wiring STUB constants (2026-06-05)
     "MERGED_DOJI_CARRY_DAYS",
     "DEFENSIVE_LOW_LOOKBACK_DAYS",
+    # INTRO concepts impl (2026-06-05) — 入門 §34 / §07 §30 / §49 §10
+    "SELF_RESCUE_VOL_RATIO_MAX",
+    "SELF_RESCUE_PREV_BREAKOUT_LOOKBACK",
+    "SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK",
+    "SELF_RESCUE_TAIEX_DROP_PCT",
+    "SAME_LEVEL_LOOKBACK_DAYS",
+    "SAME_LEVEL_RED_MIN_COUNT",
+    "SAME_LEVEL_PRICE_TOLERANCE",
 ]

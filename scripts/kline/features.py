@@ -25,6 +25,11 @@ from .course_proxy_constants import (
     MERGED_DOJI_CARRY_DAYS,
     MERGED_DOJI_SHADOW_MIN_RATIO as _MERGED_DOJI_SHADOW_MIN_RATIO,
     RISING_LOWS_MIN_FRAC,
+    SAME_LEVEL_LOOKBACK_DAYS,
+    SAME_LEVEL_PRICE_TOLERANCE,
+    SAME_LEVEL_RED_MIN_COUNT,
+    SELF_RESCUE_VOL_RATIO_MAX,
+    SELF_RESCUE_PREV_BREAKOUT_LOOKBACK,
     STABLE_UPPER_MAX_SPREAD as _STABLE_UPPER_MAX_SPREAD,
 )
 
@@ -726,7 +731,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # [EXTRAS] LOW_PRICE_THRESHOLD = 30.0 是業界 proxy（課程未明示門檻數字）。
     # 常數已從 course_proxy_constants.py 移至 extras/low_price.py。
     # lowprice_first_pull_exit.yaml 標記 [EXTRAS]，提醒此 light 含課程外條件。
-    from .extras.low_price import LOW_PRICE_THRESHOLD
+    from .course_proxy_constants import LOW_PRICE_THRESHOLD
     df["low_price_flag"] = (df["close"] < LOW_PRICE_THRESHOLD).fillna(False).astype(int)
 
     # === is_breakdown_pattern_flag — toplevel int alias for is_in_breakdown_pattern ===
@@ -892,5 +897,90 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
         .groupby(df["ticker"])
         .transform(lambda s: s.ffill(limit=DEFENSIVE_LOW_LOOKBACK_DAYS))
     )
+
+    # =====================================================================
+    # INTRO concepts impl (2026-06-05)
+    # Course sources: 入門 §34 自救型突破 / §07 + §30 同價位賣壓 /
+    #                 §49 + §10 創新高十字線攻擊 / 強者恆強
+    # See docs/kline_course/notes/intro_concepts_impl_2026-06-05.md
+    # =====================================================================
+
+    # === INTRO-1a: is_self_rescue_breakout — 自救型突破 (入門 §34) ===
+    # Course quote:
+    #   「股價又突破了前高。此時成交量卻出現了比前高萎縮的跡象」
+    #   「如果這次突破比上次量增，那就不列為自救型突破的範圍了」
+    # Definition:
+    #   1. 今日為突破 (close > prior_high_60, is_first_breakout_above_level=True)
+    #   2. 過去 N 日內存在「上次突破」(close > prior_high_60 過)
+    #   3. 今日成交量 < 上次突破當日成交量 × SELF_RESCUE_VOL_RATIO_MAX (量縮)
+    # NOTE: 「多頭背景」依入門 §34 一律要求季線多頭 → close > ma60 already in feature D.
+    #       利空背景 (taiex 下跌) 由 context layer 提供（taiex_down_today / is_after_negative_news）
+    #       — light/playbook 在 trigger_condition 串接此 context。
+    breakout_today = (df["close"] > df["prior_high_60"]).fillna(False)
+
+    # Find max volume among prior breakout bars within the lookback window
+    _vol_on_breakout = df["volume"].where(breakout_today, other=np.nan)
+    # Use shift(1) then rolling max to find max breakout-day volume in window (exclude today).
+    _prev_max_breakout_vol = (
+        _vol_on_breakout
+        .groupby(df["ticker"])
+        .shift(1)
+        .groupby(df["ticker"])
+        .transform(
+            lambda s: s.rolling(SELF_RESCUE_PREV_BREAKOUT_LOOKBACK, min_periods=1).max()
+        )
+    )
+    # vol shrinkage condition (only meaningful where prev breakout vol exists)
+    _vol_shrinkage = (
+        df["volume"] < _prev_max_breakout_vol * SELF_RESCUE_VOL_RATIO_MAX
+    ).fillna(False)
+    # multi-head background (close > ma60)
+    _multi_head_bg = (df["close"] > df["ma60"]).fillna(False)
+
+    df["is_self_rescue_breakout"] = (
+        breakout_today
+        & _vol_shrinkage
+        & _multi_head_bg
+        & _prev_max_breakout_vol.notna()
+    ).fillna(False)
+
+    # === INTRO-2: same_level_red_count_5d — 同價位反覆紅K (§07 §30) ===
+    # Course quote (§07): 「同一個價位紅K的隔天就出現黑K，次數多了就顯是有實質賣壓存在」
+    # Course quote (§30): 「到了某個價位就會多次出現紅K(上漲)接續著黑K(賣盤)的走勢」
+    # Definition: count of prior bars in last N days where:
+    #   - that bar was a red K
+    #   - that bar's close was within tolerance of today's close (「同一個價位」)
+    # 「實質賣壓」light 進一步要求 today.is_black + same_level_red_count_5d >= 2.
+    today_close_arr = df["close"].to_numpy()
+    same_level_count = np.zeros(len(df), dtype=float)
+    for lag in range(1, SAME_LEVEL_LOOKBACK_DAYS + 1):
+        prev_close_lag = g["close"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
+        prev_is_red_lag = g["is_red"].shift(lag).fillna(False).to_numpy()
+        # within tolerance band
+        denom = np.where(today_close_arr == 0, np.nan, today_close_arr)
+        diff_pct = np.abs(prev_close_lag - today_close_arr) / denom
+        near_today = diff_pct <= SAME_LEVEL_PRICE_TOLERANCE
+        same_level_count += (prev_is_red_lag & near_today).astype(float)
+
+    df["same_level_red_count_5d"] = same_level_count.astype(int)
+
+    # === INTRO-4: just_high_doji — 剛創新高 + 十字線 (§49 §10 攻擊型態) ===
+    # Course quote (§49):
+    #   「最簡易的攻擊K線當然是跳空、長紅，因為大家都知道這兩種的力量，反而忽略了上影線
+    #    與十字線在剛創新高時代表的攻擊意義」
+    # Course quote (§10):
+    #   「股價創新高的時候，本來就應該視之為攻擊」
+    # Definition: today is_doji AND today.high >= prior_high_60 (剛創新高位置)
+    # 用既有 is_doji + just_high_upper_shadow 的 sister 概念。
+    df["just_high_doji"] = (
+        df["is_doji"].fillna(False)
+        & (df["high"] >= df["prior_high_60"]).fillna(False)
+    ).fillna(False)
+
+    # Toplevel int aliases for YAML DSL (lights reference these)
+    df["same_level_red_count_5d_int"] = df["same_level_red_count_5d"].fillna(0).astype(int)
+    df["is_self_rescue_breakout_flag"] = df["is_self_rescue_breakout"].fillna(False).astype(int)
+    df["just_high_doji_flag"] = df["just_high_doji"].fillna(False).astype(int)
+    df["is_black_today"] = df["is_black"].fillna(False).astype(int)
 
     return df
