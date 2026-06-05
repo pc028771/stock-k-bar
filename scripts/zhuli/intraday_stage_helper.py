@@ -1086,7 +1086,7 @@ class StageTrigger:
         else:
             now_str = datetime.now().strftime("%H:%M")
 
-        if not ("13:00" <= now_str <= "13:25"):
+        if not ("13:05" <= now_str <= "13:25"):
             return base
 
         # 獲取 MA10 (日線)
@@ -1360,9 +1360,9 @@ class StageTrigger:
             "market_regime": regime,
         }
 
-        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:00-13:25
+        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:05-13:25 (v6 backtest sweet spot)
         now_str = datetime.now().strftime("%H:%M")
-        if "13:00" <= now_str <= "13:25":
+        if "13:05" <= now_str <= "13:25":
             closing_r = self.check_closing_panel(
                 ticker=ticker,
                 k5=k5,

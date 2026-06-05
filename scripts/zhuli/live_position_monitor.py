@@ -28,7 +28,7 @@
 - priority 摘要 panel (⭐⭐⭐/⭐⭐/⭐)
 - 即時 intraday StageTrigger 偵測 (T1/T2/TC)
 - 排序模式: priority / risk / trigger / pnl / sector
-- 快捷鍵: 1=priority 2=risk 3=trigger 4=pnl 5=sector q=退出
+- 快捷鍵: 1=priority 2=risk 3=trigger 4=pnl 5=sector t=只看老師明示 f=顯示不及格 h=cheat q=退出
 """
 from __future__ import annotations
 
@@ -767,6 +767,7 @@ _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
 _watch_limit: list[int] = [5]   # 每個分類最多顯示 N 檔、超過 collapse、0 = 全顯
 _teacher_only: list[bool] = [False]  # True = WATCH 只看老師明示 (--teacher-only / 按 t 切換)
+_show_failed: list[bool] = [False]   # True = WATCH 顯示不及格段 (按 f 切換)
 
 # Render request flag: kb / WS push set True、main loop 0.1s polling 立即重畫
 _render_request: list[bool] = [True]
@@ -909,6 +910,8 @@ def _get_session_chip(now: datetime | None = None) -> tuple[str, str]:
         return "⚪ 整理時段", "white"
     elif t < _time(13, 0):
         return "🌀 殺盤考驗", "cyan"
+    elif t < _time(13, 5):
+        return "⏳ 尾盤準備 (13:05 開始)", "cyan"
     elif t < _time(13, 25):
         return f"🟢 ⭐ 老師尾盤 Win {wd['closing']}%", "bold magenta"
     elif t < _time(13, 30):
@@ -1495,7 +1498,7 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
     now = now or datetime.now()
     from datetime import time as _time
     wd = WIN_RATE_BY_SESSION
-    is_closing = _time(13, 0) <= now.time() < _time(13, 25)
+    is_closing = _time(13, 5) <= now.time() < _time(13, 25)
 
     prefix = Text("└ ", style="dim")
     age_text, age_style = fmt_trigger_age(ticker, trig_key, now) if trig_key else ('', 'dim')
@@ -1553,7 +1556,7 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
         if is_closing:
             t.append("⚪ 尾盤無訊號、不進", style="dim")
         else:
-            t.append("⚪ 無訊號、待 13:00 評估", style="dim")
+            t.append("⚪ 無訊號、待 13:05 評估", style="dim")
         return t
 
     # ── 6. 有 confirmed trigger (續攻/反彈/首攻 或舊英文名) ─────────────────
@@ -1579,7 +1582,7 @@ def r_trigger_subrow(trig_key: str, reason: str = '', ticker: str = '',
                 cur_label = f"Win {wd['healthy']}%"
             t = Text()
             t.append_text(prefix)
-            t.append(f"⏱️ 等 13:00 Win {wd['closing']}%", style="bold yellow")
+            t.append(f"⏱️ 等 13:05 Win {wd['closing']}%", style="bold yellow")
             t.append(f" (現 {label} {cur_label}", style="dim")
             if age_text:
                 t.append(age_text, style=age_style)
@@ -1741,14 +1744,44 @@ def _mk_trigger_cell(trig_key: str, trig_reason: str,
     if has_trig:
         if parts_added:
             t.append(" | ", style="dim")
-        disp = TRIGGER_DISPLAY.get(trig_key, trig_key)
-        t.append(disp)
-        parts_added = True
-
-    if trig_reason:
-        if parts_added:
-            t.append(" | ", style="dim")
-        t.append(trig_reason, style="dim")
+        # ── Closing confirmed: 精簡顯示 pass 條件、去冗語 ──
+        if trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
+            # 從 reason 字串解析 pass 條件 (格式: "N/5 pass (條件✓條件✓...) ✗條件")
+            # 直接顯示: 🟢 N/5 ★進場★ | ✓條件✓條件...
+            pass_n = ''
+            pass_conds = ''
+            fail_conds = ''
+            if trig_reason:
+                import re as _re
+                m = _re.match(r'(\d)/5 pass \(([^)]*)\)(?:\s*✗(.+))?', trig_reason)
+                if m:
+                    pass_n = m.group(1)
+                    # 把 ✓ 分隔改成空格顯示
+                    raw_pass = m.group(2).replace('✓', ' ✓')
+                    pass_conds = raw_pass.strip()
+                    if m.group(3):
+                        fail_conds = m.group(3).strip()
+            if pass_n:
+                t.append(f"🟢 {pass_n}/5 ★進場★", style="bold green")
+                if pass_conds:
+                    t.append(f" | ✓{pass_conds}", style="green")
+                if fail_conds:
+                    t.append(f" ✗{fail_conds}", style="dim")
+            else:
+                t.append("🟢 ⭐ 尾盤 ★進場★", style="bold green")
+                if trig_reason:
+                    t.append(f" | {trig_reason}", style="green")
+        else:
+            disp = TRIGGER_DISPLAY.get(trig_key, trig_key)
+            t.append(disp)
+            # trig_reason 僅非 Closing 類才 dim 附加
+            if trig_reason and trig_key not in (
+                '尾盤_過熱', 'Closing_overheated',
+                '尾盤_skip', 'Closing_skip',
+                '尾盤_watch', 'Closing_watch',
+            ):
+                t.append(" | ", style="dim")
+                t.append(trig_reason, style="dim")
         parts_added = True
 
     # chip + sizing 即使沒 trigger 也要顯示 (live 計算、過門檻才顯示)
@@ -2545,6 +2578,47 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
 # WATCH 3-section 分類邏輯
 # ─────────────────────────────────────────────────────────────────────────
 
+def _confirmed_quality_key(item: dict, d: dict) -> tuple:
+    """confirmed section 品質排序 key (越小越優先).
+
+    Tier 1: 4/5 + 結構過  (top、最穩)
+    Tier 2: 4/5 + 結構失敗 (有 buffer)
+    Tier 3: 3/5 + 結構過  (邊緣、結構安全)
+    Tier 4: 3/5 + 結構失敗 (閃爍、不該進)
+    Tier 5: 其他 (非 Closing trigger)
+    Tie-break: dist_ma10 升冪 (越近 MA10 越優)
+    """
+    import re as _re
+    trig_key = d.get('trigger', 'none')
+    reason   = d.get('trigger_reason', '')
+    ma10_val = load_ma10(item['ticker'])
+    c        = d.get('c', 0)
+    dist_ma10 = (c - ma10_val) / ma10_val * 100 if (ma10_val and c) else 99.0
+
+    if trig_key in ('尾盤_confirmed', 'Closing_confirmed'):
+        pass_n = 0
+        struct_ok = False
+        m = _re.match(r'(\d)/5 pass \(([^)]*)\)', reason)
+        if m:
+            pass_n = int(m.group(1))
+            struct_ok = '結構' in m.group(2)
+        if pass_n >= 4 and struct_ok:
+            tier = 1
+        elif pass_n >= 4:
+            tier = 2
+        elif pass_n >= 3 and struct_ok:
+            tier = 3
+        elif pass_n >= 3:
+            tier = 4
+        else:
+            tier = 5
+    else:
+        # 非 Closing trigger: 依 TRIGGER_RANK 排
+        tier = TRIGGER_RANK.get(trig_key, 6)
+
+    return (tier, dist_ma10, -item.get('priority', 1))
+
+
 def _classify_watch_source(item: dict) -> str:
     """依 source 欄位分 4 類 (給 WATCH watching 段分組顯示)。"""
     src = (item.get('source') or '').lower()
@@ -2581,6 +2655,20 @@ def _pre_market_mode() -> bool:
     return not ((now.hour, now.minute) >= (9, 0))
 
 
+def _watching_structure_pass(item: dict, d: dict) -> bool:
+    """watching 項目結構是否過 (close >= MA10、偏差 < 2%)。
+
+    True  = 結構過 (close >= MA10 or within -2%) → 預設顯示
+    False = 結構失敗 (close < MA10 by > 2%)      → 預設隱藏
+    """
+    c    = d.get('c', 0)
+    ma10 = load_ma10(item['ticker'])
+    if not c or not ma10:
+        return True  # 無資料時保守顯示
+    pct = (c - ma10) / ma10 * 100
+    return pct >= -2.0  # 允許 -2% buffer
+
+
 def render_watch_sectioned(
     watch_enriched: list[dict],
     live_data: dict,
@@ -2604,10 +2692,7 @@ def render_watch_sectioned(
         else:
             excluded.append((item, d))
 
-    confirmed.sort(key=lambda x: (
-        -x[0].get('priority', 1),
-        TRIGGER_RANK.get(x[1].get('trigger', 'none'), 6),
-    ))
+    confirmed.sort(key=lambda x: _confirmed_quality_key(x[0], x[1]))
     watching.sort(key=lambda x: -x[0].get('priority', 1))
     excluded.sort(key=lambda x: -x[0].get('priority', 1))
 
@@ -2622,6 +2707,14 @@ def render_watch_sectioned(
     watching = [(it, d) for (it, d) in watching if it.get('priority', 1) >= min_pri]
     filtered_out = pre_filter_count - len(watching)
 
+    # _show_failed 過濾: 預設隱藏結構失敗 watching 和 excluded 段
+    # 按 f 切換 → 全顯
+    watching_struct_fail: list[tuple] = []
+    if not _show_failed[0]:
+        watching_pass = [(it, d) for (it, d) in watching if _watching_structure_pass(it, d)]
+        watching_struct_fail = [(it, d) for (it, d) in watching if not _watching_structure_pass(it, d)]
+        watching = watching_pass
+
     if pre_mkt:
         excluded_count = len(excluded)
         excluded = []  # 開盤前不顯示排除清單、開盤後再判
@@ -2630,6 +2723,9 @@ def render_watch_sectioned(
             out.append(Text(f"({hidden} 檔低優先/排除暫不顯示)", style="dim"))
     elif filtered_out:
         out.append(Text(f"({filtered_out} 檔 priority < {min_pri} 過濾)", style="dim"))
+
+    # 計算不及格隱藏數
+    hidden_fail_count = len(watching_struct_fail) + (len(excluded) if not _show_failed[0] else 0)
 
     # --watch-limit = 每分類最多顯示行數 (confirmed/excluded 不受限、0 = 全顯)
     limit = _watch_limit[0]
@@ -2717,21 +2813,49 @@ def render_watch_sectioned(
                 style="dim",
             ))
 
-    if excluded:
-        t = Table(title="⛔ WATCH 排除/低優先",
-                  title_style="dim", box=box.SIMPLE, expand=True)
-        t.add_column("Stock"); t.add_column("原因")
-        for item, d in excluded:
-            trig = d.get('trigger', 'none')
-            reason_s = ''
-            if trig == 'TC':
-                reason_s = 'TC 結構壞'
-            elif item.get('note', '').startswith('🔴'):
-                reason_s = item['note'][:30]
-            elif item.get('priority', 1) == 1:
-                reason_s = '低優先'
-            t.add_row(f"{item['ticker']} {item['name']}", Text(reason_s, style="dim"))
-        out.append(t)
+    # 不及格/排除段：預設隱藏、按 f 展開
+    if _show_failed[0]:
+        # 顯示結構失敗 watching
+        if watching_struct_fail:
+            t_fail = Table(title="⚠️ WATCH 結構失敗 (close < MA10 -2%)",
+                           title_style="dim", box=box.SIMPLE, expand=True)
+            t_fail.add_column("Stock"); t_fail.add_column("距MA10"); t_fail.add_column("Trigger")
+            for item, d in watching_struct_fail:
+                tk = item['ticker']
+                c  = d.get('c', 0)
+                trig   = d.get('trigger', 'none')
+                reason = d.get('trigger_reason', '')
+                t_fail.add_row(
+                    f"{tk} {item['name']}",
+                    r_dist_ma10(c, tk),
+                    _mk_trigger_cell(trig, reason, ticker=tk, current_price=c),
+                )
+            out.append(t_fail)
+        # 顯示 excluded 段
+        if excluded:
+            t_ex = Table(title="⛔ WATCH 排除/低優先",
+                         title_style="dim", box=box.SIMPLE, expand=True)
+            t_ex.add_column("Stock"); t_ex.add_column("原因")
+            for item, d in excluded:
+                trig = d.get('trigger', 'none')
+                reason_s = ''
+                if trig == 'TC':
+                    reason_s = 'TC 結構壞'
+                elif item.get('note', '').startswith('🔴'):
+                    reason_s = item['note'][:30]
+                elif item.get('priority', 1) == 1:
+                    reason_s = '低優先'
+                t_ex.add_row(f"{item['ticker']} {item['name']}", Text(reason_s, style="dim"))
+            out.append(t_ex)
+        out.append(Text("(按 f 隱藏不及格段)", style="dim"))
+    else:
+        # 隱藏時顯示 hint
+        total_hidden = len(watching_struct_fail) + len(excluded)
+        if total_hidden > 0:
+            out.append(Text(
+                f"({total_hidden} 檔不及格隱藏、按 f 全顯)",
+                style="dim",
+            ))
 
     return out
 
@@ -3076,6 +3200,10 @@ def _kb_listener(demo_mode: bool = False):
                 _teacher_only[0] = not _teacher_only[0]  # toggle 只看老師明示
                 _render_request[0] = True
                 return
+            if ch == 'f':
+                _show_failed[0] = not _show_failed[0]  # toggle 顯示不及格段
+                _render_request[0] = True
+                return
         if ch in mode_map and not _cheat_mode[0]:
             _current_sort[0] = mode_map[ch]
             _render_request[0] = True
@@ -3208,6 +3336,17 @@ CHEAT_SHEET_PAGES: list[tuple[str, list[tuple[str, str]]]] = [
         ("趨勢 vs 震盪",      "震盪盤鎖利門檻緊 (+3%~+10%)、別用趨勢思維抱波段"),
     ]),
     # Page 9
+    ("⌨️ 快捷鍵 Cheat Sheet", [
+        ("1-6",               "排序切換: 1=status 2=priority 3=risk 4=trigger 5=pnl 6=sector"),
+        ("+/-",               "watch-limit 每分類顯示上限 (+1/-1)"),
+        ("0",                 "watch-limit 設 0 = 全顯"),
+        ("t",                 "只看老師明示 (teacher-only ON/OFF)"),
+        ("f",                 "顯示/隱藏 WATCH 不及格段 (結構失敗/TC/低分)"),
+        ("h",                 "Cheat Sheet (← → 翻頁)"),
+        ("q",                 "退出 monitor"),
+        ("Ctrl+C",            "強制退出"),
+    ]),
+    # Page 10
     ("💰 資金 / Sizing", [
         ("User 水位",         "~$3.2M (2026 Q2)"),
         ("標準 sizing",       "10% = $320k = 1 張中型股"),
@@ -3896,9 +4035,11 @@ def main():
         except Exception:
             pass
 
+        teacher_tag = " [teacher-only: ON]" if _teacher_only[0] else ""
+        failed_tag  = " [show-failed: ON]"  if _show_failed[0]  else ""
         hint = Text(
-            "1-6=排序 +/-=watch-limit (每分類) 0=全顯 h=cheat q=退出  "
-            f"(watch-limit={_watch_limit[0]}/分類)",
+            "1-6=排序 +/-=watch-limit 0=全顯 t=只看老師明示 f=顯示不及格 h=cheat q=退出  "
+            f"(limit={_watch_limit[0]}){teacher_tag}{failed_tag}",
             style="dim",
         )
 
