@@ -28,6 +28,7 @@ Demo 模式:
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 import threading
 import time
@@ -375,6 +376,10 @@ class MonitorApp(App[None]):
         except Exception:
             pass
 
+        # ── 真分頁 state ────────────────────────────────────────────────────
+        self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
+        self._page_size_default: int = 40
+
     # ── compose ──────────────────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
         yield Header()
@@ -553,28 +558,121 @@ class MonitorApp(App[None]):
         bar.status_text = text
 
     def _fmt_pagination(self) -> str:
-        """當前 tab DataTable 的「row X/Y」+ 「page N/M」資訊。"""
-        import math
+        """當前 tab 的「row X/Y | page N/M (K列)」。K = 最後一頁實際列數。"""
         try:
-            tabbed = self.query_one(TabbedContent)
-            active = tabbed.active_pane
-            if not active:
+            tab_id = self._get_active_tab_id()
+            if not tab_id:
                 return ""
-            dt = active.query_one(DataTable)
-            total = dt.row_count
+            total  = self._get_total_items_for_tab(tab_id)
             if total == 0:
                 return "row 0/0"
-            cursor = (dt.cursor_row + 1) if dt.cursor_row is not None else 1
-            visible_h = max(1, int(dt.size.height) - 1)  # 扣 header
-            cur_page    = math.ceil(cursor / visible_h)
-            total_pages = math.ceil(total / visible_h)
-            return f"row {cursor}/{total} | page {cur_page}/{total_pages}"
+            ps          = self._calc_page_size()
+            page        = self._current_page.get(tab_id, 1)
+            total_pages = max(1, math.ceil(total / ps))
+            # 頁內 row 數 (最後一頁可能不滿)
+            page_rows   = total - (page - 1) * ps
+            page_rows   = max(0, min(page_rows, ps))
+            # cursor 相對於所有資料的絕對位置
+            try:
+                active_pane = self.query_one(TabbedContent).active_pane
+                dt = active_pane.query_one(DataTable) if active_pane else None
+                cursor_in_page = (dt.cursor_row or 0) if dt else 0
+            except Exception:
+                cursor_in_page = 0
+            abs_cursor = (page - 1) * ps + cursor_in_page + 1
+            abs_cursor = min(abs_cursor, total)
+            suffix = f" ({page_rows}列)" if page == total_pages and total_pages > 1 else ""
+            return f"row {abs_cursor}/{total} | page {page}/{total_pages}{suffix}"
         except Exception:
             return ""
 
     def on_resize(self, event) -> None:
-        """terminal 大小改變時、重算 pagination + table 列。"""
+        """terminal 大小改變時、重算 pagination、確保 current_page 不超出、重繪 table。"""
+        for tab_id in list(self._current_page.keys()):
+            total = self._get_total_items_for_tab(tab_id)
+            ps    = self._calc_page_size()
+            total_pages = max(1, math.ceil(total / ps))
+            self._current_page[tab_id] = min(
+                self._current_page.get(tab_id, 1), total_pages
+            )
+        self._update_all_tables()
         self._update_status_bar()
+
+    # ── 真分頁 helpers ────────────────────────────────────────────────────────
+    def _calc_page_size(self) -> int:
+        """從當前 active tab 的 DataTable viewport 高度算出每頁列數。"""
+        try:
+            tabbed = self.query_one(TabbedContent)
+            active = tabbed.active_pane
+            if active:
+                dt = active.query_one(DataTable)
+                h = max(1, int(dt.size.height) - 1)  # 扣 header
+                return h
+        except Exception:
+            pass
+        return self._page_size_default
+
+    def _get_active_tab_id(self) -> str | None:
+        try:
+            return self.query_one(TabbedContent).active
+        except Exception:
+            return None
+
+    def _get_total_items_for_tab(self, tab_id: str) -> int:
+        """回傳 tab 對應的 filtered item 總數。"""
+        with self._data_lock:
+            ld = dict(self._live_data)
+
+        if tab_id == TAB_HELD:
+            items = self._held
+            if self.search_term:
+                items = [i for i in items if self._match_search(i)]
+            return len(items)
+
+        if tab_id == TAB_CONFIRMED:
+            items = self._filter_watch_items(self._watch)
+            items = [i for i in items
+                     if self._classify_watch(
+                         i, ld.get(str(i.get('ticker', '')), {})) == 'confirmed']
+            if self.search_term:
+                items = [i for i in items if self._match_search(i)]
+            return len(items)
+
+        if tab_id == TAB_WATCHING:
+            items = self._filter_watch_items(self._watch)
+            if not self.show_failed:
+                items = [i for i in items
+                         if self._classify_watch(
+                             i, ld.get(str(i.get('ticker', '')), {})) != 'excluded']
+            if self.search_term:
+                items = [i for i in items if self._match_search(i)]
+            return len(items)
+
+        if tab_id == TAB_PINNED:
+            all_items = {str(i.get('ticker', '')): i
+                         for i in (self._held + self._watch + self._plan)}
+            items = []
+            for tk in self.pinned_tickers:
+                items.append(all_items.get(tk, {'ticker': tk}))
+            if self.search_term:
+                items = [i for i in items if self._match_search(i)]
+            return len(items)
+
+        if tab_id == TAB_SCANNER:
+            items = list(self._watch)
+            if self.search_term:
+                items = [i for i in items if self._match_search(i)]
+            return len(items)
+
+        return 0
+
+    def _paginate(self, items: list, tab_id: str) -> list:
+        """依 _current_page[tab_id] 切出當頁的 items。"""
+        ps    = self._calc_page_size()
+        page  = self._current_page.get(tab_id, 1)
+        start = (page - 1) * ps
+        end   = start + ps
+        return items[start:end]
 
     # ── table refresh ─────────────────────────────────────────────────────────
     def _update_all_tables(self) -> None:
@@ -667,6 +765,7 @@ class MonitorApp(App[None]):
         items = self._held
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
+        items = self._paginate(items, TAB_HELD)
         dt.clear()
         for item in items:
             tk    = str(item.get('ticker', ''))
@@ -708,11 +807,14 @@ class MonitorApp(App[None]):
             return 'excluded'
         return 'watching'
 
-    def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict) -> None:
+    def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict,
+                              tab_id: str | None = None) -> None:
         dt: DataTable = self.query_one(f"#{table_id}", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
+        if tab_id:
+            items = self._paginate(items, tab_id)
         dt.clear()
         for item in items:
             tk   = str(item.get('ticker', ''))
@@ -751,7 +853,7 @@ class MonitorApp(App[None]):
         items = [i for i in items
                  if self._classify_watch(
                      i, ld.get(str(i.get('ticker', '')), {})) == 'confirmed']
-        self._refresh_watch_table("dt-confirmed", items, ld)
+        self._refresh_watch_table("dt-confirmed", items, ld, tab_id=TAB_CONFIRMED)
 
     def _refresh_watching_table(self, ld: dict) -> None:
         items = self._filter_watch_items(self._watch)
@@ -760,7 +862,7 @@ class MonitorApp(App[None]):
             items = [i for i in items
                      if self._classify_watch(
                          i, ld.get(str(i.get('ticker', '')), {})) != 'excluded']
-        self._refresh_watch_table("dt-watching", items, ld)
+        self._refresh_watch_table("dt-watching", items, ld, tab_id=TAB_WATCHING)
 
     def _refresh_pinned_table(self, ld: dict) -> None:
         if not self.pinned_tickers:
@@ -783,6 +885,7 @@ class MonitorApp(App[None]):
         saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
+        items = self._paginate(items, TAB_PINNED)
         dt.clear()
         for item in items:
             tk    = str(item.get('ticker', ''))
@@ -811,7 +914,7 @@ class MonitorApp(App[None]):
         items = list(self._watch)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
-        self._refresh_watch_table("dt-scanner", items, ld)
+        self._refresh_watch_table("dt-scanner", items, ld, tab_id=TAB_SCANNER)
 
     # ── table cursor/scroll preservation ─────────────────────────────────────
     def _save_table_state(self, dt: DataTable) -> tuple[int, float]:
@@ -901,40 +1004,30 @@ class MonitorApp(App[None]):
         self._update_all_tables()
         self.notify("🔄 資料已重整")
 
-    def _page_size(self, dt: DataTable) -> int:
-        return max(1, int(dt.size.height) - 1)
-
     def action_page_up(self) -> None:
-        """當前 tab 的 DataTable 上一頁、cursor 跳到該頁第一列。"""
-        try:
-            tabbed = self.query_one(TabbedContent)
-            active = tabbed.active_pane
-            if not active:
-                return
-            dt = active.query_one(DataTable)
-            page = self._page_size(dt)
-            cur = dt.cursor_row or 0
-            target = max(0, cur - page)
-            dt.move_cursor(row=target)
+        """當前 tab 上一頁：_current_page - 1、重繪 table。"""
+        tab_id = self._get_active_tab_id()
+        if not tab_id:
+            return
+        current = self._current_page.get(tab_id, 1)
+        if current > 1:
+            self._current_page[tab_id] = current - 1
+            self._update_all_tables()
             self._update_status_bar()
-        except Exception:
-            pass
 
     def action_page_down(self) -> None:
-        """當前 tab 的 DataTable 下一頁、cursor 跳到該頁第一列。"""
-        try:
-            tabbed = self.query_one(TabbedContent)
-            active = tabbed.active_pane
-            if not active:
-                return
-            dt = active.query_one(DataTable)
-            page = self._page_size(dt)
-            cur = dt.cursor_row or 0
-            target = min(dt.row_count - 1, cur + page)
-            dt.move_cursor(row=target)
+        """當前 tab 下一頁：_current_page + 1、重繪 table。"""
+        tab_id = self._get_active_tab_id()
+        if not tab_id:
+            return
+        current     = self._current_page.get(tab_id, 1)
+        total_items = self._get_total_items_for_tab(tab_id)
+        ps          = self._calc_page_size()
+        total_pages = max(1, math.ceil(total_items / ps))
+        if current < total_pages:
+            self._current_page[tab_id] = current + 1
+            self._update_all_tables()
             self._update_status_bar()
-        except Exception:
-            pass
 
     def action_switch_tab_1(self) -> None:
         self._switch_to_tab(TAB_HELD)
