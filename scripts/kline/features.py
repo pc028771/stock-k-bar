@@ -127,8 +127,11 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
 
     unfilled_gap_count = np.zeros(n, dtype=float)
     for lag in range(1, GAP_RESISTANCE_LOOKBACK + 1):
-        past_high_l = g["high"].shift(lag).to_numpy()
-        past_prev_low_l = g["prev_low"].shift(lag).to_numpy()
+        # Cast to float64 — for small frames (single ticker, few rows),
+        # all-NaN shifted columns can come back as object dtype which breaks
+        # np.isnan downstream.
+        past_high_l = g["high"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
+        past_prev_low_l = g["prev_low"].shift(lag).to_numpy(dtype=np.float64, na_value=np.nan)
         # Was that historical bar a gap-down day? (strict K-line gap: high < prev_low)
         was_gap_down = past_high_l < past_prev_low_l
         # Gap top = the prev_low on that day (upper bound of the empty zone)

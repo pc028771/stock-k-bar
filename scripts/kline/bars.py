@@ -25,10 +25,26 @@ BACKFILL_DB_PATH = Path(
 )
 
 
-def load_bars(db_path: Path = DEFAULT_DB_PATH, fill_from_backfill: bool = True) -> pd.DataFrame:
+def load_bars(
+    db_path: Path = DEFAULT_DB_PATH,
+    fill_from_backfill: bool = True,
+    tickers: list[str] | None = None,
+) -> pd.DataFrame:
     """Load all usable daily bars sorted by (ticker, trade_date).
 
     Copies the DB to /tmp first to avoid iCloud disk I/O errors.
+
+    Parameters
+    ----------
+    db_path:
+        Source SQLite path.
+    fill_from_backfill:
+        Union with backfill DB (default True).
+    tickers:
+        Optional list of ticker symbols to filter. If provided, the SQL query
+        is narrowed to these tickers — useful for advisor CLI (single ticker)
+        to avoid loading 2.1M rows × 16s pandas overhead. Backfill union still
+        only adds rows for these tickers when filter is active.
 
     If `fill_from_backfill=True` and the kline_patterns backfill DB exists,
     union backfill rows into the result:
@@ -38,7 +54,7 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH, fill_from_backfill: bool = True) 
     This ensures patterns/calibrate/sanity all see complete MA columns even
     for tickers whose main DB history is too short for the rolling windows.
     """
-    query = """
+    base_query = """
         select
             ticker, trade_date,
             open, high, low, close, volume,
@@ -53,28 +69,41 @@ def load_bars(db_path: Path = DEFAULT_DB_PATH, fill_from_backfill: bool = True) 
           and close is not null
           and volume is not null
           and open > 0 and high > 0 and low > 0 and close > 0
-        order by ticker, trade_date
     """
-    # Reuse one snapshot per pid; clean up at process exit.
-    # Earlier versions left a 1 GB snapshot per process — 91 stale copies
-    # filled 91 GB of /tmp.
+    if tickers:
+        placeholders = ",".join("?" * len(tickers))
+        query = base_query + f" and ticker in ({placeholders}) order by ticker, trade_date"
+        params = tuple(tickers)
+    else:
+        query = base_query + " order by ticker, trade_date"
+        params = ()
+    # Cached snapshot reused across processes (CLI re-runs); copy only when
+    # source mtime is newer. Saves ~20s per CLI call vs always-copy.
+    # Single shared path (not per-pid) — race-safe via atomic os.replace().
     tmp = None
+    cache_path = Path(tempfile.gettempdir()) / "kline_bars_snapshot.sqlite"
     try:
-        tmp = Path(tempfile.gettempdir()) / f"kline_bars_snapshot_{os.getpid()}.sqlite"
-        shutil.copy2(db_path, tmp)
-        conn_path = str(tmp)
+        src_mtime = db_path.stat().st_mtime
+        if cache_path.exists() and cache_path.stat().st_mtime >= src_mtime:
+            conn_path = str(cache_path)
+        else:
+            # Copy to a unique temp then atomic replace, so concurrent readers
+            # never see a half-copied file. Close the mkstemp fd before copy
+            # so shutil.copy2 can write to the path.
+            fd, staging_str = tempfile.mkstemp(
+                suffix=".sqlite",
+                prefix="kline_bars_staging_",
+                dir=tempfile.gettempdir(),
+            )
+            os.close(fd)
+            shutil.copy2(db_path, staging_str)
+            os.replace(staging_str, cache_path)
+            conn_path = str(cache_path)
     except Exception:
         conn_path = str(db_path)
 
-    try:
-        with sqlite3.connect(conn_path, timeout=15) as conn:
-            df = pd.read_sql_query(query, conn, parse_dates=["trade_date"])
-    finally:
-        if tmp is not None and tmp.exists():
-            try:
-                tmp.unlink()
-            except OSError:
-                pass
+    with sqlite3.connect(conn_path, timeout=15) as conn:
+        df = pd.read_sql_query(query, conn, params=params, parse_dates=["trade_date"])
     # Normalise to ns precision (pandas 3.x defaults to us; tests expect ns)
     df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
     df = df.reset_index(drop=True)

@@ -24,7 +24,7 @@ def main() -> None:
     from kline.scenarios.formatter import format_advisor_result
 
     print("Loading bars...", flush=True)
-    bars = load_bars()
+    bars = load_bars(tickers=[args.ticker])
 
     print(f"Analyzing {args.ticker} @ {args.date}...", flush=True)
     try:
