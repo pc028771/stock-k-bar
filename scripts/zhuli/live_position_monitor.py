@@ -109,13 +109,12 @@ HELD = [
     },
     {
         'ticker': '8046', 'name': '南電',
-        'cost': 900.0, 'shares': 1000, 'stop': 856.0,
-        'strategy_mode': 'swing',  # 老師圈起來、ABF 復活、中期持有
-        'tactic': '題材', 'priority': 3,
-        'source': '老師明示 6/3 (圈起來)',
+        'cost': 890.0, 'shares': 200, 'stop': 765.0,
+        'strategy_mode': 'swing',
+        'tactic': '題材', 'priority': 2,
+        'source': '6/5 部分停損後信仰倉',
         'sector': 'ABF',
-        'avg_down_pending': True,  # 🔔 user 有零股、轉折確認後攤平
-        'note': '⭐⭐⭐ 6/4 進 1 張 @ $900 (追高)、老師 6/3 圈、ABF 復活、外資大買、停 MA10 $856 (-4.9%)。📌 user 有零股、轉折後攤平: 1) 收站 MA10 ≥$888 + 量增 / 2) 連 2 紅 K + 站 MA5 / 3) 老師再次明示加碼。'
+        'note': '6/5 賣 1000 @ $851 鎖 ~$57k 損、留 200 股 @ $890 信仰倉 (5.5% 水位)、停損改結構底 $765 (5/18 低)。8046 教訓: 高價股 1 張過大 + 追高 9:20 試撮、user 6/5 拍板「以後尾盤才進場」。'
     },
 ]
 
@@ -125,17 +124,7 @@ REALIZED = 0
 # 鎖定主候選 (Phase 1 開盤 entry screening)
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
 # 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
-PLAN_PRIMARY = [
-    {
-        'ticker': '1605', 'name': '華新',
-        'shares': 1000, 'stop': 38.75,
-        'tactic': '核心', 'priority': 3,
-        'source': '老師重壓 + Trigger 1',
-        'sector': '紅海第二棒',
-        'note': '6/3 開盤 ≥ 40.0 + 跳空 ≤+3% 加 1 張',
-        'reason': '🟢 EOD Trigger 1 確認 (外資 +16k + 管錢 +1067)、加 1 張',
-    },
-]
+PLAN_PRIMARY: list = []  # 6/5 清空: 1605 加碼動作已執行 (HELD 12000 股)、無新進場 plan
 
 # 備案 (Phase 1 主候選被 skip 時遞補)
 # 6/3 全 skip、結構壞 + 籌碼弱
@@ -373,7 +362,7 @@ WATCH = [
         'tactic': '短打', 'priority': 2,
         'source': 'scanner (small_structure)',
         'sector': '封測/特化',
-        'note': '🟡 投信 5d +1,726 + ⭐管錢哥、距 MA10 -2.7% 打擊區、首提後 79d (二波期)'
+        'note': '🟡 ⭐管錢哥分點重押、距 MA10 -2.7% 打擊區、首提後 79d (二波期)'
     },
     # 4722 國精化 — 6/3 移出
     # 原因: D+7 跌破 MA5、不符處置課「站均線」條件
@@ -1681,13 +1670,18 @@ def _render_subrow(trig_key: str, trig_reason: str, ticker: str,
 
 
 def _mk_trigger_cell(trig_key: str, trig_reason: str,
-                     exit_alert: str | None = None) -> Text:
-    """Trigger 末欄 Text (單行、含出場提醒 + TRIGGER_DISPLAY + reason)。
+                     exit_alert: str | None = None,
+                     ticker: str | None = None,
+                     current_price: float = 0.0,
+                     held_shares: int = 0) -> Text:
+    """Trigger 末欄 Text (單行、含出場提醒 + TRIGGER_DISPLAY + reason + live chip)。
 
     組成優先順序:
       1. 若有出場提醒 → 先顯示 (紅色強調)
       2. TRIGGER_DISPLAY[trig_key]
       3. trig_reason (dim)
+      4. mk_chip_signal_text(ticker) 若有 ticker (live 計算、有才顯示)
+      5. mk_sizing_suggestion(ticker, price, held) 若有 ticker + price (live 計算)
     若 trig_key 為 'none'/None 且無出場提醒 → dim '-'
     """
     t = Text()
@@ -1713,6 +1707,17 @@ def _mk_trigger_cell(trig_key: str, trig_reason: str,
         if has_exit or has_trig:
             t.append(" | ", style="dim")
         t.append(trig_reason, style="dim")
+
+    if ticker:
+        chip = mk_chip_signal_text(ticker)
+        if chip:
+            t.append(" | ", style="dim")
+            t.append_text(chip)
+        if current_price > 0:
+            sizing = mk_sizing_suggestion(ticker, current_price, held_shares)
+            if sizing:
+                t.append(" | ", style="dim")
+                t.append_text(sizing)
 
     return t
 
@@ -1752,6 +1757,132 @@ def load_5d_avg_volume(ticker: str) -> float | None:
     except Exception:
         _avg_vol_cache[ticker] = None
         return None
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Live chip signal helper
+# ─────────────────────────────────────────────────────────────────────────
+
+_chip_cache: dict[str, "Text | None"] = {}
+
+
+def mk_chip_signal_text(
+    ticker: str,
+    db_path: Path = DB,
+    threshold_foreign: int = 3000,   # 張、外資 5d 累計顯示門檻
+    threshold_sitc: int = 500,        # 張、投信 5d 累計顯示門檻
+    days: int = 5,
+) -> "Text | None":
+    """從 institutional_investors 計算近 N 日累計籌碼、過門檻才回 Text、否則 None。
+
+    單位: 張 (volume / 1000)。
+    DB foreign_net / sitc_net 欄位已是「張」(FinMind institutional_investors)。
+    """
+    if ticker in _chip_cache:
+        return _chip_cache[ticker]
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+        rows = con.execute(
+            "SELECT trade_date, foreign_net, sitc_net "
+            "FROM institutional_investors "
+            "WHERE ticker=? "
+            "ORDER BY trade_date DESC LIMIT ?",
+            (ticker, days),
+        ).fetchall()
+        con.close()
+    except Exception:
+        _chip_cache[ticker] = None
+        return None
+
+    if not rows:
+        _chip_cache[ticker] = None
+        return None
+
+    foreign_sum = sum(r[1] or 0 for r in rows)
+    sitc_sum    = sum(r[2] or 0 for r in rows)
+
+    # 日期區間 stamp
+    dates = sorted(r[0] for r in rows)
+    date_start = dates[0][5:]   # MM-DD
+    date_end   = dates[-1][5:]  # MM-DD
+
+    foreign_over = abs(foreign_sum) >= threshold_foreign
+    sitc_over    = abs(sitc_sum)    >= threshold_sitc
+
+    if not foreign_over and not sitc_over:
+        _chip_cache[ticker] = None
+        return None
+
+    def _fmt(val: float, unit_label: str) -> str:
+        sign = '+' if val >= 0 else ''
+        if abs(val) >= 1000:
+            return f"{unit_label} {sign}{val/1000:.0f}k"
+        return f"{unit_label} {sign}{val:.0f}張"
+
+    parts: list[str] = []
+    if foreign_over:
+        parts.append(_fmt(foreign_sum, '外資'))
+    if sitc_over:
+        parts.append(_fmt(sitc_sum, '投信'))
+
+    chip_str = ' + '.join(parts) + f" [{days}d: {date_start}~{date_end}]"
+    result = Text(chip_str, style="cyan dim")
+    _chip_cache[ticker] = result
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Live sizing suggestion helper
+# ─────────────────────────────────────────────────────────────────────────
+
+def mk_sizing_suggestion(
+    ticker: str,
+    current_price: float,
+    held_shares: int = 0,
+    target_water_pct: float = 20.0,   # 目標水位 (預設 1/5 = 20%)
+    total_capital: float = 3_200_000,
+) -> "Text | None":
+    """依 sizing 規則 + 當前價 + 已持股、回傳建議加碼股數 Text、否則 None。
+
+    目標股數 = total_capital * target_water_pct / 100 / current_price
+    高價股 (> $600) 建議零股、細分到 100 股。
+    低價股 (<= $300) 建議整張 (1000 股)。
+    中間 ($300–$600) 建議 500 股 (半張)。
+    """
+    if not current_price or current_price <= 0:
+        return None
+
+    target_value  = total_capital * target_water_pct / 100
+    target_shares = target_value / current_price
+
+    if current_price > 600:
+        unit = 100
+    elif current_price <= 300:
+        unit = 1000
+    else:
+        unit = 500
+
+    # round down to nearest unit
+    import math
+    target_rounded = math.floor(target_shares / unit) * unit
+
+    if target_rounded <= 0:
+        return None
+
+    if held_shares >= target_rounded:
+        return Text(f"已達 {held_shares} 股水位、不加", style="dim")
+
+    add_shares = target_rounded - held_shares
+    add_lots   = add_shares / 1000
+    cost_est   = add_shares * current_price
+
+    if add_lots >= 1:
+        lots_str = f"{add_lots:.0f}張 ({add_shares:,}股)"
+    else:
+        lots_str = f"{add_shares:,}股"
+
+    result = Text(f"建議加 {lots_str} ≈${cost_est:,.0f}", style="yellow dim")
+    return result
 
 
 def _session_elapsed_ratio(now: datetime | None = None) -> float:
@@ -2141,7 +2272,8 @@ def render_phase1_screener(client, now_str: str, sort_mode: str,
                     r_pnl(pnl, pnl_pct),
                     f"{stop}",
                     opening_comment,
-                    _mk_trigger_cell(trig_key, trig_reason),
+                    _mk_trigger_cell(trig_key, trig_reason,
+                                     ticker=tk, current_price=c, held_shares=shares),
                 )
             except Exception as e:
                 t_held.add_row("?", f"{tk} {name}", "err", "", "", Text(str(e), style="red"), "", "", "")
@@ -2472,7 +2604,7 @@ def render_watch_sectioned(
                 r_dist_ma10(c, tk),
                 r_dist_ref(c, ref),
                 Text(item.get('sector', '?'), style="dim"),
-                _mk_trigger_cell(trig, reason),
+                _mk_trigger_cell(trig, reason, ticker=tk, current_price=c),
             )
         out.append(Group(Text("🎯 WATCH 可進場 (confirmed)", style="bold green"), t_confirmed))
 
@@ -2522,7 +2654,7 @@ def render_watch_sectioned(
                     r_dist_ma10(c, tk),
                     r_dist_ref(c, ref),
                     Text(item.get('sector', '?'), style="dim"),
-                    _mk_trigger_cell(trig, reason),
+                    _mk_trigger_cell(trig, reason, ticker=tk, current_price=c),
                 )
             out.append(Group(Text(title, style="bold"), t_watching))
         if limit > 0:
@@ -2660,6 +2792,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 open_cell = Text(f"昨{c:.1f}", style="dim")
             else:
                 open_cell = mk_open_to_now_cell(o, c)
+            shares_held = item.get('shares', 0)
             t_held_p2.add_row(
                 f"{tk} {name}",
                 open_cell,
@@ -2667,7 +2800,8 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                 r_pnl(pnl, pnl_pct),
                 r_dist(dist),
                 stop_tag,
-                _mk_trigger_cell(trig_key, trig_reason, exit_alert_msg),
+                _mk_trigger_cell(trig_key, trig_reason, exit_alert_msg,
+                                 ticker=tk, current_price=c, held_shares=shares_held),
             )
         renderables.append(Group(Text("📊 持倉", style="bold"), t_held_p2))
 
@@ -2756,7 +2890,7 @@ def render_phase2_holdings(client, now_str: str, prev_prices: dict,
                     r_dist(dist),
                     sector,
                     wall_tag,
-                    _mk_trigger_cell(trig_key, trig_reason),
+                    _mk_trigger_cell(trig_key, trig_reason, ticker=tk, current_price=c),
                 )
             renderables.append(Group(
                 Text(f"Watchlist (排序: {SORT_KEY_LABEL.get(sort_mode, sort_mode)})", style="dim"),
