@@ -5,21 +5,23 @@ Entry:  每日 scanner Top 3 (priority desc, dist_ma10 asc) 隔日開盤買
 Exit:
   --mode C1 (baseline): 收盤 < MA10 → 隔日開盤賣
   --mode C5 (A+C):      MA10 容忍+量縮例外 (rule A) + sizing-based partial exit (rule C)
-  --mode C6 (A+C+rotation): C5 全部規則 + 5 倉 1/5 水位 + 轉倉評估
+  --mode C6 (A+C+rotation): C5 全部規則 + N 倉 1/N 水位 + 轉倉評估
 
 Sizing:
   C1/C5: 1/3 水位 / stock = $1,066,666 (最多 3 倉)
-  C6:    1/5 水位 / stock = $640,000   (最多 5 倉)
+  C6:    1/N 水位 / stock (最多 N 倉)，--slots 控制 N，預設 5 → $640,000
 
 C6 轉倉邏輯:
-  條件: 倉位滿 (5 倉) + 有 P3 候選 + 有 partial-trimmed 倉位
+  條件: 倉位滿 (N 倉) + 有 P3 候選 + 有 partial-trimmed 倉位
   行動: 找最弱的 partial-trimmed 倉 (距 MA10 最負) → 隔日開盤全出、空出一格給新 P3
 
 Usage:
   python scripts/zhuli/tools/backtest_standard_workflow.py [--db PATH] [--cache-dir DIR]
   python scripts/zhuli/tools/backtest_standard_workflow.py --cached-only   # 讀現有快取不重跑 scanner
   python scripts/zhuli/tools/backtest_standard_workflow.py --mode C5       # C5 出場機制
-  python scripts/zhuli/tools/backtest_standard_workflow.py --mode C6       # C6 = 5 倉 + 轉倉
+  python scripts/zhuli/tools/backtest_standard_workflow.py --mode C6       # C6 = 5 倉 + 轉倉 (預設)
+  python scripts/zhuli/tools/backtest_standard_workflow.py --mode C6 --slots 3  # C6 3 倉版
+  python scripts/zhuli/tools/backtest_standard_workflow.py --mode C6 --slots 4  # C6 4 倉版
 
 快取:
   每日 scanner 結果存 /tmp/bt_scanner_cache/<DATE>.json
@@ -161,44 +163,51 @@ def pick_top3(hits: list[dict]) -> list[dict]:
 
 
 def pick_top5(hits: list[dict]) -> list[dict]:
-    """選 Top 5: 嚴格 P3 only、tie-break 距 MA10 升冪 (C6 專用)."""
+    """選 Top 5: 嚴格 P3 only、tie-break 距 MA10 升冪 (C6 專用，向後相容)."""
+    return _pick_top_n(hits, 5)
+
+
+def _pick_top_n(hits: list[dict], n: int) -> list[dict]:
+    """選 Top N: 嚴格 P3 only、tie-break 距 MA10 升冪 (C6 通用)."""
     p3 = [h for h in hits if _priority(h) >= 3]
 
     def dist_key(h):
         d = h.get("dist_ma10_pct")
         return d if d is not None else 999.0
 
-    return sorted(p3, key=dist_key)[:5]
+    return sorted(p3, key=dist_key)[:n]
 
 
 def evaluate_rotation(
     positions: list,
     next_day_candidates: list[dict],
     current_tickers: set[str],
+    max_positions: int = MAX_POSITIONS_C6,
 ) -> object | None:
     """C6 轉倉評估.
 
     條件:
-    1. 倉位已滿 (5 倉)
+    1. 倉位已滿 (max_positions 倉)
     2. 下一日有 P3 候選（且不在現有倉位中）
-    3. 有 partial-trimmed 倉位
+    3. 有 partial-trimmed 倉位（且仍在 MA10 以下）
 
     行動: 找最弱 partial-trimmed 倉 (距 MA10 最負) → 回傳該 Position 物件
     呼叫端負責加入 pending_sells (full exit、隔日開盤出)
     """
-    if len(positions) < MAX_POSITIONS_C6:
+    if len(positions) < max_positions:
         return None  # 有空位、不需轉倉
 
     p3_new = [c for c in next_day_candidates if _priority(c) >= 3 and c["ticker"] not in current_tickers]
     if not p3_new:
         return None  # 沒有新 P3 候選
 
-    trimmed = [p for p in positions if p.partial_trimmed]
+    # 排除「已站回 MA10」的 partial 倉 (Fix: 8064 反彈中被砍 bug)
+    # current_dist_ma10 < 0 才算「弱」、>= 0 是已回穩、不該被砍
+    trimmed = [p for p in positions if p.partial_trimmed and p.current_dist_ma10 < 0]
     if not trimmed:
-        return None  # 沒有 partial-trimmed 倉位可騰出
+        return None  # 沒有真正「仍弱」的 partial-trimmed 倉
 
     # 最弱 = 當前距 MA10 最負的 partial-trimmed 倉
-    # 以 current_dist_ma10 排序 (越小越弱)
     weakest = min(trimmed, key=lambda p: p.current_dist_ma10)
     return weakest
 
@@ -356,15 +365,24 @@ def run_backtest(
     cache_dir: Path,
     cached_only: bool = False,
     mode: str = "C1",
+    slots: int | None = None,
 ) -> dict:
-    """mode: 'C1' = baseline MA10 出場; 'C5' = A+C 出場; 'C6' = 5 倉 A+C+轉倉."""
+    """mode: 'C1' = baseline MA10 出場; 'C5' = A+C 出場; 'C6' = N 倉 A+C+轉倉.
+
+    slots: C6 模式的倉位數 (3/4/5)，None 則用預設 (C6=5, 其他=3)
+    """
     trading_dates = get_trading_dates(db_path, _START_DATE, _END_DATE)
     print(f"Trading dates: {len(trading_dates)} ({trading_dates[0]} ~ {trading_dates[-1]})")
-    print(f"Mode: {mode}")
+    print(f"Mode: {mode}" + (f" (slots={slots})" if slots else ""))
 
-    # C6/C7 使用 5 倉 + 1/5 水位；C1/C5 保持 3 倉 + 1/3 水位
-    _max_pos = MAX_POSITIONS_C6 if mode in ("C6", "C7") else 3
-    _sizing  = _SIZING_C6       if mode in ("C6", "C7") else _SIZING
+    # 倉位數與 sizing 計算
+    _TOTAL_CAPITAL = 3_200_000
+    if mode in ("C6", "C7"):
+        _max_pos = slots if slots is not None else MAX_POSITIONS_C6
+        _sizing  = _TOTAL_CAPITAL // _max_pos
+    else:
+        _max_pos = 3
+        _sizing  = _SIZING
 
     positions: list[Position] = []
     all_trades: list[dict] = []
@@ -372,8 +390,6 @@ def run_backtest(
     # pending_sells item: (sell_date, pos, sell_shares, exit_type)
     # exit_type: 'full' | 'partial' | 'forced_full' | 'rotation'
     rotation_count = 0  # C6 轉倉觸發次數
-
-    _TOTAL_CAPITAL = 3_200_000
 
     # 逐日執行
     for i, d in enumerate(trading_dates):
@@ -440,7 +456,11 @@ def run_backtest(
         hits = load_or_run_scanner(d, db_path, cache_dir, force=not cached_only if not cached_only else False)
 
         if available_slots > 0:
-            top_n = pick_top5(hits) if mode in ("C6", "C7") else pick_top3(hits)
+            # C6/C7: pick top N matching the configured slots; C1/C5: always top 3
+            if mode in ("C6", "C7"):
+                top_n = _pick_top_n(hits, _max_pos)
+            else:
+                top_n = pick_top3(hits)
             top_n = [h for h in top_n if h["ticker"] not in current_tickers]
             new_entries = top_n[:available_slots]
 
@@ -548,12 +568,13 @@ def run_backtest(
         # ④ C6/C7 轉倉評估 (盤後、出場信號判斷完畢後)
         if mode in ("C6", "C7") and next_d:
             current_tickers_now = {p.ticker for p in positions}
-            # 取得明日候選（用今日 scanner 結果）
-            top5_candidates = pick_top5(hits)  # C6/C7 都用 top5
+            # 取得明日候選（用今日 scanner 結果，取 max_pos 數量）
+            top5_candidates = _pick_top_n(hits, _max_pos)
             rotation_target = evaluate_rotation(
                 positions=positions,
                 next_day_candidates=top5_candidates,
                 current_tickers=current_tickers_now,
+                max_positions=_max_pos,
             )
             if rotation_target is not None:
                 # 確保沒有重複排隊 full-exit
@@ -596,7 +617,7 @@ def run_backtest(
         print(f"  持倉中 {pos.ticker} @ {pos.entry_price:.2f} → {close:.2f} P&L={pnl_dollar:+,.0f}")
 
     return {"trades": all_trades, "trading_dates": trading_dates, "mode": mode,
-            "rotation_count": rotation_count}
+            "rotation_count": rotation_count, "slots": _max_pos, "sizing": _sizing}
 
 
 def _count_hold_days(trading_dates: list[str], entry: str, exit_: str) -> int:
@@ -614,6 +635,10 @@ def generate_report(result: dict) -> str:
     trades = result["trades"]
     mode = result.get("mode", "C1")
     rotation_count = result.get("rotation_count", 0)
+    # slots/sizing: use result values if present (dynamic), else fall back to defaults
+    is_c6_family = mode in ("C6", "C7")
+    max_pos = result.get("slots", MAX_POSITIONS_C6 if is_c6_family else 3)
+    sizing = result.get("sizing", _SIZING_C6 if is_c6_family else _SIZING)
     if not trades:
         return "# 無交易紀錄"
 
@@ -639,23 +664,21 @@ def generate_report(result: dict) -> str:
     trades_sorted_asc = sorted(trades, key=lambda t: t["pnl_dollar"])
     trades_sorted_desc = sorted(trades, key=lambda t: t["pnl_dollar"], reverse=True)
 
+    # sizing fraction label
+    sizing_frac = f"1/{max_pos}" if is_c6_family else "1/3"
     exit_desc = {
         "C1": "收盤 < MA10 → 隔日開盤出",
         "C5": "Rule A: MA10 容忍+量縮例外 + Rule C: sizing-based partial exit",
-        "C6": "Rule A + Rule C + 轉倉評估 (5 倉 1/5 水位)",
-        "C7": "Rule A + Rule B 籌碼確認 (AND) + Rule C + 轉倉評估 (5 倉 1/5 水位)",
+        "C6": f"Rule A + Rule C + 轉倉評估 ({max_pos} 倉 {sizing_frac} 水位)",
+        "C7": f"Rule A + Rule B 籌碼確認 (AND) + Rule C + 轉倉評估 ({max_pos} 倉 {sizing_frac} 水位)",
     }.get(mode, mode)
 
-    is_5slot = mode in ("C6", "C7")
-    max_pos = MAX_POSITIONS_C6 if is_5slot else 3
-    sizing = _SIZING_C6 if is_5slot else _SIZING
-
     lines = []
-    lines.append(f"# 標準 workflow backtest [{mode}] (2026-05-01 ~ 2026-06-04)")
+    lines.append(f"# 標準 workflow backtest [{mode}] ({max_pos} 倉) (2026-05-01 ~ 2026-06-04)")
     lines.append("")
     lines.append("## 設定")
     lines.append(f"- Mode: {mode}")
-    entry_n = "Top 5" if is_5slot else "Top 3"
+    entry_n = f"Top {max_pos}" if is_c6_family else "Top 3"
     lines.append(f"- Entry: {entry_n} per day (priority desc, dist_ma10 asc)、隔日開盤進")
     lines.append(f"- Exit: {exit_desc}")
     if mode in ("C5", "C6", "C7"):
@@ -666,8 +689,8 @@ def generate_report(result: dict) -> str:
         lines.append(f"  - Rule C: 倉位水位 > 15% → trim 到 13%；否則全出")
         lines.append(f"  - 零股可執行性: TWSE/TPEx 精準 trim；興櫃整張 or 強制全出")
     if mode in ("C6", "C7"):
-        lines.append(f"  - 轉倉: 5 倉滿 + 有 P3 新候選 + 有 partial-trimmed 倉 → 全出最弱 partial")
-    lines.append(f"- Sizing: {'1/5' if is_5slot else '1/3'} 水位 / stock (${sizing:,})")
+        lines.append(f"  - 轉倉: {max_pos} 倉滿 + 有 P3 新候選 + 有 partial-trimmed 弱倉 → 全出最弱 partial")
+    lines.append(f"- Sizing: {sizing_frac} 水位 / stock (${sizing:,})")
     lines.append(f"- 總資金: $3,200,000 (水位計算基準)")
     lines.append(f"- 最大持倉: {max_pos} 檔同時")
     lines.append("")
@@ -743,14 +766,28 @@ def main():
                         help="只讀現有快取、不重跑 scanner (快取不存在的日期會空白)")
     parser.add_argument("--mode", choices=["C1", "C5", "C6", "C7"], default="C1",
                         help="C1=baseline MA10; C5=MA10容忍+量縮例外+sizing partial exit; "
-                             "C6=C5+5倉+轉倉; C7=C6+籌碼確認(Rule B)")
+                             "C6=C5+N倉+轉倉 (--slots 控制倉位數); C7=C6+籌碼確認(Rule B)")
+    parser.add_argument("--slots", type=int, default=None,
+                        help="C6/C7 模式的倉位數 (3/4/5)，預設 5；C1/C5 忽略此參數")
     parser.add_argument("--output", type=Path, default=None,
-                        help="輸出路徑 (預設依 mode 自動選)")
+                        help="輸出路徑 (預設依 mode+slots 自動選)")
     args = parser.parse_args()
 
-    output_path = args.output or _DEFAULT_OUTPUT.get(args.mode, _DEFAULT_OUTPUT["C1"])
+    # 決定輸出路徑
+    if args.output:
+        output_path = args.output
+    elif args.mode == "C6" and args.slots is not None:
+        _docs = _REPO / "docs" / "主力大課程"
+        output_path = _docs / f"backtest_C6_{args.slots}slots_rotation_2026-05-01_to_2026-06-04.md"
+    else:
+        output_path = _DEFAULT_OUTPUT.get(args.mode, _DEFAULT_OUTPUT["C1"])
 
-    result = run_backtest(args.db, args.cache_dir, cached_only=args.cached_only, mode=args.mode)
+    result = run_backtest(
+        args.db, args.cache_dir,
+        cached_only=args.cached_only,
+        mode=args.mode,
+        slots=args.slots,
+    )
     report = generate_report(result)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
