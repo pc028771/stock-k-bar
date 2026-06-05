@@ -83,8 +83,14 @@ def load_bars(
     tmp = None
     cache_path = Path(tempfile.gettempdir()) / "kline_bars_snapshot.sqlite"
     try:
-        src_mtime = db_path.stat().st_mtime
-        if cache_path.exists() and cache_path.stat().st_mtime >= src_mtime:
+        src_stat = db_path.stat()
+        # Cache valid only when mtime >= source AND size >= ~50% of source
+        # (guards against truncated / empty cache from a previously failed copy).
+        if (
+            cache_path.exists()
+            and cache_path.stat().st_mtime >= src_stat.st_mtime
+            and cache_path.stat().st_size >= src_stat.st_size // 2
+        ):
             conn_path = str(cache_path)
         else:
             # Copy to a unique temp then atomic replace, so concurrent readers

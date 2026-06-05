@@ -437,7 +437,10 @@ def _resolve_vectorized(
         attr = field[len("context."):]
         if attr not in ctx_df.columns:
             # Return NaN series — None context treated as False
-            return pd.Series([None] * len(df), index=df.index, dtype=object)
+            # NaN float (not None object) — comparisons return NaN → False after fillna,
+            # avoiding TypeError on float > None in vectorized backfill.
+            import numpy as _np
+            return pd.Series(_np.nan, index=df.index, dtype=float)
         return ctx_df[attr]
 
     # top-level field: try df first, then ctx_df
@@ -445,8 +448,10 @@ def _resolve_vectorized(
         return df[field].astype(float)
     if field in ctx_df.columns:
         return ctx_df[field]
-    # Return NaN — will produce False in comparisons
-    return pd.Series([None] * len(df), index=df.index, dtype=object)
+    # Return NaN float series — comparisons return NaN → False after fillna,
+    # avoiding TypeError on float > None in vectorized backfill / advisor.
+    import numpy as _np
+    return pd.Series(_np.nan, index=df.index, dtype=float)
 
 
 def _apply_op_vectorized(
