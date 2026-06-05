@@ -332,6 +332,8 @@ class MonitorApp(App[None]):
         Binding("3",       "switch_tab_3",    "觀察", show=False),
         Binding("4",       "switch_tab_4",    "Pinned", show=False),
         Binding("5",       "switch_tab_5",    "Scanner", show=False),
+        Binding("shift+left",  "page_up",   "↑頁"),
+        Binding("shift+right", "page_down", "↓頁"),
     ]
 
     # ── reactive state ───────────────────────────────────────────────────────
@@ -871,6 +873,28 @@ class MonitorApp(App[None]):
         self._fetch_all()
         self._update_all_tables()
         self.notify("🔄 資料已重整")
+
+    def action_page_up(self) -> None:
+        """當前 tab 的 DataTable 上一頁。"""
+        try:
+            tabbed = self.query_one(TabbedContent)
+            active = tabbed.active_pane
+            if active:
+                dt = active.query_one(DataTable)
+                dt.action_page_up()
+        except Exception:
+            pass
+
+    def action_page_down(self) -> None:
+        """當前 tab 的 DataTable 下一頁。"""
+        try:
+            tabbed = self.query_one(TabbedContent)
+            active = tabbed.active_pane
+            if active:
+                dt = active.query_one(DataTable)
+                dt.action_page_down()
+        except Exception:
+            pass
 
     def action_switch_tab_1(self) -> None:
         self._switch_to_tab(TAB_HELD)
