@@ -231,7 +231,8 @@ COLS_HELD = [
     ("ticker",  "代號",    6),
     ("name",    "股名",    8),
     ("cost",    "均",      7),
-    ("open_to_now", "開→現(%)", 15),
+    ("gap",     "跳空",    7),
+    ("price",   "現價(%)", 16),
     ("vol_ratio",   "量比",    9),
     ("pnl",     "P&L",    14),
     ("dist_stop","距停",    8),
@@ -244,7 +245,8 @@ COLS_WATCH = [
     ("stars",    "⭐",      4),
     ("name",     "股名",    8),
     ("tactic",   "策略",    6),
-    ("open_to_now","開→現(%)",15),
+    ("gap",      "跳空",    7),
+    ("price",    "現價(%)", 16),
     ("vol_ratio",  "量比",   9),
     ("dist_ma10",  "距MA10", 8),
     ("sector",   "族群",   14),
@@ -562,6 +564,25 @@ class MonitorApp(App[None]):
         sign = "+" if otn_pct >= 0 else ""
         return f"{sign}{otn_pct:.1f}%"
 
+    def _fmt_gap(self, open_: float, prev_close: float) -> str:
+        """跳空 % (open vs prev_close)、e.g., '+1.2%' / '-1.8%' / '—'。"""
+        if not open_ or not prev_close:
+            return "—"
+        pct = (open_ - prev_close) / prev_close * 100
+        sign = "+" if pct >= 0 else ""
+        return f"{sign}{pct:.1f}%"
+
+    def _fmt_price(self, close_: float, prev_close: float) -> str:
+        """現價 (4 位左空白 + 2 小數) + 漲跌% e.g., '  39.10 (-2.5%)'。"""
+        if not close_:
+            return "—"
+        price = f"{close_:7.2f}"  # 4 位整數 + . + 2 位小數
+        if prev_close:
+            pct = (close_ - prev_close) / prev_close * 100
+            sign = "+" if pct >= 0 else ""
+            return f"{price} ({sign}{pct:.1f}%)"
+        return price
+
     def _fmt_vol(self, vol_ratio: float | None) -> str:
         if vol_ratio is None:
             return "—"
@@ -631,8 +652,11 @@ class MonitorApp(App[None]):
             stat  = self._get_status_icon(item, ld)
             trig  = self._fmt_trigger(d.get('trigger', 'none'), d.get('trig_reason', ''))
             cost  = item.get('cost', 0)
+            prev_close = d.get('prev_close', 0)
+            gap_str   = self._fmt_gap(open_, prev_close)
+            price_str = self._fmt_price(close_, prev_close)
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
-                     f"{open_:.1f}→{close_:.1f} {otn}" if open_ else (f"{close_:.1f}" if close_ else "—"),
+                     gap_str, price_str,
                      vol, pnl_str, dist_str, stat, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
@@ -677,9 +701,10 @@ class MonitorApp(App[None]):
             tactic = item.get('tactic', '')
             sector = item.get('sector', '')
             source = str(item.get('source', ''))[:10]
-            open_to_now = (f"{open_:.1f}→{close_:.1f} {otn}"
-                           if open_ and close_ else (f"{close_:.1f}" if close_ else "—"))
-            row = (tk, stars, name, tactic, open_to_now, vol,
+            prev_close = d.get('prev_close', 0)
+            gap_str  = self._fmt_gap(open_, prev_close)
+            price_str = self._fmt_price(close_, prev_close)
+            row = (tk, stars, name, tactic, gap_str, price_str, vol,
                    dist_str, sector, source, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
@@ -743,8 +768,11 @@ class MonitorApp(App[None]):
             stat  = self._get_status_icon(item, ld)
             trig  = self._fmt_trigger(d.get('trigger', 'none'), d.get('trig_reason', ''))
             cost  = item.get('cost', 0)
+            prev_close = d.get('prev_close', 0)
+            gap_str   = self._fmt_gap(open_, prev_close)
+            price_str = self._fmt_price(close_, prev_close)
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
-                     f"{open_:.1f}→{close_:.1f} {otn}" if open_ else (f"{close_:.1f}" if close_ else "—"),
+                     gap_str, price_str,
                      vol, pnl_str, dist_str, stat, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
