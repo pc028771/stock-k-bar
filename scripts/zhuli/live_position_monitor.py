@@ -3844,9 +3844,11 @@ def _run_demo(args):
                 mock, now_str, prev_prices, notified, sort_mode, do_notify
             )
 
+        teacher_tag = " [teacher-only: ON]" if _teacher_only[0] else ""
+        failed_tag  = " [show-failed: ON]" if _show_failed[0] else ""
         footer = Text(
-            f"sort={sort_mode} | watch-limit={_watch_limit[0]}",
-            style="dim",
+            f"sort={sort_mode} | watch-limit={_watch_limit[0]}{teacher_tag}{failed_tag}",
+            style="bold cyan" if (_teacher_only[0] or _show_failed[0]) else "dim",
         )
         return Group(header, hint, content, footer)
 
