@@ -91,16 +91,15 @@ def simulate_daytrade(
     k1m_next: pd.DataFrame, prev_close: float,
     target_pct: float = 1.5,
     stop_variant: str = "A",
+    entry_cutoff_hhmm: str | None = None,
 ) -> dict:
     """簡化 Ch5 當沖出場模擬、回傳 {entered, exit_reason, pnl_pct}.
 
     Args:
         target_pct: 達標 % (Ch5 範圍 1.5-3.0)
-        stop_variant:
-            'A' = 雙錨 max(第1根5K低, 開盤, 昨收)
-            'B' = 單錨 第1根5K低 (Ch5-3 字面)
-            'C' = MA trail 跌破 5K 5MA 出
-            'D' = A + C 任一觸發
+        stop_variant: A/B/C/D (見 README)
+        entry_cutoff_hhmm: 進場有效時段截止 (例如 '10:30')、過後 no_entry
+            預設 None = 不限制 (整日)
     """
     if k1m_next.empty or prev_close <= 0:
         return {"entered": False, "exit_reason": "no_data", "pnl_pct": 0.0}
@@ -123,10 +122,19 @@ def simulate_daytrade(
     else:  # A / D 共用雙錨
         stop_static = max(first_5k_low, open_p, prev_close)
 
+    # 進場截止 idx (None = 不限)
+    max_entry_idx = None
+    if entry_cutoff_hhmm:
+        h, m = map(int, entry_cutoff_hhmm.split(":"))
+        # bar idx N = N*5 分 + 9:00、所以 max = ((h-9)*60+m)/5
+        max_entry_idx = ((h - 9) * 60 + m) // 5
+
     # 找 entry: 9:10 後第一根 5K close > first_5k_high
     entry_price = None
     entry_idx = None
     for i in range(2, len(k5m)):  # i >= 2 對應 9:10 後（5K bar 0=9:00、1=9:05、2=9:10 開始）
+        if max_entry_idx is not None and i > max_entry_idx:
+            break
         bar = k5m.iloc[i]
         if float(bar["close"]) > first_5k_high:
             entry_price = float(bar["close"])
@@ -369,6 +377,8 @@ def main():
                    help="A=雙錨(現) / B=單錨 / C=MA5 trail / D=A+C")
     p.add_argument("--require-breakout-vol", action='store_true',
                    help="啟用 Ch5-2「右下量 > 左前高量」量能突破過濾")
+    p.add_argument("--entry-cutoff", default=None,
+                   help="進場有效時段截止 hh:mm (例 10:30、過後不再進場)")
     args = p.parse_args()
 
     from kline.bars import DEFAULT_DB_PATH
@@ -403,7 +413,8 @@ def main():
             prev_close = pick.get("close", 0)  # 隔日的 prev_close = sig date 收盤
             k1m = _fetch_1m(t, next_date)
             sim = simulate_daytrade(k1m, prev_close, target_pct=args.target,
-                                    stop_variant=args.stop)
+                                    stop_variant=args.stop,
+                                    entry_cutoff_hhmm=args.entry_cutoff)
 
             all_results.append({
                 "sig_date": sig_date, "next_date": next_date, "rank": rank,
