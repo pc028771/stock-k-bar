@@ -1,6 +1,6 @@
 # Phase 4.3 Advisor History Backtest Report
 
-Generated: 2026-06-05 12:12:13
+Generated: 2026-06-05 12:28:32
 
 ## Scope
 
