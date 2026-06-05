@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import functools
 import logging
 import sqlite3
 import subprocess
@@ -41,6 +42,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 # ── Path setup ────────────────────────────────────────────────────────────────
@@ -177,8 +179,13 @@ def load_stock_names(db: Path) -> dict[str, str]:
     return {r[0]: r[1] for r in rows}
 
 
+@functools.lru_cache(maxsize=4096)
 def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
     """從 standard_daily_bar 取 target_date 前一交易日的 MA10。
+
+    Cache: 同一 (ticker, target_date) 在 backtest / live monitor 內會被反覆查、
+    每次都開新 sqlite connection 很貴 (profile 看到 19k+ connects)。lru_cache
+    把每對 (ticker, date) 的查詢降到 1 次。
 
     Args:
         ticker:      股票代號
@@ -319,6 +326,409 @@ def _build_simulated_5k_1605() -> pd.DataFrame:
 
 # ── Trigger 判斷邏輯 ──────────────────────────────────────────────────────────
 
+def _df_to_arrays(df: pd.DataFrame):
+    """Extract OHLCV numpy arrays + HH:MM time strings from a 5-min K-bar DataFrame.
+
+    Hot-loop perf helper: trigger functions used to do thousands of pandas scalar
+    lookups per call. Pulling arrays once and operating on numpy is ~50x faster
+    with identical results (see /tmp/bench_trigger2.py).
+    """
+    opens  = df["open"].to_numpy(dtype=np.float64)
+    highs  = df["high"].to_numpy(dtype=np.float64)
+    lows   = df["low"].to_numpy(dtype=np.float64)
+    closes = df["close"].to_numpy(dtype=np.float64)
+    vols   = df["volume"].to_numpy(dtype=np.float64)
+    idx = df.index
+    if len(idx) and hasattr(idx[0], "strftime"):
+        times = [t.strftime("%H:%M") for t in idx]
+    else:
+        times = [str(t)[11:16] for t in idx]
+    return opens, highs, lows, closes, vols, times
+
+
+def _check_trigger_1_np(opens, highs, lows, closes, vols, times,
+                        prev_high: Optional[float]) -> dict:
+    """numpy port of check_trigger_1."""
+    n = len(closes)
+    result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
+    if n < 5:
+        result["reason"] = "5K 資料不足"
+        return result
+
+    open_price = float(opens[0])
+    current_close = float(closes[-1])
+    result["price"] = current_close
+
+    # 連 2 紅K
+    if not (closes[n - 1] > opens[n - 1] and closes[n - 2] > opens[n - 2]):
+        result["reason"] = "未達連 2 紅K"
+        return result
+
+    # 量增：最後 1 根量 ≥ rolling(min(n,20), min_periods=1).mean().iloc[-1] × 1.5
+    win = 20 if n >= 20 else n
+    vol_5d_avg = float(vols[n - win:n].mean())
+    last_vol = float(vols[n - 1])
+    vol_ratio = last_vol / vol_5d_avg if vol_5d_avg > 0 else 0
+    if vol_ratio < 1.5:
+        result["reason"] = f"量增不足 (×{vol_ratio:.2f} < 1.5)"
+        return result
+
+    rebound_pct = (current_close / open_price - 1) * 100
+    if rebound_pct <= 1.0:
+        result["reason"] = f"距開盤反彈 {rebound_pct:.1f}% ≤ 1%"
+        return result
+
+    if prev_high is not None and current_close < prev_high:
+        result["reason"] = f"未站穩前波高 {prev_high:.2f}"
+        return result
+
+    t_str = times[n - 1] if n - 1 < len(times) else "09:30"
+    if "09:15" <= t_str < "09:45":
+        result["level"] = "T1_watch"
+        result["reason"] = (
+            f"T1 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+            f"(連 2 紅K + 量×{vol_ratio:.1f} + 反彈+{rebound_pct:.1f}%"
+            + (f" + 站前波高 {prev_high:.2f}" if prev_high else "")
+            + ")"
+        )
+        return result
+
+    day_high = float(highs.max())
+    if day_high > 0 and current_close >= day_high * 0.985:
+        result["level"] = "T1_watch"
+        result["reason"] = (
+            f"T1 觸發但太接近日高 ${day_high:.2f}、等回測 -1.5% 再切入"
+        )
+        return result
+
+    result["triggered"] = True
+    result["level"] = "confirmed"
+    result["reason"] = (
+        f"連 2 紅K + 量×{vol_ratio:.1f} + 反彈+{rebound_pct:.1f}%"
+        + (f" + 站前波高 {prev_high:.2f}" if prev_high else "")
+    )
+    result["suggested_size"] = 1
+    return result
+
+
+def _check_ch5_3_entry_np(opens, highs, lows, closes, vols, times,
+                          prev_close: float, ma10: Optional[float],
+                          market_regime: str) -> dict:
+    """numpy port of check_ch5_3_entry."""
+    result: dict = {
+        "triggered": False,
+        "level": "watch",
+        "reason": "",
+        "stop_loss": None,
+        "stop_anchors": {},
+    }
+    n = len(closes)
+    if n < 1:
+        result["reason"] = "5K 不足"
+        return result
+
+    open_p  = float(opens[0])
+    high_p  = float(highs[0])
+    low_p   = float(lows[0])
+    close_p = float(closes[0])
+
+    red_k            = close_p > open_p
+    gap_pct          = (open_p - prev_close) / prev_close * 100 if prev_close > 0 else 999
+    close_above_prev = close_p >= prev_close
+    close_above_open = close_p >= open_p
+    body             = abs(close_p - open_p)
+    upper            = high_p - max(close_p, open_p)
+    body_gt_shadow   = body > upper
+    chg_pct          = (close_p - open_p) / open_p * 100 if open_p > 0 else 0
+    rise_under_4     = chg_pct < 4.0
+    gap_ok           = gap_pct < 5.0
+
+    all_pass = all([red_k, close_above_prev, close_above_open,
+                    body_gt_shadow, rise_under_4, gap_ok])
+
+    if not all_pass:
+        fails = []
+        if not red_k:            fails.append("非紅K")
+        if not gap_ok:           fails.append(f"跳空 {gap_pct:.1f}% ≥ 5%")
+        if not close_above_prev: fails.append(f"收盤 {close_p:.2f} < 前收 {prev_close:.2f}")
+        if not close_above_open: fails.append("收盤 < 開盤 (雙錨失守)")
+        if not body_gt_shadow:   fails.append(f"實體 {body:.2f} ≤ 上影 {upper:.2f}")
+        if not rise_under_4:     fails.append(f"漲幅 {chg_pct:.1f}% ≥ 4%")
+        result["level"] = "fail"
+        result["reason"] = "第一根 5K 不符: " + ", ".join(fails)
+        return result
+
+    first_low = low_p
+    stop_loss = max(first_low, prev_close)
+    result["stop_loss"] = stop_loss
+    result["stop_anchors"] = {
+        "first_5k_low": first_low,
+        "prev_close": prev_close,
+    }
+
+    first_high = high_p
+    _regime = market_regime.lower() if market_regime else "normal"
+
+    if _regime in ("strong", "normal"):
+        for i in range(1, n):
+            t_str = times[i]
+            if t_str < "09:10":
+                continue
+            bar_close = float(closes[i])
+            bar_open  = float(opens[i])
+            if bar_close > first_high and bar_close > bar_open:
+                if "09:15" <= t_str < "09:45":
+                    result["level"] = "signal"
+                    result["reason"] = (
+                        f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
+                        f"但 9:15-9:45 拉高出貨時段、等 9:45 後確認"
+                    )
+                    result["regime"] = _regime
+                    return result
+
+                if t_str >= "09:45":
+                    day_high_so_far = float(highs[:i + 1].max())
+                    if bar_close >= day_high_so_far * 0.99:
+                        result["level"] = "signal"
+                        result["reason"] = (
+                            f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
+                            f"但太接近日高 ${day_high_so_far:.2f}、等回測 -1% 再切入"
+                        )
+                        result["regime"] = _regime
+                        return result
+
+                result["triggered"] = True
+                result["level"] = "confirmed"
+                result["reason"] = (
+                    f"Ch5-3 [{_regime}盤] {t_str} 過高 {first_high:.2f} 站穩"
+                )
+                result["entry_price"] = bar_close
+                result["entry_time"]  = t_str
+                result["regime"] = _regime
+                return result
+
+        result["level"] = "watch"
+        result["reason"] = f"Ch5-3 [{_regime}盤] 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
+        result["regime"] = _regime
+        return result
+
+    # weak regime
+    signal_idx: Optional[int] = None
+    for i in range(1, n):
+        ts_str = times[i]
+        if ts_str < "09:10":
+            continue
+        if ts_str >= "09:30":
+            break
+        bar_close = float(closes[i])
+        bar_open  = float(opens[i])
+        if bar_close > first_high and bar_close > bar_open:
+            signal_idx = i
+            break
+
+    if signal_idx is None:
+        result["level"] = "watch"
+        result["reason"] = f"Ch5-3 [弱勢盤] 第一根全 pass、等 9:10-9:30 過高 {first_high:.2f}"
+        result["regime"] = "weak"
+        return result
+
+    result["level"] = "signal"
+    result["regime"] = "weak"
+    if ma10 is not None:
+        result["reason"] = f"[弱勢盤] 訊號觸發 {times[signal_idx]} 過高 {first_high:.2f}、等回踩 MA10 ({ma10:.2f})"
+    else:
+        result["reason"] = f"[弱勢盤] 訊號觸發 {times[signal_idx]} 過高 {first_high:.2f}、MA10 未知"
+
+    if ma10 is None or ma10 <= 0:
+        return result
+
+    MA10_BAND = 0.02
+    for i in range(signal_idx + 1, n):
+        bar_low   = float(lows[i])
+        bar_close = float(closes[i])
+        bar_open  = float(opens[i])
+
+        touched_ma10 = bar_low <= ma10 * (1 + MA10_BAND) and bar_low >= ma10 * (1 - MA10_BAND)
+
+        if touched_ma10:
+            result["level"] = "pullback"
+            result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+            if bar_close > bar_open and bar_close > ma10:
+                result["triggered"] = True
+                result["level"] = "confirmed"
+                result["reason"] = (
+                    f"[弱勢盤] 過高 {first_high:.2f} + 回踩 MA10 {ma10:.2f} 守住 "
+                    f"(紅K {times[i]})"
+                )
+                result["entry_price"] = bar_close
+                result["entry_time"]  = times[i]
+                return result
+
+    if result["level"] == "pullback":
+        result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
+    else:
+        result["reason"] = f"[弱勢盤] 訊號觸發、等回踩 MA10 ({ma10:.2f})"
+    return result
+
+
+def _check_trigger_c_np(opens, highs, lows, closes, vols, times,
+                        prev_low: Optional[float]) -> dict:
+    """numpy port of check_trigger_c (結構失敗)."""
+    n = len(closes)
+    result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
+    if n < 5:
+        result["reason"] = "5K 資料不足"
+        return result
+
+    current_close = float(closes[-1])
+    result["price"] = current_close
+
+    # MA10 = rolling(10, min_periods=1).mean().iloc[-1]
+    win10 = 10 if n >= 10 else n
+    ma10 = float(closes[n - win10:n].mean())
+    dist_ma10_pct = (current_close / ma10 - 1) * 100 if ma10 > 0 else 0
+
+    # vol_avg = rolling(min(n,20), min_periods=1).mean().iloc[-1]
+    win20 = 20 if n >= 20 else n
+    vol_avg = float(vols[n - win20:n].mean())
+    last_vol = float(vols[n - 1])
+    vol_ratio = last_vol / vol_avg if vol_avg > 0 else 0
+    last_black = float(closes[n - 1]) < float(opens[n - 1])
+
+    broken_structure = False
+    reason_parts = []
+
+    if prev_low is not None and current_close < prev_low:
+        broken_structure = True
+        reason_parts.append(f"跌破前波低 {prev_low:.2f}")
+
+    if dist_ma10_pct <= -3.0:
+        broken_structure = True
+        reason_parts.append(f"距 MA10 {dist_ma10_pct:.1f}%")
+
+    if not broken_structure:
+        result["reason"] = f"結構未破壞 (距MA10 {dist_ma10_pct:.1f}%)"
+        return result
+
+    if not (vol_ratio >= 1.5 and last_black):
+        result["level"] = "signal"
+        result["reason"] = "、".join(reason_parts) + f" (量×{vol_ratio:.1f}、等量爆確認)"
+        return result
+
+    result["triggered"] = True
+    result["level"] = "confirmed"
+    result["reason"] = "、".join(reason_parts) + f"、量×{vol_ratio:.1f} 恐慌賣壓"
+    return result
+
+
+def _check_trigger_2_np(opens, highs, lows, closes, vols, times) -> dict:
+    """numpy port of check_trigger_2. Logic must stay byte-equal to the pandas
+    version — backtest determinism depends on it."""
+    n = len(closes)
+    result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
+    if n < 3:
+        result["reason"] = "5K 資料不足"
+        return result
+
+    current_close = float(closes[-1])
+    result["price"] = current_close
+
+    intraday_high = float(highs.max())
+    last_low = float(lows[-1])
+    pullback_pct = (last_low - intraday_high) / intraday_high * 100
+    if pullback_pct > -2.5:
+        result["reason"] = f"未跌深 {pullback_pct:.1f}% (需 ≤ -2.5%、盤中高 {intraday_high:.2f})"
+        return result
+
+    low_idx = int(lows.argmin())
+    low_price = float(lows[low_idx])
+
+    after_low_len = n - low_idx - 1
+    if after_low_len < 2:
+        result["level"] = "watch"
+        result["reason"] = f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})、低後 K 不足等確認"
+        return result
+
+    # 路徑 A: 連續 3 紅K + 距低反彈 ≥ 1%
+    after_start = low_idx + 1
+    tail3_start = max(after_start, n - 3)
+    tail3_len = n - tail3_start
+    if tail3_len >= 3:
+        all_red = bool(np.all(closes[tail3_start:n] > opens[tail3_start:n]))
+        rebound = (float(closes[n - 1]) - low_price) / low_price * 100
+        if all_red and rebound >= 1.0:
+            t_str2 = times[n - 1]
+            if "09:15" <= t_str2 < "09:45":
+                result["level"] = "T2_watch"
+                result["reason"] = (
+                    f"T2 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+                    f"(跌深 {pullback_pct:.1f}% + 3 紅K + 反彈 {rebound:.1f}%)"
+                )
+                return result
+            day_high_t2 = intraday_high
+            confirm_close = float(closes[n - 1])
+            if day_high_t2 > 0 and confirm_close >= day_high_t2 * 0.985:
+                result["level"] = "T2_watch"
+                result["reason"] = (
+                    f"T2 觸發但太接近日高 ${day_high_t2:.2f}、等回測 -1.5% 再切入"
+                )
+                return result
+            result["triggered"] = True
+            result["level"] = "confirmed"
+            result["reason"] = (
+                f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})"
+                f" + 3 紅K + 反彈 {rebound:.1f}%"
+            )
+            result["price"] = float(closes[n - 1])
+            result["suggested_size"] = 1
+            result["path"] = "A (3 紅K)"
+            return result
+
+    # 路徑 B: 5m diff 由負轉正 + 09:10 後 + 紅K + 量 ≥ 5 根平均
+    if n >= 3:
+        diff_prev = float(closes[n - 2]) - float(closes[n - 3])
+        diff_now  = float(closes[n - 1]) - float(closes[n - 2])
+        current_time = times[n - 1]
+        v_start = max(0, n - 5)
+        vol_mean5 = float(vols[v_start:n].mean())
+        if (
+            diff_prev < 0
+            and diff_now > 0
+            and current_time >= "09:10"
+            and float(closes[n - 1]) > float(opens[n - 1])
+            and float(vols[n - 1]) >= vol_mean5
+        ):
+            if "09:15" <= current_time < "09:45":
+                result["level"] = "T2_watch"
+                result["reason"] = (
+                    f"T2(B) 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
+                    f"(跌深 {pullback_pct:.1f}% + 5m diff 轉正)"
+                )
+                return result
+            day_high_b = intraday_high
+            close_b = float(closes[n - 1])
+            if day_high_b > 0 and close_b >= day_high_b * 0.985:
+                result["level"] = "T2_watch"
+                result["reason"] = (
+                    f"T2(B) 觸發但太接近日高 ${day_high_b:.2f}、等回測 -1.5%"
+                )
+                return result
+            result["triggered"] = True
+            result["level"] = "confirmed"
+            result["reason"] = (
+                f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})"
+                f" + 5m diff 由負轉正 (early signal)"
+            )
+            result["price"] = float(closes[n - 1])
+            result["suggested_size"] = 1
+            result["path"] = "B (5m diff)"
+            return result
+
+    result["level"] = "watch"
+    result["reason"] = f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})、等確認"
+    return result
+
+
 class StageTrigger:
 
     def check_discipline_filter(
@@ -367,77 +777,11 @@ class StageTrigger:
         prev_high: Optional[float],
     ) -> dict:
         """強勢延續訊號 (連 2 紅K + 量增 + 站前波高 + 距開盤 >+1%)."""
-        result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
-
         if len(k5) < 5:
-            result["reason"] = "5K 資料不足"
-            return result
-
-        open_price = float(k5["open"].iloc[0])
-        last2 = k5.tail(2)
-        current_close = float(k5["close"].iloc[-1])
-        result["price"] = current_close
-
-        # 連 2 根紅 K
-        last2_red = all(
-            float(last2["close"].iloc[i]) > float(last2["open"].iloc[i])
-            for i in range(len(last2))
-        )
-        if not last2_red:
-            result["reason"] = "未達連 2 紅K"
-            return result
-
-        # 量增：最後 1 根量 ≥ 5 日平均 × 1.5
-        vol_5d_avg = k5["volume"].rolling(min(len(k5), 20), min_periods=1).mean().iloc[-1]
-        last_vol = float(k5["volume"].iloc[-1])
-        vol_ratio = last_vol / vol_5d_avg if vol_5d_avg > 0 else 0
-        if vol_ratio < 1.5:
-            result["reason"] = f"量增不足 (×{vol_ratio:.2f} < 1.5)"
-            return result
-
-        # 距開盤反彈 > +1%
-        rebound_pct = (current_close / open_price - 1) * 100
-        if rebound_pct <= 1.0:
-            result["reason"] = f"距開盤反彈 {rebound_pct:.1f}% ≤ 1%"
-            return result
-
-        # 站穩前波高
-        if prev_high is not None and current_close < prev_high:
-            result["reason"] = f"未站穩前波高 {prev_high:.2f}"
-            return result
-
-        # ── 9:15-9:45 拉高出貨時段過濾 ────────────────────────────────────────
-        # v8 backtest: 觸發即進 Win 54.8%、尾盤 Win 80.8%；9:15-9:45 系統性差
-        # 與 Ch5-3 對齊 — 9:15-9:45 確認降為 T1_watch
-        now_ts = k5.index[-1]
-        t_str = now_ts.strftime("%H:%M") if hasattr(now_ts, "strftime") else "09:30"
-        if "09:15" <= t_str < "09:45":
-            result["level"] = "T1_watch"
-            result["reason"] = (
-                f"T1 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
-                f"(連 2 紅K + 量×{vol_ratio:.1f} + 反彈+{rebound_pct:.1f}%"
-                + (f" + 站前波高 {prev_high:.2f}" if prev_high else "")
-                + ")"
-            )
-            return result
-
-        # ── 距日高 < 1.5% 過濾 ──────────────────────────────────────────────────
-        day_high = float(k5["high"].max())
-        if day_high > 0 and current_close >= day_high * 0.985:
-            result["level"] = "T1_watch"
-            result["reason"] = (
-                f"T1 觸發但太接近日高 ${day_high:.2f}、等回測 -1.5% 再切入"
-            )
-            return result
-
-        result["triggered"] = True
-        result["level"] = "confirmed"
-        result["reason"] = (
-            f"連 2 紅K + 量×{vol_ratio:.1f} + 反彈+{rebound_pct:.1f}%"
-            + (f" + 站前波高 {prev_high:.2f}" if prev_high else "")
-        )
-        result["suggested_size"] = 1
-        return result
+            return {"triggered": False, "level": "watch",
+                    "reason": "5K 資料不足", "price": 0.0, "suggested_size": 0}
+        opens, highs, lows, closes, vols, times = _df_to_arrays(k5)
+        return _check_trigger_1_np(opens, highs, lows, closes, vols, times, prev_high)
 
     def check_trigger_2(
         self,
@@ -449,116 +793,15 @@ class StageTrigger:
 
         舊 now_time 參數保留向後相容，但不再做時段限制 (任何時段均可觸發)。
         prev_levels 已不需要，只依賴當日 k5。
+
+        Hot-loop perf: backtest 中此函式被呼叫 ~5 萬次、占 cumtime ~29s；改走 numpy
+        實作（_check_trigger_2_np）後同邏輯 ~52x 加速、回測結果 byte-equal。
         """
-        result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
-
         if len(k5) < 3:
-            result["reason"] = "5K 資料不足"
-            return result
-
-        current_close = float(k5["close"].iloc[-1])
-        result["price"] = current_close
-        last = k5.iloc[-1]
-
-        # 從盤中最高算跌深
-        intraday_high = float(k5["high"].max())
-        pullback_pct = (float(last["low"]) - intraday_high) / intraday_high * 100
-        if pullback_pct > -2.5:
-            result["reason"] = f"未跌深 {pullback_pct:.1f}% (需 ≤ -2.5%、盤中高 {intraday_high:.2f})"
-            return result
-
-        # 找最低點
-        low_idx = k5["low"].idxmin()
-        low_price = float(k5.loc[low_idx, "low"])
-
-        # 最低之後的 K 棒
-        after_low = k5.loc[low_idx:].iloc[1:]
-        if len(after_low) < 2:
-            result["level"] = "watch"
-            result["reason"] = f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})、低後 K 不足等確認"
-            return result
-
-        # 路徑 A: 連續 3 根紅 K + 距低反彈 ≥ 1%
-        last_3 = after_low.tail(3)
-        if len(last_3) >= 3:
-            all_red = (last_3["close"] > last_3["open"]).all()
-            rebound = (float(last_3.iloc[-1]["close"]) - low_price) / low_price * 100
-            if all_red and rebound >= 1.0:
-                # ── 9:15-9:45 拉高出貨時段過濾 (與 Ch5-3 / T1 對齊) ────────────
-                now_ts2 = last_3.index[-1]
-                t_str2 = now_ts2.strftime("%H:%M") if hasattr(now_ts2, "strftime") else "09:30"
-                if "09:15" <= t_str2 < "09:45":
-                    result["level"] = "T2_watch"
-                    result["reason"] = (
-                        f"T2 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
-                        f"(跌深 {pullback_pct:.1f}% + 3 紅K + 反彈 {rebound:.1f}%)"
-                    )
-                    return result
-
-                # ── 距日高 < 1.5% 過濾 ─────────────────────────────────────────
-                day_high_t2 = float(k5["high"].max())
-                confirm_close = float(last_3.iloc[-1]["close"])
-                if day_high_t2 > 0 and confirm_close >= day_high_t2 * 0.985:
-                    result["level"] = "T2_watch"
-                    result["reason"] = (
-                        f"T2 觸發但太接近日高 ${day_high_t2:.2f}、等回測 -1.5% 再切入"
-                    )
-                    return result
-
-                result["triggered"] = True
-                result["level"] = "confirmed"
-                result["reason"] = (
-                    f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})"
-                    f" + 3 紅K + 反彈 {rebound:.1f}%"
-                )
-                result["price"] = float(last_3.iloc[-1]["close"])
-                result["suggested_size"] = 1
-                result["path"] = "A (3 紅K)"
-                return result
-
-        # 路徑 B: 5m diff 由負轉正 + 09:10 後 + 紅K + 量 ≥ 5 根平均
-        if len(k5) >= 3:
-            diff_prev = float(k5.iloc[-2]["close"]) - float(k5.iloc[-3]["close"])
-            diff_now  = float(k5.iloc[-1]["close"]) - float(k5.iloc[-2]["close"])
-            current_time = k5.index[-1].strftime("%H:%M") if hasattr(k5.index, "strftime") else "09:30"
-            vol_mean5 = k5.tail(5)["volume"].mean()
-            if (diff_prev < 0 and diff_now > 0
-                    and current_time >= "09:10"
-                    and float(last["close"]) > float(last["open"])   # 紅K
-                    and float(last["volume"]) >= vol_mean5):          # 量 ≥ 5 根平均
-                # ── 9:15-9:45 拉高出貨時段過濾 (Path B) ────────────────────────
-                if "09:15" <= current_time < "09:45":
-                    result["level"] = "T2_watch"
-                    result["reason"] = (
-                        f"T2(B) 觸發但 9:15-9:45 拉高出貨時段、等 9:45+ "
-                        f"(跌深 {pullback_pct:.1f}% + 5m diff 轉正)"
-                    )
-                    return result
-
-                # ── 距日高 < 1.5% 過濾 (Path B) ────────────────────────────────
-                day_high_b = float(k5["high"].max())
-                close_b = float(last["close"])
-                if day_high_b > 0 and close_b >= day_high_b * 0.985:
-                    result["level"] = "T2_watch"
-                    result["reason"] = (
-                        f"T2(B) 觸發但太接近日高 ${day_high_b:.2f}、等回測 -1.5%"
-                    )
-                    return result
-
-                result["triggered"] = True
-                result["level"] = "confirmed"
-                result["reason"] = (
-                    f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})"
-                    f" + 5m diff 由負轉正 (early signal)"
-                )
-                result["price"] = float(last["close"])
-                result["suggested_size"] = 1
-                result["path"] = "B (5m diff)"
-                return result
-
-        result["level"] = "watch"
-        result["reason"] = f"跌深 {pullback_pct:.1f}% (盤中高 {intraday_high:.2f})、等確認"
-        return result
+            return {"triggered": False, "level": "watch",
+                    "reason": "5K 資料不足", "price": 0.0, "suggested_size": 0}
+        opens, highs, lows, closes, vols, times = _df_to_arrays(k5)
+        return _check_trigger_2_np(opens, highs, lows, closes, vols, times)
 
     def check_trigger_2_legacy(
         self,
@@ -646,47 +889,11 @@ class StageTrigger:
         prev_low: Optional[float],
     ) -> dict:
         """結構失敗 (跌破前波低 + 距 MA10 -3% + 量爆下行)."""
-        result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
-
         if len(k5) < 5:
-            result["reason"] = "5K 資料不足"
-            return result
-
-        current_close = float(k5["close"].iloc[-1])
-        result["price"] = current_close
-
-        ma10 = k5["close"].rolling(10, min_periods=1).mean().iloc[-1]
-        dist_ma10_pct = (current_close / float(ma10) - 1) * 100 if float(ma10) > 0 else 0
-
-        vol_avg = k5["volume"].rolling(min(len(k5), 20), min_periods=1).mean().iloc[-1]
-        last_vol = float(k5["volume"].iloc[-1])
-        vol_ratio = last_vol / float(vol_avg) if float(vol_avg) > 0 else 0
-        last_black = float(k5["close"].iloc[-1]) < float(k5["open"].iloc[-1])
-
-        broken_structure = False
-        reason_parts = []
-
-        if prev_low is not None and current_close < prev_low:
-            broken_structure = True
-            reason_parts.append(f"跌破前波低 {prev_low:.2f}")
-
-        if dist_ma10_pct <= -3.0:
-            broken_structure = True
-            reason_parts.append(f"距 MA10 {dist_ma10_pct:.1f}%")
-
-        if not broken_structure:
-            result["reason"] = f"結構未破壞 (距MA10 {dist_ma10_pct:.1f}%)"
-            return result
-
-        if not (vol_ratio >= 1.5 and last_black):
-            result["level"] = "signal"
-            result["reason"] = "、".join(reason_parts) + f" (量×{vol_ratio:.1f}、等量爆確認)"
-            return result
-
-        result["triggered"] = True
-        result["level"] = "confirmed"
-        result["reason"] = "、".join(reason_parts) + f"、量×{vol_ratio:.1f} 恐慌賣壓"
-        return result
+            return {"triggered": False, "level": "watch",
+                    "reason": "5K 資料不足", "price": 0.0, "suggested_size": 0}
+        opens, highs, lows, closes, vols, times = _df_to_arrays(k5)
+        return _check_trigger_c_np(opens, highs, lows, closes, vols, times, prev_low)
 
     # ── 大盤環境判別 ───────────────────────────────────────────────────────────
 
@@ -825,198 +1032,19 @@ class StageTrigger:
 
         雙錨停損 = max(第一根 5K 低、昨日收盤)
         """
-        # 若未傳 ma10，嘗試從 DB 查
         if ma10 is None and ticker and target_date:
             ma10 = _get_ma10(ticker, target_date)
 
-        result: dict = {
-            "triggered": False,
-            "level": "watch",
-            "reason": "",
-            "stop_loss": None,
-            "stop_anchors": {},
-        }
-
         if len(k5) < 1:
-            result["reason"] = "5K 不足"
-            return result
-
-        first   = k5.iloc[0]
-        open_p  = float(first["open"])
-        high_p  = float(first["high"])
-        low_p   = float(first["low"])
-        close_p = float(first["close"])
-
-        red_k            = close_p > open_p
-        gap_pct          = (open_p - prev_close) / prev_close * 100 if prev_close > 0 else 999
-        close_above_prev = close_p >= prev_close
-        close_above_open = close_p >= open_p
-        body             = abs(close_p - open_p)
-        upper            = high_p - max(close_p, open_p)
-        body_gt_shadow   = body > upper
-        chg_pct          = (close_p - open_p) / open_p * 100 if open_p > 0 else 0
-        rise_under_4     = chg_pct < 4.0
-        gap_ok           = gap_pct < 5.0
-
-        all_pass = all([red_k, close_above_prev, close_above_open,
-                        body_gt_shadow, rise_under_4, gap_ok])
-
-        if not all_pass:
-            fails = []
-            if not red_k:            fails.append("非紅K")
-            if not gap_ok:           fails.append(f"跳空 {gap_pct:.1f}% ≥ 5%")
-            if not close_above_prev: fails.append(f"收盤 {close_p:.2f} < 前收 {prev_close:.2f}")
-            if not close_above_open: fails.append("收盤 < 開盤 (雙錨失守)")
-            if not body_gt_shadow:   fails.append(f"實體 {body:.2f} ≤ 上影 {upper:.2f}")
-            if not rise_under_4:     fails.append(f"漲幅 {chg_pct:.1f}% ≥ 4%")
-            result["level"] = "fail"
-            result["reason"] = "第一根 5K 不符: " + ", ".join(fails)
-            return result
-
-        # 雙錨停損：取第一根 5K 低、昨日收盤 兩者最高
-        first_low = low_p
-        stop_candidates = [first_low, prev_close]
-        stop_loss = max(stop_candidates)
-        result["stop_loss"] = stop_loss
-        result["stop_anchors"] = {
-            "first_5k_low": first_low,
-            "prev_close": prev_close,
-        }
-
-        first_high = high_p
-
-        def _t(ts) -> str:
-            """將 index timestamp 轉為 HH:MM 字串。"""
-            if hasattr(ts, "strftime"):
-                return ts.strftime("%H:%M")
-            return str(ts)[11:16]
-
-        # ── 路徑分支：依大盤環境切換 ─────────────────────────────────────────────
-        _regime = market_regime.lower() if market_regime else "normal"
-
-        if _regime in ("strong", "normal"):
-            # ── 正常盤 / 強勢盤 SOP：過第一根高 + 紅K = confirmed (直接進場) ──
-            # ⚠️ 雙重過濾 (6/4 8046 南電 教訓 + v6 backtest 9:15-9:45 系統性差):
-            #   1. 9:15-9:45 = 拉高出貨時段 → 降為 signal、等 9:45 後確認
-            #      (v6 backtest: 9:20 +1.08% / 9:25 +0.78% / 9:30 +1.62% / 9:35 +2.43% / 9:45 +2.69%)
-            #   2. 進場價距日內最高 < 1% → 降為 signal、等回測 -1% 再切入
-            for i in range(1, len(k5)):
-                t_str = _t(k5.index[i])
-                if t_str < "09:10":
-                    continue
-                bar_close = float(k5.iloc[i]["close"])
-                bar_open  = float(k5.iloc[i]["open"])
-                if bar_close > first_high and bar_close > bar_open:
-                    # 過濾 1: 9:15-9:45 拉高出貨時段
-                    if "09:15" <= t_str < "09:45":
-                        result["level"] = "signal"
-                        result["reason"] = (
-                            f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
-                            f"但 9:15-9:45 拉高出貨時段、等 9:45 後確認"
-                        )
-                        result["regime"] = _regime
-                        return result
-
-                    # 過濾 2: 9:45 後才生效 — 進場價太接近日內最高 (距日高 < 1%)
-                    # 說明: 9:10 breakout 本身就是 day high、不適用此過濾；
-                    #       9:30 後日高已具參考意義、才比較
-                    if t_str >= "09:45":
-                        day_high_so_far = float(k5["high"].iloc[:i+1].max())
-                        if bar_close >= day_high_so_far * 0.99:
-                            result["level"] = "signal"
-                            result["reason"] = (
-                                f"Ch5-3 [{_regime}盤] 訊號觸發 {t_str}、"
-                                f"但太接近日高 ${day_high_so_far:.2f}、等回測 -1% 再切入"
-                            )
-                            result["regime"] = _regime
-                            return result
-
-                    # 通過所有過濾 → confirmed
-                    result["triggered"] = True
-                    result["level"] = "confirmed"
-                    result["reason"] = (
-                        f"Ch5-3 [{_regime}盤] {t_str} 過高 {first_high:.2f} 站穩"
-                    )
-                    result["entry_price"] = bar_close
-                    result["entry_time"]  = t_str
-                    result["regime"] = _regime
-                    return result
-
-            result["level"] = "watch"
-            result["reason"] = f"Ch5-3 [{_regime}盤] 第一根全 pass、等 9:10 後過高 {first_high:.2f}"
-            result["regime"] = _regime
-            return result
-
-        else:
-            # ── 弱勢盤 SOP：過高 = signal、等回踩 MA10 守住 = confirmed ─────────
-            # 弱勢盤 9:30 後不再觸發
-            def _is_after_930(ts) -> bool:
-                t_str = _t(ts)
-                return t_str >= "09:30"
-
-            # 找 signal：9:10 後、9:30 前過第一根高的紅 K
-            signal_idx: Optional[int] = None
-            for i in range(1, len(k5)):
-                ts_str = _t(k5.index[i])
-                if ts_str < "09:10":
-                    continue
-                if ts_str >= "09:30":
-                    break  # 弱勢盤超過 9:30 不再 trigger
-                bar_close = float(k5.iloc[i]["close"])
-                bar_open  = float(k5.iloc[i]["open"])
-                if bar_close > first_high and bar_close > bar_open:
-                    signal_idx = i
-                    break
-
-            if signal_idx is None:
-                result["level"] = "watch"
-                result["reason"] = f"Ch5-3 [弱勢盤] 第一根全 pass、等 9:10-9:30 過高 {first_high:.2f}"
-                result["regime"] = "weak"
-                return result
-
-            # signal 觸發
-            result["level"] = "signal"
-            result["regime"] = "weak"
-            if ma10 is not None:
-                result["reason"] = f"[弱勢盤] 訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、等回踩 MA10 ({ma10:.2f})"
-            else:
-                result["reason"] = f"[弱勢盤] 訊號觸發 {_t(k5.index[signal_idx])} 過高 {first_high:.2f}、MA10 未知"
-
-            # 若無 MA10、停在 signal
-            if ma10 is None or ma10 <= 0:
-                return result
-
-            MA10_BAND = 0.02  # ±2%
-            for i in range(signal_idx + 1, len(k5)):
-                bar       = k5.iloc[i]
-                bar_low   = float(bar["low"])
-                bar_close = float(bar["close"])
-                bar_open  = float(bar["open"])
-
-                # 是否回踩（盤中最低觸及 MA10 ±2%）
-                touched_ma10 = bar_low <= ma10 * (1 + MA10_BAND) and bar_low >= ma10 * (1 - MA10_BAND)
-
-                if touched_ma10:
-                    result["level"] = "pullback"
-                    result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
-                    # 守住確認：紅K + 收盤 > MA10
-                    if bar_close > bar_open and bar_close > ma10:
-                        result["triggered"] = True
-                        result["level"] = "confirmed"
-                        result["reason"] = (
-                            f"[弱勢盤] 過高 {first_high:.2f} + 回踩 MA10 {ma10:.2f} 守住 "
-                            f"(紅K {_t(k5.index[i])})"
-                        )
-                        result["entry_price"] = bar_close
-                        result["entry_time"]  = _t(k5.index[i])
-                        return result
-
-            # 掃完沒 confirmed
-            if result["level"] == "pullback":
-                result["reason"] = f"[弱勢盤] 回踩 MA10 {ma10:.2f} 中、等收紅 K 守住"
-            else:
-                result["reason"] = f"[弱勢盤] 訊號觸發、等回踩 MA10 ({ma10:.2f})"
-            return result
+            return {
+                "triggered": False, "level": "watch",
+                "reason": "5K 不足", "stop_loss": None, "stop_anchors": {},
+            }
+        opens, highs, lows, closes, vols, times = _df_to_arrays(k5)
+        return _check_ch5_3_entry_np(
+            opens, highs, lows, closes, vols, times,
+            prev_close, ma10, market_regime,
+        )
 
     # ── Closing Check (13:00-13:25 尾盤進場確認) ──────────────────────────────
 

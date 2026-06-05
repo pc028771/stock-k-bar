@@ -12,6 +12,7 @@ Output: trades DataFrame matching spec §3.4.
 """
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from . import EXIT_REGISTRY
@@ -79,65 +80,81 @@ def simulate(
     work = df.reset_index(drop=True).copy()
     work["_entries"] = entries.reset_index(drop=True).values
 
+    # Hot-loop perf: pre-extract hot columns to numpy. The original looped
+    # ~14k trades × ~6 exit conditions, each doing several pandas scalar
+    # .loc[pos, col] lookups — each lookup pays full pandas indexing overhead.
+    # numpy array indexing is ~100x faster per access; trades CSV byte-equal.
+    open_arr  = work["open"].to_numpy()
+    close_arr = work["close"].to_numpy()
+    date_arr  = work["trade_date"].to_numpy()
+    ticker_arr = work["ticker"].to_numpy()
+    entries_arr = work["_entries"].to_numpy()
+    exit_cols_np: dict[str, np.ndarray] = {
+        name: col.to_numpy() for name, col in exit_cols.items()
+    }
+
     records: list[dict] = []
 
-    for ticker, grp in work.groupby("ticker", sort=False):
-        grp_idx = grp.index.to_numpy()
-        entry_positions = grp_idx[grp["_entries"].to_numpy()]
+    # Build per-ticker start/end positions in one pass (work is sorted by ticker).
+    n = len(work)
+    ticker_changes = np.concatenate(([0], np.where(ticker_arr[1:] != ticker_arr[:-1])[0] + 1, [n]))
+    for gi in range(len(ticker_changes) - 1):
+        start = int(ticker_changes[gi])
+        ticker_last = int(ticker_changes[gi + 1] - 1)
+        ticker = ticker_arr[start]
+        # entries in this ticker's slice
+        entry_positions = np.nonzero(entries_arr[start:ticker_last + 1])[0]
         if len(entry_positions) == 0:
             continue
+        entry_positions = entry_positions + start
 
         for entry_pos in entry_positions:
+            entry_pos = int(entry_pos)
             next_pos = entry_pos + 1
-            ticker_last = grp_idx[-1]
             if next_pos > ticker_last:
-                continue  # signal on last bar — no next open available
-
-            entry_open = float(work.loc[next_pos, "open"])
-            if entry_open <= 0:
                 continue
 
-            window_positions = grp_idx[grp_idx >= next_pos]
+            entry_open = float(open_arr[next_pos])
+            if entry_open <= 0:
+                continue
 
             best_pos = None
             best_reason = None
             for name in full_priority:
-                col = exit_cols[name]
-                trigger_positions = window_positions[col.iloc[window_positions].to_numpy()]
-                if len(trigger_positions) == 0:
+                col = exit_cols_np[name]
+                # find first True position in [next_pos, ticker_last]
+                window = col[next_pos:ticker_last + 1]
+                if not window.any():
                     continue
-                first = trigger_positions[0]
-                # Priority order wins on ties: strict < keeps higher-priority condition.
+                first = next_pos + int(np.argmax(window))
                 if best_pos is None or first < best_pos:
-                    best_pos = int(first)
+                    best_pos = first
                     best_reason = name
 
             if best_pos is not None:
                 exit_signal_pos = best_pos
                 exit_execute_pos = exit_signal_pos + 1
                 if exit_execute_pos > ticker_last:
-                    # Exit signal fires on last available bar — no next-open available.
-                    # exit_open = close of signal bar; hold_days counts this day inclusively.
-                    exit_open = float(work.loc[exit_signal_pos, "close"])
-                    exit_date = work.loc[exit_signal_pos, "trade_date"]
+                    exit_open = float(close_arr[exit_signal_pos])
+                    exit_date = date_arr[exit_signal_pos]
                     hold_days = exit_signal_pos - next_pos + 1
                 else:
-                    exit_open = float(work.loc[exit_execute_pos, "open"])
-                    exit_date = work.loc[exit_execute_pos, "trade_date"]
+                    exit_open = float(open_arr[exit_execute_pos])
+                    exit_date = date_arr[exit_execute_pos]
                     hold_days = exit_execute_pos - next_pos
                 exit_reason = best_reason
             else:
-                exit_open = float(work.loc[ticker_last, "open"])
+                exit_open = float(open_arr[ticker_last])
                 if exit_open <= 0:
-                    exit_open = float(work.loc[ticker_last, "close"])
-                exit_date = work.loc[ticker_last, "trade_date"]
+                    exit_open = float(close_arr[ticker_last])
+                exit_date = date_arr[ticker_last]
                 hold_days = ticker_last - next_pos + 1
                 exit_reason = "open"
 
             trade_return = exit_open / entry_open - 1
             records.append({
                 "ticker": ticker,
-                "entry_date": work.loc[entry_pos, "trade_date"],
+                "entry_date": date_arr[entry_pos],
                 "entry_open": round(entry_open, 4),
                 "exit_date": exit_date,
                 "exit_open": round(exit_open, 4),
