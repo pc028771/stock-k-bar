@@ -90,11 +90,17 @@ def _to_5m(k1m: pd.DataFrame) -> pd.DataFrame:
 def simulate_daytrade(
     k1m_next: pd.DataFrame, prev_close: float,
     target_pct: float = 1.5,
+    stop_variant: str = "A",
 ) -> dict:
     """簡化 Ch5 當沖出場模擬、回傳 {entered, exit_reason, pnl_pct}.
 
     Args:
         target_pct: 達標 % (Ch5 範圍 1.5-3.0)
+        stop_variant:
+            'A' = 雙錨 max(第1根5K低, 開盤, 昨收)
+            'B' = 單錨 第1根5K低 (Ch5-3 字面)
+            'C' = MA trail 跌破 5K 5MA 出
+            'D' = A + C 任一觸發
     """
     if k1m_next.empty or prev_close <= 0:
         return {"entered": False, "exit_reason": "no_data", "pnl_pct": 0.0}
@@ -107,8 +113,15 @@ def simulate_daytrade(
     first_5k_high = float(k5m["high"].iloc[0])
     first_5k_low  = float(k5m["low"].iloc[0])
 
-    # 雙錨停損
-    stop = max(first_5k_low, open_p, prev_close)
+    # 5K 5MA (Ch5-3 trailing 用)
+    k5m = k5m.copy()
+    k5m["ma5"] = k5m["close"].rolling(5, min_periods=1).mean()
+
+    # 靜態 stop (A / B 用、C / D 在 loop 中算 MA)
+    if stop_variant == "B":
+        stop_static = first_5k_low                          # 單錨
+    else:  # A / D 共用雙錨
+        stop_static = max(first_5k_low, open_p, prev_close)
 
     # 找 entry: 9:10 後第一根 5K close > first_5k_high
     entry_price = None
@@ -131,12 +144,23 @@ def simulate_daytrade(
         bar_low   = float(bar["low"])
         bar_close = float(bar["close"])
 
-        # 停損: bar low 觸到 stop
-        if bar_low <= stop:
-            pnl = (stop - entry_price) / entry_price * 100
-            return {"entered": True, "exit_reason": "stop_loss",
+        # 停損邏輯依 stop_variant
+        bar_ma5 = float(k5m["ma5"].iloc[j]) if not pd.isna(k5m["ma5"].iloc[j]) else None
+
+        triggered_stop = None
+        if stop_variant in ("A", "B", "D") and bar_low <= stop_static:
+            triggered_stop = (stop_static, "stop_loss")
+        if stop_variant in ("C", "D") and bar_ma5 is not None and bar_close < bar_ma5:
+            # MA trail：收盤 < 5K 5MA
+            if triggered_stop is None:
+                triggered_stop = (bar_close, "ma5_trail")
+
+        if triggered_stop is not None:
+            exit_px, reason = triggered_stop
+            pnl = (exit_px - entry_price) / entry_price * 100
+            return {"entered": True, "exit_reason": reason,
                     "pnl_pct": round(pnl, 2),
-                    "entry_price": entry_price, "exit_price": stop,
+                    "entry_price": entry_price, "exit_price": exit_px,
                     "entry_idx": entry_idx, "exit_idx": j}
 
         # 達標 +target_pct: bar high 觸到
@@ -337,6 +361,8 @@ def main():
     p.add_argument("--target", type=float, default=1.5, help="達標 % (Ch5 範圍 1.5-3.0)")
     p.add_argument("--scoring", choices=['v3', 'pure_course', 'v3_2'], default='v3',
                    help="v3=有自編 penalty / pure_course=純 Ch5-2 距前高 / v3_2=嚴格課程+範圍內細化")
+    p.add_argument("--stop", choices=['A', 'B', 'C', 'D'], default='A',
+                   help="A=雙錨(現) / B=單錨 / C=MA5 trail / D=A+C")
     args = p.parse_args()
 
     from kline.bars import DEFAULT_DB_PATH
@@ -366,7 +392,8 @@ def main():
             score = pick.get("confidence_score", 0)
             prev_close = pick.get("close", 0)  # 隔日的 prev_close = sig date 收盤
             k1m = _fetch_1m(t, next_date)
-            sim = simulate_daytrade(k1m, prev_close, target_pct=args.target)
+            sim = simulate_daytrade(k1m, prev_close, target_pct=args.target,
+                                    stop_variant=args.stop)
 
             all_results.append({
                 "sig_date": sig_date, "next_date": next_date, "rank": rank,
