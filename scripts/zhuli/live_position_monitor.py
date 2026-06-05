@@ -1849,7 +1849,7 @@ def mk_chip_signal_text(
         parts.append(_fmt(sitc_sum, '投信'))
 
     chip_str = ' + '.join(parts) + f" [{days}d: {date_start}~{date_end}]"
-    result = Text(chip_str, style="cyan dim")
+    result = Text(chip_str, style="cyan")
     _chip_cache[ticker] = result
     return result
 
@@ -1904,7 +1904,7 @@ def mk_sizing_suggestion(
     else:
         lots_str = f"{add_shares:,}股"
 
-    result = Text(f"建議加 {lots_str} ≈${cost_est:,.0f}", style="yellow dim")
+    result = Text(f"目標差 {lots_str} ≈${cost_est:,.0f}", style="yellow")
     return result
 
 
