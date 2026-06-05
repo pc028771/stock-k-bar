@@ -9,12 +9,21 @@
 
 ```
 bars_df (OHLCV)
-  → features.add_features()         # 衍生欄位
-  → patterns/<slug>.detect()        # 26 個多空轉折型態 (bool Series)
+  → features.add_features()         # 衍生欄位（含扣抵 / attack_cost / defensive_low / merged_doji 等）
+  → patterns/<slug>.detect()        # 27 個多空轉折型態 + intro 概念 (bool Series)
   → entry / exit / scoring          # 進出場偵測 + 評分
-  → scenarios.advisor.analyze()     # 劇本層 (playbook layer)
-  → AdvisorResult                   # fired_patterns / scenarios / active_lights / notes
+  → scenarios.advisor.analyze()     # 劇本層 (playbook layer) — 27 lights + 30 playbooks
+  → scenarios.formatter             # ASCII + emoji 色碼輸出
+  → AdvisorResult                   # fired_patterns / scenarios / active_lights / notes / manual_hints
 ```
+
+**新整合（2026-06-05 / -06）：**
+- `scripts/run_advisor.py` CLI、輸出 ASCII 色碼摘要（距 MA% / 扣抵 emoji / branch 條件人讀化）
+- 27 lights + 30 playbooks（含 4 intro 新概念、4 lt_* advanced 已 wired）
+- Manual-judgment hints：`defensive_stance`、`record_decline_rebound`（課程明示「交易藝術」、不寫 detect）
+- `simulate_advisor_history` + `compute_branch_hit_rates` Phase 4.3 backtest infrastructure（v4: 127k branches、0 NULL、30.5% avg hit rate）
+- `load_bars(tickers=...)` + mtime cache（CLI 30s → 5s warm）
+- 課程資料：入門 58 + 行進ing 41 + 型態學 20 + 轉折 35 + 明日 K 線 51 = 205 篇全齊
 
 ---
 
@@ -39,12 +48,14 @@ bars_df (OHLCV)
 ## 2. 目錄結構快覽
 
 ```
+scripts/
+  run_advisor.py              # CLI: uv run python scripts/run_advisor.py <ticker> <date>
 scripts/kline/
-  bars.py                     # load_bars() — OHLCV 載入
+  bars.py                     # load_bars() — OHLCV 載入（含 tickers filter + mtime cache）
   features.py                 # add_features() — 衍生欄位
   course_proxy_constants.py   # 全部量化門檻的唯一來源
   patterns/
-    __init__.py               # PATTERN_REGISTRY (26 slugs)
+    __init__.py               # PATTERN_REGISTRY (27 slugs — +attack_cost_displayed +self_rescue_breakout)
     _common.py                # 共用 helpers
     <slug>.py                 # 各型態 detect(df) -> pd.Series[bool]
   entry/
@@ -61,12 +72,16 @@ scripts/kline/
   scenarios/
     _schema.py                # Pydantic 定義 (Playbook/Branch/Light/AdvisorResult)
     advisor.py                # analyze() 主入口
+    formatter.py              # ASCII + emoji 色碼輸出（commit 08b445f）
+    manual_hints.py           # defensive_stance / record_decline_rebound（commit 3346bc5）
     condition.py              # mini-DSL evaluate() / evaluate_vectorized()
     context.py                # build_context_snapshot()
     loader.py                 # load_playbooks() / load_lights()
     persistence.py            # save() / load_runs() / update_branch_outcome()
-    playbooks/                # *.yaml playbook 檔
-    lights/                   # *.yaml light 檔
+    simulator.py              # simulate_advisor_history / compute_branch_hit_rates
+    playbooks/                # 30 個 *.yaml playbook 檔
+    lights/                   # 27 個 *.yaml light 檔
+  minute_bars.py              # get_minute_bars(ticker, date) helper（commit 245edbe）
   extras/
     __init__.py               # 3 個 registries + parse_extras_spec()
     shakeout_strong.py
@@ -84,17 +99,26 @@ scripts/kline/
 from scripts.kline.bars import load_bars
 from pathlib import Path
 
-df = load_bars()                           # 使用預設 DB 路徑，自動補 backfill
-df = load_bars(db_path=Path("/custom/data.sqlite"), fill_from_backfill=False)
+df = load_bars()                              # 全市場、預設 DB
+df = load_bars(tickers=["2330"])              # 單 ticker filter（CLI 用、快 ~6x）
+df = load_bars(fill_from_backfill=False)      # 不 union backfill
 ```
 
 **簽名：**
 ```python
 def load_bars(
-    db_path: Path = DEFAULT_DB_PATH,   # 預設: /Users/howard/.four_seasons/data.sqlite
-    fill_from_backfill: bool = True,   # 自動 union pre-2022 backfill DB
+    db_path: Path = DEFAULT_DB_PATH,        # /Users/howard/.four_seasons/data.sqlite
+    fill_from_backfill: bool = True,        # 自動 union pre-2022 backfill DB
+    tickers: list[str] | None = None,       # SQL filter（advisor CLI 用）
 ) -> pd.DataFrame
 ```
+
+**效能 — mtime cache（2026-06-05、commit `3b42e09`）：**
+- 共用快取路徑：`/tmp/kline_bars_snapshot.sqlite`（非 per-pid，避免重複 copy）
+- 每次 `load_bars` 比對 source mtime；source 未變且 cache size ≥ 50% → 直接重用
+- Stale / size 不對 → mkstemp 寫入 staging + atomic `os.replace()`（race-safe）
+- CLI 重跑：~30s cold → ~5s warm
+- 額外 `tickers=` 參數：SQL placeholder 過濾、避免 2.1M rows × pandas overhead
 
 **輸出 schema：**
 
@@ -160,6 +184,27 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame
 | is_just_broke_high | 剛創 60 日新高（今日或前 1~2 日） |
 | is_limit_up_locked | 漲停鎖住（無上影線 + 全天不破昨收） |
 | is_anomalous_volume | 異常放量 [STUB-NEED-USER S1] |
+| is_just_broke_high_intraday | 盤中觸及新高（即使收盤收回）— 入門新概念 |
+| at_pressure_retest | 觸及前高壓力但未過 — §08 壓力相遇 |
+| merged_high / merged_low | 合併十字線上下緣（forward-fill **1 日**，commit `b87537e` 從 5 → 1） |
+| attack_cost | 攻擊成本價（§20、state-machine forward-fill **60 日**）— 漲停鎖住 + 突破創新高觸發 |
+| defensive_low | 防守低點（§26、6 日 rolling、單純 K 棒最低） |
+| ma5_kou / ma10_kou / ma20_kou / ma60_kou | N 日前收盤（扣抵值原理） |
+| ma5_will_rise / ma10_will_rise / ma20_will_rise / ma60_will_rise | 明日 MA 是否上揚（close > ma_kou） |
+| low_price_flag | 低價股旗標（close < `LOW_PRICE_THRESHOLD` 預設 30、入門§09） |
+| same_level_red_count_5d | 同價位反覆紅 K 次數（入門新概念） |
+| taiex_down_today | 大盤跌日（外部 taiex DB 注入）— `taiex_down_stock_new_high` light |
+| is_after_negative_news_taiex | 利空大跌後（self_rescue_breakout 用） |
+
+**新衍生欄位（2026-06-05/-06）課程出處：**
+- `attack_cost` — 轉折§20「攻擊成本」+ `attack_cost_state_machine_v1.md` state-machine 設計
+- `defensive_low` — 明日 K 線§26「防守姿態」+ `defensive_low_break` light
+- `merged_high/low` — 明日 K 線§24「合併十字線」+ commit `296504d` forward-fill UX 標示
+- `ma*_kou / ma*_will_rise` — 入門「扣抵值原理」（兩課程明示）
+- `at_pressure_retest` — 明日 K 線§08「壓力相遇」未化解
+- `is_just_broke_high_intraday` — 入門 § `just_high_doji_attack` light（盤中創新高但收回）
+- `same_level_red_count_5d` — 入門 § `same_level_red_then_black` light
+- `taiex_down_today` — 入門 §「大盤跌個股創新高」相對強勢
 
 **Cross-ticker rolling bug 已修正：**
 所有「排除今日的 rolling」一律用 `.transform(lambda s: s.shift(1).rolling(N).max())` 
@@ -167,7 +212,7 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame
 
 ---
 
-## 4. Pattern Detection (26 個型態)
+## 4. Pattern Detection (27 個型態)
 
 ### 4.1 通用 API
 
@@ -178,7 +223,7 @@ def detect(df: pd.DataFrame) -> pd.Series  # bool, aligned with df.index
 
 - 純函式 (pure function)，DataFrame in/out，無 side effect
 - 觸發點 = pattern 完成的那根 K（True 那天可作為 entry/exit timing）
-- 全部 26 個 detect 函式統一在 `PATTERN_REGISTRY`
+- 全部 27 個 detect 函式統一在 `PATTERN_REGISTRY`（加入 `attack_cost_displayed` 與 `self_rescue_breakout`）
 
 ```python
 from scripts.kline.patterns import PATTERN_REGISTRY
@@ -188,7 +233,7 @@ for name, detect_fn in PATTERN_REGISTRY.items():
     fired: pd.Series = detect_fn(enriched_df)   # enriched_df 需先 add_features
 ```
 
-### 4.2 全部 26 個 slug
+### 4.2 全部 27 個 slug
 
 | slug | 說明 |
 |---|---|
@@ -218,6 +263,8 @@ for name, detect_fn in PATTERN_REGISTRY.items():
 | `rising_falling` | 升降型態（P26）整理後向上/向下突破 |
 | `gap_fill_up` | 向上缺口回補（P27）向上跳空被回補 |
 | `gap_fill_down` | 向下缺口回補（P27）向下跳空被回補 |
+| `attack_cost_displayed` | 攻擊成本顯現（§20）— 漲停鎖住 + 突破創新高、state-machine 標記攻擊成本價、forward-fill 60 日（commit `245edbe`） |
+| `self_rescue_breakout` | 自救型突破（入門 §34）— 利空大跌後量縮回升、突破前高、commit `1a20d8e` |
 
 **課程注意：** 轉折組合是「多單出場」/「空單回補」訊號，**非反向進場訊號**。
 失效條件（如隔日創新高使空頭吞噬失效）由上層 simulator / advisor 判斷，不在 detect 內。
@@ -367,38 +414,261 @@ extras = resolve_extras("intensity_floor=2,hold_days_cap=20")
 | `bull_single_day_reversal` | pattern (extras) | 多方單日反轉 — 課程明示「最微弱」(P17) |
 | `scenarios/playbooks/bullish_reversal_long_bear.yaml` | playbook (extras) | B08 — 多方逆轉長空頭 (需基本面、user override) |
 
+**註：** `LOW_PRICE` 已搬回 `course_proxy_constants.py`（`LOW_PRICE_THRESHOLD = 30.0` [STUB-NEED-USER]），不再是 extra（commit `1a20d8e`）。
+
 ---
 
-## 7. Scenarios — Playbook Layer
-
-### 7.1 主入口 `advisor.analyze`
+## 7. Scenario Advisor — Playbook Layer 主入口
 
 ```python
-from pathlib import Path
+from scripts.kline.bars import load_bars
 from scripts.kline.scenarios.advisor import analyze
+from scripts.kline.scenarios.formatter import format_advisor_result
 
-result = analyze(
-    bars_df=df,               # raw 或 features-enriched 均可（自動偵測）
-    today_date="2026-06-03",  # 'YYYY-MM-DD'
-    ticker="2330",
-    context_overrides={       # K線力量 fields 可透過 overrides 注入
-        "ma5_will_rise": True,
-        "ma60_will_rise": True,
-    },
-    # playbook_dirs=[Path("my/playbooks")],  # 預設: scenarios/playbooks/
-    # light_dirs=[Path("my/lights")],        # 預設: scenarios/lights/
-)
-
-print(result.fired_patterns)   # List[PatternHit]
-print(result.scenarios)        # List[Scenario]
-print(result.active_lights)    # List[Light] sorted critical→warn→info
-print(result.notes)            # WARN 訊息清單
-print(result.context_snapshot) # ContextSnapshot
+bars = load_bars(tickers=["1605"])      # CLI 模式：mtime cache + ticker filter
+result = analyze(bars, today_date="2026-06-03", ticker="1605")
+print(format_advisor_result(result, ticker="1605", today_date="2026-06-03", bars=bars))
 ```
 
-**效能目標：** 單 ticker × 單日 < 200 ms（含 add_features）。
+**`analyze` 簽名：**
+```python
+def analyze(
+    bars_df: pd.DataFrame,
+    today_date: str,                          # "YYYY-MM-DD"
+    ticker: str,
+    context_overrides: dict | None = None,    # K線力量 fields override
+    playbook_dirs: list[Path] | None = None,
+    light_dirs: list[Path] | None = None,
+) -> AdvisorResult
+```
 
-### 7.2 YAML Loader
+**Sentinel 偵測：** `bars_df` 含 `prev_close` 欄 → 已 enriched、不重跑 `add_features`。
+**效能：** 單 ticker × 單日 < 200 ms（不含 add_features）。
+**Fail-loud：** 缺欄位 → `warn_notes` + `field=None`、絕不靜默補值。
+
+**AdvisorResult 欄位：**
+- `fired_patterns: list[PatternHit]` — `PatternHit` 是 `@dataclass(slots=True)`、無 `.model_dump()`、用 `dataclasses.asdict()`
+- `scenarios: list[Scenario]` — `pattern_hit + playbook_name + enabled_branches`
+- `active_lights: list[Light]` — sorted critical → warn → info
+- `notes: list[str]` — WARN + D-class 觀念
+- `context_snapshot: Optional[ContextSnapshot]`
+
+---
+
+## 8. Lights System — 27 個 lights
+
+Lights 是「橫向觀念警示」（與 pattern 無關、依 context 觸發、附課程引用），存 `scripts/kline/scenarios/lights/*.yaml`、由 `loader.load_lights()` 載入。
+
+### 8.1 Light Fire Rates（Phase 4.3 v4 — `phase4_report.md`、115,182 ticker-days）
+
+| light_id | severity | n_fires | fire_rate |
+|---|---|---|---|
+| `zhongshu_recency_bias` | info | 27,369 | 23.8% |
+| `lt_attack_intent_zone_breakdown` | warn | 10,741 | 9.3% |
+| `lt_attack_cost_breakdown` | critical | 8,952 | **7.8%** |
+| `gap_down_falling_three` | warn | 5,762 | 5.0% |
+| `new_high_next_day_attack_required` | info | 5,051 | 4.4% |
+| `just_high_upper_shadow` | info | 4,699 | 4.1% |
+| `pressure_layer_no_support` | warn | 3,974 | **3.5%**（v3 38.9% → v4 fix） |
+| `pressure_meeting_unresolved` | warn | 3,974 | 3.5% |
+| `pessimistic_stock_structural` | warn | 3,060 | 2.7% |
+| `mountain_descent_four_types` | warn | 2,960 | 2.6% |
+| `top_formation_three_criteria` | critical | 2,901 | 2.5% |
+| `lt_defensive_low_break` | critical | 2,347 | 2.0% |
+| `limit_up_next_day_stats` | info | 1,136 | 1.0% |
+| `sunrise_vs_rising_three_boundary` | info | 784 | 0.7% |
+| `manipulator_distribution_warning` | warn | 696 | 0.6% |
+| `weak_bull_trendline_only` | info | 476 | 0.4% |
+| `lowprice_first_pull_exit` | warn | 426 | 0.4% |
+| `high_black_k_warning` | warn | 274 | 0.2% |
+| `lack_of_power_distinction` | info | 148 | 0.1% |
+| `lt_merged_doji_low_break` | warn | 87 | **0.1%**（v3 0.6% → v4 carry 5→1 fix） |
+| `lt_merged_doji_high_break` | info | 82 | **0.1%**（v3 0.5% → v4 carry 5→1 fix） |
+| `selling_pressure_dissolution_required` | info | 57 | 0.0% |
+
+**未列出 5 lights**（無 phase4_report 數據 — v4 後新增 / 無 fires）：
+- `bottom_break_struggle`
+- `high_pushup_next_step`
+- `just_high_doji_attack` — 入門新概念（commit `1a20d8e`）
+- `same_level_red_then_black` — 入門新概念（commit `1a20d8e`）
+- `taiex_down_stock_new_high` — 入門新概念（commit `1a20d8e`）
+
+### 8.2 4 個 `lt_*` advanced lights（已 wired，commit `c937c03`）
+
+| light_id | 依賴 feature | Forward-fill 窗口 |
+|---|---|---|
+| `lt_attack_cost_breakdown` | `attack_cost` | 60 日 state-machine |
+| `lt_attack_intent_zone_breakdown` | `attack_intent_zone_high/low` | 1 日（最新值）|
+| `lt_defensive_low_break` | `defensive_low` | 6 日 rolling |
+| `lt_merged_doji_high_break` / `lt_merged_doji_low_break` | `merged_high` / `merged_low` | **1 日**（commit `b87537e` 從 5 → 1）|
+
+Formatter 對這 4 個自動加 forward-fill UX 標示（`_FORWARD_FILL_NOTES`、commit `296504d`）。
+
+### 8.3 Light schema
+
+```yaml
+light_id: pressure_layer_no_support
+severity: warn   # critical / warn / info
+trigger_condition:                      # 同 Branch.when 的 mini-DSL
+  all:
+    - today.high: ">= prev_high_60"
+    - today.close: "< prev_high_60"
+course_citation:
+  source: "明日 K 線 §08 壓力相遇"
+  quote: "..."
+recommendation_text: "建議..."
+```
+
+---
+
+## 9. Playbooks — 30 個應變劇本
+
+存 `scripts/kline/scenarios/playbooks/*.yaml`、每個 playbook 綁一個 PATTERN_REGISTRY pattern、含 1+ branches。
+
+### 9.1 全部 30 個 playbooks
+
+`attack_cost_displayed` / `bear_engulfing` / `biting` / `breakout_double_star` / `bull_engulfing` / `dark_double_star_anye` / `defensive_stance` / `embracing` / `evening_star_abandoned` / `evening_star_island_reversal` / `gap_fill_down` / `gap_fill_up` / `gap_reversal` / `gap_under_pressure_reversal` / `high_hanging_man` / `meeting` / `merged_doji_attack` / `morning_star_harami` / `morning_star_island_reversal` / `neutral_engulfing` / `no_attack_after_breakout` / `outside_three_black` / `piercing_line` / `rebound` / `record_decline_rebound` / `rising_falling` / `self_rescue_breakout` / `three_red_dadi_dangqian` / `trapped` / `two_crow_gap`
+
+### 9.2 高命中 branches Top 3（Phase 4.3 v4、`phase4_report.md`）
+
+| pattern | branch_id | n_runs | hit_rate |
+|---|---|---|---|
+| `morning_star_island_reversal` | `B2_next_day_gap_filled` | 288 | **88.5%** |
+| `gap_under_pressure_reversal` | `B1_next_day_gap_fills_up` | 3,997 | **82.0%** |
+| `gap_reversal` | `B2_next_day_gap_filled` | 2,512 | **81.7%** |
+
+中信心 branches（50–80%、9 個）：`attack_cost_displayed.B3_gap_attack` 78.2% / `breakout_double_star.B1_gap_up_holds` 66.7% / `morning_star_island.B3_overhead_supply` 66.0% / `attack_cost_displayed.B4_push_attack` 57.0% / `merged_doji.B1_gap_up_attack` 53.5% / `morning_star_harami.B1_gap_up_attack` 51.9% / `merged_doji.B4_consolidation_wait` 51.8% / `piercing_line.B3_stalls` 51.1% / `bear_engulfing.B3_consolidation` 51.1%。
+
+完整表：`data/analysis/kline_patterns/phase4_branch_hit_rates.csv`（69 pairs ≥ 10 runs）。
+
+### 9.3 Branch action_type 色碼
+
+| ActionType | Emoji |
+|---|---|
+| `entry_signal` | 🟢 |
+| `watch_only` / `context_only_signal` | 🟡 |
+| `exhaust_invalid` | ⚪ （**事後標籤、非進場訊號**）|
+| `stop_loss_trigger` / `partial_exit` / `exit_signal` | 🔴 |
+
+`partial_exit` 仍受課程紀律約束：`Action.description` 必須引用老師原話比例。
+
+---
+
+## 10. Manual-judgment Hints
+
+存 `scripts/kline/scenarios/manual_hints.py`。課程明示「交易藝術」的情境**不寫 detect**、改回傳 hint dict 讓 user 自行判斷：
+
+| Hint | 觸發 | 課程出處 |
+|---|---|---|
+| `check_defensive_stance_hint` | `taiex_recent_weak AND defensive_low != None`（**AND**、2026-06-05 收緊、原本 OR 觸發過頻）| 明日 K 線 §26「防守姿態」`EF7308E2336BF7BCE94142944DB580B1` |
+| `check_record_decline_rebound_hint` | 加權跌點/跌幅/跌停家數任一創歷史新高（context.taiex_record_*）| 明日 K 線 §30「創紀錄的跌點之後」`77DC434EC71DB04553752A44C9354680` |
+
+Hint 回傳 schema：
+```python
+{
+    "name": "defensive_stance",
+    "course_source": "明日 K 線 §26",
+    "trigger_reason": "...",
+    "manual_checks": ["...", "..."],     # user 自行判斷項目
+    "course_quotes": ["..."],            # 逐字引用
+}
+```
+
+---
+
+## 11. Formatter + CLI
+
+### 11.1 `scripts/run_advisor.py`
+
+```bash
+uv run python scripts/run_advisor.py 1605 2026-06-03
+uv run python scripts/run_advisor.py 6285 2026-06-03 --raw   # raw JSON
+```
+
+**輸出包含：**
+- 🟢🟡🔴⚪⚫ ActionType emoji（見 §9.3）
+- 🔴🟡⚪ Severity emoji（critical/warn/info）
+- MA5/10/20/60 扣抵狀態（🟢 will rise / 🔴 will fall / 🟡 borderline diff < 1% / — None）
+- 距 MA% — 今日 close 距 ma5/10/20/60 的百分比
+- Branch when-condition 人讀化（`_humanize_when`）
+- Forward-fill UX 標示（`lt_merged_doji_*` / `lt_attack_cost_*` / `lt_defensive_*`）
+- Manual-judgment hints（如觸發）
+- Citation 逐字「老師原話」段落
+
+### 11.2 `scripts/kline/scenarios/formatter.py`
+
+```python
+from scripts.kline.scenarios.formatter import format_advisor_result
+
+text = format_advisor_result(result, ticker="2330", today_date="2026-06-03", bars=bars)
+```
+
+純 presentation 層、不改 advisor 邏輯或 schema。
+
+---
+
+## 12. Phase 4.3 Backtest Infrastructure
+
+存 `scripts/kline/scenarios/simulator.py`。
+
+### 12.1 主入口
+
+```python
+from scripts.kline.scenarios.simulator import simulate_advisor_history, compute_branch_hit_rates
+
+simulate_advisor_history(
+    tickers=["2330", ...],
+    start_date="2024-01-01",
+    end_date="2026-06-30",
+    db_path=Path("data/analysis/kline_patterns/phase4_advisor_history.db"),
+)
+
+hit_rates_df = compute_branch_hit_rates(
+    db_path=Path("data/analysis/kline_patterns/phase4_advisor_history.db"),
+    min_runs=10,
+)
+```
+
+### 12.2 Schema 改動（commit `62f21dd`）
+
+`advisor_branches` table 新增 `pattern_name TEXT NOT NULL DEFAULT ''`。`save()` 從 `scenario.pattern_hit.pattern` 取值。`compute_branch_hit_rates` 改用 `COALESCE(NULLIF(pattern_name, ''), action_type, 'unknown')` 分組（向下相容舊 DB）。
+
+### 12.3 Phase 4.3 v4 統計（`phase4_report.md`、commit `a7380cc`）
+
+| 指標 | 數值 |
+|---|---|
+| Tickers | 200 |
+| Date range | 2024-01-01 → 2026-06-30 |
+| Trading dates | 585 |
+| Ticker-days | 115,182 |
+| Advisor runs saved | 115,182 |
+| Branches total | 127,513 |
+| Branches NULL（未評估）| **0** |
+| 平均 hit rate | 30.5% |
+| (pattern × branch) pairs ≥10 runs | 69 |
+| Elapsed | 97.0 min |
+
+### 12.4 v3 → v4 4 個 STUB fix（commit `4c9ba79`）
+
+| Fix | 影響 |
+|---|---|
+| 1. `merged_*` carry 5 → 1 日 | `lt_merged_doji_*` 0.5%~0.6% → 0.1% |
+| 2. `attack_cost` lookback 20 → 60 日 | `lt_attack_cost_breakdown` 3.8% → 7.8% |
+| 3. `pressure_layer` 二元觸及條件 | `pressure_layer_no_support` 38.9% → 3.5% |
+| 4. 純檔案組織（無行為變動）| — |
+
+### 12.5 `minute_bars.py` helper
+
+`scripts/kline/minute_bars.py`（commit `245edbe`）— `get_minute_bars(ticker, date)` 從主 DB `minute_bars` table 讀分 K（先 copy 到 /tmp、避 iCloud 衝突）。`attack_cost_displayed` 偵測時可選用。
+
+---
+---
+
+## 13. Scenarios — Internals (DSL / Loader / Context / Persistence)
+
+主入口 API 見 §7。本章覆蓋 DSL、YAML loader、context snapshot 構建、persistence。
+
+### 13.1 YAML Loader
 
 ```python
 from scripts.kline.scenarios.loader import load_playbooks, load_lights, LoaderError
@@ -411,7 +681,7 @@ lights = load_lights([Path("scripts/kline/scenarios/lights")])
 # 重複 (pattern, setup.name) 或 light_id → ValueError (fail loud)
 ```
 
-### 7.3 Condition DSL
+### 13.2 Condition DSL
 
 ```python
 from scripts.kline.scenarios.condition import evaluate, evaluate_vectorized, UnknownTokenError
@@ -463,7 +733,7 @@ when:
         - next_day.close: "> today.high"
 ```
 
-### 7.4 Context Snapshot 建構
+### 13.3 Context Snapshot 建構
 
 ```python
 from scripts.kline.scenarios.context import build_context_snapshot
@@ -477,7 +747,7 @@ snapshot, warn_notes = build_context_snapshot(
 # warn_notes 含每個 None 欄位的 "WARN:" 訊息 (fail-loud, 不靜默補值)
 ```
 
-### 7.5 Persistence
+### 13.4 Persistence
 
 ```python
 from scripts.kline.scenarios.persistence import save, load_runs, update_branch_outcome
@@ -503,7 +773,7 @@ update_branch_outcome(
 
 ---
 
-## 8. Pydantic Schema 速查
+## 14. Pydantic Schema 速查
 
 所有 schema 定義在 `scripts/kline/scenarios/_schema.py`。
 
@@ -575,17 +845,21 @@ class Light(BaseModel):
 
 ---
 
-## 9. DB 路徑
+## 15. DB 路徑
 
 | DB | 路徑 | 說明 |
 |---|---|---|
 | 主 OHLCV | `/Users/howard/.four_seasons/data.sqlite` | 多 repo 共用，四季專案管理，table: `standard_daily_bar` |
 | Backfill | `/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power/data/analysis/kline_patterns/historical_backfill.sqlite` | k-bar-power 抓 FinMind 補的 pre-2022 歷史，`fill_from_backfill=True` 時自動 union |
-| Advisor history | `data/advisor_history.db`（相對 repo root） | advisor 跑過的歷史，persistence.py 管理 |
+| Advisor history | `data/advisor_history.db`（相對 repo root） | advisor 跑過的歷史，persistence.py 管理（schema 含 `pattern_name` 欄、commit `62f21dd`）|
+| Phase 4.3 backtest | `data/analysis/kline_patterns/phase4_advisor_history.db` | 200 ticker × 583 trading days、127k branches |
+| Minute bars | 主 OHLCV 同 DB、table: `minute_bars` | `scripts/kline/minute_bars.py` helper、attack_cost_displayed 用（commit `245edbe`）|
+| TAIEX history | `data/analysis/kline_patterns/taiex_history.sqlite` | 2000–2023 補完（commit `246f995`）、`taiex_record_*` context |
+| Limit-down history | `data/analysis/kline_patterns/limit_down_history.sqlite` | 跌停家數歷史、`taiex_record_limit_down_count` context |
 
 ---
 
-## 10. 典型整合範例
+## 16. 典型整合範例
 
 ### stock-analysis-system — Pattern Screening
 
@@ -663,7 +937,7 @@ for name, detect_fn in PATTERN_REGISTRY.items():
 
 ---
 
-## 11. 約束 + 邊界
+## 17. 約束 + 邊界
 
 1. **不准自創指標：** branch.when 內只能用 DSL 白名單欄位，RHS 不允許算式。
 
@@ -683,7 +957,7 @@ for name, detect_fn in PATTERN_REGISTRY.items():
 
 ---
 
-## 12. 常見 Pitfalls
+## 18. 常見 Pitfalls
 
 | 問題 | 正確做法 |
 |---|---|
@@ -696,7 +970,7 @@ for name, detect_fn in PATTERN_REGISTRY.items():
 
 ---
 
-## 13. 重要 Spec / Plan 參考
+## 19. 重要 Spec / Plan 參考
 
 | 文件 | 路徑 |
 |---|---|
@@ -708,7 +982,27 @@ for name, detect_fn in PATTERN_REGISTRY.items():
 | Pattern Inventory | `docs/kline_course/long_short_turning_point/PATTERN_INVENTORY.md` |
 | Pattern Definitions | `docs/kline_course/long_short_turning_point/PATTERN_DEFINITIONS.md` |
 | 明日 K 線 Inventory | `docs/kline_course/mingri_kline/INVENTORY.md` |
+| Phase 4.3 v4 報告 | `data/analysis/kline_patterns/phase4_report.md`（commit `a7380cc`、127k branches）|
+| Phase 4.3 v3 報告 | `data/analysis/kline_patterns/phase4_v3_report.md`（含 v2 對比 + regression 紀錄）|
+| Branch hit rates CSV | `data/analysis/kline_patterns/phase4_branch_hit_rates.csv`（69 pairs ≥ 10 runs）|
+| 入門 58 篇全抓報告 | `docs/kline_course/notes/kline_intro_extraction_report.md`（commit `4c9ba79`）|
+| 入門 4 新概念實作 | `docs/kline_course/notes/intro_concepts_impl_2026-06-05.md`（commit `1a20d8e`）|
+| Lights audit | `docs/kline_course/notes/lights_audit_2026-06-04.md`（commit `0db266d`）|
+| Lights fix batch | `docs/kline_course/notes/lights_fix_batch_2026-06-04.md` |
+| New advanced lights | `docs/kline_course/notes/lights_new_advanced_2026-06-04.md`（4 `lt_*` wiring）|
+| STUB fix batch | `docs/kline_course/notes/stub_fix_batch_2026-06-05.md` |
+| Attack cost state-machine | `docs/kline_course/notes/attack_cost_state_machine_v1.md` |
+
+### 5 課程資料夾完備度
+
+| 課程 | 路徑 | 篇數 |
+|---|---|---|
+| K 線力量判斷入門 | `docs/K線力量判斷入門/articles/` | 58 ✅（commit `4c9ba79` 全抓）|
+| K 線行進ing | `docs/K線行進ing/` | 41 ✅ |
+| 型態學 | `docs/型態學/` | 20 ✅ |
+| 多空轉折組合 | `docs/kline_course/long_short_turning_point/` | 35 ✅ |
+| 明日 K 線 | `docs/kline_course/mingri_kline/` | 51 ✅ |
 
 ---
 
-*最後更新：2026-06-03*
+*最後更新：2026-06-06（49 commits since 2026-06-03，覆蓋 Phase 3.E + 4.3 + advisor formatter + CLI + 4 新 intro 概念 + lights audit 修正 + STUB fix）*
