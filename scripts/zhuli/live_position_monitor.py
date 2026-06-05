@@ -748,6 +748,7 @@ _current_sort: list[str] = ['status']
 _quit_flag: list[bool] = [False]
 _watch_min_priority: list[int] = [2]
 _watch_limit: list[int] = [5]   # 每個分類最多顯示 N 檔、超過 collapse、0 = 全顯
+_teacher_only: list[bool] = [False]  # True = WATCH 只看老師明示 (--teacher-only / 按 t 切換)
 
 # Render request flag: kb / WS push set True、main loop 0.1s polling 立即重畫
 _render_request: list[bool] = [True]
@@ -2647,8 +2648,11 @@ def render_watch_sectioned(
             cat = _classify_watch_source(item)
             groups.setdefault(cat, []).append((item, d))
         # 顯示順序、所有分類統一規則 (每類最多 limit 檔)
-        order = ['🎓 老師明示', '💥 Shakeout 補進', '🔍 Scanner 命中',
-                 '🙋 自選', '📌 其他']
+        if _teacher_only[0]:
+            order = ['🎓 老師明示']
+        else:
+            order = ['🎓 老師明示', '💥 Shakeout 補進', '🔍 Scanner 命中',
+                     '🙋 自選', '📌 其他']
         out.append(Text(f"🔍 WATCH 觀察可能 (共 {watching_total} 檔、分類顯示)",
                         style="bold"))
         for cat in order:
@@ -3048,6 +3052,10 @@ def _kb_listener(demo_mode: bool = False):
                 return
             if ch == '0':
                 _watch_limit[0] = 0  # 0 = 不限
+                _render_request[0] = True
+                return
+            if ch == 't':
+                _teacher_only[0] = not _teacher_only[0]  # toggle 只看老師明示
                 _render_request[0] = True
                 return
         if ch in mode_map and not _cheat_mode[0]:
@@ -3726,6 +3734,8 @@ def main():
     p.add_argument('--strategy', default='all',
                    choices=['all', 'intraday', 'overnight', 'swing', 'core'],
                    help='篩選 strategy_mode (預設 all、可指定 intraday/overnight/swing/core)')
+    p.add_argument('--teacher-only', action='store_true',
+                   help='WATCH 只看老師明示 (隱藏 shakeout/scanner/自選/其他)')
     args = p.parse_args()
     # backward compat: --interval 覆寫 --data-interval
     if args.interval is not None:
@@ -3734,6 +3744,7 @@ def main():
         args.interval = args.data_interval  # 保留欄位給 demo 等用
     _watch_min_priority[0] = args.watch_min_priority
     _watch_limit[0] = args.watch_limit
+    _teacher_only[0] = args.teacher_only
 
     _current_sort[0] = args.sort
     do_notify = not args.no_notify
