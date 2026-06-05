@@ -68,6 +68,27 @@ def detect(
     )
     df["dist_from_prev_high"] = (df["prev_high_60d"] - df["close"]) / df["prev_high_60d"]
 
+    # Ch5-2 量能突破倍率：今日量 / 前高那天的量
+    # 「右下角近期量 > 左邊前高的量」「衝擊前高需要更大量」
+    def _prev_high_day_vol(group: pd.DataFrame) -> pd.Series:
+        n = len(group)
+        out = np.full(n, np.nan)
+        lookback = cfg.prev_high_lookback_days
+        highs = group["high"].to_numpy()
+        vols = group["volume"].to_numpy()
+        for i in range(20, n):
+            start = max(0, i - lookback)
+            window_high = highs[start:i]   # exclude today
+            window_vol = vols[start:i]
+            if len(window_high) < 20:
+                continue
+            max_idx = int(np.argmax(window_high))
+            out[i] = window_vol[max_idx]
+        return pd.Series(out, index=group.index)
+
+    df["prev_high_day_vol"] = g.apply(_prev_high_day_vol).reset_index(level=0, drop=True)
+    df["breakout_vol_ratio"] = df["volume"] / df["prev_high_day_vol"].replace(0, np.nan)
+
     # 離月線
     df["dist_from_ma20"] = (df["close"] - df["ma20"]).abs() / df["ma20"]
 
@@ -112,6 +133,10 @@ def detect(
     mask &= df["dist_from_prev_high"].fillna(99) < cfg.max_dist_from_prev_high
     mask &= df["close"] >= cfg.min_close
 
+    # Ch5-2 量能突破倍率（require_breakout_vol=True 才啟用）
+    if cfg.require_breakout_vol:
+        mask &= df["breakout_vol_ratio"].fillna(0) >= cfg.min_breakout_vol_ratio
+
     signals = df[mask].copy()
     if signals.empty:
         return pd.DataFrame(columns=[
@@ -130,6 +155,7 @@ def detect(
         "range_3d": signals["range_3d"],
         "turnover_3d": signals["turnover_3d"],
         "dist_from_ma20": signals["dist_from_ma20"],
+        "breakout_vol_ratio": signals["breakout_vol_ratio"],
         "stop_loss": signals["low"],  # 盤中：第一根 5 分 K 低 (此 scanner 用日 K low 當前夜參考)
     })
     out["entry_note"] = out.apply(

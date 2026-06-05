@@ -275,13 +275,16 @@ def _filter_v3_2(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
     return enriched[:top_n]
 
 
-def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3') -> list[dict]:
+def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3',
+                       require_breakout_vol: bool = False) -> list[dict]:
     """跑 entry/intraday + filter + score、取 top 10.
 
     Args:
-        scoring: 'v3' (預設、含跳空 penalty) 或 'pure_course' (僅 Ch5-2 距前高)
+        scoring: 'v3' / 'pure_course' / 'v3_2'
+        require_breakout_vol: 啟用 Ch5-2「右下量 > 左前高量」過濾
     """
     from zhuli.entry.intraday import detect as detect_intraday
+    from zhuli.config import IntradayConfig
     from zhuli.daily_scanner_job import (
         _intraday_confidence_score, _filter_and_rank_intraday,
     )
@@ -314,7 +317,8 @@ def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3') -> 
         return []
 
     combined = pd.concat(ticker_dfs, ignore_index=True)
-    sigs = detect_intraday(combined, db_path=db_path)
+    cfg = IntradayConfig(require_breakout_vol=require_breakout_vol)
+    sigs = detect_intraday(combined, cfg=cfg, db_path=db_path)
     if sigs.empty:
         return []
 
@@ -363,6 +367,8 @@ def main():
                    help="v3=有自編 penalty / pure_course=純 Ch5-2 距前高 / v3_2=嚴格課程+範圍內細化")
     p.add_argument("--stop", choices=['A', 'B', 'C', 'D'], default='A',
                    help="A=雙錨(現) / B=單錨 / C=MA5 trail / D=A+C")
+    p.add_argument("--require-breakout-vol", action='store_true',
+                   help="啟用 Ch5-2「右下量 > 左前高量」量能突破過濾")
     args = p.parse_args()
 
     from kline.bars import DEFAULT_DB_PATH
@@ -382,7 +388,11 @@ def main():
         sig_date = trade_dates[i]
         next_date = trade_dates[i + 1]
         print(f"\n=== Signal {sig_date} → Next {next_date} ===")
-        top10 = get_top10_for_date(sig_date, DEFAULT_DB_PATH, scoring=args.scoring)
+        top10 = get_top10_for_date(
+            sig_date, DEFAULT_DB_PATH,
+            scoring=args.scoring,
+            require_breakout_vol=args.require_breakout_vol,
+        )
         if not top10:
             print(f"  無候選")
             continue

@@ -738,6 +738,11 @@ class IntradayConfig:
     max_dist_from_prev_high: float = 0.10   # 距 60D 高 < 10%
     prev_high_lookback_days: int = 60       # 前高 lookback
 
+    # === Ch5-2 量能突破倍率（2026-06-05 補實作）===
+    # 「右下角近期量 > 左邊前高的量」、「衝擊前高需要更大量」
+    require_breakout_vol: bool = False           # 預設 OFF（向後相容）
+    min_breakout_vol_ratio: float = 1.0          # 今日量 / 前高那天量 ≥ N
+
     # === Liquidity ===
     min_close: float = 10.0
 
