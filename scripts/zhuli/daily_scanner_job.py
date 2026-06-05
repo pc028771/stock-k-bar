@@ -1088,63 +1088,77 @@ def _wantgoo_link(ticker: str) -> str:
 
 
 def _intraday_confidence_score(h: dict, today_close: float, prev_close: float | None) -> int:
-    """F 當沖前夜篩 confidence 分數（0-100、越高越有把握）.
+    """F 當沖前夜篩 confidence 分數 v2 (連續函數 + 跌幅 penalty).
 
-    優先：高把握度 + 避免明日跳空鎖死被排除。
+    v2 改進 (2026-06-05):
+    - 改連續三角函數、避免 saturate 在 100（v1 三 picks 同 100 無區分度）
+    - 今日跌 < -3% → -20 penalty（隔日弱 high probability）
+    - vol_ratio 過熱 > 5 → -5 penalty
+    - 上限 ~105、實務 -25 ~ +100 都會出現、區分度更高
 
-    組成：
-    - 老師 tier 30 分
-    - 距前高 sweet spot 25 分 (3-7% 最佳、太近怕被搶、太遠突破不確定)
-    - 量穩定 20 分 (vol_ratio 1.3-2.5 = 主力進場、不過熱)
-    - 今日漲幅溫和 15 分 (避免明日跳空)
-    - 振幅夠 10 分 (範圍夠才有當沖空間)
+    組成 (continuous):
+    1. 距前高 (30 peak at 5%): 三角衰減
+    2. 量穩定 (25 peak at 1.8): 三角、>5 過熱 -5
+    3. 今日漲幅 (20 / -20 penalty): 0~3% 滿分、跌 -3%+ 重罰
+    4. 振幅 (15 peak at 12%): 三角、>25% 過熱降為 5
+    5. 周轉率 (10 peak at 35%): 三角
+    6. 老師 tier (5): 同向證據、不主導
     """
-    score = 0
-    # 1. 老師 tier (30)
-    tt = h.get('teacher_tier', '')
-    if tt == 'core':
-        score += 30
-    elif tt == 'frequent':
-        score += 22
-    elif tt:
-        score += 12
+    score = 0.0
 
-    # 2. 距前高 (25) — 中段 sweet spot
+    # 1. 距前高 — peak at 5%, > 7% 強罰（v3: backtest 確認 >7% 拖累 EV）
     d = h.get('dist_prev_high_pct', 99)
-    if 3 <= d <= 7:
-        score += 25
-    elif 2 <= d <= 9:
-        score += 18
-    elif d <= 10:
-        score += 8
+    if d > 7:
+        score -= 15           # 距前高過遠、突破不確定 + 距離拉開
+    elif d <= 7:
+        # Peak at 5%, decay to 7% (range narrower than v2)
+        score += 30 * max(0, 1 - abs(d - 5) / 4)
 
-    # 3. 量穩定 (20) — 1.3-2.5 為主力進場 sweet spot
+    # 2. 量穩定 — peak at 1.8, > 5 過熱 penalty
     vr = h.get('vol_ratio', 0)
-    if 1.3 <= vr <= 2.5:
-        score += 20
-    elif 1.0 <= vr <= 3.0:
-        score += 12
-    elif 0.8 <= vr <= 4.0:
-        score += 5
+    if vr > 5.0:
+        score -= 5
+    elif vr >= 0.5:
+        score += 25 * max(0, 1 - abs(vr - 1.8) / 2.5)
 
-    # 4. 今日漲幅 (15) — 避免明日跳空鎖死
+    # 3. 今日漲幅 — 跌 penalty、漲過頭 penalty
     if prev_close and prev_close > 0:
         today_change = (today_close / prev_close - 1) * 100
-        if -1 <= today_change <= 3:
-            score += 15  # 溫和上漲、明日可接
-        elif 3 < today_change <= 5:
-            score += 8
-        elif today_change > 7:
-            score -= 10  # 已大漲、明日可能跳空鎖死
+        if today_change > 7:
+            score -= 15            # 跳空鎖死風險
+        elif today_change > 5:
+            score -= 5
+        elif today_change < -3:
+            score -= 20            # 隔日弱 high probability
+        elif today_change < 0:
+            score += 5             # 小跌、可以買回反彈
+        elif 0 <= today_change <= 3:
+            score += 20            # 溫和、最佳
+        else:  # 3-5%
+            score += 12
 
-    # 5. 振幅夠 (10)
+    # 4. 振幅 — peak at 12%, > 25% 過熱
     r = h.get('range_3d_pct', 0)
-    if 8 <= r <= 15:
-        score += 10
-    elif 7 <= r <= 18:
+    if r > 25:
         score += 5
+    elif r >= 5:
+        score += 15 * max(0, 1 - abs(r - 12) / 8)
 
-    return max(0, min(100, score))
+    # 5. 周轉率 — peak at 35%
+    turn = h.get('turnover_3d_pct', 0)
+    if turn > 80:
+        score += 3
+    elif turn >= 15:
+        score += 10 * max(0, 1 - abs(turn - 35) / 30)
+
+    # 6. 老師 tier (5) — 同向證據、不主導
+    tt = h.get('teacher_tier', '')
+    if tt in ('core', 'frequent'):
+        score += 5
+    elif tt:
+        score += 2
+
+    return round(score)
 
 
 def _filter_and_rank_intraday(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
