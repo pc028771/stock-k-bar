@@ -53,8 +53,8 @@ _CACHE_DIR_DEFAULT = Path("/tmp/bt_scanner_cache")
 _START_DATE = "2026-05-01"
 _END_DATE   = "2026-06-04"
 _SIZING        = 1_066_666   # C1/C5: 1/3 水位 per position
-_SIZING_C6     = 640_000     # C6:    1/5 水位 per position ($3.2M / 5)
-MAX_POSITIONS_C6 = 5
+_SIZING_C6     = 800_000     # C6:    1/4 水位 per position ($3.2M / 4)、user 6/5 lock C6-4
+MAX_POSITIONS_C6 = 4
 
 # ── Trading calendar ─────────────────────────────────────────────────────────
 

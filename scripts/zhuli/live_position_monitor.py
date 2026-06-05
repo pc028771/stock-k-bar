@@ -1862,7 +1862,7 @@ def mk_sizing_suggestion(
     ticker: str,
     current_price: float,
     held_shares: int = 0,
-    target_water_pct: float = 20.0,   # 目標水位 (預設 1/5 = 20%)
+    target_water_pct: float = 25.0,   # 目標水位 (預設 1/4 = 25%、user 6/5 lock C6-4)
     total_capital: float = 3_200_000,
 ) -> "Text | None":
     """依 sizing 規則 + 當前價 + 已持股、回傳建議加碼股數 Text、否則 None。
