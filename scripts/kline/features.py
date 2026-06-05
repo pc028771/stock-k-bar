@@ -622,17 +622,23 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # === at_pressure_retest: 壓力區回測（套牢/波動/獲利了結三類賣壓共通前提） ===
     # Course source: 明日 K 線 §08「壓力的分類」B5DB7A687DA4FA572833411DE9CD88D8
     #   「碰到了賣壓之後，接下來股價會怎樣走呢？」
-    #   壓力 = 接近過去高點但尚未突破；課程明示「K 線上只有壓力沒有支撐」
+    #   「股價第二次又來到 170 元附近⋯⋯隔天要確認是攻擊，必須就是一開盤開在 176.5 元以上
+    #    的跳空攻擊⋯⋯」
+    #   壓力 = 盤中高點觸及前高（碰到）但收盤未突破（未越過）
+    #   課程明示「碰到」vs「越過」= 二元判斷，無 % 距離概念。
     #
-    # 條件：close 接近 prev_high_60（在門檻內回測）且尚未突破
-    #   close >= prev_high_60 * (1 - AT_PRESSURE_RETEST_PCT)
-    #   close <  prev_high_60
+    # 課程依據：老師用具體價位（170 元/176.5 元）描述「碰到」vs「越過」，
+    #   不是「距離 X% 以內」的區間概念。
     #
-    # [STUB-NEED-USER]: AT_PRESSURE_RETEST_PCT 在 course_proxy_constants.py，老師未明示。
-    from .course_proxy_constants import AT_PRESSURE_RETEST_PCT
+    # 條件（課程二元觸及）：
+    #   high >= prior_high_60   → 盤中觸及前高（碰到）
+    #   close < prior_high_60   → 收盤未突破（沒越過）
+    #
+    # 取代舊版 AT_PRESSURE_RETEST_PCT % 範圍方式（已廢棄）。
+    # 預期 fire rate: ~5-15%（vs 舊版 ~55%；舊版含大量「接近但未觸」的 FP）
     df["at_pressure_retest"] = (
-        (df["close"] < df["prior_high_60"])
-        & (df["close"] >= df["prior_high_60"] * (1 - AT_PRESSURE_RETEST_PCT))
+        (df["high"] >= df["prior_high_60"])
+        & (df["close"] < df["prior_high_60"])
     ).fillna(False)
 
     # === 扣抵值 (kou values) 預判明日 MA 方向 ===
@@ -714,11 +720,13 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Stored as int (0/1) so vectorized float cast works; consumed via bool field check.
     df["is_limit_up_today"] = df["is_limit_up_locked"].fillna(False).astype(int)
 
-    # === low_price_flag — close < LOW_PRICE_THRESHOLD ===
+    # === low_price_flag — close < LOW_PRICE_THRESHOLD [EXTRAS] ===
     # Course source: 明日 K 線 §09 低價股的處理節奏 (5710C4E8...)
     # 「八張低價股，跟買一張百元的中價股，價格的風險一樣」
-    # [STUB-NEED-USER L1]: LOW_PRICE_THRESHOLD = 30.0
-    from .course_proxy_constants import LOW_PRICE_THRESHOLD
+    # [EXTRAS] LOW_PRICE_THRESHOLD = 30.0 是業界 proxy（課程未明示門檻數字）。
+    # 常數已從 course_proxy_constants.py 移至 extras/low_price.py。
+    # lowprice_first_pull_exit.yaml 標記 [EXTRAS]，提醒此 light 含課程外條件。
+    from .extras.low_price import LOW_PRICE_THRESHOLD
     df["low_price_flag"] = (df["close"] < LOW_PRICE_THRESHOLD).fillna(False).astype(int)
 
     # === is_breakdown_pattern_flag — toplevel int alias for is_in_breakdown_pattern ===
@@ -746,10 +754,11 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     # Course source: 明日 K 線 第 24 篇《合併十字線》
     # 「兩根合併就是長十字線，位置也沒有錯誤，表示股價已經具備了攻擊意圖」
     # 命中日 = merged_doji pattern 觸發日；merged_high/merged_low = 兩根 K 合併後的高低點。
-    # Forward-fill MERGED_DOJI_CARRY_DAYS 日（[STUB-NEED-USER] — 老師僅說「隔日就得有攻擊企圖」）。
+    # Forward-fill MERGED_DOJI_CARRY_DAYS = 1 日（課程明示「隔日就要表態、無法後天大後天」）。
     #
-    # [STUB-NEED-USER]: MERGED_DOJI_CARRY_DAYS = 5（一週交易日）作為「短期有效」代理。
-    # 課程未明示 forward-fill 天數；若 user 認為太長可縮短至 2~3 日。
+    # 課程依據（§24）：「明天的重點就得要攻擊，且這是一定要發生的，無法變成後天、大後天」
+    # 課程依據（§26）：「明日就得開始攻擊，或者跌破合併十字線的低點作為確認不攻擊。」
+    # 因此 forward-fill 只保留「隔日一天」——課程明示效力窗口。
     #
     # Inline computation reusing already-computed features.py columns for performance.
     # Logic mirrors patterns/merged_doji.detect() but avoids redundant groupby.shift().

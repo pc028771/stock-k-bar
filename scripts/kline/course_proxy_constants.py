@@ -267,13 +267,20 @@ MERGED_DOJI_BODY_RATIO: float = 0.25  # [STUB-NEED-USER]
 MERGED_DOJI_SHADOW_MIN_RATIO: float = 0.2  # [STUB-NEED-USER]
 
 # =============================================================================
-# T8d. at_pressure_retest_pct — 壓力區回測門檻 (明日 K 線 §08 壓力的分類)
+# T8d. at_pressure_retest — 壓力區回測（課程：二元觸及 / 越過，無 % 門檻）
 # =============================================================================
-# COURSE CONCEPT: 套牢/波動/獲利了結三類壓力的共通前提 = close 回測前高附近。
-# COURSE QUOTE: 「K 線上只有壓力沒有支撐」「碰到了賣壓之後，接下來股價會怎樣走呢？」
-# COURSE NUMBER? No — [STUB-NEED-USER]，老師未明示「多接近才算回測壓力」。
-# PROXY VALUE: 0.10（close ≥ prev_high_60 × 0.9 且 close < prev_high_60）。
-AT_PRESSURE_RETEST_PCT: float = 0.10  # [STUB-NEED-USER]
+# COURSE CONCEPT: 套牢/波動/獲利了結三類壓力的共通前提 = 高點觸及前高但收盤未突破。
+# COURSE QUOTE: 明日 K 線 §08「壓力的分類」B5DB7A687DA4FA572833411DE9CD88D8
+#   「股價第二次又來到 170 元附近，倘若對於壓力有正確的體認，應該就可以推演出來，
+#    隔天要確認是攻擊，必須就是一開盤開在 176.5 元以上的跳空攻擊...」
+#   老師明示「碰到了」vs「越過了」= 二元判斷（觸及 / 突破），無 % 距離概念。
+# COURSE NUMBER? No percentage — 課程明示「碰到」vs「越過」二元，不是「距離 X%」。
+# IMPLEMENTATION: 改用二元觸及判斷（high >= prior_high_60 AND close < prior_high_60）
+#   代替 % 範圍 — 見 features.py at_pressure_retest。
+# NOTE: AT_PRESSURE_RETEST_PCT 常數已廢棄，保留此區塊作為 audit 紀錄。
+# COURSE CITATION: 明日 K 線 §08 B5DB7A687DA4FA572833411DE9CD88D8
+# （此常數不再使用；features.py 已改用二元觸及條件）
+# AT_PRESSURE_RETEST_PCT: float = 0.10  # 已廢棄 — 課程無 % 門檻、改用二元觸及
 
 # =============================================================================
 # T9. rebound_lookback_n — 反撲 短期 N 上限 (P23)
@@ -414,27 +421,31 @@ ATTACK_COST_VOL_RATIO: float = 1.0  # [STUB-NEED-USER S2] — course-not-stated 
 #   篇 20「漲太多已經不是第一次突破前高的，就不在此限」
 #   篇 20「跳空攻擊算得上是攻擊成本浮現之後，明日 K 線是『繼續攻擊』的最佳解答」
 #   篇 20「至此已經不用再判斷會不會轉變，而是開始設定移動停利」
-# COURSE NUMBER? No — 老師只說「漲太多」/「第一次突破」，沒給具體 lookback 天數。
-# PROXY VALUE: 20 個交易日（「短期內同一段攻擊」≈ 一個月）。
-# RATIONALE: 老師原話「明天開始就必需得要攻擊」+「至此已經不用再判斷會不會轉變
-#   ⋯⋯進入了攻擊結束的判別」表示攻擊段是短期狀態、結束後可重新 setup。
-#   - 3693 2022-12-08 → 12/09/12 連續漲停（2-4 個交易日內）= 同段攻擊、抑制 ✓
-#   - 3693 2023-01-16 → 2023-04-11（48 個交易日 + 中間 -18% 深回檔）= 不同段、不抑制 ✓
-#   60 日窗口會誤殺 3693 2023-04-11（新攻擊段），20 日窗口較符合「短期延續」語意。
-# [STUB-NEED-USER]: 20 個交易日是工程提議；未來可加上「中途 close < prior_high_60
-#   持續 N 天 → 視為攻擊結束、提前 reset」邏輯。待 user 確認 lookback 天數。
-ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS: int = 20  # [STUB-NEED-USER]
+#   行進ing 39「突破新高價的當天，前面要有兩個半月到三個月的整理區間」
+#   明日 K 線 §20「突破前高，整理期間超過三個月」
+# COURSE NUMBER? Yes (inferred) — 「三個月整理」= 60 交易日（一個月 ≈ 20 交易日）。
+#   course_principles.md 既有 code 已用 prior_high_60（60 日）作為「型態突破」lookback。
+#   ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS 應與 prior_high_60 / FIRST_BREAKOUT_LOOKBACK 對齊。
+#
+# RATIONALE:
+#   - 3693 2022-12-08 → 12/09/12 連續漲停（2-4 交易日）= 同段攻擊、60 日窗口仍抑制 ✓
+#   - 3693 2023-01-16 → 2023-04-11（48 交易日 + -18% 深回檔）= 48 < 60，60 日窗口
+#     需確認 2023-01-16 到 2023-04-11 間 close 未跌回 prior_high_60 以下才算「同段」
+#   ⚠️ 3693 2023-04-11 案例需重驗（step 3 sanity）。
+# PROXY VALUE: 60 個交易日（對齊課程「三個月整理」+ prior_high_60 一致性）。
+# COURSE CITATION: 行進ing §39、明日 K 線 §20
+ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS: int = 60  # 課程明示「三個月整理」≈ 60 交易日
 
 # =============================================================================
-# L1. low_price_threshold — 低價股價位門檻 (明日 K 線 §09 低價股的處理節奏)
+# L1. low_price_threshold — 已移至 extras/low_price.py [EXTRAS]
 # =============================================================================
 # COURSE CONCEPT: 課程明示「低價股」是 §09 lowprice_first_pull_exit 的前提，
-#   未明示元/股的數值。範例案例：錸德(2349)、億泰(1616)、中工(2515) 約 10-25 元。
+#   未明示元/股的數值。老師只用「低 / 中 / 高」相對概念描述。
 # COURSE QUOTE: 「八張低價股，跟買一張百元的中價股，價格的風險一樣，籌碼風險更高一些」
-# COURSE NUMBER? No — [STUB-NEED-USER].
-# PROXY VALUE: 30 元（包含老師案例上沿，留緩衝）。
-# RATIONALE: 老師案例 10-25 元，30 元作為「低價股」上界 proxy。中價股一般 30-100。
-LOW_PRICE_THRESHOLD: float = 30.0  # [STUB-NEED-USER]
+# COURSE NUMBER? No — 課程無明示任何價格數字門檻。30 元是業界 proxy。
+# STATUS: 已搬至 scripts/kline/extras/low_price.py [EXTRAS]，從本檔案移除。
+# REASON: 課程未明示低價數字門檻 → 屬課程外 proxy → 必須物理隔離至 extras。
+# 使用方式: from scripts.kline.extras.low_price import LOW_PRICE_THRESHOLD
 
 # =============================================================================
 # L2. high_long_black_envelopment_min_pct — 高檔長黑包覆 body 最低占幅
@@ -460,14 +471,16 @@ ZHONGSHU_RANGE_MAX_PCT: float = 0.10  # [STUB-NEED-USER]
 # A24. merged_doji_carry_days — 合併十字線 forward-fill 窗口 (明日 K 線 §24)
 # =============================================================================
 # COURSE CONCEPT: 合併十字線「剛創新高」位置後 N 日，merged_high/merged_low 仍有效。
-# COURSE QUOTE: 第 24 篇「收盤確認了 K 線圖兩根合併就是長十字線，位置也沒有錯誤，
-#   表示股價已經具備了攻擊意圖，隔日就得有攻擊企圖」— 暗示「隔日」即為判斷窗口。
-# COURSE NUMBER? No — 課程只說「隔日就得有攻擊企圖」，未明示多少天內有效。
-#   5 日 = 一週交易天數，作為「短期有效」的最小保守窗口。
-# PROXY VALUE: 5 個交易日。
-# [STUB-NEED-USER]: 老師未明示合併十字線高低點向前 forward-fill 的天數；
-#   提議 5 日（一週），若 user 認為太長可縮短至 2~3 日。
-MERGED_DOJI_CARRY_DAYS: int = 5  # [STUB-NEED-USER]
+# COURSE QUOTE:
+#   第 24 篇「明天的重點就得要攻擊，且這是一定要發生的，無法變成後天、大後天」
+#   第 26 篇「明日就得開始攻擊，或者如果不打算攻擊，跌破合併十字線的低點作為確認不攻擊。」
+# COURSE NUMBER? Yes — 課程明示「明日」就要表態、「無法變成後天、大後天」。
+#   合併十字線高低點的有效性是「隔日一天」（carry = 1），不是 5 天 forward-fill。
+#   5 日嚴重違反課程「明日就要表態、否則失效」的精神。
+# PROXY VALUE: 1 個交易日（隔日即為判斷窗口）。
+# COURSE CITATION: 明日 K 線 §24 E9A6F935298C7C5C2E269AA952AA1BB2
+#   §26 EF7308E2336BF7BCE94142944DB580B1
+MERGED_DOJI_CARRY_DAYS: int = 1  # 課程明示「明日就要表態、無法變成後天大後天」
 
 # =============================================================================
 # A26. defensive_low_lookback_days — 防守低點回看天數 (明日 K 線 §26)
@@ -524,13 +537,13 @@ __all__ = [
     "WEAK_BULL_MA_DAYS",
     "MERGED_DOJI_BODY_RATIO",
     "MERGED_DOJI_SHADOW_MIN_RATIO",
-    "AT_PRESSURE_RETEST_PCT",
+    # AT_PRESSURE_RETEST_PCT — 已廢棄，改用二元觸及條件（課程無 % 門檻）
     # A20 attack_cost_displayed constants
     "ATTACK_COST_LIMIT_UP_THRESHOLD",
     "ATTACK_COST_VOL_RATIO",
     "ATTACK_COST_FIRST_BREAKOUT_LOOKBACK_DAYS",
     # L1-L3 lights-fix STUB constants (2026-06-04)
-    "LOW_PRICE_THRESHOLD",
+    # "LOW_PRICE_THRESHOLD" — 已移至 extras/low_price.py [EXTRAS]
     "HIGH_LONG_BLACK_ENVELOPMENT_MIN_PCT",
     "ZHONGSHU_RANGE_MAX_PCT",
     # A24/A26 advanced field wiring STUB constants (2026-06-05)
