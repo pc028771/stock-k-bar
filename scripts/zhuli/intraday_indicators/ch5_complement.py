@@ -248,15 +248,27 @@ def check_b5_2_limit_up_pattern(
                 "gap_pct": gap_pct,
             }
 
-    # A 型：跳空 < 2% + 第 2 根守住第 1 根開盤
-    if gap_pct < 2.0 and close_2 >= open_1:
-        return {
-            "triggered": True,
-            "level": "A",
-            "reason": (f"B5-2 A 型：跳空 +{gap_pct:.1f}% < 2% + 第 2 根守 "
-                       f"{close_2:.2f} ≥ 第 1 根開 {open_1:.2f} → 可做"),
-            "gap_pct": gap_pct,
-        }
+    # A 型：跳空 < 2% AND（第 2 根守住開盤 OR 3 根內 V 字收破第 1 根高）
+    # V 字復原來源：5/1 line 12:32-38「第二根守著往上勾、又再下來洗一下、然後洗住了都有守住」
+    if gap_pct < 2.0:
+        holds_open = close_2 >= open_1
+        # 3 根內任一 close > 第 1 根 high = 攻擊確認、典型 V 字復原（宇隆 2233 4/30 case）
+        follow_3 = k5.iloc[1:min(4, len(k5))]
+        breakout_3 = any(float(b["close"]) > high_1 for _, b in follow_3.iterrows())
+
+        if holds_open or breakout_3:
+            sub_reason = (
+                f"第 2 根守 {close_2:.2f} ≥ 第 1 根開 {open_1:.2f}"
+                if holds_open and not breakout_3
+                else f"3 根內 V 字復原、收破第 1 根高 {high_1:.2f}"
+            )
+            return {
+                "triggered": True,
+                "level": "A",
+                "reason": (f"B5-2 A 型：跳空 +{gap_pct:.1f}% < 2% + "
+                           f"{sub_reason} → 可做"),
+                "gap_pct": gap_pct,
+            }
 
     return {
         "triggered": False,
