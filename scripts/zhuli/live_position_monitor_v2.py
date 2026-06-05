@@ -126,6 +126,29 @@ DataTable {
     height: 1fr;
 }
 
+/* Bug 2 fix: 統一 focused/unfocused header + cursor 顏色，避免首次 click 後突兀 */
+DataTable > .datatable--header {
+    background: #1a1a1a;
+    color: cyan;
+    text-style: bold;
+}
+
+DataTable:focus > .datatable--header {
+    background: #1a1a1a;
+    color: cyan;
+    text-style: bold;
+}
+
+DataTable > .datatable--cursor {
+    background: #002030;
+    color: white;
+}
+
+DataTable:focus > .datatable--cursor {
+    background: #003050;
+    color: white;
+}
+
 .held-pane DataTable {
     border: solid green;
 }
@@ -387,6 +410,22 @@ class MonitorApp(App[None]):
         self._start_data_refresh()
         # 每秒更新 status bar + table
         self.set_interval(1.0, self._tick)
+        # Bug 1 fix: 啟動後自動 focus 第一個 tab 的 DataTable
+        self.call_after_refresh(self._focus_active_table)
+
+    def _focus_active_table(self) -> None:
+        """Focus 當前 tab 的 DataTable，讓鍵盤 ↑↓ 立即生效（不需先 click）。"""
+        try:
+            active_pane = self.query_one(TabbedContent).active_pane
+            if active_pane:
+                table = active_pane.query_one(DataTable)
+                table.focus()
+        except Exception:
+            pass
+
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        """切 tab 後自動 focus 新 tab 的 DataTable。"""
+        self.call_after_refresh(self._focus_active_table)
 
     def _setup_tables(self) -> None:
         """初始化所有 DataTable 的 columns。"""
