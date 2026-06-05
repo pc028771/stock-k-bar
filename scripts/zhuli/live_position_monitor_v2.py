@@ -438,7 +438,11 @@ class MonitorApp(App[None]):
         ]:
             dt: DataTable = self.query_one(f"#{table_id}", DataTable)
             for key, label, width in cols:
-                dt.add_column(label, key=key, width=width)
+                # Trigger 欄 (width=0 or last col) 不限寬、自動延伸到畫面右
+                if key == "trigger":
+                    dt.add_column(label, key=key)
+                else:
+                    dt.add_column(label, key=key, width=width)
 
     # ── data refresh ─────────────────────────────────────────────────────────
     def _start_data_refresh(self) -> None:
