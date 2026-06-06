@@ -19,9 +19,13 @@ from .course_proxy_constants import (
     ATTACK_HIGHER_HIGH_MIN_5DAY,
     ATTACK_HIGHER_LOW_MIN_5DAY,
     ATTACK_WINDOW_DAYS,
+    CONSOLIDATION_LONG_DAYS,
+    CONSOLIDATION_LONG_RANGE_MAX_PCT,
     DEFENSIVE_LOW_LOOKBACK_DAYS,
     DOJI_MAX_BODY_PCT,
     DOJI_MIN_RANGE_PCT,
+    EARLY_DEPLOY_RESISTANCE_LOOKBACK_DAYS,
+    EARLY_DEPLOY_VOL_MULTIPLE,
     FIRST_BREAKOUT_LOOKBACK,
     INTEGRATION_DAYS as _INTEGRATION_DAYS,
     MERGED_DOJI_BODY_RATIO as _MERGED_DOJI_BODY_RATIO,
@@ -1198,6 +1202,93 @@ def add_features(df: pd.DataFrame, groups: list[str] | None = None) -> pd.DataFr
         df["is_self_rescue_breakout_flag"] = df["is_self_rescue_breakout"].fillna(False).astype(int)
         df["just_high_doji_flag"] = df["just_high_doji"].fillna(False).astype(int)
         df["is_black_today"] = df["is_black"].fillna(False).astype(int)
+
+        # =====================================================================
+        # INTRO-tier-2 concepts impl (2026-06-06)
+        # Course sources: 入門 §07 + §21 整理超過兩個半月 + 季線下彎 /
+        #                 入門 「成本原理」提前部署 /
+        #                 入門 §03 + §12 連續十字線區間
+        # See docs/kline_course/notes/intro_tier2_impl_2026-06-06.md
+        # =====================================================================
+
+        # === INTRO-16a: ma60_falling — 季線下彎（明確 5 日斜率 < 0）===
+        # Course quote (§21):「一旦季線下彎表示中期趨勢已經轉為空頭」
+        df["ma60_falling"] = (df["ma60_slope_5d"].fillna(0) < 0).astype(bool)
+
+        # === INTRO-16b: consolidation_over_2_5_months —
+        #              整理區間超過兩個半月（≈ 50 交易日）
+        # Course quote (§07):「整理區間超過兩個半月」
+        # Definition (退化版日 K):
+        #   過去 CONSOLIDATION_LONG_DAYS 日內 (high.max - low.min) / midpoint
+        #   <= CONSOLIDATION_LONG_RANGE_MAX_PCT (= 20%)
+        _hi_long = g["high"].transform(
+            lambda s: s.shift(1).rolling(CONSOLIDATION_LONG_DAYS, min_periods=CONSOLIDATION_LONG_DAYS).max()
+        )
+        _lo_long = g["low"].transform(
+            lambda s: s.shift(1).rolling(CONSOLIDATION_LONG_DAYS, min_periods=CONSOLIDATION_LONG_DAYS).min()
+        )
+        _mid_long = (_hi_long + _lo_long) / 2.0
+        _range_pct_long = (_hi_long - _lo_long) / _mid_long.replace(0, np.nan)
+        df["consolidation_over_2_5_months"] = (
+            _range_pct_long <= CONSOLIDATION_LONG_RANGE_MAX_PCT
+        ).fillna(False).astype(bool)
+
+        # === INTRO-9: volume_exceeds_resistance_volume — 提前部署 ===
+        # Course quote (course_principles 入門):
+        #   「當前成交量已超過過往套牢區的量（價格還沒突破）」
+        # Definition:
+        #   1. 今日 volume > 過去 EARLY_DEPLOY_RESISTANCE_LOOKBACK_DAYS (60) 日
+        #      內最高量 × EARLY_DEPLOY_VOL_MULTIPLE (1.0)
+        #   2. 今日 close < prior_high_60（價未突破）
+        # 提前部署 = 量先動、價未突破。
+        _max_prior_vol = g["volume"].transform(
+            lambda s: s.shift(1).rolling(
+                EARLY_DEPLOY_RESISTANCE_LOOKBACK_DAYS,
+                min_periods=EARLY_DEPLOY_RESISTANCE_LOOKBACK_DAYS,
+            ).max()
+        )
+        _vol_exceeds = df["volume"] > (_max_prior_vol * EARLY_DEPLOY_VOL_MULTIPLE)
+        _price_not_yet = (df["close"] < df["prior_high_60"]).fillna(False)
+        df["volume_exceeds_resistance_volume"] = (
+            _vol_exceeds & _price_not_yet & _max_prior_vol.notna()
+        ).fillna(False).astype(bool)
+
+        # === INTRO-6: consecutive_doji_count — 連續十字線天數 ===
+        # Course quote (§03 + §12 + §09):
+        #   「連續十字線的判斷要點就以這個連續十字區間的高低點作為短線方向判斷」
+        # Definition: 過去 N 日含今日連續為 is_doji 的天數（streak length）
+        is_doji_series = df["is_doji"].fillna(False).astype(int)
+        # Per-ticker rolling streak: reset at non-doji bars
+        def _streak(s: pd.Series) -> pd.Series:
+            # vectorized streak count
+            grp = (s != s.shift(1)).cumsum()
+            return s.groupby(grp).cumsum() * s
+        df["consecutive_doji_count"] = (
+            is_doji_series.groupby(df["ticker"]).transform(_streak).astype(int)
+        )
+        # consecutive_doji_range_high/low: max high / min low over the active streak
+        # (use rolling with window = current streak; we approximate with last 10-day
+        #  window when streak >= 2, else NaN)
+        DOJI_RANGE_WINDOW = 10
+        _hi_doji = g["high"].transform(
+            lambda s: s.rolling(DOJI_RANGE_WINDOW, min_periods=2).max()
+        )
+        _lo_doji = g["low"].transform(
+            lambda s: s.rolling(DOJI_RANGE_WINDOW, min_periods=2).min()
+        )
+        streak_active = df["consecutive_doji_count"] >= 2
+        df["consecutive_doji_range_high"] = _hi_doji.where(streak_active, other=np.nan)
+        df["consecutive_doji_range_low"] = _lo_doji.where(streak_active, other=np.nan)
+
+        # INTRO-tier-2 toplevel aliases for YAML DSL
+        df["ma60_falling_flag"] = df["ma60_falling"].fillna(False).astype(int)
+        df["consolidation_over_2_5_months_flag"] = (
+            df["consolidation_over_2_5_months"].fillna(False).astype(int)
+        )
+        df["volume_exceeds_resistance_volume_flag"] = (
+            df["volume_exceeds_resistance_volume"].fillna(False).astype(int)
+        )
+        df["consecutive_doji_count_int"] = df["consecutive_doji_count"].fillna(0).astype(int)
 
     return df
 

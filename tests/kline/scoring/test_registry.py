@@ -15,6 +15,8 @@ def test_registry_has_expected_factors():
         "attack_intensity",
         "high_zone_narrow_consolidation",
         "trend_continuation",
+        # INTRO-tier-2 (2026-06-06): 入門 §31 攻擊意圖闕如負分
+        "attack_intent_consecutive_red",
     }
 
 

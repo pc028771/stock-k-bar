@@ -60,6 +60,9 @@ _CONTEXT_FIELDS = frozenset({
     # INTRO concepts impl (2026-06-05)
     "taiex_down_today",
     "is_after_negative_news_taiex",
+    # INTRO-tier-2 (2026-06-06)
+    "taiex_false_breakdown_recovered",
+    "taiex_v_sunrise",
 })
 _TOPLEVEL_FIELDS = frozenset({
     "prev_high_60",
@@ -86,6 +89,13 @@ _TOPLEVEL_FIELDS = frozenset({
     "is_self_rescue_breakout_flag",
     "just_high_doji_flag",
     "is_black_today",
+    # INTRO-tier-2 (2026-06-06): §07 + §21 / 「成本原理」 / §03 + §12 / §33 / §58
+    "ma60_falling_flag",
+    "consolidation_over_2_5_months_flag",
+    "volume_exceeds_resistance_volume_flag",
+    "consecutive_doji_count_int",
+    "consecutive_doji_range_high",
+    "consecutive_doji_range_low",
 })
 
 # Full whitelist (string representations for fast lookup)
@@ -116,6 +126,9 @@ _BOOL_FIELDS = frozenset({
     # INTRO concepts impl (2026-06-05)
     "context.taiex_down_today",
     "context.is_after_negative_news_taiex",
+    # INTRO-tier-2 (2026-06-06)
+    "context.taiex_false_breakdown_recovered",
+    "context.taiex_v_sunrise",
 })
 
 # Logical operator keys

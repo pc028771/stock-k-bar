@@ -1,0 +1,11 @@
+light_id: taiex_v_sunrise
+trigger_condition:
+  all:
+    # 大盤層級訊號：V 型反彈確認（第一天強彈 + 第二天日出型態）
+    - "context.taiex_v_sunrise": true
+severity: info
+course_citation:
+  source: "K線力量入門 §58 評估賣壓區段"
+  article_id: "kline_intro_58"
+  quote: "第一天強彈出現之後、第二天開始的重點則是大盤得要繼續日出型態｜3月20日K線的低點8816不能破、高點9264要越過、這樣才是日出。如果沒有保持日出型態、就不是V型反彈"
+recommendation_text: "大盤層級訊號：昨日加權指數強彈（紅 K 漲幅 > 1%）、今日繼續日出型態（high/low 雙雙站上昨日）— 符合課程「V 型反彈」確認條件（§58）。此訊號為大盤反轉確認、scanner 可主動掃描攻擊型個股（突破 / 跳空 / 創新高上影）。注意：「強彈」課程以「第一天強彈」描述、本退化版以 > 1% 漲幅為 proxy；「日出」精確定義（low 不破、high 越過）本實作以 high/low 雙高為 proxy。"

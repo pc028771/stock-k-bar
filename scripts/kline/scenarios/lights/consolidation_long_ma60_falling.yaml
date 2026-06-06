@@ -1,0 +1,13 @@
+light_id: consolidation_long_ma60_falling
+trigger_condition:
+  all:
+    # 整理區間超過兩個半月（≈ 50 交易日、range/mid ≤ 20% proxy）
+    - "consolidation_over_2_5_months_flag": "== 1"
+    # 季線下彎（ma60 5 日斜率 < 0）
+    - "ma60_falling_flag": "== 1"
+severity: warn
+course_citation:
+  source: "K線力量入門 §07 高檔長黑K + §21 季線下彎判讀"
+  article_id: "C838747B22625440D61F5EA1DD18DFFB"
+  quote: "整理區間超過兩個半月、那麼接下來要留意的就是季線、一旦季線下彎表示中期趨勢已經轉為空頭"
+recommendation_text: "整理區間已超過兩個半月（≈ 50 交易日，high/low 區間幅度 ≤ 20% proxy）並且季線（MA60）下彎（5 日斜率 < 0），符合課程「中期趨勢已經轉為空頭」訊號。應將持倉防守標準降階至課程定義的中期空頭模式（不再以攻擊邏輯加碼），新進場需重新評估。注意：「兩個半月」課程已明示 ≈ 50 交易日；「整理區間」範圍 20% 為 STUB proxy（課程僅質性描述）。"

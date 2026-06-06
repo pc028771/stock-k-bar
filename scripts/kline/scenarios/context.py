@@ -117,6 +117,9 @@ class _TaiexContext:
             # INTRO-3 / INTRO-1 new fields
             "taiex_down_today": None,                  # 大盤今日下跌（close < prev_close）
             "is_after_negative_news_taiex": None,      # 近 N 日內大盤曾單日跌幅 ≥ proxy（利空背景）
+            # INTRO-tier-2 (2026-06-06) — 大盤層級訊號
+            "taiex_false_breakdown_recovered": None,   # §33 假性跌破：急跌破關鍵點後隔日跳空站回
+            "taiex_v_sunrise": None,                   # §58 V 型反彈 → V 型反轉：第一天強彈 + 隔日日出
         }
 
         if cls._taiex_df is not None and not cls._taiex_df.empty:
@@ -160,6 +163,61 @@ class _TaiexContext:
                     result["is_after_negative_news_taiex"] = bool(
                         (window["drop_pct"] >= SELF_RESCUE_TAIEX_DROP_PCT).any()
                     )
+
+                # INTRO-tier-2: taiex_false_breakdown_recovered (§33 假性跌破)
+                # 老師原話 (§33):「當股價指數遇到了某個利空事件、短期之內快速的
+                #   跌破了足以影響趨勢的關鍵點位、卻因為急跌之後的反彈又馬上站回
+                #   到這個關鍵價位之上...辨識關鍵當然是隔天的往上跳空」
+                # 退化版判定:
+                #   昨日大盤 close 跌破過去 60 日最低收盤（急跌破關鍵點）
+                #   且今日往上跳空 (today.open > yesterday.close)
+                #   且今日 close 站回昨日 close 之上（吃回急跌段）
+                if idx >= 60:
+                    hist_60 = tdf.loc[idx - 60:idx - 1]
+                    if len(hist_60) >= 60:
+                        prior_low_close = hist_60["close"].min()
+                        yesterday = tdf.loc[idx - 1]
+                        if (
+                            pd.notna(yesterday["close"])
+                            and pd.notna(prior_low_close)
+                            and pd.notna(today_row["open"])
+                            and pd.notna(today_row["close"])
+                        ):
+                            broke_yesterday = yesterday["close"] < prior_low_close
+                            gap_up_today = today_row["open"] > yesterday["close"]
+                            recovered = today_row["close"] > yesterday["close"]
+                            result["taiex_false_breakdown_recovered"] = bool(
+                                broke_yesterday and gap_up_today and recovered
+                            )
+                        else:
+                            result["taiex_false_breakdown_recovered"] = False
+                    else:
+                        result["taiex_false_breakdown_recovered"] = False
+
+                # INTRO-tier-2: taiex_v_sunrise (§58 V 型反彈 → V 型反轉)
+                # 老師原話 (§58):「第一天強彈出現之後、第二天開始的重點則是大盤
+                #   得要繼續日出型態」「3月20日K線的低點8816不能破、高點9264要越過、
+                #   這樣才是日出」「如果沒有保持日出型態、就不是V型反彈」
+                # 退化版判定:
+                #   昨日為強彈日（昨日 close > 昨日 open 且漲幅 > 1%）
+                #   且今日為日出（today.high > yesterday.high 且 today.low > yesterday.low）
+                if idx >= 1:
+                    yesterday = tdf.loc[idx - 1]
+                    if (
+                        pd.notna(yesterday["open"]) and pd.notna(yesterday["close"])
+                        and pd.notna(yesterday["high"]) and pd.notna(yesterday["low"])
+                        and pd.notna(today_row["high"]) and pd.notna(today_row["low"])
+                    ):
+                        y_open = yesterday["open"]
+                        y_pct_up = (yesterday["close"] - y_open) / y_open if y_open else 0
+                        strong_bounce = (yesterday["close"] > y_open) and (y_pct_up > 0.01)
+                        sunrise = (
+                            today_row["high"] > yesterday["high"]
+                            and today_row["low"] > yesterday["low"]
+                        )
+                        result["taiex_v_sunrise"] = bool(strong_bounce and sunrise)
+                    else:
+                        result["taiex_v_sunrise"] = False
 
                 # taiex_no_new_low_next_day: next trading day low > today low
                 next_rows = tdf.loc[idx + 1:]
@@ -327,6 +385,9 @@ def build_context_snapshot(
         # INTRO concepts impl (2026-06-05)
         "taiex_down_today",
         "is_after_negative_news_taiex",
+        # INTRO-tier-2 (2026-06-06): §33 假性跌破 / §58 V 型反彈
+        "taiex_false_breakdown_recovered",
+        "taiex_v_sunrise",
     ]
 
     # If any of the four taiex fields is in overrides, use overrides only
@@ -384,6 +445,9 @@ def build_context_snapshot(
         # --- INTRO concepts impl (2026-06-05) ---
         taiex_down_today=taiex_vals["taiex_down_today"],
         is_after_negative_news_taiex=taiex_vals["is_after_negative_news_taiex"],
+        # --- INTRO-tier-2 (2026-06-06) ---
+        taiex_false_breakdown_recovered=taiex_vals["taiex_false_breakdown_recovered"],
+        taiex_v_sunrise=taiex_vals["taiex_v_sunrise"],
         # --- §26 防守姿態 manual-hint fields (STUB-NEED-USER) ---
         taiex_recent_weak=taiex_recent_weak,
         stock_outperforms_taiex=stock_outperforms_taiex,

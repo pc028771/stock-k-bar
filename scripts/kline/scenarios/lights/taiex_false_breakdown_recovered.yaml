@@ -1,0 +1,11 @@
+light_id: taiex_false_breakdown_recovered
+trigger_condition:
+  all:
+    # 大盤層級訊號：假性跌破已被站回
+    - "context.taiex_false_breakdown_recovered": true
+severity: info
+course_citation:
+  source: "K線力量入門 §33 假性跌破"
+  article_id: "kline_intro_33"
+  quote: "當股價指數遇到了某個利空事件、短期之內快速的跌破了足以影響趨勢的關鍵點位、卻因為急跌之後的反彈又馬上站回到這個關鍵價位之上...辨識關鍵當然是隔天的往上跳空"
+recommendation_text: "大盤層級訊號：昨日加權指數急跌破過去 60 日最低收盤（關鍵點位），但今日往上跳空且收盤站回昨日收盤之上，符合課程「假性跌破」型態。此訊號代表恐慌賣壓出清、攻擊資金尚未真正撤退，個股操作可重新評估進場（特別是強勢股回測 + 站住者）。注意：「關鍵點位」課程以「足以影響趨勢」描述、本退化版以過去 60 日最低收盤為 proxy；「急跌」「短期之內」未明示具體門檻。"

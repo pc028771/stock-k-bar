@@ -1,0 +1,11 @@
+light_id: early_deployment_volume
+trigger_condition:
+  all:
+    # 今日量超過過去 60 日內最高量（資金已先動）
+    - "volume_exceeds_resistance_volume_flag": "== 1"
+severity: info
+course_citation:
+  source: "K線力量入門 成本原理 / 突破跌破 提前部署"
+  article_id: "course_principles"
+  quote: "當前成交量已超過過往套牢區的量（價格還沒突破），表示有資金提前部署"
+recommendation_text: "今日成交量已超過過去 60 日（套牢區回看範圍）的最高量，但收盤價尚未突破 60 日新高 — 符合課程「提前部署」訊號（量先動、價未突破）。可列為觀察候選；後續若搭配收盤突破或攻擊型 K 線（跳空 / 長紅 / 創新高上影 / 創新高十字）即進入主力進攻訊號。注意：「超過」課程未指定倍數，本 light 採量超過（1.0x）即觸發；套牢區回看 60 日對齊 prior_high_60。"

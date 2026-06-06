@@ -60,6 +60,47 @@ def mark(df: pd.DataFrame, entries: pd.Series) -> pd.Series:
     return (df["close"] < trailing_low).fillna(False)
 
 
+def mark_slow_push(df: pd.DataFrame, entries: pd.Series) -> pd.Series:
+    """緩慢推升型移動停利 — 入門「出場(二)」+ 入門 §18 移動停利.
+
+    Course quote (入門 出場二):
+      「移動停利是一個必備的操作模式、主要用來應對緩慢推升型」
+
+    Definition (緩慢推升型 = 沒有跳空攻擊、沒有漲停鎖住，但 close 持續向上墊高):
+      持倉期間維護一個 N 日新高 close (rolling max close during trade)，
+      當今日 close < 「N 日內最高 close 的 SLOW_PUSH_RETRACE_PCT 」即停利出場。
+
+    參數選擇 (course-not-stated proxy):
+      - 老師「緩慢推升型」明確區分於「跳空 / 長紅」，需要「移動」式停利；
+      - 課程無明示具體 % 或 N 日；本實作沿用日 K 退化版：
+        N = 持倉以來的 expanding window（從進場日起所有 close 的最高值）
+        STOP_PCT = 5%（「緩慢推升」一根長黑通常 4-6%；保留 5% 為中間值）
+      - 「移動」= 隨高點推升而上移（expanding max），不是固定價位。
+
+    Required df columns: ticker, close.
+    """
+    SLOW_PUSH_RETRACE_PCT: float = 0.05  # [STUB-NEED-USER] course-not-stated retrace %
+
+    if entries is None or entries.sum() == 0:
+        return pd.Series(False, index=df.index)
+
+    trade_id = entries.groupby(df["ticker"]).cumsum()
+    trade_id = trade_id.where(trade_id > 0)
+    if trade_id.isna().all():
+        return pd.Series(False, index=df.index)
+
+    work = df.assign(_tid=trade_id)
+    # expanding max of close within (ticker, trade)
+    trailing_high_close = (
+        work.groupby(["ticker", "_tid"])["close"]
+        .expanding().max()
+        .reset_index(level=[0, 1], drop=True)
+        .reindex(df.index)
+    )
+    stop_level = trailing_high_close * (1.0 - SLOW_PUSH_RETRACE_PCT)
+    return (df["close"] < stop_level).fillna(False)
+
+
 def mark_weak_bull(df: pd.DataFrame, entries: pd.Series) -> pd.Series:
     """§C14 微弱多方趨勢退化版停利 — 5日 SMA 跌破（老師明示「不得已才使用」）.
 

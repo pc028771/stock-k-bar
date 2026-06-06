@@ -286,6 +286,16 @@ class ContextSnapshot(BaseModel):
     #   [STUB-NEED-USER]: 「重大利空」課程定性、proxy 2% drop 待確認
     is_after_negative_news_taiex: Optional[bool] = None
 
+    # INTRO-tier-2 (2026-06-06)
+    # taiex_false_breakdown_recovered — 入門 §33 大盤假性跌破
+    #   昨日急跌破過去 60 日最低收盤 + 今日跳空 + 收盤站回 = 假性跌破
+    #   用途: market-regime light（規避大盤級利空恐慌）
+    taiex_false_breakdown_recovered: Optional[bool] = None
+    # taiex_v_sunrise — 入門 §58 V 型反彈 → V 型反轉
+    #   昨日強彈（紅 K > 1%）+ 今日日出（high/low 雙高）= V 型反彈確認
+    #   用途: market-regime light（強反彈確認、scanner trigger）
+    taiex_v_sunrise: Optional[bool] = None
+
 
 class AdvisorResult(BaseModel):
     """The full output of ``advisor.analyze()`` for one ticker × one date."""

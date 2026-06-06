@@ -2,6 +2,16 @@
 
 Course source: 第 08 篇《跳空反轉》(92E64EAB9982ADE91CB903046E5FA04F)
 Cross-course definition: PATTERN_INVENTORY P09.
+
+Verification 2026-06-06 (入門 §55 alignment):
+  Course quote (入門 §55 DA3284BF9760B2F6481A3C6DDCBD2C30):
+    「跌破了前一天紅K的低點、還連向上跳空缺口都回補(三個現象同一根發生)」
+  入門 §55 描述的是「開高然後盤中反轉、回補多個缺口」的同日三現象案例
+  (大學光 3218 案例)，屬於 intraday 反轉特例、需分 K 資料才能精確識別。
+  本 detect() 是 PATTERN_INVENTORY P09 的日 K 一般化版本：要求 D-0
+  「向下跳空開盤 + 收盤無力回補」+ 過去 30 日內有攻擊狀態。日 K 層級
+  仍然涵蓋多數案例（gap-down 直接反轉等同於「跌破前一天紅K低點」
+  的最強表現），詳細 intraday case 由人工觀察補充。
 """
 from __future__ import annotations
 

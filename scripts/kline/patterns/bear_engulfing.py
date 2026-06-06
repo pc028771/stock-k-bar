@@ -3,6 +3,18 @@
 Course source: 第 02 篇《包覆線：空頭吞噬與多頭吞噬》(E79401532D60CC63B302926C2C33FB50)
 Cross-course definition: PATTERN_DEFINITIONS.md §1, §2 + PATTERN_INVENTORY P02.
 Engineering proxy constants: (none — pure structural).
+
+Verification 2026-06-06 (入門 §55 / 入門 §30 alignment):
+  Course quote (入門 §55 DA3284BF9760B2F6481A3C6DDCBD2C30):
+    「空頭吞噬的定義是創新高的紅K、隔天被長黑完全包覆」
+  Current impl alignment:
+    - 「創新高的紅K」 → satisfied by `prev_bar_had_attack_meaning` condition (a):
+       prev_is_red & (prev_close > prior_high_60)  ← see features.py L376
+    - 「隔天被長黑完全包覆」 → satisfied by:
+       is_black (close < open) & (open >= prev_close) & (close <= prev_open)
+  Conclusion: ✓ aligned with 入門 §55 definition. The 多方力竭 gate via
+  bull_exhaustion_context is an additional engineering safeguard not in the
+  入門 quote but consistent with 多空轉折 PATTERN_DEFINITIONS §2.
 """
 from __future__ import annotations
 

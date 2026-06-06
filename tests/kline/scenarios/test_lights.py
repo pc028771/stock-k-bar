@@ -30,10 +30,12 @@ LIGHTS_DIR = Path(__file__).parents[3] / "scripts" / "kline" / "scenarios" / "li
 
 class TestLoadAllLights:
     def test_load_lights_returns_19(self):
-        """T2.3.1a: loading lights dir returns exactly 27 lights (24 baseline + 3 INTRO concepts 2026-06-05:
-        same_level_red_then_black, taiex_down_stock_new_high, just_high_doji_attack)."""
+        """T2.3.1a: loading lights dir returns exactly 32 lights
+        (27 baseline + 5 INTRO-tier-2 2026-06-06:
+        consolidation_long_ma60_falling, consecutive_doji_range,
+        early_deployment_volume, taiex_false_breakdown_recovered, taiex_v_sunrise)."""
         lights = load_lights([LIGHTS_DIR])
-        assert len(lights) == 27
+        assert len(lights) == 32
 
     def test_all_lights_have_severity(self):
         """T2.3.1b: every loaded light has a valid severity value."""
@@ -102,6 +104,12 @@ class TestLoadAllLights:
             "same_level_red_then_black",
             "taiex_down_stock_new_high",
             "just_high_doji_attack",
+            # INTRO-tier-2 (2026-06-06): §07+§21 / §03+§12 / 成本原理 / §33 / §58
+            "consolidation_long_ma60_falling",
+            "consecutive_doji_range",
+            "early_deployment_volume",
+            "taiex_false_breakdown_recovered",
+            "taiex_v_sunrise",
         }
         lights = load_lights([LIGHTS_DIR])
         assert set(lights.keys()) == expected_ids
@@ -121,10 +129,15 @@ class TestLoadAllLights:
         # Total: 3 critical, 11 warn, 10 info.
         # INTRO concepts impl (2026-06-05) added: warn +1 (same_level_red_then_black),
         # info +2 (taiex_down_stock_new_high, just_high_doji_attack).
-        # Total: 3 critical, 12 warn, 12 info.
+        # Total (post 2026-06-05): 3 critical, 12 warn, 12 info.
+        # INTRO-tier-2 (2026-06-06) added:
+        #   warn +1 (consolidation_long_ma60_falling)
+        #   info +4 (consecutive_doji_range, early_deployment_volume,
+        #           taiex_false_breakdown_recovered, taiex_v_sunrise)
+        # Total: 3 critical, 13 warn, 16 info.
         assert severity_counts["critical"] == 3
-        assert severity_counts["warn"] == 12
-        assert severity_counts["info"] == 12
+        assert severity_counts["warn"] == 13
+        assert severity_counts["info"] == 16
 
 
 # ---------------------------------------------------------------------------

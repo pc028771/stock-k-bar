@@ -1,0 +1,11 @@
+light_id: consecutive_doji_range
+trigger_condition:
+  all:
+    # 連續 ≥ 2 根十字線
+    - "consecutive_doji_count_int": ">= 2"
+severity: info
+course_citation:
+  source: "K線力量入門 §03 十字線蘊含的轉折與延續意義 + §12 十字線位置篇 + §09 十字線與上影線在攻擊階段意義(上)"
+  article_id: "C6C94A719C0E8DAA1204281546E04A35"
+  quote: "連續十字線的判斷要點就以這個連續十字區間的高低點作為短線方向判斷"
+recommendation_text: "出現連續十字線（≥ 2 根），符合課程「連續十字線區間」現象。短線方向判斷以區間高低點（consecutive_doji_range_high / consecutive_doji_range_low）為界：收盤穿越高點 = 上方延續攻擊、收盤跌破低點 = 下方退場。十字線本身「不研究形狀、只看下一根」（入門 §12），整段區間視為多空力量待表態狀態。注意：連續長度門檻 ≥ 2 為 STUB proxy，課程未明示具體天數。"

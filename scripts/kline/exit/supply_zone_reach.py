@@ -1,10 +1,19 @@
 """壓力區到達出場 — 由多空轉折 bearish patterns + 多方力竭組合判定.
 
 Course source: 【買點賣點】出場點的各種依據-下一個買點 + 多空轉折組合 K 線 26 篇.
+Cross-course alignment: K線力量入門 §44 反彈遇壓先出場.
 
-> 「應該先出場，等到股價越過了這個壓力區段，再考慮還有沒有買回的意義」
+Course quote (入門 §44):
+  「應該先出場，等到股價越過了這個壓力區段，再考慮還有沒有買回的意義」
 
 組合邏輯：任一 bearish reversal pattern 觸發 + 多方力竭/遇壓背景成立 ⇒ True.
+
+Verification 2026-06-06 (入門 §44 alignment):
+  老師明示「先出場」前提是「股價遇到壓力區段」+「並非要繼續攻擊」。
+  本實作以「多空轉折 bearish pattern」作為「不要繼續攻擊」的訊號代理、
+  以 bull_exhaustion_context() OR overhead_supply_layer > 0 作為「遇壓力」
+  代理。符合入門「先出場、等越過再考慮買回」的雙條件原意 ✓。
+  「買回」邏輯不在本 exit 內、由 user 依「越過壓力區段」判斷後手動處理。
 """
 from __future__ import annotations
 

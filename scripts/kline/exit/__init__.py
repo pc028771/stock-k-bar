@@ -14,6 +14,7 @@ from . import (
     breakout_price_break,
     gap_attack_filled,
     high_long_black,
+    just_high_upper_shadow_low_break,
     ma60_neckline,
     prev_day_low_break,
     sunrise_attack_end,
@@ -28,6 +29,8 @@ EXIT_REGISTRY = {
     "breakout_price_break":      breakout_price_break.mark,
     "breakout_low_break":        breakout_low_break.mark,
     "trailing_stop":             trailing_stop.mark,
+    "trailing_stop_slow_push":   trailing_stop.mark_slow_push,
+    "trailing_stop_weak_bull":   trailing_stop.mark_weak_bull,
     "trend_change":              trend_change.mark,
     "prev_day_low_break":        prev_day_low_break.mark,
     "gap_attack_filled":         gap_attack_filled.mark,
@@ -35,6 +38,7 @@ EXIT_REGISTRY = {
     "high_long_black":           high_long_black.mark,
     "supply_zone_reach":         supply_zone_reach.mark,
     "ma60_neckline":             ma60_neckline.mark,
+    "just_high_upper_shadow_low_break": just_high_upper_shadow_low_break.mark,
     **{f"reversal_k.{k}": v for k, v in REVERSAL_K_REGISTRY.items()},
 }
 
