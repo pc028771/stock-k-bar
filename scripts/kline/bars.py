@@ -108,6 +108,36 @@ def load_bars(
     except Exception:
         conn_path = str(db_path)
 
+    # ── Parquet I/O cache for full-market queries ────────────────────────────
+    # Skipping the SQL query + pandas type conversion (~60s) saves the majority
+    # of load_bars wall time on repeat runs.  Only applicable when:
+    #   - No tickers filter (full market — partial queries are too varied to key)
+    # Cache key: DB mtime + backfill DB mtime.
+    # Cache location: /tmp/kline_bars_full_<key>.parquet  (~100 MB snappy)
+    _parquet_cache: pd.DataFrame | None = None
+    _pq_path: Path | None = None
+    if not tickers:
+        try:
+            import hashlib as _hl
+            _ph = _hl.md5()
+            _ph.update(str(int(db_path.stat().st_mtime)).encode())
+            if fill_from_backfill:
+                try:
+                    _bf_mtime = int(BACKFILL_DB_PATH.stat().st_mtime) if BACKFILL_DB_PATH.exists() else 0
+                    _ph.update(str(_bf_mtime).encode())
+                except Exception:
+                    pass
+            _pq_key = _ph.hexdigest()[:12]
+            _pq_path = Path(tempfile.gettempdir()) / f"kline_bars_full_{_pq_key}.parquet"
+            if _pq_path.exists():
+                _parquet_cache = pd.read_parquet(_pq_path, engine="pyarrow")
+        except Exception:
+            _parquet_cache = None
+    # ─────────────────────────────────────────────────────────────────────────
+
+    if _parquet_cache is not None:
+        return _parquet_cache
+
     with sqlite3.connect(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(query, conn, params=params, parse_dates=["trade_date"])
     # Normalise to ns precision (pandas 3.x defaults to us; tests expect ns)
@@ -116,6 +146,16 @@ def load_bars(
 
     if fill_from_backfill and BACKFILL_DB_PATH.exists():
         df = _union_with_backfill(df)
+
+    # Persist full-market result to parquet for next run
+    if not tickers:
+        try:
+            _pq_staging = str(_pq_path) + ".staging"
+            df.to_parquet(_pq_staging, engine="pyarrow", compression="snappy")
+            os.replace(_pq_staging, str(_pq_path))
+        except Exception:
+            pass
+
     return df
 
 
