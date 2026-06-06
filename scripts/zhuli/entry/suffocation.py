@@ -40,6 +40,7 @@ from __future__ import annotations
 import pandas as pd
 
 from zhuli.config import SuffocationConfig
+from kline.features import REQUIRED_FEATURES_SUFFOCATION as REQUIRED_FEATURES  # noqa: F401
 
 
 def _classify_breakout_bar(df: pd.DataFrame) -> pd.Series:

@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from kline.features import REQUIRED_FEATURES_UNIFORM_MA as REQUIRED_FEATURES  # noqa: F401
+
 # 反向工程拍板門檻 (F1 最佳)
 DEFAULT_MIN_TURNOVER = 25_000_000      # 成交額下限
 DEFAULT_MAX_DIST_MA20_PCT = 12.0       # 距 MA20 上限 %

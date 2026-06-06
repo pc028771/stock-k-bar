@@ -10,6 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from kline.features import REQUIRED_FEATURES_SMALL_STRUCTURE as REQUIRED_FEATURES  # noqa: F401
+
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """小結構整理偵測.

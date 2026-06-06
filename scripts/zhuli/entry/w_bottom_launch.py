@@ -41,6 +41,8 @@ from __future__ import annotations
 import pandas as pd
 import numpy as np
 
+from kline.features import REQUIRED_FEATURES_W_BOTTOM as REQUIRED_FEATURES  # noqa: F401
+
 
 def detect(df: pd.DataFrame) -> pd.Series:
     """W 底起漲偵測.
