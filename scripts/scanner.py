@@ -9,9 +9,9 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from kline.bars import DEFAULT_DB_PATH, load_bars
+from kline.bars import DEFAULT_DB_PATH
 from kline.extras import resolve_extras
-from kline.features import add_features
+from kline.features import load_features_cached
 from kline.scoring import SCORING_REGISTRY
 
 DEFAULT_OUT = Path("data/analysis/kline/scanner_today.csv")
@@ -37,8 +37,9 @@ def run(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     extras = resolve_extras(extras_spec)
 
-    bars = load_bars(db_path=db_path)
-    feats = add_features(bars)
+    # Cached: scanner runs daily and the underlying DB usually changes once/day,
+    # so cache wins on every CLI invocation past the first.
+    feats = load_features_cached(db_path=db_path).copy()
 
     entry_fn = ENTRY_REGISTRY.get(entry_name)
     if entry_fn is None:

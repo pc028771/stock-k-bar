@@ -39,8 +39,8 @@ _SCRIPTS_DIR = Path(__file__).parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from kline.bars import DEFAULT_DB_PATH, load_bars
-from kline.features import add_features
+from kline.bars import DEFAULT_DB_PATH
+from kline.features import load_features_cached
 from zhuli.config import BBandsUpperBreakConfig, BollingerPullbackConfig, InstitutionalFirstBuyConfig, InstitutionalSwingConfig, IntradayConfig, OpenSignalConfig, OvernightSwingConfig, PennantFlagConfig, ReversalBreakoutConfig, SuffocationConfig, SwingBreakoutConfig
 from zhuli.entry import ENTRY_REGISTRY
 from zhuli.features import add_zhuli_features
@@ -135,8 +135,9 @@ def run(
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    bars = load_bars(db_path=db_path)
-    feats = add_features(bars)
+    # Cached: same pickle as scanner.py / backtest.py — first caller of the
+    # day pays the cold cost, everyone after gets the warm hit.
+    feats = load_features_cached(db_path=db_path).copy()
     feats = add_zhuli_features(feats)
 
     # 部分 signal 需要額外的資料表（透過 db_path 傳入讓 detect() 自行讀取）
