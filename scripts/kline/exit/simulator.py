@@ -93,16 +93,35 @@ def simulate(
         name: col.to_numpy() for name, col in exit_cols.items()
     }
 
-    records: list[dict] = []
-
-    # Build per-ticker start/end positions in one pass (work is sorted by ticker).
+    # Hot-loop perf v2: precompute next-True-after position per condition per row.
+    # Original inner loop sliced `col[next_pos:ticker_last+1]` and ran .any()+argmax
+    # per (trade, condition). With ~14k trades × ~6 conditions, that's a lot of
+    # repeated scans. By computing next_true_after_pos[i, c] once (O(n) per ticker
+    # per condition via reverse cumulative-min), the per-trade lookup is a single
+    # integer fetch instead of a window scan — trades CSV byte-equal.
     n = len(work)
     ticker_changes = np.concatenate(([0], np.where(ticker_arr[1:] != ticker_arr[:-1])[0] + 1, [n]))
+    SENTINEL = n + 1  # any value > ticker_last is "no exit found in window"
+
+    next_true_per_cond: dict[str, np.ndarray] = {}
+    for name in full_priority:
+        col = exit_cols_np[name]
+        arr = np.full(n, SENTINEL, dtype=np.int64)
+        for gi in range(len(ticker_changes) - 1):
+            s = int(ticker_changes[gi])
+            e = int(ticker_changes[gi + 1])  # exclusive
+            slc = col[s:e]
+            # position of True (global index) where True, else SENTINEL
+            positions = np.where(slc, np.arange(s, e, dtype=np.int64), SENTINEL)
+            # reverse cumulative min → smallest True position at-or-after each i within ticker
+            arr[s:e] = np.minimum.accumulate(positions[::-1])[::-1]
+        next_true_per_cond[name] = arr
+
+    records: list[dict] = []
     for gi in range(len(ticker_changes) - 1):
         start = int(ticker_changes[gi])
         ticker_last = int(ticker_changes[gi + 1] - 1)
         ticker = ticker_arr[start]
-        # entries in this ticker's slice
         entry_positions = np.nonzero(entries_arr[start:ticker_last + 1])[0]
         if len(entry_positions) == 0:
             continue
@@ -118,20 +137,16 @@ def simulate(
             if entry_open <= 0:
                 continue
 
-            best_pos = None
+            best_pos = SENTINEL
             best_reason = None
+            # Tie-breaking matches original: strict `<` keeps earlier-priority condition.
             for name in full_priority:
-                col = exit_cols_np[name]
-                # find first True position in [next_pos, ticker_last]
-                window = col[next_pos:ticker_last + 1]
-                if not window.any():
-                    continue
-                first = next_pos + int(np.argmax(window))
-                if best_pos is None or first < best_pos:
-                    best_pos = first
+                cand = int(next_true_per_cond[name][next_pos])
+                if cand <= ticker_last and cand < best_pos:
+                    best_pos = cand
                     best_reason = name
 
-            if best_pos is not None:
+            if best_reason is not None:
                 exit_signal_pos = best_pos
                 exit_execute_pos = exit_signal_pos + 1
                 if exit_execute_pos > ticker_last:

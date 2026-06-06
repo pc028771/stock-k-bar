@@ -55,6 +55,9 @@ dist/
 # FinMind cached raw data
 data/raw/
 
+# add_features() pickle cache (1.2GB+; regenerated on demand by backtest pipeline)
+data/cache/
+
 # Four-seasons classifier output (large CSVs ignored; .csv.zip archives committed)
 data/analysis/four_seasons/season_*.csv
 data/analysis/four_seasons/backtest_*_trades.csv

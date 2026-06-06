@@ -9,10 +9,10 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from kline.bars import DEFAULT_DB_PATH, load_bars
+from kline.bars import DEFAULT_DB_PATH
 from kline.exit.simulator import simulate
 from kline.extras import resolve_extras
-from kline.features import add_features
+from kline.features import load_features_cached
 
 DEFAULT_OUT_DIR = Path("data/analysis/kline")
 DEFAULT_OUT = DEFAULT_OUT_DIR / "backtest_trades.csv"
@@ -57,8 +57,9 @@ def run(
             out_path = DEFAULT_OUT
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    bars = load_bars(db_path=db_path)
-    feats = add_features(bars)
+    # Cached: skips load_bars+add_features on warm runs (~25s saved).
+    # Cache key invalidates on DB mtime change or any scripts/kline/*.py edit.
+    feats = load_features_cached(db_path=db_path).copy()
     feats["market_open_ret"] = 0.0
 
     entry_fn = ENTRY_REGISTRY.get(entry_name)

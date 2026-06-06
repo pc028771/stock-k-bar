@@ -7,6 +7,10 @@ Output: same DataFrame with derived columns added (spec §3.2).
 """
 from __future__ import annotations
 
+import hashlib
+import logging
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
@@ -1002,3 +1006,81 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_black_today"] = df["is_black"].fillna(False).astype(int)
 
     return df
+
+
+# ── On-disk cache for load_bars + add_features ────────────────────────────────
+# Backtest runs spend ~25s on load_bars (~15s SQL) + add_features (~10s feature
+# math). For workflows that iterate on entries / exits / extras (which are
+# downstream of add_features), this is wasted work. Cache key combines DB mtime
+# with a hash of every .py file under scripts/kline/, so any code or data change
+# invalidates the cache.
+
+_log_cache = logging.getLogger(__name__ + ".cache")
+
+
+def _features_cache_key(db_path: Path, fill_from_backfill: bool) -> str:
+    h = hashlib.md5()
+    h.update(b"v1\n")  # bump to force a global cache reset
+    try:
+        h.update(f"db_mtime={int(db_path.stat().st_mtime)}\n".encode())
+    except OSError:
+        h.update(b"db_mtime=missing\n")
+    if fill_from_backfill:
+        try:
+            from .bars import BACKFILL_DB_PATH
+            if BACKFILL_DB_PATH.exists():
+                h.update(f"bf_mtime={int(BACKFILL_DB_PATH.stat().st_mtime)}\n".encode())
+        except Exception:
+            pass
+    pkg_root = Path(__file__).parent
+    for py in sorted(pkg_root.rglob("*.py")):
+        if "__pycache__" in py.parts:
+            continue
+        h.update(py.relative_to(pkg_root).as_posix().encode())
+        h.update(b"\0")
+        h.update(py.read_bytes())
+    return h.hexdigest()[:16]
+
+
+def load_features_cached(
+    db_path: Path | None = None,
+    fill_from_backfill: bool = True,
+    cache_dir: Path | None = None,
+) -> pd.DataFrame:
+    """load_bars + add_features with a pickle cache keyed on DB mtime + source hash.
+
+    Returns a DataFrame identical to ``add_features(load_bars(db_path,
+    fill_from_backfill=fill_from_backfill))``. The cache file lives at
+    ``data/cache/kline_features_<key>.pkl``. Old keys are left in place; sweep
+    the directory manually if you want to reclaim disk.
+
+    Only the no-ticker-filter case is cached (the full-market DataFrame). Pass
+    ``tickers`` to ``load_bars`` directly when you need a filtered subset.
+    """
+    from .bars import DEFAULT_DB_PATH, load_bars
+
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+    if cache_dir is None:
+        cache_dir = Path("data/cache")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    key = _features_cache_key(db_path, fill_from_backfill)
+    cache_path = cache_dir / f"kline_features_{key}.pkl"
+
+    if cache_path.exists():
+        try:
+            df = pd.read_pickle(cache_path)
+            _log_cache.info("features cache hit: %s", cache_path)
+            return df
+        except Exception as e:
+            _log_cache.warning("features cache read failed (%s); recomputing", e)
+
+    _log_cache.info("features cache miss: building %s", cache_path.name)
+    bars = load_bars(db_path=db_path, fill_from_backfill=fill_from_backfill)
+    feats = add_features(bars)
+    try:
+        feats.to_pickle(cache_path)
+    except Exception as e:
+        _log_cache.warning("features cache write failed: %s", e)
+    return feats
