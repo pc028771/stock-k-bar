@@ -9,14 +9,17 @@ attack_cost_displayed,B4_push_attack,372,212,0.5698924731182796,1.02830188679245
 merged_doji,B1_gap_up_attack,529,283,0.5349716446124764,1.0
 morning_star_harami,B1_next_day_gap_up_attack,875,454,0.5188571428571429,1.0
 merged_doji,B4_consolidation_wait,529,274,0.5179584120982986,1.0
+self_rescue_breakout,B1_next_day_gap_up_attack,2562,1318,0.5144418423106948,1.0
 piercing_line,B3_next_day_stalls,5342,2729,0.5108573567952078,1.0
 bear_engulfing,B3_next_day_consolidation,327,167,0.5107033639143731,1.0
 dark_double_star_anye,B3_next_day_stalls_within_range,1491,742,0.49765258215962443,1.0
+self_rescue_breakout,B3_next_day_no_attack,2562,1263,0.4929742388758782,1.0
 evening_star_abandoned,B3_next_day_stalls,683,331,0.48462664714494874,1.0
 bull_engulfing,B3_next_day_consolidation,47,22,0.46808510638297873,1.0
 morning_star_harami,B2_next_day_close_above_midpoint,875,376,0.4297142857142857,1.0
 attack_cost_displayed,B1_next_day_holds_attack_cost,372,159,0.4274193548387097,1.0
 attack_cost_displayed,B2_next_day_breaks_attack_cost,372,158,0.42473118279569894,1.0
+self_rescue_breakout,B2_next_day_continues_no_gap,2562,1068,0.4168618266978923,1.0
 merged_doji,B3_break_merged_low,529,220,0.4158790170132325,1.0
 evening_star_island_reversal,B3_next_day_drifts_lower,271,111,0.4095940959409594,1.0
 breakout_double_star,B3_next_day_holds_above_breakout,327,108,0.3302752293577982,1.0
@@ -45,8 +48,8 @@ gap_reversal,B1_next_day_gap_holds_no_fill,2512,634,0.25238853503184716,1.0
 gap_fill_up,B1_next_day_continues_lower_after_fill,4708,1186,0.25191163976210706,1.0
 piercing_line,B2_next_day_full_reversal_engulfing,5342,1326,0.24822163983526768,1.0
 gap_fill_up,B2_next_day_recovers,4708,1146,0.24341546304163125,1.0
-bear_engulfing,B1_next_day_weak_close_below_today_low,327,79,0.2415902140672783,1.0
 bear_engulfing,B2_next_day_rally_above_today_high,327,79,0.2415902140672783,1.0
+bear_engulfing,B1_next_day_weak_close_below_today_low,327,79,0.2415902140672783,1.0
 rising_falling,B1_next_day_step_continues,5370,1296,0.24134078212290502,1.0
 dark_double_star_anye,B1_next_day_continues_lower,1491,358,0.24010731052984574,1.0
 trapped,B1_next_day_continues_breakout_direction,255,61,0.23921568627450981,1.0
