@@ -39,6 +39,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from . import advisor as _advisor_module
@@ -242,48 +243,69 @@ def _backfill_single_ticker(
 
 def _precompute_pattern_hits(
     enriched_df: pd.DataFrame,
-) -> dict[str, pd.Series]:
-    """Run all pattern detectors once and return {pattern_name: bool_series}.
+) -> dict[str, list[str]]:
+    """Run all pattern detectors once and return {date_str: [pattern_names_fired]}.
 
-    This is the key performance optimisation: instead of running 24 detectors
-    for each of N dates (24×N calls), we run them once (24 calls total) and
-    return a Series indexed by trade_date for fast lookup.
+    Performance: the old implementation returned {pattern_name: bool_series}
+    and the per-date lookup did `enriched_df["trade_date"] == today_date` —
+    O(N_rows) full-column scan × 28 patterns × N_dates. For a typical ticker
+    that's ~14 400 scans per ticker.
+
+    This version inverts the layout once: we walk each pattern's bool array
+    in numpy, collect the row indices where it fires, and append the
+    pattern name to that date's list. Subsequent lookups are O(1) dict get.
     """
     from ..patterns import PATTERN_REGISTRY
 
-    pattern_series: dict[str, pd.Series] = {}
+    if enriched_df.empty:
+        return {}
+
+    if "trade_date" in enriched_df.columns:
+        dates_arr = enriched_df["trade_date"].to_numpy()
+    else:
+        dates_arr = enriched_df.index.to_numpy()
+
+    fired_by_date: dict[str, list[str]] = {}
     for pattern_name, detect_fn in PATTERN_REGISTRY.items():
         try:
             series = detect_fn(enriched_df)
-            pattern_series[pattern_name] = series
         except Exception:  # noqa: BLE001
-            pass
-    return pattern_series
+            continue
+        values = np.asarray(series, dtype=bool)
+        if values.shape[0] != dates_arr.shape[0]:
+            # Detector returned a misaligned series — fall back to safe per-row
+            # mapping via the series' own index.
+            try:
+                idx_to_date = {i: str(d)[:10] for i, d in enumerate(dates_arr)}
+                for pos, v in enumerate(values):
+                    if not v:
+                        continue
+                    d = idx_to_date.get(pos)
+                    if d is None:
+                        continue
+                    fired_by_date.setdefault(d, []).append(pattern_name)
+            except Exception:
+                pass
+            continue
+        # Fast path: vectorized — pick the dates where this pattern fires.
+        hit_dates = dates_arr[values]
+        for d in hit_dates:
+            d_str = str(d)[:10]
+            fired_by_date.setdefault(d_str, []).append(pattern_name)
+    return fired_by_date
 
 
 def _get_fired_patterns_from_cache(
-    pattern_series: dict[str, pd.Series],
+    fired_by_date: dict[str, list[str]],
     today_date: str,
-    enriched_df: pd.DataFrame,
-    ticker: str,
 ) -> list:
-    """Extract fired patterns for a single date from pre-computed series."""
+    """Extract fired patterns for a single date from the precomputed map."""
     from ._schema import PatternHit
 
-    hits = []
-    for pattern_name, series in pattern_series.items():
-        if "trade_date" in enriched_df.columns:
-            mask = enriched_df["trade_date"] == today_date
-            today_values = series[mask]
-        else:
-            today_values = series[series.index.astype(str) == today_date]
-
-        if today_values.empty:
-            continue
-        if bool(today_values.iloc[0]):
-            hits.append(PatternHit(pattern=pattern_name, fired_at=today_date))
-
-    return hits
+    names = fired_by_date.get(today_date)
+    if not names:
+        return []
+    return [PatternHit(pattern=n, fired_at=today_date) for n in names]
 
 
 def _run_advisor_with_cache(
@@ -292,15 +314,15 @@ def _run_advisor_with_cache(
     ticker: str,
     playbooks_by_pattern: dict,
     lights_dict: dict,
-    pattern_series: dict[str, pd.Series] | None = None,
+    pattern_series: dict[str, list[str]] | None = None,
 ) -> object:
     """Run advisor internals with pre-loaded playbooks/lights.
 
     This avoids the I/O cost of loading YAML files on every call by
     bypassing advisor.analyze() and calling the internal functions directly.
 
-    When *pattern_series* is provided (pre-computed), pattern detection is
-    O(1) per date instead of O(24 × detect_cost).
+    When *pattern_series* (a precomputed {date_str: [pattern_names]} map) is
+    provided, pattern detection is O(1) per date instead of O(28 × detect_cost).
     """
     from ._schema import AdvisorResult
     from .advisor import (
@@ -333,9 +355,7 @@ def _run_advisor_with_cache(
 
     # Collect fired patterns (use pre-computed cache if available)
     if pattern_series is not None:
-        fired_patterns = _get_fired_patterns_from_cache(
-            pattern_series, today_date, enriched_df, ticker
-        )
+        fired_patterns = _get_fired_patterns_from_cache(pattern_series, today_date)
     else:
         fired_patterns = _collect_fired_patterns(enriched_df, today_date, ticker, notes)
 
