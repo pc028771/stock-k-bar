@@ -105,6 +105,15 @@ _logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
 
+# ── dump signals (持倉拉高出貨即時警示) ────────────────────────────────────
+from scripts.zhuli.dump_signals import (
+    DumpStateTracker,
+    evaluate_dump_signals,
+    load_baseline,
+)
+
+_BASELINE_PATH = _REPO / "docs" / "主力大課程" / "baseline_snapshot.json"
+
 # ── CSS ─────────────────────────────────────────────────────────────────────
 CSS = """
 Screen {
@@ -126,6 +135,14 @@ TabPane {
 DataTable {
     height: 1fr;
     scrollbar-size: 0 0;
+}
+
+#detail-panel {
+    height: 5;
+    background: #14141e;
+    color: #d0d0d8;
+    border: solid #2a2a3a;
+    padding: 0 1;
 }
 
 /* Bug 2 fix: 統一 focused/unfocused header + cursor 顏色，避免首次 click 後突兀 */
@@ -312,6 +329,16 @@ class StatusBar(Static):
         return self.status_text
 
 
+# ── Detail panel widget ──────────────────────────────────────────────────────
+class DetailPanel(Static):
+    """tab 與 table 之間的 detail 區、跟著 cursor 顯示完整 trigger + 出貨警示。"""
+
+    detail_text: reactive[str] = reactive("(↑↓ 選 row 看詳情)")
+
+    def render(self) -> str:
+        return self.detail_text
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Main App
 # ──────────────────────────────────────────────────────────────────────────────
@@ -380,10 +407,20 @@ class MonitorApp(App[None]):
         self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
         self._page_size_default: int = 40
 
+        # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
+        held_tickers = [str(i.get('ticker', '')) for i in self._held
+                        if i.get('ticker')]
+        self._dump_tracker = DumpStateTracker(tickers=held_tickers)
+        try:
+            self._dump_baseline = load_baseline(_BASELINE_PATH)
+        except Exception:
+            self._dump_baseline = {}
+
     # ── compose ──────────────────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
         yield Header()
         yield StatusBar(id="status-bar")
+        yield DetailPanel(id="detail-panel")
 
         with TabbedContent(id="main-tabs"):
             with TabPane(TAB_LABELS[TAB_HELD], id=TAB_HELD,
@@ -434,10 +471,57 @@ class MonitorApp(App[None]):
             pass
 
     def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
-        """切 tab 後自動 focus 新 tab 的 DataTable。"""
+        """切 tab 後自動 focus 新 tab 的 DataTable + 重新計算 detail。"""
         self.call_after_refresh(self._focus_active_table)
+        self.call_after_refresh(self._update_detail_panel)
+
+    def on_data_table_row_highlighted(
+        self, event: DataTable.RowHighlighted
+    ) -> None:
+        """游標移到某 row、更新 detail panel 顯示完整 trigger + 出貨警示。"""
+        self._update_detail_panel()
 
     _tables_ready: bool = False  # guard against on_resize before on_mount
+
+    def _update_detail_panel(self) -> None:
+        """讀取當前 active tab cursor row 對應 ticker、寫入 detail panel。"""
+        try:
+            panel = self.query_one("#detail-panel", DetailPanel)
+        except Exception:
+            return
+        try:
+            active_pane = self.query_one(TabbedContent).active_pane
+            dt = active_pane.query_one(DataTable) if active_pane else None
+            if not dt or dt.row_count == 0:
+                panel.detail_text = "(↑↓ 選 row 看詳情)"
+                return
+            cursor = dt.cursor_row or 0
+            row_key = dt.coordinate_to_cell_key((cursor, 0)).row_key
+            tk = str(row_key.value) if row_key else ""
+            if not tk:
+                panel.detail_text = "(↑↓ 選 row 看詳情)"
+                return
+            with self._data_lock:
+                d = dict(self._live_data.get(tk, {}))
+            name = ""
+            for src in (self._held, self._watch, self._plan):
+                for i in src:
+                    if str(i.get('ticker', '')) == tk:
+                        name = i.get('name', '')
+                        break
+                if name:
+                    break
+            trig_key = d.get('trigger', 'none')
+            trig_reason = d.get('trig_reason', '') or ""
+            trig_label = TRIGGER_DISPLAY.get(trig_key, "⚪ 無訊號")
+            trig_line = f"Trigger: {trig_label}"
+            if trig_reason:
+                trig_line += f"  ({trig_reason})"
+            dump_full = d.get('dump_warn_full', '') or ""
+            dump_line = f"出貨:    {dump_full}" if dump_full else "出貨:    —"
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}"
+        except Exception:
+            pass
 
     def _setup_tables(self) -> None:
         """初始化所有 DataTable 的 columns。"""
@@ -483,6 +567,8 @@ class MonitorApp(App[None]):
             return
 
         all_items = self._held + self._watch + self._plan
+        held_tickers = {str(i.get('ticker', '')) for i in self._held}
+        held_by_ticker = {str(i.get('ticker', '')): i for i in self._held}
         for item in all_items:
             tk = str(item.get('ticker', ''))
             if not tk:
@@ -494,6 +580,37 @@ class MonitorApp(App[None]):
                 vol_   = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_) if vol_ else None)
                 ma10   = load_ma10(tk)
+
+                # ── dump signals: only for HELD tickers ─────────────────────
+                dump_warn = ""
+                dump_warn_full = ""
+                prev_close = 0.0
+                if tk in held_tickers:
+                    b = self._dump_baseline.get(tk, {}) if self._dump_baseline else {}
+                    prev_close = float(b.get('yesterday_close') or 0)
+                    try:
+                        self._dump_tracker.update_tick(
+                            tk, close_ if close_ else None,
+                            cum_volume=float(vol_) if vol_ else None,
+                        )
+                        d_state = self._dump_tracker.get_state(tk)
+                        d_spike = self._dump_tracker.get_volume_spike(tk)
+                        warns = evaluate_dump_signals(
+                            tk, d_state, held_by_ticker.get(tk, item),
+                            self._dump_baseline,
+                            current_close=close_ if close_ else None,
+                            volume_spike=d_spike,
+                        )
+                        if warns:
+                            dump_warn_full = " | ".join(warns)
+                            crit = sum(1 for w in warns if "🚨" in w)
+                            warn = sum(1 for w in warns if "⚠️" in w)
+                            if crit:
+                                dump_warn = f"🔴×{crit}" if crit > 1 else "🔴"
+                            elif warn:
+                                dump_warn = f"🟡×{warn}" if warn > 1 else "🟡"
+                    except Exception:
+                        pass
 
                 # trigger (demo: mock override)
                 if self._demo_mode:
@@ -534,6 +651,9 @@ class MonitorApp(App[None]):
                         'otn_pct':    otn_pct,
                         'trigger':    trig_key,
                         'trig_reason': trig_reason,
+                        'dump_warn':  dump_warn,
+                        'dump_warn_full': dump_warn_full,
+                        'prev_close': prev_close,
                     }
             except Exception:
                 pass
@@ -542,6 +662,7 @@ class MonitorApp(App[None]):
     def _tick(self) -> None:
         self._update_status_bar()
         self._update_all_tables()
+        self._update_detail_panel()
 
     def _update_status_bar(self) -> None:
         now = datetime.now()
@@ -784,14 +905,16 @@ class MonitorApp(App[None]):
                        if close_ else "—")
             dist_str = self._fmt_dist(d.get('dist_stop', 999.0))
             stat  = self._get_status_icon(item, ld)
-            trig  = self._fmt_trigger(d.get('trigger', 'none'), d.get('trig_reason', ''))
+            trig  = self._fmt_trigger(d.get('trigger', 'none'), "")
             cost  = item.get('cost', 0)
             prev_close = d.get('prev_close', 0)
             gap_str   = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
+            dump_warn = d.get('dump_warn', '') or ""
+            trig_combined = f"{dump_warn} {trig}".strip() if dump_warn else trig
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
                      gap_str, price_str,
-                     vol, pnl_str, dist_str, stat, trig)
+                     vol, pnl_str, dist_str, stat, trig_combined)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
@@ -904,14 +1027,16 @@ class MonitorApp(App[None]):
                        if close_ and item.get('cost') else "—")
             dist_str = self._fmt_dist(d.get('dist_stop', 999.0))
             stat  = self._get_status_icon(item, ld)
-            trig  = self._fmt_trigger(d.get('trigger', 'none'), d.get('trig_reason', ''))
+            trig  = self._fmt_trigger(d.get('trigger', 'none'), "")
             cost  = item.get('cost', 0)
             prev_close = d.get('prev_close', 0)
             gap_str   = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
+            dump_warn = d.get('dump_warn', '') or ""
+            trig_combined = f"{dump_warn} {trig}".strip() if dump_warn else trig
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
                      gap_str, price_str,
-                     vol, pnl_str, dist_str, stat, trig)
+                     vol, pnl_str, dist_str, stat, trig_combined)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
