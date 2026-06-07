@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ._common import bull_exhaustion_context, is_similar_bars
+from ._common import bull_exhaustion_context, fast_shift, is_similar_bars
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
@@ -19,9 +19,8 @@ def detect(df: pd.DataFrame) -> pd.Series:
       2. D-2, D-1: 兩根併排相似 K (is_similar_bars lookback 1+2)
       3. D-0: 黑 K, close < min(low_{D-2}, low_{D-1})
     """
-    g = df.groupby("ticker")
-    low_d2 = g["low"].shift(2)
-    low_d1 = g["low"].shift(1)
+    low_d2 = fast_shift(df, "low", 2)
+    low_d1 = fast_shift(df, "low", 1)
 
     similar_pair = is_similar_bars(df, lookback1=1, lookback2=2)
 

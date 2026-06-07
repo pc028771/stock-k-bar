@@ -42,7 +42,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-
+from ._common import fast_shift
 from ..course_proxy_constants import (
     MERGED_DOJI_BODY_RATIO,
     MERGED_DOJI_SHADOW_MIN_RATIO,
@@ -102,13 +102,11 @@ def detect(df: pd.DataFrame) -> pd.Series:
          - 今根：lower_shadow_today > upper_shadow_today（下影線較長）
       3. 合併後為十字線：_is_doji_merged(merged_{open,close,high,low})
     """
-    g = df.groupby("ticker")
-
-    prev_open = g["open"].shift(1)
-    prev_high = g["high"].shift(1)
-    prev_low = g["low"].shift(1)
-    prev_close = g["close"].shift(1)
-    prior_high_60_prev = g["prior_high_60"].shift(1)
+    prev_open = fast_shift(df, "open", 1)
+    prev_high = fast_shift(df, "high", 1)
+    prev_low = fast_shift(df, "low", 1)
+    prev_close = fast_shift(df, "close", 1)
+    prior_high_60_prev = fast_shift(df, "prior_high_60", 1)
 
     # --- 條件 1: 剛創新高位置（盤中版 C04b）---
     # 使用 features.py C04b 的 is_just_broke_high_intraday（如有）；
@@ -117,8 +115,8 @@ def detect(df: pd.DataFrame) -> pd.Series:
         just_broke_high = df["is_just_broke_high_intraday"].fillna(False)
     else:
         # Fallback: 計算 intraday 版本（不需 features.py 已 run）
-        prev2_high = g["high"].shift(2)
-        prior_high_60_prev2 = g["prior_high_60"].shift(2)
+        prev2_high = fast_shift(df, "high", 2)
+        prior_high_60_prev2 = fast_shift(df, "prior_high_60", 2)
         just_broke_high = (
             (df["high"] >= df["prior_high_60"])
             | (prev_high >= prior_high_60_prev)
@@ -162,9 +160,8 @@ def detect_with_metadata(df: pd.DataFrame) -> pd.DataFrame:
           merged_doji_high  (float) — 合併十字線 merged_high，其他列為 NaN
           merged_doji_low   (float) — 合併十字線 merged_low，其他列為 NaN
     """
-    g = df.groupby("ticker")
-    prev_high = g["high"].shift(1)
-    prev_low = g["low"].shift(1)
+    prev_high = fast_shift(df, "high", 1)
+    prev_low = fast_shift(df, "low", 1)
 
     signal = detect(df)
     merged_high = pd.concat([prev_high, df["high"]], axis=1).max(axis=1).where(signal, other=float("nan"))

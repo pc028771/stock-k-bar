@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..course_proxy_constants import NARROW_CONSOLIDATION_BARS
-from ._common import is_narrow_consolidation, is_power_bar
+from ._common import is_narrow_consolidation, is_power_bar, is_single_ticker
 
 PRIOR_POWER_LOOKBACK = 20  # course-not-stated — proxy 一個月內
 
@@ -37,12 +37,22 @@ def detect(df: pd.DataFrame) -> pd.Series:
     power_red_today = is_power_bar(df, "bull").astype(int)
     power_black_today = is_power_bar(df, "bear").astype(int)
     L = PRIOR_POWER_LOOKBACK
-    prior_power_red = power_red_today.groupby(df["ticker"]).transform(
-        lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
-    ) > 0
-    prior_power_black = power_black_today.groupby(df["ticker"]).transform(
-        lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
-    ) > 0
+
+    if is_single_ticker(df):
+        # Fast path — skip groupby+lambda overhead (~10× faster on a 1000-row df).
+        prior_power_red = (
+            power_red_today.shift(N + 1).fillna(0).rolling(L, min_periods=1).max() > 0
+        )
+        prior_power_black = (
+            power_black_today.shift(N + 1).fillna(0).rolling(L, min_periods=1).max() > 0
+        )
+    else:
+        prior_power_red = power_red_today.groupby(df["ticker"]).transform(
+            lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
+        ) > 0
+        prior_power_black = power_black_today.groupby(df["ticker"]).transform(
+            lambda s: s.shift(N + 1).fillna(0).rolling(L, min_periods=1).max()
+        ) > 0
 
     bull_step = prior_power_red & narrow & is_power_bar(df, "bull") & (df["close"] > past_close_max)
     bear_step = prior_power_black & narrow & is_power_bar(df, "bear") & (df["close"] < past_close_min)
