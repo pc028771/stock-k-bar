@@ -13,6 +13,7 @@ Design constraints (從 spec):
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
 import sys
 import time
@@ -314,7 +315,16 @@ def main() -> None:
     parser.add_argument("--end", default="2026-06-30", help="End date YYYY-MM-DD")
     parser.add_argument("--min-runs", type=int, default=10, help="Min runs for hit rate inclusion")
     parser.add_argument("--dry-run", action="store_true", help="Run advisor but don't write to DB")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallel worker processes (default 1 = serial; 0 = max(1, cpu_count-1))",
+    )
     args = parser.parse_args()
+
+    if args.workers == 0:
+        args.workers = max(1, (os.cpu_count() or 2) - 1)
 
     print("Phase 4.3 Advisor History Backtest")
     print(f"  Scope: {args.start} → {args.end}")
@@ -359,6 +369,7 @@ def main() -> None:
     print("  (This may take several minutes...)")
     t1 = time.time()
 
+    print(f"  Workers: {args.workers}")
     summary = simulate_advisor_history(
         bars_df=bars_df,
         start_date=args.start,
@@ -366,6 +377,7 @@ def main() -> None:
         tickers=tickers,
         db_path=DB_PATH,
         save_to_db=not args.dry_run,
+        n_workers=args.workers,
     )
 
     elapsed = time.time() - t1
