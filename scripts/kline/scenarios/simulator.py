@@ -35,7 +35,10 @@ Design constraints
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import uuid
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -468,6 +471,287 @@ def _batch_save_runs(
 
 
 # ---------------------------------------------------------------------------
+# Per-ticker worker function (Step 1 refactor)
+# ---------------------------------------------------------------------------
+
+
+# Module-level worker state. Initialised once per worker process by _init_worker
+# under multiprocessing, or populated inline by the serial driver.
+_WORKER_PLAYBOOKS: Optional[dict] = None
+_WORKER_LIGHTS: Optional[dict] = None
+_WORKER_BRANCH_META: Optional[dict] = None
+_WORKER_PB_DIRS: Optional[list[Path]] = None
+_WORKER_LT_DIRS: Optional[list[Path]] = None
+
+
+def _init_worker(playbook_dirs: list[Path] | None, light_dirs: list[Path] | None) -> None:
+    """Called once per worker process — pre-load playbooks + lights + branch_meta.
+
+    Also used by the serial driver to populate module globals before calling
+    ``_simulate_one_ticker`` inline.
+    """
+    global _WORKER_PLAYBOOKS, _WORKER_LIGHTS, _WORKER_BRANCH_META
+    global _WORKER_PB_DIRS, _WORKER_LT_DIRS
+
+    _SCENARIOS_DIR = Path(__file__).parent
+    pb_dirs = playbook_dirs if playbook_dirs is not None else [_SCENARIOS_DIR / "playbooks"]
+    lt_dirs = light_dirs if light_dirs is not None else [_SCENARIOS_DIR / "lights"]
+
+    from .loader import load_lights as _load_lights
+    try:
+        playbooks_by_pattern = load_playbooks(pb_dirs)
+        lights_dict = _load_lights(lt_dirs)
+    except Exception:
+        playbooks_by_pattern = {}
+        lights_dict = {}
+
+    branch_meta: dict[tuple[str, str, str], object] = {}
+    for pattern, pb_list in playbooks_by_pattern.items():
+        for pb in pb_list:
+            for branch in pb.branches:
+                branch_meta[(pattern, pb.setup.name, branch.id)] = branch
+
+    _WORKER_PLAYBOOKS = playbooks_by_pattern
+    _WORKER_LIGHTS = lights_dict
+    _WORKER_BRANCH_META = branch_meta
+    _WORKER_PB_DIRS = playbook_dirs
+    _WORKER_LT_DIRS = light_dirs
+
+
+def _simulate_one_ticker(
+    ticker: str,
+    ticker_df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    worker_db_path: Path,
+    save_to_db: bool,
+) -> dict:
+    """Run advisor over [start_date, end_date] for a single ticker.
+
+    Caller must have invoked ``_init_worker`` first so module globals are
+    populated. Writes to *worker_db_path* (which may be a per-worker temp DB
+    under multiprocessing, or the main DB under serial mode).
+
+    Returns ``{"ticker", "n_runs_saved", "n_runs_skipped"}``.
+    """
+    assert _WORKER_PLAYBOOKS is not None, "_init_worker must be called first"
+
+    playbooks_by_pattern = _WORKER_PLAYBOOKS
+    lights_dict = _WORKER_LIGHTS or {}
+    branch_meta = _WORKER_BRANCH_META or {}
+
+    worker_db_path = Path(worker_db_path)
+
+    n_runs_saved = 0
+    n_runs_skipped = 0
+
+    if ticker_df is None or ticker_df.empty:
+        return {"ticker": ticker, "n_runs_saved": 0, "n_runs_skipped": 0}
+
+    # Ensure features once
+    try:
+        from ..features import add_features as _add_features
+        sentinel = "prev_close"
+        if sentinel not in ticker_df.columns:
+            ticker_df = _add_features(ticker_df)
+    except Exception:
+        pass
+
+    trade_dates = _trading_dates_in_range(ticker_df, start_date, end_date)
+
+    # Pre-check idempotency against the target DB
+    already_saved_dates: set[str] = set()
+    if save_to_db and worker_db_path.exists():
+        with sqlite3.connect(str(worker_db_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT trade_date FROM advisor_runs
+                WHERE ticker = ?
+                  AND trade_date >= ?
+                  AND trade_date <= ?
+                """,
+                (ticker, start_date, end_date),
+            ).fetchall()
+            already_saved_dates = {r[0] for r in rows}
+
+    # Pre-compute pattern detectors once per ticker
+    try:
+        pattern_series = _precompute_pattern_hits(ticker_df)
+    except Exception:
+        pattern_series = None
+
+    rows_to_insert: list[tuple] = []
+    for trade_date in trade_dates:
+        if trade_date in already_saved_dates:
+            n_runs_skipped += 1
+            continue
+
+        try:
+            result = _run_advisor_with_cache(
+                ticker_df=ticker_df,
+                today_date=trade_date,
+                ticker=ticker,
+                playbooks_by_pattern=playbooks_by_pattern,
+                lights_dict=lights_dict,
+                pattern_series=pattern_series,
+            )
+        except (ValueError, Exception):
+            continue
+
+        rows_to_insert.append((trade_date, result))
+
+    if save_to_db and rows_to_insert:
+        n_runs_saved = _batch_save_runs(
+            ticker=ticker,
+            rows_to_insert=rows_to_insert,
+            branch_meta=branch_meta,
+            db_path=worker_db_path,
+        )
+
+    return {
+        "ticker": ticker,
+        "n_runs_saved": n_runs_saved,
+        "n_runs_skipped": n_runs_skipped,
+    }
+
+
+def _simulate_one_ticker_task(
+    ticker: str,
+    ticker_df: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    worker_db_path: Path,
+    save_to_db: bool,
+) -> dict:
+    """Multiprocessing task wrapper — ensures worker DB has tables ready."""
+    worker_db_path = Path(worker_db_path)
+    if save_to_db:
+        worker_db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(str(worker_db_path)) as conn:
+            from .persistence import _ensure_tables  # type: ignore[attr-defined]
+            _ensure_tables(conn)
+            conn.commit()
+    return _simulate_one_ticker(
+        ticker=ticker,
+        ticker_df=ticker_df,
+        start_date=start_date,
+        end_date=end_date,
+        worker_db_path=worker_db_path,
+        save_to_db=save_to_db,
+    )
+
+
+def _merge_worker_dbs(main_db: Path, worker_dbs: list[Path]) -> tuple[int, int]:
+    """Merge per-worker DBs into the main DB with run_id remap.
+
+    Worker DBs each have their own autoincrement run_id sequence, so we
+    cannot simply ATTACH + INSERT — run_ids would collide. We read each
+    worker's runs, insert into main (new run_id), build a remap, then
+    insert branches/lights with the remapped run_id.
+
+    Idempotency is preserved via a pre-existence check on (ticker, trade_date)
+    in the main DB before inserting each run.
+
+    Returns
+    -------
+    (n_inserted, n_skipped_dup)
+        n_inserted: rows newly inserted into main advisor_runs
+        n_skipped_dup: rows skipped because (ticker, trade_date) already existed
+    """
+    main_db = Path(main_db)
+    main_db.parent.mkdir(parents=True, exist_ok=True)
+    n_inserted = 0
+    n_skipped_dup = 0
+    with sqlite3.connect(str(main_db)) as main_conn:
+        from .persistence import _ensure_tables  # type: ignore[attr-defined]
+        _ensure_tables(main_conn)
+
+        for wdb in worker_dbs:
+            wdb = Path(wdb)
+            if not wdb.exists():
+                continue
+            with sqlite3.connect(str(wdb)) as wconn:
+                runs = wconn.execute(
+                    """
+                    SELECT run_id, ticker, trade_date,
+                           fired_pattern_count, scenario_count
+                    FROM advisor_runs
+                    """
+                ).fetchall()
+
+                if not runs:
+                    continue
+
+                remap: dict[int, int] = {}
+                for (w_run_id, ticker, trade_date, fp_count, sc_count) in runs:
+                    # Idempotency: skip if (ticker, trade_date) already in main
+                    existing = main_conn.execute(
+                        "SELECT run_id FROM advisor_runs "
+                        "WHERE ticker=? AND trade_date=? LIMIT 1",
+                        (ticker, trade_date),
+                    ).fetchone()
+                    if existing is not None:
+                        # Already merged from another worker / previous run
+                        n_skipped_dup += 1
+                        continue
+                    cur = main_conn.execute(
+                        """
+                        INSERT INTO advisor_runs
+                            (ticker, trade_date, fired_pattern_count, scenario_count)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (ticker, trade_date, fp_count, sc_count),
+                    )
+                    remap[w_run_id] = int(cur.lastrowid)  # type: ignore[arg-type]
+                    n_inserted += 1
+
+                if remap:
+                    # Branches
+                    branches = wconn.execute(
+                        """
+                        SELECT run_id, scenario_idx, branch_id, pattern_name,
+                               when_json, confirm_at, next_day_n,
+                               action_type, course_citation_json,
+                               matched_after_n_days
+                        FROM advisor_branches
+                        """
+                    ).fetchall()
+                    for row in branches:
+                        new_id = remap.get(row[0])
+                        if new_id is None:
+                            continue
+                        main_conn.execute(
+                            """
+                            INSERT INTO advisor_branches
+                                (run_id, scenario_idx, branch_id, pattern_name,
+                                 when_json, confirm_at, next_day_n,
+                                 action_type, course_citation_json,
+                                 matched_after_n_days)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (new_id, *row[1:]),
+                        )
+
+                    # Lights
+                    lights = wconn.execute(
+                        "SELECT run_id, light_id, severity FROM advisor_lights"
+                    ).fetchall()
+                    for (w_run_id, light_id, severity) in lights:
+                        new_id = remap.get(w_run_id)
+                        if new_id is None:
+                            continue
+                        main_conn.execute(
+                            "INSERT INTO advisor_lights (run_id, light_id, severity) "
+                            "VALUES (?, ?, ?)",
+                            (new_id, light_id, severity),
+                        )
+
+        main_conn.commit()
+
+    return n_inserted, n_skipped_dup
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -481,6 +765,7 @@ def simulate_advisor_history(
     playbook_dirs: list[Path] | None = None,
     light_dirs: list[Path] | None = None,
     save_to_db: bool = True,
+    n_workers: int = 1,
 ) -> dict:
     """Run advisor.analyze() over historical bars and persist results.
 
@@ -526,31 +811,7 @@ def simulate_advisor_history(
     db_path = Path(db_path)
     ticker_list = _get_ticker_list(bars_df, tickers)
 
-    # ------------------------------------------------------------------
-    # Pre-load playbooks + lights ONCE (key performance optimisation).
-    # advisor.analyze() loads them on every call; we bypass that by
-    # calling the advisor internals directly with pre-loaded objects.
-    # ------------------------------------------------------------------
-    _SCENARIOS_DIR = Path(__file__).parent
-    pb_dirs = playbook_dirs if playbook_dirs is not None else [_SCENARIOS_DIR / "playbooks"]
-    lt_dirs = light_dirs if light_dirs is not None else [_SCENARIOS_DIR / "lights"]
-
-    from .loader import LoaderError, load_lights as _load_lights
-    try:
-        playbooks_by_pattern = load_playbooks(pb_dirs)
-        lights_dict = _load_lights(lt_dirs)
-    except Exception:
-        playbooks_by_pattern = {}
-        lights_dict = {}
-
-    # Pre-build branch detail lookup for fast persist
-    branch_meta: dict[tuple[str, str, str], object] = {}
-    for pattern, pb_list in playbooks_by_pattern.items():
-        for pb in pb_list:
-            for branch in pb.branches:
-                branch_meta[(pattern, pb.setup.name, branch.id)] = branch
-
-    # Ensure DB tables exist
+    # Ensure DB tables exist on main DB
     if save_to_db:
         db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(str(db_path)) as conn:
@@ -558,87 +819,103 @@ def simulate_advisor_history(
             _ensure_tables(conn)
             conn.commit()
 
+    # Pre-slice bars per ticker once — small enough to pickle for workers.
+    def _slice(ticker: str) -> pd.DataFrame:
+        if "ticker" in bars_df.columns:
+            return bars_df[bars_df["ticker"] == ticker].copy()
+        return bars_df.copy()
+
     n_runs_saved = 0
     n_runs_skipped = 0
 
-    for ticker in ticker_list:
-        # Filter df to this ticker
-        if "ticker" in bars_df.columns:
-            ticker_df = bars_df[bars_df["ticker"] == ticker].copy()
-        else:
-            ticker_df = bars_df.copy()
-
-        if ticker_df.empty:
-            continue
-
-        # Enrich features ONCE per ticker
-        try:
-            from ..features import add_features as _add_features
-            sentinel = "prev_close"
-            if sentinel not in ticker_df.columns:
-                ticker_df = _add_features(ticker_df)
-        except Exception:
-            pass
-
-        # Get dates for this ticker within range
-        trade_dates = _trading_dates_in_range(ticker_df, start_date, end_date)
-
-        # Pre-check idempotency for all dates in one query
-        already_saved_dates: set[str] = set()
-        if save_to_db and db_path.exists():
-            with sqlite3.connect(str(db_path)) as conn:
-                rows = conn.execute(
-                    """
-                    SELECT trade_date FROM advisor_runs
-                    WHERE ticker = ?
-                      AND trade_date >= ?
-                      AND trade_date <= ?
-                    """,
-                    (ticker, start_date, end_date),
-                ).fetchall()
-                already_saved_dates = {r[0] for r in rows}
-
-        # Pre-compute all pattern detectors ONCE per ticker (key optimisation)
-        # This reduces pattern detection from O(24 × N_dates) to O(24)
-        try:
-            from ..features import add_features as _add_features
-            sentinel = "prev_close"
-            if sentinel not in ticker_df.columns:
-                ticker_df = _add_features(ticker_df)
-            pattern_series = _precompute_pattern_hits(ticker_df)
-        except Exception:
-            pattern_series = None
-
-        # Batch all writes for this ticker in one connection
-        rows_to_insert: list[tuple] = []  # (trade_date, result, scenario_branches)
-
-        for trade_date in trade_dates:
-            if trade_date in already_saved_dates:
-                n_runs_skipped += 1
+    if n_workers <= 1:
+        # ---------- Serial path (preserves existing behaviour) ----------
+        _init_worker(playbook_dirs, light_dirs)
+        for ticker in ticker_list:
+            ticker_df = _slice(ticker)
+            if ticker_df.empty:
                 continue
-
-            try:
-                result = _run_advisor_with_cache(
-                    ticker_df=ticker_df,
-                    today_date=trade_date,
-                    ticker=ticker,
-                    playbooks_by_pattern=playbooks_by_pattern,
-                    lights_dict=lights_dict,
-                    pattern_series=pattern_series,
-                )
-            except (ValueError, Exception):
-                continue
-
-            rows_to_insert.append((trade_date, result))
-
-        if save_to_db and rows_to_insert:
-            n_saved = _batch_save_runs(
+            res = _simulate_one_ticker(
                 ticker=ticker,
-                rows_to_insert=rows_to_insert,
-                branch_meta=branch_meta,
-                db_path=db_path,
+                ticker_df=ticker_df,
+                start_date=start_date,
+                end_date=end_date,
+                worker_db_path=db_path,
+                save_to_db=save_to_db,
             )
-            n_runs_saved += n_saved
+            n_runs_saved += res["n_runs_saved"]
+            n_runs_skipped += res["n_runs_skipped"]
+    else:
+        # ---------- Parallel path ----------
+        # Per-worker temp DBs under db_path.parent / <stem>.workers/
+        workers_dir = db_path.parent / f"{db_path.stem}.workers"
+        if save_to_db:
+            workers_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build the task list (skip empty tickers up front)
+        tasks: list[tuple[str, pd.DataFrame, Path]] = []
+        run_uuid = uuid.uuid4().hex[:8]
+        for i, ticker in enumerate(ticker_list):
+            ticker_df = _slice(ticker)
+            if ticker_df.empty:
+                continue
+            wdb = workers_dir / f"worker_{run_uuid}_{i:05d}.db" if save_to_db else db_path
+            tasks.append((ticker, ticker_df, wdb))
+
+        worker_dbs: list[Path] = []
+        worker_saved_sum = 0
+        with ProcessPoolExecutor(
+            max_workers=n_workers,
+            initializer=_init_worker,
+            initargs=(playbook_dirs, light_dirs),
+        ) as pool:
+            futures = [
+                pool.submit(
+                    _simulate_one_ticker_task,
+                    ticker,
+                    ticker_df,
+                    start_date,
+                    end_date,
+                    wdb,
+                    save_to_db,
+                )
+                for (ticker, ticker_df, wdb) in tasks
+            ]
+            for fut in as_completed(futures):
+                res = fut.result()
+                worker_saved_sum += res["n_runs_saved"]
+                n_runs_skipped += res["n_runs_skipped"]
+
+        if save_to_db:
+            worker_dbs = [wdb for (_t, _df, wdb) in tasks]
+            n_inserted, n_dup = _merge_worker_dbs(db_path, worker_dbs)
+            n_runs_saved = n_inserted
+            # Worker DBs were fresh, so they didn't see existing rows in main —
+            # dedup happens at merge time. Reclassify those as skipped.
+            n_runs_skipped += n_dup
+        else:
+            n_runs_saved = worker_saved_sum
+
+        # Clean up worker DBs and dir (both save_to_db paths — leftover files
+        # in workers_dir otherwise stay on disk after every run).
+        if save_to_db:
+            for wdb in worker_dbs:
+                try:
+                    Path(wdb).unlink()
+                except FileNotFoundError:
+                    pass
+                # Also remove any -wal / -shm sidecar files from journaling.
+                for sidecar_suffix in ("-wal", "-shm", "-journal"):
+                    side = Path(str(wdb) + sidecar_suffix)
+                    if side.exists():
+                        try:
+                            side.unlink()
+                        except FileNotFoundError:
+                            pass
+            try:
+                workers_dir.rmdir()
+            except OSError:
+                pass
 
     # Back-fill matched_after_n_days for every ticker (vectorized pass)
     n_branches_backfilled = 0
