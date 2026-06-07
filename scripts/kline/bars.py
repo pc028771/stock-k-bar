@@ -120,6 +120,7 @@ def load_bars(
         try:
             import hashlib as _hl
             _ph = _hl.md5()
+            _ph.update(str(db_path.resolve()).encode())
             _ph.update(str(int(db_path.stat().st_mtime)).encode())
             if fill_from_backfill:
                 try:
