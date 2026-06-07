@@ -39,8 +39,8 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from kline.bars import DEFAULT_DB_PATH, load_bars
-from kline.features import add_features
+from kline.bars import DEFAULT_DB_PATH
+from kline.features import load_features_cached
 from zhuli.features import add_zhuli_features
 from zhuli.entry import ENTRY_REGISTRY, EXIT_ONLY_SCANNERS, MASTER_SCANNERS
 
@@ -394,10 +394,9 @@ def main():
     args.out.mkdir(parents=True, exist_ok=True)
 
     print("Loading bars + features...")
-    bars = load_bars(db_path=DEFAULT_DB_PATH)
-    feats = add_features(bars)
+    feats = load_features_cached(db_path=DEFAULT_DB_PATH).copy()
     feats = add_zhuli_features(feats)
-    print(f"  bars: {len(bars):,} rows / {bars['ticker'].nunique():,} tickers")
+    print(f"  bars: {len(feats):,} rows / {feats['ticker'].nunique():,} tickers")
 
     if args.all:
         # 排除出場 scanner + master (master 是 wrapper 的源，已被 entry/exit 拆解)
@@ -414,7 +413,7 @@ def main():
         if sname not in ENTRY_REGISTRY:
             print(f"  ⚠️ {sname} not in registry, skip")
             continue
-        trades_df, stats = run_backtest_for_scanner(sname, bars, feats, cfg, DEFAULT_DB_PATH)
+        trades_df, stats = run_backtest_for_scanner(sname, feats, feats, cfg, DEFAULT_DB_PATH)
         all_stats[sname] = stats
         if not trades_df.empty:
             trades_df.to_csv(args.out / f"{sname}_trades.csv", index=False)

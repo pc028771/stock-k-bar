@@ -31,8 +31,8 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from kline.bars import DEFAULT_DB_PATH, load_bars
-from kline.features import add_features
+from kline.bars import DEFAULT_DB_PATH
+from kline.features import load_features_cached
 from zhuli.config import InstitutionalFirstBuyConfig
 from zhuli.features import add_zhuli_features
 from zhuli.entry.institutional_firstbuy import load_institutional, detect
@@ -133,8 +133,7 @@ def run_sanity_check(
         )
 
     # 載入 bars + features（只有有 bar 資料的才能測）
-    bars = load_bars(db_path=db_path)
-    feats = add_features(bars)
+    feats = load_features_cached(db_path=db_path).copy()
     feats = add_zhuli_features(feats)
 
     # 載入投信資料

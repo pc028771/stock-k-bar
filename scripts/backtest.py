@@ -36,6 +36,7 @@ def run(
     out_path: Path | None = None,
     entry_name: str = "tweezer_top_breakout",
     extras_spec: str | None = None,
+    no_cache: bool = False,
 ) -> pd.DataFrame:
     """Run the full backtest pipeline. Returns the trades DataFrame.
 
@@ -59,7 +60,7 @@ def run(
 
     # Cached: skips load_bars+add_features on warm runs (~25s saved).
     # Cache key invalidates on DB mtime change or any scripts/kline/*.py edit.
-    feats = load_features_cached(db_path=db_path).copy()
+    feats = load_features_cached(db_path=db_path, no_cache=no_cache).copy()
     feats["market_open_ret"] = 0.0
 
     entry_fn = ENTRY_REGISTRY.get(entry_name)
@@ -106,12 +107,19 @@ def main():
         help="Comma-separated non-course toggles, e.g. "
              "'intensity_floor=2,hold_days_cap=20'. See kline/extras/README.md.",
     )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass the features cache (load_bars + add_features run from scratch "
+             "and the result is not written back). Use when iterating on features.py.",
+    )
     args = parser.parse_args()
     trades = run(
         db_path=args.db,
         out_path=args.out,
         entry_name=args.entry,
         extras_spec=args.extras,
+        no_cache=args.no_cache,
     )
     label = f" with extras [{args.extras}]" if args.extras else ""
     print(f"Wrote {len(trades)} trades{label}")

@@ -26,8 +26,8 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from kline.bars import DEFAULT_DB_PATH, load_bars
-from kline.features import add_features
+from kline.bars import DEFAULT_DB_PATH
+from kline.features import load_features_cached
 from zhuli.config import BBandsUpperBreakConfig
 from zhuli.features import add_zhuli_features
 from zhuli.entry.bbands_upper_break import detect
@@ -92,8 +92,7 @@ def run_sanity_check(
     if verbose:
         print(f"BBandsUpperBreakConfig: {cfg}")
 
-    bars = load_bars(db_path=db_path)
-    feats = add_features(bars)
+    feats = load_features_cached(db_path=db_path).copy()
     feats = add_zhuli_features(feats)
 
     results = []

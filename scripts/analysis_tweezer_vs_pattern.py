@@ -180,11 +180,10 @@ print("=== 6. ATTACK INTENSITY AT ENTRY ===")
 
 # Load features with attack_intensity
 try:
-    from kline.bars import DEFAULT_DB_PATH, load_bars
-    from kline.features import add_features
+    from kline.bars import DEFAULT_DB_PATH
+    from kline.features import load_features_cached
 
-    bars = load_bars(db_path=DEFAULT_DB_PATH)
-    feats = add_features(bars)
+    feats = load_features_cached(db_path=DEFAULT_DB_PATH).copy()
     feats["market_open_ret"] = 0.0
 
     # Build a lookup: (ticker, trade_date) → attack_intensity

@@ -37,8 +37,8 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from kline.bars import DEFAULT_DB_PATH, load_bars
-from kline.features import add_features
+from kline.bars import DEFAULT_DB_PATH
+from kline.features import load_features_cached
 from zhuli.config import SuffocationConfig
 from zhuli.features import add_zhuli_features
 from zhuli.entry.suffocation import detect
@@ -315,11 +315,7 @@ def run_sanity_check(
         print(f'DB date range: {db_min.date()} → {db_max.date()}')
 
     print('Loading bars from DB...')
-    bars = load_bars(db_path=db_path)
-    print(f'  Loaded {len(bars):,} rows for {bars["ticker"].nunique()} tickers.')
-
-    print('Computing features...')
-    feats = add_features(bars)
+    feats = load_features_cached(db_path=db_path).copy()
     feats = add_zhuli_features(feats)
 
     # Run scanner without date filter (full history) — for 'full' entry_type

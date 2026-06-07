@@ -23,6 +23,7 @@ def run(
     as_of: pd.Timestamp | None = None,
     entry_name: str = "tweezer_top_breakout",
     extras_spec: str | None = None,
+    no_cache: bool = False,
 ) -> pd.DataFrame:
     """Run the scanner. Returns ranked candidates DataFrame.
 
@@ -39,7 +40,7 @@ def run(
 
     # Cached: scanner runs daily and the underlying DB usually changes once/day,
     # so cache wins on every CLI invocation past the first.
-    feats = load_features_cached(db_path=db_path).copy()
+    feats = load_features_cached(db_path=db_path, no_cache=no_cache).copy()
 
     entry_fn = ENTRY_REGISTRY.get(entry_name)
     if entry_fn is None:
@@ -97,6 +98,11 @@ def main():
         help="Comma-separated non-course toggles. "
              "See kline/extras/README.md.",
     )
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass the features cache (forces a fresh load_bars + add_features).",
+    )
     args = parser.parse_args()
     as_of = pd.Timestamp(args.as_of) if args.as_of else None
     df = run(
@@ -105,6 +111,7 @@ def main():
         as_of=as_of,
         entry_name=args.entry,
         extras_spec=args.extras,
+        no_cache=args.no_cache,
     )
     print(f"Wrote {len(df)} candidates → {args.out}")
 

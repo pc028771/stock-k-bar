@@ -103,6 +103,7 @@ def run(
     signal_name: str = "suffocation",
     cfg: SuffocationConfig | OpenSignalConfig | None = None,
     top_n: int | None = None,
+    no_cache: bool = False,
 ) -> pd.DataFrame:
     """Run the zhuli scanner. Returns signal candidates DataFrame.
 
@@ -137,7 +138,7 @@ def run(
 
     # Cached: same pickle as scanner.py / backtest.py — first caller of the
     # day pays the cold cost, everyone after gets the warm hit.
-    feats = load_features_cached(db_path=db_path).copy()
+    feats = load_features_cached(db_path=db_path, no_cache=no_cache).copy()
     feats = add_zhuli_features(feats)
 
     # 部分 signal 需要額外的資料表（透過 db_path 傳入讓 detect() 自行讀取）
@@ -265,6 +266,10 @@ Examples:
         "--verbose", "-v", action="store_true",
         help="Verbose output (used with --sanity-check).",
     )
+    parser.add_argument(
+        "--no-cache", action="store_true",
+        help="Bypass the features cache (forces a fresh load_bars + add_features).",
+    )
 
     args = parser.parse_args()
 
@@ -340,6 +345,7 @@ Examples:
         signal_name=args.signal,
         cfg=cfg,
         top_n=args.top_n,
+        no_cache=args.no_cache,
     )
 
     # Resolve effective output path for display
