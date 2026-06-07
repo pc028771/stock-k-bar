@@ -39,6 +39,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from ._schema import ContextSnapshot
@@ -62,12 +63,178 @@ class _TaiexContext:
     _taiex_df: "pd.DataFrame | None" = None
     _ld_df: "pd.DataFrame | None" = None
     _loaded: bool = False
+    # Per-date precomputed result cache. Built on first compute() call and
+    # reused for every subsequent date — avoids per-call df.copy / shift /
+    # mask scan on the full TAIEX history (was ~3ms × N calls in profiling).
+    _per_date_cache: "dict[str, dict[str, Optional[bool]]] | None" = None
+
+    @classmethod
+    def _default_result(cls) -> dict[str, "Optional[bool]"]:
+        return {
+            "taiex_record_drop_point": None,
+            "taiex_record_drop_pct": None,
+            "taiex_record_limit_down_count": None,
+            "taiex_record_any_criterion": None,
+            "taiex_no_new_low_next_day": None,
+            "taiex_down_today": None,
+            "is_after_negative_news_taiex": None,
+            "taiex_false_breakdown_recovered": None,
+            "taiex_v_sunrise": None,
+        }
+
+    @classmethod
+    def _build_cache(cls) -> None:
+        """Precompute every per-date result vectorized — done once per process."""
+        cls._per_date_cache = {}
+
+        if cls._taiex_df is None or cls._taiex_df.empty:
+            ld_only = cls._build_limit_down_only()
+            cls._per_date_cache = ld_only
+            return
+
+        tdf = cls._taiex_df.copy()
+        tdf["prev_close"] = tdf["close"].shift(1)
+        tdf["drop_point"] = tdf["prev_close"] - tdf["close"]
+        tdf["drop_pct"] = tdf["drop_point"] / tdf["prev_close"]
+
+        # Historical max EXCLUDING current row → shift(1) then cummax.
+        prev_max_point = tdf["drop_point"].shift(1).cummax()
+        prev_max_pct = tdf["drop_pct"].shift(1).cummax()
+
+        # Lazy import to avoid module-load-time cycles.
+        from ..course_proxy_constants import (
+            SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK,
+            SELF_RESCUE_TAIEX_DROP_PCT,
+        )
+        # is_after_negative_news_taiex: any drop_pct ≥ threshold in trailing window
+        # (window INCLUDES today — matches old `tdf.loc[start:idx]` semantics).
+        big_drop = (tdf["drop_pct"] >= SELF_RESCUE_TAIEX_DROP_PCT).astype(int)
+        any_big_drop = (
+            big_drop.rolling(SELF_RESCUE_NEGATIVE_NEWS_LOOKBACK + 1, min_periods=1)
+            .max()
+            .astype(bool)
+        )
+
+        # §33 假性跌破：昨日 close < 過去 60 日最低 close（不含昨日當天）+
+        # 今日 open > 昨日 close + 今日 close > 昨日 close
+        prior_low_close_60 = (
+            tdf["close"].shift(1).rolling(60, min_periods=60).min()
+        )
+        # Aligned to today's index: yesterday's close < yesterday's prior-60-low.
+        y_close = tdf["close"].shift(1)
+        y_prior_low_60 = prior_low_close_60.shift(1)
+        broke_yesterday = y_close < y_prior_low_60
+        gap_up_today = tdf["open"] > y_close
+        recovered = tdf["close"] > y_close
+        false_breakdown = (broke_yesterday & gap_up_today & recovered).fillna(False)
+        # §33 has 60-day warmup; values where prior_low_close_60 is NaN → None semantic
+        # but we report False as the legacy code did once history was sufficient.
+
+        # §58 V 型反彈：昨日為強彈日（close > open + (close-open)/open > 1%）+
+        # 今日日出（high > yesterday.high AND low > yesterday.low）
+        y_open = tdf["open"].shift(1)
+        y_high = tdf["high"].shift(1)
+        y_low = tdf["low"].shift(1)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            y_pct_up = (y_close - y_open) / y_open
+        strong_bounce = (y_close > y_open) & (y_pct_up > 0.01)
+        sunrise = (tdf["high"] > y_high) & (tdf["low"] > y_low)
+        v_sunrise = (strong_bounce & sunrise).fillna(False)
+
+        # taiex_no_new_low_next_day: tomorrow's low > today's low
+        next_low = tdf["low"].shift(-1)
+        no_new_low = next_low > tdf["low"]
+        # Only emit a value when next_low is present.
+        no_new_low_mask = next_low.notna() & tdf["low"].notna()
+
+        # Limit-down record (max excluding today).
+        ld_max_excl: "pd.Series | None" = None
+        ld_lookup: "dict[str, float] | None" = None
+        if cls._ld_df is not None and not cls._ld_df.empty:
+            ld = cls._ld_df.copy()
+            ld_max_excl = ld["limit_down_count"].shift(1).cummax()
+            ld_lookup = dict(zip(ld["trade_date"].astype(str), ld["limit_down_count"]))
+            ld_max_lookup = dict(zip(ld["trade_date"].astype(str), ld_max_excl))
+        else:
+            ld_max_lookup = {}
+
+        # Build per-date result dict.
+        dates_arr = tdf["trade_date"].astype(str).to_numpy()
+        n = len(tdf)
+        for i in range(n):
+            d = dates_arr[i]
+            r = cls._default_result()
+            drop_pt = tdf["drop_point"].iat[i]
+            drop_pc = tdf["drop_pct"].iat[i]
+
+            # Historical-record flags (require non-NaN prev_max).
+            if pd.notna(drop_pt) and pd.notna(prev_max_point.iat[i]):
+                r["taiex_record_drop_point"] = bool(drop_pt > prev_max_point.iat[i])
+            if pd.notna(drop_pc) and pd.notna(prev_max_pct.iat[i]):
+                r["taiex_record_drop_pct"] = bool(drop_pc > prev_max_pct.iat[i])
+
+            if pd.notna(drop_pt):
+                r["taiex_down_today"] = bool(drop_pt > 0)
+            r["is_after_negative_news_taiex"] = bool(any_big_drop.iat[i])
+
+            # §33 / §58 — require 60-day / 1-day warmup respectively.
+            if i >= 60 and pd.notna(prior_low_close_60.iat[i]):
+                r["taiex_false_breakdown_recovered"] = bool(false_breakdown.iat[i])
+            elif i >= 60:
+                r["taiex_false_breakdown_recovered"] = False
+            if i >= 1:
+                r["taiex_v_sunrise"] = bool(v_sunrise.iat[i])
+
+            if no_new_low_mask.iat[i]:
+                r["taiex_no_new_low_next_day"] = bool(no_new_low.iat[i])
+
+            # Limit-down record
+            if d in ld_max_lookup and ld_lookup is not None:
+                hist_max = ld_max_lookup[d]
+                today_ct = ld_lookup.get(d)
+                if pd.notna(hist_max) and pd.notna(today_ct):
+                    r["taiex_record_limit_down_count"] = bool(today_ct > hist_max)
+
+            # Composite any-of-three
+            three = [
+                r["taiex_record_drop_point"],
+                r["taiex_record_drop_pct"],
+                r["taiex_record_limit_down_count"],
+            ]
+            if any(v is True for v in three):
+                r["taiex_record_any_criterion"] = True
+            elif all(v is False for v in three):
+                r["taiex_record_any_criterion"] = False
+
+            cls._per_date_cache[d] = r
+
+    @classmethod
+    def _build_limit_down_only(cls) -> dict[str, dict[str, "Optional[bool]"]]:
+        """Cache for the rare path where only limit-down DB exists."""
+        out: dict[str, dict[str, "Optional[bool]"]] = {}
+        if cls._ld_df is None or cls._ld_df.empty:
+            return out
+        ld = cls._ld_df.copy()
+        ld_max = ld["limit_down_count"].shift(1).cummax()
+        dates_arr = ld["trade_date"].astype(str).to_numpy()
+        for i in range(len(ld)):
+            r = cls._default_result()
+            today_ct = ld["limit_down_count"].iat[i]
+            hist_max = ld_max.iat[i]
+            if pd.notna(today_ct) and pd.notna(hist_max):
+                r["taiex_record_limit_down_count"] = bool(today_ct > hist_max)
+                r["taiex_record_any_criterion"] = r["taiex_record_limit_down_count"] or None
+                if r["taiex_record_any_criterion"] is False:
+                    r["taiex_record_any_criterion"] = False
+            out[dates_arr[i]] = r
+        return out
 
     @classmethod
     def _load(cls) -> None:
         if cls._loaded:
             return
         cls._loaded = True  # mark early to avoid re-entrant loads
+        cls._per_date_cache = None  # invalidate cache when DBs are re-loaded (tests reset _loaded)
         # TAIEX
         if _TAIEX_DB.exists():
             try:
@@ -97,17 +264,24 @@ class _TaiexContext:
 
     @classmethod
     def compute(cls, today_date: str) -> dict[str, Optional[bool]]:
-        """Return dict of the four taiex §30 fields for *today_date*.
+        """Return the per-date taiex/§30 fields for *today_date* (O(1) lookup).
 
-        All four fields are Optional[bool].  Returns None for any field whose
-        source data is unavailable.
-
-        Fields:
-          taiex_record_drop_point     — today's point drop is historical max
-          taiex_record_drop_pct       — today's pct drop is historical max
-          taiex_record_limit_down_count — today's limit-down count is historical max
-          taiex_no_new_low_next_day   — tomorrow's low > today's low (進場確認)
+        Lazy-builds a per-date cache on first call (vectorized over the full
+        TAIEX history); subsequent calls are dict lookups. Old implementation
+        copied the TAIEX df and ran a date-filter scan on every call — ~3ms ×
+        N calls dominated build_context_snapshot for large backtests.
         """
+        cls._load()
+        if cls._per_date_cache is None:
+            cls._build_cache()
+        cached = cls._per_date_cache.get(today_date) if cls._per_date_cache else None
+        if cached is not None:
+            return dict(cached)  # defensive copy — caller may mutate
+        return cls._default_result()
+
+    @classmethod
+    def _compute_legacy(cls, today_date: str) -> dict[str, Optional[bool]]:
+        """Original per-call implementation, kept for reference/tests."""
         cls._load()
         result: dict[str, Optional[bool]] = {
             "taiex_record_drop_point": None,
