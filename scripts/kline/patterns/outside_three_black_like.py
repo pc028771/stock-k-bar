@@ -76,6 +76,16 @@ def detect(df: pd.DataFrame, max_n: int = OUTSIDE_THREE_BLACK_LIKE_MAX_N) -> pd.
     d0_high_long_black = d0_body_pct >= HIGH_LONG_BLACK_BODY_PCT_MIN
     d0_black = df["close"] < df["open"]
 
+    # Pre-compute per-ticker consecutive-black streak ending at today.
+    # "D-(n-1)..D-0 全黑" ≡ black_streak[today] >= n. Avoids the inner
+    # for-k loop that was running O(n) groupby.shift ops per outer n
+    # (the dominant cost of this detector).
+    is_black_int = d0_black.astype(int)
+    def _streak(s: pd.Series) -> pd.Series:
+        grp = (s != s.shift(1)).cumsum()
+        return s.groupby(grp).cumsum() * s
+    black_streak = is_black_int.groupby(df["ticker"]).transform(_streak)
+
     for n in range(3, max_n + 1):
         # D-(n): 最近一根創新高紅 K（在今日前第 n 根）
         close_dn = g["close"].shift(n)
@@ -85,20 +95,15 @@ def detect(df: pd.DataFrame, max_n: int = OUTSIDE_THREE_BLACK_LIKE_MAX_N) -> pd.
 
         dn_red_new_high = (close_dn > open_dn) & (close_dn > prior_high_60_dn)
 
-        # D-(n-1) .. D-1: 中間根全黑（不含今日 D-0）
-        all_intermediate_black = pd.Series(True, index=df.index)
-        for k in range(1, n):
-            close_k = g["close"].shift(k)
-            open_k = g["open"].shift(k)
-            all_intermediate_black = all_intermediate_black & (close_k < open_k)
+        # D-(n-1) .. D-0: 連續 n 根黑 K（含今日）
+        all_n_black = black_streak >= n
 
         # D-0 跌破 D-n 低點
         breaks_dn_low = df["close"] < low_dn
 
         trigger_n = (
             dn_red_new_high
-            & all_intermediate_black
-            & d0_black
+            & all_n_black
             & breaks_dn_low
             & d0_high_long_black
         ).fillna(False)

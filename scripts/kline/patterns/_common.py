@@ -27,6 +27,34 @@ from ..course_proxy_constants import (
 
 
 # =============================================================================
+# Single-ticker fast-path helpers
+# Detectors are usually called per-ticker by simulator._precompute_pattern_hits;
+# in that case `df.groupby("ticker").shift(n)` is ~6× slower than a plain
+# `df["col"].shift(n)` because groupby walks an index even with one group.
+# `fast_shift` auto-detects single-ticker df and skips groupby; multi-ticker
+# dfs fall back to groupby to preserve correctness.
+# =============================================================================
+
+
+def is_single_ticker(df: pd.DataFrame) -> bool:
+    """True if df has no ``ticker`` column or only one unique ticker.
+
+    Uses iat[0] vs iat[-1] (O(1)) since detector inputs are sorted by
+    (ticker, trade_date); identical endpoints ⇒ single ticker.
+    """
+    if "ticker" not in df.columns or df.empty:
+        return True
+    return df["ticker"].iat[0] == df["ticker"].iat[-1]
+
+
+def fast_shift(df: pd.DataFrame, col: str, n: int) -> pd.Series:
+    """Group-aware shift that fast-paths the single-ticker case."""
+    if is_single_ticker(df):
+        return df[col].shift(n)
+    return df.groupby("ticker", sort=False)[col].shift(n)
+
+
+# =============================================================================
 # Shared "fuzzy" condition helpers
 # 模糊條件抽出共用，調整一處所有 pattern 跟著改
 # =============================================================================

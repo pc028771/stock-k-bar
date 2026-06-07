@@ -339,6 +339,7 @@ def _run_advisor_with_cache(
     playbooks_by_pattern: dict,
     lights_dict: dict,
     pattern_series: dict[str, list[str]] | None = None,
+    today_row: pd.Series | None = None,
 ) -> object:
     """Run advisor internals with pre-loaded playbooks/lights.
 
@@ -362,19 +363,22 @@ def _run_advisor_with_cache(
     # Ensure features
     enriched_df = _ensure_features(ticker_df)
 
-    # Extract today's row
-    if "trade_date" in enriched_df.columns:
-        today_rows = enriched_df[enriched_df["trade_date"] == today_date]
-    else:
-        today_rows = enriched_df[enriched_df.index.astype(str) == today_date]
+    # Extract today's row — use caller-provided row if available (hot path),
+    # otherwise fall back to the O(N) mask scan for backwards compat.
+    if today_row is None:
+        if "trade_date" in enriched_df.columns:
+            today_rows = enriched_df[enriched_df["trade_date"] == today_date]
+        else:
+            today_rows = enriched_df[enriched_df.index.astype(str) == today_date]
 
-    if today_rows.empty:
-        raise ValueError(f"today_date {today_date!r} not found for ticker {ticker!r}")
+        if today_rows.empty:
+            raise ValueError(f"today_date {today_date!r} not found for ticker {ticker!r}")
 
-    today_row = today_rows.iloc[0]
+        today_row = today_rows.iloc[0]
 
-    # Build context snapshot
-    ctx, ctx_warns = _build_ctx(enriched_df, today_date, ticker)
+    # Build context snapshot — pass today_row so build_context_snapshot also
+    # skips its own ticker / date filter scans.
+    ctx, ctx_warns = _build_ctx(enriched_df, today_date, ticker, today_row=today_row)
     notes.extend(ctx_warns)
 
     # Collect fired patterns (use pre-computed cache if available)
@@ -601,11 +605,28 @@ def _simulate_one_ticker(
     except Exception:
         pattern_series = None
 
+    # Pre-build a date → row-position index once per ticker (O(N) once, no Series
+    # materialised). Per-date iteration then does dict.get + iloc — each O(1)
+    # — instead of the O(N) full-column mask scans that _run_advisor_with_cache
+    # / build_context_snapshot would otherwise do. Eager dict-of-Series was
+    # ~8× more expensive than lazy iloc per call, so we stay lazy.
+    if "trade_date" in ticker_df.columns:
+        date_to_pos: dict[str, int] = {
+            str(d)[:10]: i for i, d in enumerate(ticker_df["trade_date"].to_numpy())
+        }
+    else:
+        date_to_pos = {str(d)[:10]: i for i, d in enumerate(ticker_df.index)}
+
     rows_to_insert: list[tuple] = []
     for trade_date in trade_dates:
         if trade_date in already_saved_dates:
             n_runs_skipped += 1
             continue
+
+        pos = date_to_pos.get(trade_date)
+        if pos is None:
+            continue
+        today_row = ticker_df.iloc[pos]
 
         try:
             result = _run_advisor_with_cache(
@@ -615,6 +636,7 @@ def _simulate_one_ticker(
                 playbooks_by_pattern=playbooks_by_pattern,
                 lights_dict=lights_dict,
                 pattern_series=pattern_series,
+                today_row=today_row,
             )
         except (ValueError, Exception):
             continue

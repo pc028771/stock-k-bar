@@ -9,6 +9,7 @@ from __future__ import annotations
 import pandas as pd
 
 from ..course_proxy_constants import GAP_FILL_WINDOW_DAYS
+from ._common import fast_shift
 
 
 def detect(df: pd.DataFrame) -> pd.Series:
@@ -23,14 +24,21 @@ def detect(df: pd.DataFrame) -> pd.Series:
     # close >= gap_top. Case #14 6278 台表科 2018-09-19: high 34.65 exactly
     # equals 09-18 gap_top 34.65, but close 33.95 < gap_top — intraday touch
     # confirms「缺口回補」per chartists' definition.
-    g = df.groupby("ticker")
+    # Pre-shift once per (col, lag); single-ticker fast-path skips groupby.
     high_today = df["high"]
-    high_yesterday = g["high"].shift(1)
+    high_yesterday = fast_shift(df, "high", 1)
+    high_shifts: dict[int, pd.Series] = {1: high_yesterday}
+    low_shifts: dict[int, pd.Series] = {}
+    for k in range(1, GAP_FILL_WINDOW_DAYS + 2):
+        if k not in high_shifts:
+            high_shifts[k] = fast_shift(df, "high", k)
+        if k not in low_shifts:
+            low_shifts[k] = fast_shift(df, "low", k)
 
     result = pd.Series(False, index=df.index)
     for lag in range(1, GAP_FILL_WINDOW_DAYS + 1):
-        past_high = g["high"].shift(lag)
-        past_prev_low = g["low"].shift(lag + 1)
+        past_high = high_shifts[lag]
+        past_prev_low = low_shifts[lag + 1]
         was_gap_down = past_high < past_prev_low
         gap_top = past_prev_low
         today_filled = high_today >= gap_top  # intraday touch counts

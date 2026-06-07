@@ -473,6 +473,8 @@ def build_context_snapshot(
     today_date: str,
     ticker: str,
     overrides: dict | None = None,
+    *,
+    today_row: pd.Series | None = None,
 ) -> tuple[ContextSnapshot, list[str]]:
     """Build a ContextSnapshot for *ticker* on *today_date*.
 
@@ -489,6 +491,11 @@ def build_context_snapshot(
     overrides:
         Optional dict of ``ContextSnapshot`` field → value.  These values
         take priority over anything found in ``bars_df``.
+    today_row:
+        Optional pre-extracted row for *today_date*. Hot-path callers
+        (simulator) pre-build a date index once per ticker and pass the row
+        directly to skip the O(N) ``bars_df["trade_date"] == today_date``
+        scan that this function would otherwise do every call.
 
     Returns
     -------
@@ -506,31 +513,36 @@ def build_context_snapshot(
     overrides = overrides or {}
     warn_notes: list[str] = []
 
-    # ------------------------------------------------------------------
-    # 1. Filter to ticker
-    # ------------------------------------------------------------------
-    if "ticker" in bars_df.columns:
-        ticker_df = bars_df[bars_df["ticker"] == ticker]
+    if today_row is not None:
+        # Fast path — caller already extracted the row. Skip ticker filter +
+        # date-mask scan (each O(N) in bars_df) entirely.
+        row: pd.Series = today_row
     else:
-        ticker_df = bars_df
+        # ------------------------------------------------------------------
+        # 1. Filter to ticker
+        # ------------------------------------------------------------------
+        if "ticker" in bars_df.columns:
+            ticker_df = bars_df[bars_df["ticker"] == ticker]
+        else:
+            ticker_df = bars_df
 
-    if ticker_df.empty:
-        raise ValueError(f"ticker {ticker!r} not found in bars_df")
+        if ticker_df.empty:
+            raise ValueError(f"ticker {ticker!r} not found in bars_df")
 
-    # ------------------------------------------------------------------
-    # 2. Extract today's row
-    # ------------------------------------------------------------------
-    if "trade_date" in ticker_df.columns:
-        today_rows = ticker_df[ticker_df["trade_date"] == today_date]
-    else:
-        today_rows = ticker_df[ticker_df.index.astype(str) == today_date]
+        # ------------------------------------------------------------------
+        # 2. Extract today's row
+        # ------------------------------------------------------------------
+        if "trade_date" in ticker_df.columns:
+            today_rows = ticker_df[ticker_df["trade_date"] == today_date]
+        else:
+            today_rows = ticker_df[ticker_df.index.astype(str) == today_date]
 
-    if today_rows.empty:
-        raise ValueError(
-            f"today_date {today_date!r} not found for ticker {ticker!r}"
-        )
+        if today_rows.empty:
+            raise ValueError(
+                f"today_date {today_date!r} not found for ticker {ticker!r}"
+            )
 
-    row: pd.Series = today_rows.iloc[0]
+        row = today_rows.iloc[0]
 
     # ------------------------------------------------------------------
     # 3. Helper: resolve a field (overrides > df > None+warn)
