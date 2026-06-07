@@ -295,6 +295,20 @@ class SwingBreakoutConfig:
     sector_density_min_count: int = 3                   # 同族群 ≥ 3 檔籌碼面成立
     require_sector_density: bool = True                 # 族群面為必要條件
 
+    # === MA60 近底部放寬條件（實驗性，非課程明說）===
+    # 當 MA60 仍在下彎，但幅度極小（幾近平坦）且 MA20 已連續上彎 → 視為「即將轉彎」
+    # 觸發條件（同時滿足）：
+    #   1. ma60_slope_5d < 0（MA60 仍在下彎）
+    #   2. 5日 MA60 最大跌幅 < ma60_near_bottom_max_drop_pct（近乎平坦）
+    #   3. MA20 連續 ma60_near_bottom_ma20_up_days 天上彎
+    # 啟用條件：ma60_near_bottom_enabled = True（預設 ON）
+    # 診斷依據：docs/主力大課程/analysis/scanner_diagnosis_6449_delay.md
+    #   6449 鈺邦 5/5 attack day: MA60 slope = -0.0096（5日跌幅 0.71%）
+    #   當日 MA20 slope = +0.020 且已連續 > 5 天上彎 → 值得放行
+    ma60_near_bottom_enabled: bool = True                # 預設啟用
+    ma60_near_bottom_max_drop_pct: float = 1.0          # 5日 MA60 最大跌幅 < 1.0%
+    ma60_near_bottom_ma20_up_days: int = 5              # MA20 連續上彎天數門檻
+
     # === 流動性過濾（課程中立操作門檻）===
     min_avg_volume_20: int = 200                        # 20日均量 ≥ 200 張
     min_close: float = 10.0                             # 收盤 ≥ 10 元
