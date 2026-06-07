@@ -1,0 +1,6 @@
+ticker,signal_date,entry_date,exit_date,entry_price,exit_price,stop_loss,hold_days,return_pct,exit_reason,scanner
+2820,2026-06-04,2026-06-05,2026-06-05,17.1513,17.1484,16.8625,1,-0.017,max_hold,swing_breakout
+2834,2026-06-04,2026-06-05,2026-06-05,17.1012,16.8493,16.1525,1,-1.473,max_hold,swing_breakout
+2838,2026-06-04,2026-06-05,2026-06-05,21.3639,21.4854,20.425,1,0.568,max_hold,swing_breakout
+2851,2026-06-04,2026-06-05,2026-06-05,36.8602,36.7893,34.5525,1,-0.192,max_hold,swing_breakout
+2852,2026-06-04,2026-06-05,2026-06-05,27.9837,27.7664,26.8575,1,-0.776,max_hold,swing_breakout

@@ -1,0 +1,9 @@
+ticker,signal_date,entry_date,exit_date,entry_price,exit_price,stop_loss,hold_days,return_pct,exit_reason,scanner
+2495,2026-05-19,2026-05-20,2026-06-05,36.3587,49.3515,37.225,13,35.735,max_hold,institutional_firstbuy
+5284,2026-05-20,2026-05-21,2026-06-05,384.149,405.2805,374.8,12,5.501,max_hold,institutional_firstbuy
+4551,2026-05-20,2026-05-21,2026-06-05,152.9575,148.553,147.35,11,-2.88,stop_loss,institutional_firstbuy
+5243,2026-05-22,2026-05-25,2026-06-05,131.8945,112.1625,107.05,10,-14.96,max_hold,institutional_firstbuy
+4764,2026-05-26,2026-05-27,2026-05-29,350.5485,313.058,318.1,2,-10.695,stop_loss,institutional_firstbuy
+2426,2026-06-01,2026-06-02,2026-06-03,78.234,72.9804,76.6,1,-6.715,stop_loss,institutional_firstbuy
+6592,2026-06-01,2026-06-02,2026-06-05,61.5842,64.805,60.66,4,5.23,max_hold,institutional_firstbuy
+8064,2026-06-02,2026-06-03,2026-06-05,161.483,165.502,140.4,3,2.489,max_hold,institutional_firstbuy

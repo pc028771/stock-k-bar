@@ -1,0 +1,156 @@
+{
+  "suffocation": {
+    "trades": 3,
+    "signals_fired": 70,
+    "hit_rate_pct": 33.33,
+    "avg_return_pct": 0.562,
+    "avg_win_pct": 3.647,
+    "avg_loss_pct": -0.98,
+    "worst_loss_pct": -1.36,
+    "best_win_pct": 3.65,
+    "expected_value_pct": 0.562,
+    "profit_factor": 1.86,
+    "max_loss_streak": 2,
+    "sharpe": 2.34,
+    "avg_hold_days": 2.0,
+    "exit_distribution": {
+      "max_hold": 3
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 50,
+      "skip_gap_5pct": 12
+    }
+  },
+  "institutional_firstbuy": {
+    "trades": 1,
+    "signals_fired": 8,
+    "hit_rate_pct": 0.0,
+    "avg_return_pct": -4.344,
+    "avg_win_pct": 0,
+    "avg_loss_pct": -4.344,
+    "worst_loss_pct": -4.34,
+    "best_win_pct": -4.34,
+    "expected_value_pct": -4.344,
+    "profit_factor": 0.0,
+    "max_loss_streak": 1,
+    "sharpe": 0,
+    "avg_hold_days": 3.0,
+    "exit_distribution": {
+      "max_hold": 1
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 5,
+      "skip_gap_5pct": 2
+    }
+  },
+  "swing_breakout": {
+    "trades": 1,
+    "signals_fired": 56,
+    "hit_rate_pct": 100.0,
+    "avg_return_pct": 17.803,
+    "avg_win_pct": 17.803,
+    "avg_loss_pct": 0,
+    "worst_loss_pct": 17.8,
+    "best_win_pct": 17.8,
+    "expected_value_pct": 17.803,
+    "profit_factor": Infinity,
+    "max_loss_streak": 0,
+    "sharpe": 0,
+    "avg_hold_days": 13.0,
+    "exit_distribution": {
+      "max_hold": 1
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 46,
+      "skip_gap_5pct": 9
+    }
+  },
+  "overnight_swing": {
+    "trades": 17,
+    "signals_fired": 17,
+    "hit_rate_pct": 29.41,
+    "avg_return_pct": 0.956,
+    "avg_win_pct": 4.684,
+    "avg_loss_pct": -0.598,
+    "worst_loss_pct": -1.52,
+    "best_win_pct": 6.97,
+    "expected_value_pct": 0.956,
+    "profit_factor": 3.26,
+    "max_loss_streak": 6,
+    "sharpe": 5.52,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "overnight_exit": 17
+    },
+    "skip_reasons": {}
+  },
+  "reversal_breakout": {
+    "trades": 4,
+    "signals_fired": 70,
+    "hit_rate_pct": 0.0,
+    "avg_return_pct": -1.674,
+    "avg_win_pct": 0,
+    "avg_loss_pct": -1.674,
+    "worst_loss_pct": -2.95,
+    "best_win_pct": -0.47,
+    "expected_value_pct": -1.674,
+    "profit_factor": 0.0,
+    "max_loss_streak": 4,
+    "sharpe": -20.12,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "stop_loss": 2,
+      "stop_loss_eod": 1,
+      "max_hold": 1
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 50,
+      "skip_gap_5pct": 7
+    }
+  },
+  "pennant_flag": {
+    "trades": 2,
+    "signals_fired": 70,
+    "hit_rate_pct": 100.0,
+    "avg_return_pct": 13.332,
+    "avg_win_pct": 13.332,
+    "avg_loss_pct": 0,
+    "worst_loss_pct": 0.43,
+    "best_win_pct": 26.23,
+    "expected_value_pct": 13.332,
+    "profit_factor": Infinity,
+    "max_loss_streak": 0,
+    "sharpe": 6.2,
+    "avg_hold_days": 3.5,
+    "exit_distribution": {
+      "max_hold": 2
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 52,
+      "skip_gap_5pct": 11
+    }
+  },
+  "institutional_swing": {
+    "trades": 0,
+    "note": "no valid trades"
+  },
+  "intraday": {
+    "trades": 65,
+    "signals_fired": 70,
+    "hit_rate_pct": 66.15,
+    "avg_return_pct": 1.654,
+    "avg_win_pct": 3.219,
+    "avg_loss_pct": -1.405,
+    "worst_loss_pct": -3.55,
+    "best_win_pct": 9.28,
+    "expected_value_pct": 1.654,
+    "profit_factor": 4.48,
+    "max_loss_streak": 10,
+    "sharpe": 8.17,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "overnight_exit": 65
+    },
+    "skip_reasons": {}
+  }
+}

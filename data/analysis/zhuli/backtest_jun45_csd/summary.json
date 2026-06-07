@@ -1,0 +1,99 @@
+{
+  "suffocation": {
+    "trades": 1,
+    "signals_fired": 10,
+    "hit_rate_pct": 0.0,
+    "avg_return_pct": -0.598,
+    "avg_win_pct": 0,
+    "avg_loss_pct": -0.598,
+    "worst_loss_pct": -0.6,
+    "best_win_pct": -0.6,
+    "expected_value_pct": -0.598,
+    "profit_factor": 0.0,
+    "max_loss_streak": 1,
+    "sharpe": 0,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "max_hold": 1
+    },
+    "skip_reasons": {
+      "skip_skip_first5min_surge": 2,
+      "skip_no_minute_data": 2
+    }
+  },
+  "institutional_firstbuy": {
+    "trades": 0,
+    "note": "no signals in date range"
+  },
+  "swing_breakout": {
+    "trades": 0,
+    "note": "no valid trades"
+  },
+  "overnight_swing": {
+    "trades": 2,
+    "signals_fired": 2,
+    "hit_rate_pct": 0.0,
+    "avg_return_pct": -0.504,
+    "avg_win_pct": 0,
+    "avg_loss_pct": -0.504,
+    "worst_loss_pct": -0.6,
+    "best_win_pct": -0.41,
+    "expected_value_pct": -0.504,
+    "profit_factor": 0.0,
+    "max_loss_streak": 2,
+    "sharpe": -60.18,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "overnight_exit": 2
+    },
+    "skip_reasons": {}
+  },
+  "reversal_breakout": {
+    "trades": 0,
+    "note": "no valid trades"
+  },
+  "pennant_flag": {
+    "trades": 1,
+    "signals_fired": 10,
+    "hit_rate_pct": 100.0,
+    "avg_return_pct": 0.431,
+    "avg_win_pct": 0.431,
+    "avg_loss_pct": 0,
+    "worst_loss_pct": 0.43,
+    "best_win_pct": 0.43,
+    "expected_value_pct": 0.431,
+    "profit_factor": Infinity,
+    "max_loss_streak": 0,
+    "sharpe": 0,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "max_hold": 1
+    },
+    "skip_reasons": {
+      "skip_no_minute_data": 4
+    }
+  },
+  "institutional_swing": {
+    "trades": 0,
+    "note": "no signals in date range"
+  },
+  "intraday": {
+    "trades": 5,
+    "signals_fired": 10,
+    "hit_rate_pct": 0.0,
+    "avg_return_pct": -2.519,
+    "avg_win_pct": 0,
+    "avg_loss_pct": -2.519,
+    "worst_loss_pct": -3.55,
+    "best_win_pct": -1.12,
+    "expected_value_pct": -2.519,
+    "profit_factor": 0.0,
+    "max_loss_streak": 5,
+    "sharpe": -38.04,
+    "avg_hold_days": 1.0,
+    "exit_distribution": {
+      "overnight_exit": 5
+    },
+    "skip_reasons": {}
+  }
+}
