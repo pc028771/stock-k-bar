@@ -283,6 +283,81 @@ def _filter_v3_2(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
     return enriched[:top_n]
 
 
+def _score_v3_3(h: dict, today_close: float, prev_close: float | None) -> int:
+    """v3.3 — 1 年 backtest 驗證的真實 sweet spot.
+
+    1834 picks 分析發現:
+    - 今日漲幅 1-3% sweet spot EV +0.29% (最強)
+    - 今日漲幅 3-5% EV -0.24% (反差最大)
+    - vol_ratio 1.5-2 sweet spot EV +0.29%
+    - vol_ratio 2-3 EV -0.30% (反差最大)
+    - 距前高無預測力、移除 ranking
+
+    ⚠️ 屬 backtest 細化 (寬鬆紀律)、非 Ch5 明示。
+    """
+    score = 0.0
+
+    # 1. 今日漲幅
+    if prev_close and prev_close > 0:
+        chg = (today_close / prev_close - 1) * 100
+        if 1 <= chg <= 3:
+            score += 30
+        elif 5 <= chg <= 7:
+            score += 15
+        elif 3 < chg < 5:
+            score -= 15
+        elif chg > 7:
+            score -= 15
+        elif chg < 0:
+            score -= 5
+
+    # 2. vol_ratio
+    vr = h.get('vol_ratio', 0)
+    if 1.5 <= vr < 2.0:
+        score += 25
+    elif 1.0 <= vr < 1.5:
+        score += 10
+    elif 2.0 <= vr < 3.0:
+        score -= 15
+    elif 3.0 <= vr < 5.0:
+        score -= 10
+
+    # 3. 振幅 (Ch5-1-1)
+    r = h.get('range_3d_pct', 0)
+    if r > 25:
+        score += 5
+    elif r >= 5:
+        score += 15 * max(0, 1 - abs(r - 12) / 8)
+
+    # 4. 周轉 (Ch5-1-1)
+    turn = h.get('turnover_3d_pct', 0)
+    if turn > 80:
+        score += 3
+    elif turn >= 15:
+        score += 10 * max(0, 1 - abs(turn - 35) / 30)
+
+    # 5. 老師 tier (info)
+    tt = h.get('teacher_tier', '')
+    if tt in ('core', 'frequent'):
+        score += 5
+    elif tt:
+        score += 2
+
+    return round(score)
+
+
+def _filter_v3_3(intra_hits: list[dict], top_n: int = 10) -> list[dict]:
+    enriched = []
+    for h in intra_hits:
+        h2 = dict(h)
+        h2['confidence_score'] = _score_v3_3(
+            h2, h2.get('close', 0), h2.get('prev_close'),
+        )
+        enriched.append(h2)
+    enriched.sort(key=lambda x: -x['confidence_score'])
+    return enriched[:top_n]
+
+
 def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3',
                        require_breakout_vol: bool = False) -> list[dict]:
     """跑 entry/intraday + filter + score、取 top 10.
@@ -362,6 +437,8 @@ def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3',
         return _filter_pure_course(intra_hits, top_n=10)
     if scoring == 'v3_2':
         return _filter_v3_2(intra_hits, top_n=10)
+    if scoring == 'v3_3':
+        return _filter_v3_3(intra_hits, top_n=10)
     return _filter_and_rank_intraday(intra_hits, top_n=10)
 
 
@@ -371,7 +448,7 @@ def main():
     p.add_argument("--end", required=True, help="YYYY-MM-DD")
     p.add_argument("--csv", default=None, help="輸出 CSV 路徑 (預設 /tmp/backtest_top10_<start>_<end>.csv)")
     p.add_argument("--target", type=float, default=1.5, help="達標 % (Ch5 範圍 1.5-3.0)")
-    p.add_argument("--scoring", choices=['v3', 'pure_course', 'v3_2'], default='v3',
+    p.add_argument("--scoring", choices=['v3', 'pure_course', 'v3_2', 'v3_3'], default='v3',
                    help="v3=有自編 penalty / pure_course=純 Ch5-2 距前高 / v3_2=嚴格課程+範圍內細化")
     p.add_argument("--stop", choices=['A', 'B', 'C', 'D'], default='A',
                    help="A=雙錨(現) / B=單錨 / C=MA5 trail / D=A+C")
