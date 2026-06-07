@@ -11,6 +11,8 @@ dependencies = [
     "pydantic>=2.0",
     "pyyaml>=6.0.3",
     "pyarrow>=24.0.0",
+    "rich>=13.0",
+    "textual>=0.80",
 ]
 
 [dependency-groups]
