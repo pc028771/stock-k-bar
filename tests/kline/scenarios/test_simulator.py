@@ -724,3 +724,161 @@ class TestT3A5NoRetNd:
             assert name.lower() not in forbidden_params, (
                 f"compute_branch_hit_rates has forbidden parameter '{name}'"
             )
+
+
+# ---------------------------------------------------------------------------
+# T3A.6: Backfill semantics regression — `next_day.*` is row-relative
+# ---------------------------------------------------------------------------
+
+
+class TestBackfillRowRelativeSemantics:
+    """Regression for the off-by-one bug where _backfill_single_ticker looked up
+    result_series.loc[trade_date + n] instead of result_series.loc[trade_date].
+
+    The DSL token `next_day.close` resolves to df["close"].shift(-n) at row T, so
+    the answer to "did the n-th day after T satisfy the condition?" lives in
+    result_series.loc[T]. Reading at loc[T + n] gave row T+n's "n-th lookahead
+    from T+n" (= T+2n) which is wrong and falls off the data edge at the latest
+    fired date.
+    """
+
+    def test_next_day_condition_evaluated_at_fired_row(self, tmp_path: Path):
+        """Build a df with a hand-known next_day outcome and check backfill."""
+        import sqlite3 as _sql
+        # Shape:
+        #   day 0  close=100  low=100
+        #   day 1  close=105  low=101  (day 0 next_day.close=105 > day 0.high=100 → B_up TRUE)
+        #   day 2  close=99   low=98   (day 1 next_day.close=99  < day 1.low=101 → B_down TRUE)
+        #   day 3  close=110  low=99   (day 2 next_day.close=110 > day 2.high=99  → B_up TRUE)
+        dates = pd.bdate_range(end="2026-06-03", periods=20, freq="B")
+        closes = np.array([100, 105, 99, 110, 108, 107, 106, 105, 104, 103,
+                           102, 101, 100, 99, 98, 97, 96, 95, 94, 93], dtype=float)
+        opens = closes - 0.5
+        highs = closes + 0.5
+        lows = closes - 1.0
+        # Force specific lows/highs at first 4 bars
+        lows[0], highs[0] = 100, 100
+        lows[1], highs[1] = 101, 106
+        lows[2], highs[2] = 98, 100
+        lows[3], highs[3] = 99, 111
+        volumes = np.full(20, 1_000_000, dtype=float)
+
+        df = pd.DataFrame({
+            "ticker": "2330",
+            "trade_date": dates.strftime("%Y-%m-%d"),
+            "open": opens, "high": highs, "low": lows, "close": closes,
+            "volume": volumes,
+            "ma20": pd.Series(closes).rolling(20, min_periods=1).mean().values,
+            "ma60": pd.Series(closes).rolling(60, min_periods=1).mean().values,
+        })
+
+        pb_dir, lt_dir = _make_dirs(tmp_path)
+        playbook = """\
+pattern: bull_engulfing
+setup:
+  name: row_relative_semantics_test
+  required_context: []
+branches:
+  - id: B_up
+    when:
+      "next_day.close": "> today.high"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: entry_signal
+      description: test
+      course_citation:
+        source: test
+  - id: B_down
+    when:
+      "next_day.close": "< today.low"
+    confirm_at: next_close
+    next_day_n: 1
+    action:
+      type: exit_signal
+      description: test
+      course_citation:
+        source: test
+course_sources:
+  - source: test
+relevant_lights: []
+"""
+        _write_playbook(pb_dir, playbook)
+        _write_light(lt_dir)
+
+        db = tmp_path / "advisor.db"
+        # We need bull_engulfing to actually fire — but for backfill semantics
+        # we only care that branches exist with the right when_json. Use a
+        # direct DB seed to bypass pattern firing:
+        from kline.scenarios.persistence import _ensure_tables
+        with _sql.connect(str(db)) as conn:
+            _ensure_tables(conn)
+            for fired_date in ["2026-05-08", "2026-05-11"]:
+                cur = conn.execute(
+                    "INSERT INTO advisor_runs (ticker, trade_date, fired_pattern_count, scenario_count) VALUES (?,?,?,?)",
+                    ("2330", fired_date, 1, 1),
+                )
+                run_id = cur.lastrowid
+                # B_up
+                conn.execute(
+                    """INSERT INTO advisor_branches
+                       (run_id, scenario_idx, branch_id, pattern_name,
+                        when_json, confirm_at, next_day_n, action_type,
+                        course_citation_json, matched_after_n_days)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (run_id, 0, "B_up", "bull_engulfing",
+                     '{"next_day.close": "> today.high"}', "next_close", 1,
+                     "entry_signal", '{"source":"t"}', None)
+                )
+                conn.execute(
+                    """INSERT INTO advisor_branches
+                       (run_id, scenario_idx, branch_id, pattern_name,
+                        when_json, confirm_at, next_day_n, action_type,
+                        course_citation_json, matched_after_n_days)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (run_id, 0, "B_down", "bull_engulfing",
+                     '{"next_day.close": "< today.low"}', "next_close", 1,
+                     "exit_signal", '{"source":"t"}', None)
+                )
+            conn.commit()
+
+        # Now run backfill directly
+        from kline.scenarios.simulator import _backfill_single_ticker
+        from kline.features import add_features
+        enriched = add_features(df)
+        _backfill_single_ticker("2330", enriched, db, None)
+
+        with _sql.connect(str(db)) as conn:
+            rows = dict(conn.execute(
+                """SELECT ab.branch_id || '@' || ar.trade_date,
+                          ab.matched_after_n_days
+                   FROM advisor_branches ab JOIN advisor_runs ar ON ar.run_id=ab.run_id"""
+            ).fetchall())
+
+        # Day 0 (2026-05-08) is the first bdate of the 20-day window if dates align.
+        # We seeded fired_date "2026-05-08" and "2026-05-11". Find them in the df.
+        # day idx in df for "2026-05-08":
+        df_dates = list(dates.strftime("%Y-%m-%d"))
+        idx_0508 = df_dates.index("2026-05-08")
+        idx_0511 = df_dates.index("2026-05-11")
+        # next-day for these
+        next_close_0508 = closes[idx_0508 + 1]
+        today_high_0508 = highs[idx_0508]
+        today_low_0508 = lows[idx_0508]
+        next_close_0511 = closes[idx_0511 + 1]
+        today_high_0511 = highs[idx_0511]
+        today_low_0511 = lows[idx_0511]
+
+        expected_up_0508 = 1 if next_close_0508 > today_high_0508 else -1
+        expected_dn_0508 = 1 if next_close_0508 < today_low_0508 else -1
+        expected_up_0511 = 1 if next_close_0511 > today_high_0511 else -1
+        expected_dn_0511 = 1 if next_close_0511 < today_low_0511 else -1
+
+        assert rows.get("B_up@2026-05-08") == expected_up_0508, \
+            f"B_up@5-08 expected {expected_up_0508}, got {rows.get('B_up@2026-05-08')}"
+        assert rows.get("B_down@2026-05-08") == expected_dn_0508, \
+            f"B_down@5-08 expected {expected_dn_0508}, got {rows.get('B_down@2026-05-08')}"
+        assert rows.get("B_up@2026-05-11") == expected_up_0511, \
+            f"B_up@5-11 expected {expected_up_0511}, got {rows.get('B_up@2026-05-11')}"
+        assert rows.get("B_down@2026-05-11") == expected_dn_0511, \
+            f"B_down@5-11 expected {expected_dn_0511}, got {rows.get('B_down@2026-05-11')}"

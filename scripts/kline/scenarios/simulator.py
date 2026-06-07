@@ -164,9 +164,36 @@ def _backfill_single_ticker(
     # Empty context df — context fields will resolve to False in vectorized eval
     ctx_df = pd.DataFrame(index=df_indexed.index)
 
-    # ----- Group conditions to avoid re-running evaluate_vectorized per row -----
-    # key: (when_json_str, next_day_n) → pd.Series of bool indexed by trade_date
+    # ----- Group conditions to avoid re-running evaluate_vectorized per branch -----
+    # key: (when_json_str, n_lookahead) → bool Series indexed by trade_date.
+    # NOTE: evaluate_vectorized's `next_day_n` parameter controls .shift(-N) — so a
+    # single call returns "did condition fire at row T using day T+N as next_day".
+    # The branch's `next_day_n` is the maximum horizon; we may need each n=1..N
+    # separately to find the first-fire day, so we cache by lookahead `n` too.
     condition_cache: dict[tuple[str, int], pd.Series] = {}
+    parse_cache: dict[str, dict] = {}
+
+    def _eval_series(when_json: str, n: int) -> Optional[pd.Series]:
+        key = (when_json, n)
+        if key in condition_cache:
+            return condition_cache[key]
+        if when_json not in parse_cache:
+            try:
+                parsed = json.loads(when_json)
+            except Exception:
+                parse_cache[when_json] = {}
+                return None
+            parse_cache[when_json] = parsed
+        when_dict = parse_cache[when_json]
+        if not when_dict:
+            return None
+        try:
+            rs = evaluate_vectorized(when=when_dict, df=df_indexed, ctx_df=ctx_df, next_day_n=n)
+            rs.index = [str(d)[:10] for d in rs.index]
+        except (UnknownTokenError, KeyError, Exception):
+            return None
+        condition_cache[key] = rs
+        return rs
 
     updated = 0
 
@@ -178,47 +205,41 @@ def _backfill_single_ticker(
             if trade_date not in date_to_pos:
                 continue
 
-            cache_key = (when_json_str, next_day_n)
-            if cache_key not in condition_cache:
-                try:
-                    when_dict = json.loads(when_json_str)
-                    if not when_dict:
-                        # Empty when_json — stored as {} placeholder (Phase 1)
-                        # Can't evaluate → leave as NULL
-                        continue
-                    result_series = evaluate_vectorized(
-                        when=when_dict,
-                        df=df_indexed,
-                        ctx_df=ctx_df,
-                        next_day_n=next_day_n,
-                    )
-                    # Normalise series index to str "YYYY-MM-DD" to match date_to_pos keys.
-                    result_series.index = [str(d)[:10] for d in result_series.index]
-                    condition_cache[cache_key] = result_series
-                except (UnknownTokenError, KeyError, Exception):
-                    # DSL error or missing column → skip, leave NULL
-                    continue
-            else:
-                result_series = condition_cache[cache_key]
-
-            # Check days t+1 .. t+next_day_n for a match
+            # For each lookahead n in 1..next_day_n, evaluate the condition and
+            # read it AT THE FIRED ROW (the DSL is row-relative: at row T,
+            # `next_day.close` = close.shift(-n) evaluated against today.* on T,
+            # so the answer for "did the n-th day satisfy the branch" lives in
+            # result_series.loc[trade_date], NOT loc[trade_date + n]).
             run_pos = date_to_pos[trade_date]
             matched_n: Optional[int] = None
+            had_unparseable_dsl = False
+            had_any_eval = False
 
             for n in range(1, next_day_n + 1):
-                check_pos = run_pos + n
-                if check_pos >= len(all_dates):
+                # If the n-th lookahead falls past the end of available data,
+                # the answer is unknown for this n. Skip but keep trying smaller
+                # n already done (or larger — n grows, so subsequent n also fails).
+                if run_pos + n >= len(all_dates):
                     break
-                check_date = all_dates[check_pos]
+                rs = _eval_series(when_json_str, n)
+                if rs is None:
+                    had_unparseable_dsl = True
+                    break
+                had_any_eval = True
                 try:
-                    fired = bool(result_series.loc[check_date])
+                    fired = bool(rs.loc[trade_date])
                 except (KeyError, TypeError):
                     continue
                 if fired:
                     matched_n = n
                     break
 
-            # matched_n=None means we checked all N days and none matched
+            # Skip (leave NULL) if DSL was unparseable OR we never managed an eval
+            # (e.g., run_pos+1 already off the end → not enough future data yet).
+            if had_unparseable_dsl or not had_any_eval:
+                continue
+
+            # matched_n=None means we evaluated 1..N and none matched
             outcome = matched_n if matched_n is not None else -1
 
             conn.execute(
