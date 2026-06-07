@@ -67,3 +67,13 @@ data/analysis/four_seasons/backtest_*_trades.csv
 # kline_patterns generated DBs (regeneratable backtest artifacts)
 data/analysis/kline_patterns/*.db
 data/analysis/kline_patterns/*.sqlite
+
+# Runtime DBs at data/ root (regeneratable from FinMind / scanners)
+data/*.db
+
+# Backtest / scanner CSV outputs (regenerated each run)
+data/analysis/kline/*.csv
+data/analysis/zhuli/*.csv
+
+# Sibling git worktrees (not source)
+.claude/worktrees/
