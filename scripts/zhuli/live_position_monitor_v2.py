@@ -138,7 +138,7 @@ DataTable {
 }
 
 #detail-panel {
-    height: 5;
+    height: 6;
     background: #14141e;
     color: #d0d0d8;
     border: solid #2a2a3a;
@@ -504,10 +504,14 @@ class MonitorApp(App[None]):
             with self._data_lock:
                 d = dict(self._live_data.get(tk, {}))
             name = ""
+            source = ""
+            sector = ""
             for src in (self._held, self._watch, self._plan):
                 for i in src:
                     if str(i.get('ticker', '')) == tk:
                         name = i.get('name', '')
+                        source = str(i.get('source', '') or '')
+                        sector = str(i.get('sector', '') or '')
                         break
                 if name:
                     break
@@ -519,7 +523,13 @@ class MonitorApp(App[None]):
                 trig_line += f"  ({trig_reason})"
             dump_full = d.get('dump_warn_full', '') or ""
             dump_line = f"出貨:    {dump_full}" if dump_full else "出貨:    —"
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}"
+            src_parts = []
+            if source:
+                src_parts.append(source)
+            if sector:
+                src_parts.append(sector)
+            source_line = f"來源:    {' | '.join(src_parts)}" if src_parts else "來源:    —"
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{source_line}"
         except Exception:
             pass
 
