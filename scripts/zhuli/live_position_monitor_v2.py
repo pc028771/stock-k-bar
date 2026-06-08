@@ -8,7 +8,7 @@ Textual 版、平行於 v1 (Rich-only)、解決 UX 痛點:
 - 鍵盤反應慢 → Textual binding < 10ms
 
 架構:
-  Tab: 持倉(HELD) / 可進場(Confirmed) / 觀察(Watching) / Pinned / Scanner(全顯)
+  Tab: 持倉(HELD) / 可進場(Confirmed) / 觀察(Watching) / Pinned / 🌅隔日沖 / Scanner(全顯)
   Header: 固定頂部 (大盤狀態 + 時間)
   Footer: 固定底部 (永遠看得到)
   DataTable: 每個 Tab 一個 DataTable
@@ -28,7 +28,9 @@ Demo 模式:
 from __future__ import annotations
 
 import argparse
+import csv
 import math
+import sqlite3
 import sys
 import threading
 import time
@@ -186,6 +188,11 @@ DataTable:focus > .datatable--cursor {
     border: solid magenta;
 }
 
+.overnight-pane DataTable {
+    border: solid magenta;
+    background: rgb(20, 0, 20);
+}
+
 .scanner-pane DataTable {
     border: solid cyan;
 }
@@ -235,6 +242,7 @@ TAB_HELD      = "tab-held"
 TAB_CONFIRMED = "tab-confirmed"
 TAB_WATCHING  = "tab-watching"
 TAB_PINNED    = "tab-pinned"
+TAB_OVERNIGHT = "tab-overnight"
 TAB_SCANNER   = "tab-scanner"
 
 TAB_LABELS = {
@@ -242,6 +250,7 @@ TAB_LABELS = {
     TAB_CONFIRMED: "🎯 可進場",
     TAB_WATCHING:  "🔍 觀察",
     TAB_PINNED:    "📌 Pinned",
+    TAB_OVERNIGHT: "🌅 隔日沖",
     TAB_SCANNER:   "📈 Scanner",
 }
 
@@ -273,6 +282,20 @@ COLS_WATCH = [
     ("source",   "來源",   12),
     ("trigger",  "Trigger",35),
 ]
+
+COLS_OVERNIGHT = [
+    ("ticker",      "代號",    6),
+    ("name",        "股名",    8),
+    ("signal_date", "訊號日", 10),
+    ("entry",       "進場",    8),
+    ("stop",        "停損",    8),
+    ("exit",        "出場",    8),
+    ("ret",         "報酬%",   8),
+    ("reason",      "出場原因", 12),
+]
+
+# CSV path for overnight swing backtest results
+_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "backtest_ytd" / "overnight_swing_trades.csv"
 
 
 # ── Pin dialog ────────────────────────────────────────────────────────────────
@@ -361,7 +384,8 @@ class MonitorApp(App[None]):
         Binding("2",       "switch_tab_2",    "可進場", show=False),
         Binding("3",       "switch_tab_3",    "觀察", show=False),
         Binding("4",       "switch_tab_4",    "Pinned", show=False),
-        Binding("5",       "switch_tab_5",    "Scanner", show=False),
+        Binding("5",       "switch_tab_5",    "隔日沖", show=False),
+        Binding("6",       "switch_tab_6",    "Scanner", show=False),
         Binding("shift+left",  "page_up",   "↑頁"),
         Binding("shift+right", "page_down", "↓頁"),
     ]
@@ -408,6 +432,11 @@ class MonitorApp(App[None]):
         self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
         self._page_size_default: int = 40
 
+        # ── overnight signals cache ──────────────────────────────────────────
+        self._overnight_signals: list[dict] = []
+        self._overnight_cache_ts: float = 0.0  # last load time (monotonic)
+        self._overnight_cache_ttl: float = 300.0  # 5 minutes
+
         # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
         held_tickers = [str(i.get('ticker', '')) for i in self._held
                         if i.get('ticker')]
@@ -442,6 +471,11 @@ class MonitorApp(App[None]):
             with TabPane(TAB_LABELS[TAB_PINNED], id=TAB_PINNED,
                          classes="pinned-pane"):
                 yield DataTable(id="dt-pinned", zebra_stripes=True,
+                                cursor_type="row")
+
+            with TabPane(TAB_LABELS[TAB_OVERNIGHT], id=TAB_OVERNIGHT,
+                         classes="overnight-pane"):
+                yield DataTable(id="dt-overnight", zebra_stripes=True,
                                 cursor_type="row")
 
             with TabPane(TAB_LABELS[TAB_SCANNER], id=TAB_SCANNER,
@@ -541,6 +575,7 @@ class MonitorApp(App[None]):
             ("dt-confirmed", COLS_WATCH),
             ("dt-watching",  COLS_WATCH),
             ("dt-pinned",    COLS_HELD),
+            ("dt-overnight", COLS_OVERNIGHT),
             ("dt-scanner",   COLS_WATCH),
         ]:
             dt: DataTable = self.query_one(f"#{table_id}", DataTable)
@@ -822,6 +857,9 @@ class MonitorApp(App[None]):
                 items = [i for i in items if self._match_search(i)]
             return len(items)
 
+        if tab_id == TAB_OVERNIGHT:
+            return len(self._overnight_signals)
+
         if tab_id == TAB_SCANNER:
             items = list(self._watch)
             if self.search_term:
@@ -849,6 +887,7 @@ class MonitorApp(App[None]):
         self._refresh_confirmed_table(ld)
         self._refresh_watching_table(ld)
         self._refresh_pinned_table(ld)
+        self._refresh_overnight_table()
         self._refresh_scanner_table(ld)
 
     def _fmt_otn(self, otn_pct: float | None) -> str:
@@ -1079,6 +1118,99 @@ class MonitorApp(App[None]):
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
+    def _load_overnight_signals(self) -> list[dict]:
+        """讀取 overnight_swing backtest CSV，過濾近 7 天，補上股名，按 signal_date desc 排序。
+        結果 cache 5 分鐘（不必每 tick 重讀 CSV）。
+        """
+        now_mono = time.monotonic()
+        if (self._overnight_signals and
+                now_mono - self._overnight_cache_ts < self._overnight_cache_ttl):
+            return self._overnight_signals
+
+        signals: list[dict] = []
+        try:
+            if not _OVERNIGHT_CSV.exists():
+                self._overnight_signals = signals
+                self._overnight_cache_ts = now_mono
+                return signals
+
+            cutoff = (date.today() - timedelta(days=7)).isoformat()
+
+            # 讀 CSV
+            with open(_OVERNIGHT_CSV, newline="", encoding="utf-8") as fh:
+                reader = csv.DictReader(fh)
+                for row in reader:
+                    if row.get("signal_date", "") >= cutoff:
+                        signals.append(dict(row))
+
+            # 補股名（DB lookup）
+            if signals:
+                tickers = list({r["ticker"] for r in signals})
+                name_map: dict[str, str] = {}
+                try:
+                    db_path = str(_v1.DB)
+                    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
+                    placeholders = ",".join("?" * len(tickers))
+                    rows = con.execute(
+                        f"SELECT ticker, stock_name FROM stock_info WHERE ticker IN ({placeholders})",
+                        tickers,
+                    ).fetchall()
+                    con.close()
+                    name_map = {r[0]: r[1] for r in rows}
+                except Exception:
+                    pass
+                for row in signals:
+                    row["name"] = name_map.get(row["ticker"], "")
+
+            # 按 signal_date desc 排序
+            signals.sort(key=lambda r: r.get("signal_date", ""), reverse=True)
+
+        except Exception:
+            signals = []
+
+        self._overnight_signals = signals
+        self._overnight_cache_ts = now_mono
+        return signals
+
+    def _refresh_overnight_table(self) -> None:
+        """刷新 🌅 隔日沖 tab 的 DataTable。"""
+        dt: DataTable = self.query_one("#dt-overnight", DataTable)
+        saved_cursor, saved_scroll = self._save_table_state(dt)
+        signals = self._load_overnight_signals()
+        dt.clear()
+        if not signals:
+            # 顯示「無資料」提示 row
+            dt.add_row("—", "無資料", "—", "—", "—", "—", "—", "—", key="__empty__")
+            return
+        for sig in signals:
+            ticker = sig.get("ticker", "")
+            name   = sig.get("name", "")
+            sig_dt = sig.get("signal_date", "")
+            try:
+                entry  = f"{float(sig.get('entry_price', 0)):.2f}"
+            except Exception:
+                entry  = sig.get("entry_price", "—")
+            try:
+                stop   = f"{float(sig.get('stop_loss', 0)):.2f}"
+            except Exception:
+                stop   = sig.get("stop_loss", "—")
+            exit_p = sig.get("exit_price", "")
+            try:
+                exit_s = f"{float(exit_p):.2f}" if exit_p else "—"
+            except Exception:
+                exit_s = str(exit_p) or "—"
+            try:
+                ret_pct = float(sig.get("return_pct", 0))
+                sign    = "+" if ret_pct >= 0 else ""
+                ret_s   = f"{sign}{ret_pct:.2f}%"
+            except Exception:
+                ret_s   = sig.get("return_pct", "—")
+            reason  = sig.get("exit_reason", "—") or "—"
+            row_key = f"{ticker}_{sig_dt}"
+            dt.add_row(ticker, name, sig_dt, entry, stop, exit_s, ret_s, reason,
+                       key=row_key)
+        self._restore_table_state(dt, saved_cursor, saved_scroll)
+
     def _refresh_scanner_table(self, ld: dict) -> None:
         # Scanner tab: 全顯 WATCH (不過濾 teacher_only)
         items = list(self._watch)
@@ -1119,6 +1251,7 @@ class MonitorApp(App[None]):
         self._refresh_confirmed_table(ld)
         self._refresh_watching_table(ld)
         self._refresh_pinned_table(ld)
+        self._refresh_overnight_table()
         self._refresh_scanner_table(ld)
 
     # ── actions ──────────────────────────────────────────────────────────────
@@ -1212,6 +1345,9 @@ class MonitorApp(App[None]):
         self._switch_to_tab(TAB_PINNED)
 
     def action_switch_tab_5(self) -> None:
+        self._switch_to_tab(TAB_OVERNIGHT)
+
+    def action_switch_tab_6(self) -> None:
         self._switch_to_tab(TAB_SCANNER)
 
     def _switch_to_tab(self, tab_id: str) -> None:
