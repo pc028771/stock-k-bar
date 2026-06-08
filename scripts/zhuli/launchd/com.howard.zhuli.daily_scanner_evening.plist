@@ -17,8 +17,15 @@
         <string>-c</string>
         <string>mkdir -p /tmp/launchd
 echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="
+echo "--- step 1/2: daily_scanner_job (結構 scanner) ---"
 /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py
-echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+DSE_EXIT=$?
+echo "--- step 2/2: 6 個策略 scanner (每個獨立輸出 CSV) ---"
+for SIG in suffocation institutional_firstbuy swing_breakout reversal_breakout pennant_flag institutional_swing; do
+    echo "  [scanner: $SIG]"
+    /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli_scanner.py --signal "$SIG" --date $(date +%Y-%m-%d) 2&gt;&amp;1 | tail -3
+done
+echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$DSE_EXIT ==="</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/Users/howard/Repository/stock-k-bar</string>
