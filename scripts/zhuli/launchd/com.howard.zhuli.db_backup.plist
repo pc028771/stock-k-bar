@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.db_backup</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /bin/bash /Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_db_backup.sh; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar</string>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.db_backup.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.db_backup.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>23</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+</dict>
+</plist>
