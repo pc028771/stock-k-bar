@@ -751,6 +751,7 @@ class MonitorApp(App[None]):
 
             with TabPane(TAB_LABELS[TAB_OVERNIGHT], id=TAB_OVERNIGHT,
                          classes="overnight-pane"):
+                yield Static("(載入中…)", id="overnight-header")
                 yield DataTable(id="dt-overnight", zebra_stripes=True,
                                 cursor_type="row")
 
@@ -907,9 +908,19 @@ class MonitorApp(App[None]):
         if client is None:
             return
 
-        all_items = self._held + self._watch + self._plan
+        # dedup ticker (held 優先)、避免同 ticker 在 held + watch/plan 被跑 2 次、
+        # 第二次拿 watch item (沒 cost/shares) 蓋掉 held 的 P&L
         held_tickers = {str(i.get('ticker', '')) for i in self._held}
         held_by_ticker = {str(i.get('ticker', '')): i for i in self._held}
+        seen: set[str] = set()
+        all_items = []
+        for src in (self._held, self._watch, self._plan):
+            for it in src:
+                tk_ = str(it.get('ticker', ''))
+                if not tk_ or tk_ in seen:
+                    continue
+                seen.add(tk_)
+                all_items.append(it)
         for item in all_items:
             tk = str(item.get('ticker', ''))
             if not tk:
@@ -918,8 +929,9 @@ class MonitorApp(App[None]):
                 snap = client.get_realtime_snapshot(tk) or {}
                 close_ = float(snap.get('close') or 0)
                 open_  = float(snap.get('open')  or 0)
-                # snap 失敗 (close=0) 且之前有值、保留不覆蓋 (避免 race 把已抓到的好資料清掉)
-                if not close_ and tk in self._live_data:
+                # snap 失敗 (close=0) → 完全 skip、不寫入 0 (寧可顯示「—」)
+                # 包含首次失敗、避免後續 race 出 0 P&L (HELD 看到 0 會誤判已停損)
+                if not close_:
                     continue
                 vol_   = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_) if vol_ else None)
@@ -989,9 +1001,10 @@ class MonitorApp(App[None]):
 
                 record_trigger_fire(tk, trig_key)
 
-                # P&L (held only)
-                cost   = float(item.get('cost') or 0)
-                shares = int(item.get('shares') or 0)
+                # P&L (held only) — 永遠從 held_by_ticker 查、不靠 item (避免 watch/plan 蓋掉)
+                _held_item = held_by_ticker.get(tk, {})
+                cost   = float(_held_item.get('cost') or 0)
+                shares = int(_held_item.get('shares') or 0)
                 pnl    = (close_ - cost) * shares if cost and shares and close_ else 0.0
                 pnl_pct= (close_ - cost) / cost * 100 if cost and close_ else 0.0
 
@@ -1496,10 +1509,16 @@ class MonitorApp(App[None]):
         只顯示 4/4 全過、按 strength_score desc 排序。
         """
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
+        try:
+            header_widget = self.query_one("#overnight-header", Static)
+        except Exception:
+            header_widget = None
         saved_cursor, saved_scroll = self._save_table_state(dt)
         all_results = self._get_overnight_signals()
         dt.clear()
         if not all_results:
+            if header_widget:
+                header_widget.update("(載入中…)")
             dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—", "—",
                        key="__loading__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
@@ -1517,9 +1536,11 @@ class MonitorApp(App[None]):
             f"static asof: {asof_date}  universe {n_univ} 檔  "
             f"(顯示 4/4: {n_pass4} 檔 | 隱藏 3/4: {n_pass3} 檔)  [eval {cache_age}s前]"
         )
+        if header_widget:
+            header_widget.update(header_info)
 
         if not results:
-            dt.add_row("—", "(目前無 4/4 合格)", "—", "—", "—", "—", "—", "—", "—", header_info,
+            dt.add_row("—", "(目前無 4/4 合格)", "—", "—", "—", "—", "—", "—", "—", "—",
                        key="__no_match__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
@@ -1537,9 +1558,6 @@ class MonitorApp(App[None]):
             pass_s  = f"{pc}/4"
             asof_s  = r.get("asof", "") or "—"
             status  = _overnight_status_text(r)
-            # 第一 row 的 status 欄附上 cache header info
-            if i == 0:
-                status = f"{status}  [{header_info}]"
             dt.add_row(ticker, name, price_s, bb_s, kbar_s, slope_s, mkt_s,
                        pass_s, asof_s, status, key=ticker or f"__r{id(r)}__")
         self._restore_table_state(dt, saved_cursor, saved_scroll)
