@@ -48,14 +48,6 @@ else
     echo "[2/3] backfill_minute_kbar SKIP — $CANDIDATES_FILE 不存在" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi
 
-# 3/3 broker cache 預熱 (分點)
-echo "[3/3] daily_fetcher (broker cache)..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-if $PYTHON "$REPO/scripts/zhuli/daily_fetcher.py" \
-    --date "$DATE" \
-    2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
-    echo "[3/3] daily_fetcher OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-else
-    echo "[3/3] daily_fetcher FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-fi
+# (deprecated 6/8: 3/3 broker cache 預熱、daily_fetcher 已移除、邊際價值低 + 時序錯)
 
 echo "=== evening_fetch 完成 === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
