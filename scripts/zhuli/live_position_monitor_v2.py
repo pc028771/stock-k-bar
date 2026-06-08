@@ -1153,8 +1153,8 @@ class MonitorApp(App[None]):
             return len(items)
 
         if tab_id == TAB_OVERNIGHT:
-            # 永不 drop、universe 全顯
-            return len(self._overnight_signals)
+            # 只算 4/4 合格的
+            return sum(1 for r in self._overnight_signals if r.get("pass_count") == 4)
 
         if tab_id == TAB_SCANNER:
             items = list(self._watch)
@@ -1493,28 +1493,36 @@ class MonitorApp(App[None]):
           - static cache: overnight_static_features.json (precompute_overnight_static.py)
           - live snap:    FubonClient.get_realtime_snapshot (13:20 後才有意義)
 
-        永不 drop — universe 全顯、依 pass_count desc → strength_score desc 排序。
+        只顯示 4/4 全過、按 strength_score desc 排序。
         """
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
-        results = self._get_overnight_signals()
+        all_results = self._get_overnight_signals()
         dt.clear()
-        if not results:
-            # 10 cols
+        if not all_results:
             dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—", "—",
                        key="__loading__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
 
+        # 只留 4/4 全過 (隱藏不合格)
+        results = [r for r in all_results if r.get("pass_count") == 4]
+
         cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
         asof_date = self._overnight_candidate_date or "—"
-        n_univ    = len([r for r in results if r.get("ticker", "—") != "—"])
-        n_pass4   = sum(1 for r in results if r.get("pass_count") == 4)
-        n_pass3   = sum(1 for r in results if r.get("pass_count") == 3)
+        n_univ    = len([r for r in all_results if r.get("ticker", "—") != "—"])
+        n_pass4   = len(results)
+        n_pass3   = sum(1 for r in all_results if r.get("pass_count") == 3)
         header_info = (
             f"static asof: {asof_date}  universe {n_univ} 檔  "
-            f"(4/4: {n_pass4} | 3/4: {n_pass3})  [eval {cache_age}s前]"
+            f"(顯示 4/4: {n_pass4} | 隱藏 3/4: {n_pass3})  [eval {cache_age}s前]"
         )
+
+        if not results:
+            dt.add_row("—", "(目前無 4/4 合格)", "—", "—", "—", "—", "—", "—", "—", header_info,
+                       key="__no_match__")
+            self._restore_table_state(dt, saved_cursor, saved_scroll)
+            return
 
         for i, r in enumerate(results):
             ticker  = r.get("ticker", "")
