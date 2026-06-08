@@ -87,6 +87,7 @@ _classify_watch_source = getattr(_v1, '_classify_watch_source', None)
 _classify_watch_item   = getattr(_v1, '_classify_watch_item',   None)
 load_ma10            = _v1.load_ma10
 load_5d_avg_volume   = _v1.load_5d_avg_volume
+load_prev_close      = _v1.load_prev_close
 TRIGGER_DISPLAY      = _v1.TRIGGER_DISPLAY
 TRIGGER_RANK         = _v1.TRIGGER_RANK
 _get_market_regime_chip = _v1._get_market_regime_chip
@@ -594,10 +595,19 @@ class MonitorApp(App[None]):
                 # ── dump signals: only for HELD tickers ─────────────────────
                 dump_warn = ""
                 dump_warn_full = ""
+                # prev_close 三層查找: baseline → DB latest close → 0
+                # baseline 易過期 (5/28 製作)、DB 最可靠
                 prev_close = 0.0
                 if tk in held_tickers:
                     b = self._dump_baseline.get(tk, {}) if self._dump_baseline else {}
                     prev_close = float(b.get('yesterday_close') or 0)
+                if not prev_close:
+                    # 所有 ticker (held + watch + plan) fallback DB
+                    try:
+                        prev_close = float(load_prev_close(tk) or 0)
+                    except Exception:
+                        prev_close = 0.0
+                if tk in held_tickers:
                     try:
                         self._dump_tracker.update_tick(
                             tk, close_ if close_ else None,
