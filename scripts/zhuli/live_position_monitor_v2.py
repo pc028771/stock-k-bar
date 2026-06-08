@@ -33,7 +33,7 @@ import sqlite3
 import sys
 import threading
 import time
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -1039,11 +1039,8 @@ class MonitorApp(App[None]):
             return len(items)
 
         if tab_id == TAB_OVERNIGHT:
-            from datetime import time as _time
-            sigs = self._overnight_signals
-            if datetime.now().time() >= _time(13, 0):
-                sigs = [r for r in sigs if r.get("pass_count", 0) == 4]
-            return len(sigs)
+            # 永不 drop、universe 全顯
+            return len(self._overnight_signals)
 
         if tab_id == TAB_SCANNER:
             items = list(self._watch)
@@ -1350,23 +1347,17 @@ class MonitorApp(App[None]):
     def _refresh_overnight_table(self) -> None:
         """刷新 🌅 隔日沖 tab 的 DataTable（live 條件評估）。
 
-        13:00 前: 全顯示（含等待狀態）
-        13:00 後: 只顯示 4/4 全過的
+        永不 drop — universe 332 檔全顯、依 pass_count desc + strength_score desc 排序。
         """
-        from datetime import time as _time
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
-        all_results = self._get_overnight_signals()
+        results = self._get_overnight_signals()
         dt.clear()
-        if not all_results:
+        if not results:
             dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—",
                        key="__loading__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
-
-        # 13:00 filter
-        show_all = datetime.now().time() < _time(13, 0)
-        results = all_results if show_all else [r for r in all_results if r["pass_count"] == 4]
 
         # cache age 顯示 (status bar 顯示)
         cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
