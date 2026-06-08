@@ -28,7 +28,6 @@ Demo 模式:
 from __future__ import annotations
 
 import argparse
-import csv
 import math
 import sqlite3
 import sys
@@ -247,12 +246,15 @@ TAB_SCANNER   = "tab-scanner"
 
 TAB_LABELS = {
     TAB_HELD:      "📊 持倉",
+    TAB_OVERNIGHT: "🌅 隔日沖",
     TAB_CONFIRMED: "🎯 可進場",
     TAB_WATCHING:  "🔍 觀察",
     TAB_PINNED:    "📌 Pinned",
-    TAB_OVERNIGHT: "🌅 隔日沖",
     TAB_SCANNER:   "📈 Scanner",
 }
+
+# Tab order: 1=持倉 2=隔日沖 3=可進場 4=觀察 5=Pinned 6=Scanner
+_TAB_ORDER = [TAB_HELD, TAB_OVERNIGHT, TAB_CONFIRMED, TAB_WATCHING, TAB_PINNED, TAB_SCANNER]
 
 # ── Column specs ─────────────────────────────────────────────────────────────
 # (key, label, width)
@@ -284,18 +286,193 @@ COLS_WATCH = [
 ]
 
 COLS_OVERNIGHT = [
-    ("ticker",      "代號",    6),
-    ("name",        "股名",    8),
-    ("signal_date", "訊號日", 10),
-    ("entry",       "進場",    8),
-    ("stop",        "停損",    8),
-    ("exit",        "出場",    8),
-    ("ret",         "報酬%",   8),
-    ("reason",      "出場原因", 12),
+    ("ticker",  "代號",  6),
+    ("name",    "股名",  8),
+    ("price",   "現價", 10),
+    ("bb",      "布林",  5),   # ✅ / ❌
+    ("kbar",    "K棒",   5),   # ✅ / ❌
+    ("slope",   "斜率",  5),   # ✅ / ❌
+    ("market",  "大盤",  5),   # ✅ / ❌
+    ("pass",    "通過",  6),   # "3/4" / "4/4"
+    ("status",  "狀態", 20),   # "等斜率" / "✅ 可進場" etc.
 ]
 
-# CSV path for overnight swing backtest results
-_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "backtest_ytd" / "overnight_swing_trades.csv"
+# ── overnight universe loader ────────────────────────────────────────────────
+def _load_overnight_universe() -> list[str]:
+    """讀取老師 332 檔 universe (sector_tickers + picks_2026 dedup union)。"""
+    tickers: set[str] = set()
+    base = _REPO / "docs" / "主力大課程"
+    try:
+        import json
+        with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
+            s1 = json.load(fh)
+        for v in s1.values():
+            if isinstance(v, list):
+                tickers.update(str(t) for t in v)
+    except Exception:
+        pass
+    try:
+        import json
+        with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
+            s2 = json.load(fh)
+        for k in s2:
+            if k.isdigit() and len(k) == 4:
+                tickers.add(k)
+    except Exception:
+        pass
+    return sorted(tickers)
+
+
+# ── overnight condition evaluator ─────────────────────────────────────────────
+def _evaluate_overnight_conditions(ticker: str, db_path) -> dict:
+    """Evaluate 4 overnight_swing conditions for a single ticker.
+
+    Returns dict with keys:
+        bb, kbar, slope, market (bool each),
+        price (float), pass_count (int), strength_score (float),
+        fails (list[str]), error (str | None)
+    """
+    result = {
+        "ticker": ticker, "price": 0.0,
+        "bb": False, "kbar": False, "slope": False, "market": False,
+        "pass_count": 0, "strength_score": 0.0, "fails": [],
+        "error": None,
+    }
+    try:
+        import sqlite3 as _sq
+        import numpy as np
+        import pandas as pd
+        from zhuli.config import OvernightSwingConfig
+        cfg = OvernightSwingConfig()
+
+        # ── load bar data ──────────────────────────────────────────────────
+        with _sq.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5) as con:
+            df = pd.read_sql_query(
+                "SELECT trade_date, open, close, low, volume "
+                "FROM standard_daily_bar "
+                "WHERE ticker=? ORDER BY trade_date DESC LIMIT 60",
+                con, params=(ticker,),
+            )
+        if len(df) < 22:
+            result["error"] = "資料不足"
+            return result
+
+        df = df.sort_values("trade_date").reset_index(drop=True)
+        df["prev_close"] = df["close"].shift(1)
+        df["prev_volume"] = df["volume"].shift(1)
+        df["prev_low"]   = df["low"].shift(1)
+
+        today = df.iloc[-1]
+        result["price"] = float(today["close"])
+
+        # ── condition 1: BB ────────────────────────────────────────────────
+        close_s = df["close"]
+        bb_mid  = close_s.rolling(20, min_periods=20).mean()
+        bb_std  = close_s.rolling(20, min_periods=20).std(ddof=0)
+        bb_upper = bb_mid + 2 * bb_std
+        bandwidth = (4 * bb_std) / bb_mid.replace(0, np.nan)
+        bw_prev   = bandwidth.shift(1)
+
+        idx = df.index[-1]
+        bb_pass = (
+            bool(today["close"] > bb_upper.iloc[-1])
+            and bool(bw_prev.iloc[-1] < cfg.bandwidth_max)
+        )
+        result["bb"] = bb_pass
+
+        # ── condition 2: K棒 ──────────────────────────────────────────────
+        prev_close_v = float(today["prev_close"]) if not pd.isna(today["prev_close"]) else 0.0
+        body_pct = (today["close"] - prev_close_v) / prev_close_v if prev_close_v else 0.0
+        vol_lots  = float(today["volume"]) / 1000.0
+        prev_vol  = float(today["prev_volume"]) if not pd.isna(today["prev_volume"]) else 0.0
+        kbar_pass = (
+            body_pct >= cfg.body_min
+            and vol_lots >= cfg.min_volume_lots
+            and float(today["volume"]) > prev_vol * cfg.prev_volume_multiplier
+        )
+        result["kbar"] = kbar_pass
+
+        # ── condition 3: MA20 slope ────────────────────────────────────────
+        ma20 = close_s.rolling(20, min_periods=20).mean()
+        # 5-day slope: (ma20[-1] - ma20[-6]) / ma20[-6]
+        if len(ma20.dropna()) >= 6:
+            m_now  = float(ma20.iloc[-1])
+            m_prev = float(ma20.iloc[-6])
+            slope_5d = (m_now - m_prev) / m_prev if m_prev else 0.0
+        else:
+            slope_5d = 0.0
+        slope_pass = slope_5d > cfg.ma20_slope_min
+        result["slope"] = slope_pass
+
+        # ── condition 4: 大盤 (TAIEX only — TPEX 資料不在 DB) ─────────────
+        try:
+            with _sq.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5) as con:
+                mdf = pd.read_sql_query(
+                    "SELECT trade_date, open, close, volume "
+                    "FROM standard_daily_bar "
+                    "WHERE ticker='TAIEX' ORDER BY trade_date DESC LIMIT 10",
+                    con,
+                )
+            if len(mdf) >= 2:
+                mdf = mdf.sort_values("trade_date").reset_index(drop=True)
+                mdf["ma5"] = mdf["close"].rolling(5, min_periods=5).mean()
+                mdf["prev_vol"] = mdf["volume"].shift(1)
+                last_m = mdf.iloc[-1]
+                market_pass = (
+                    bool(last_m["close"] > last_m["open"])        # 紅 K
+                    and bool(last_m["volume"] > float(last_m["prev_vol"] or 0))  # 量增
+                    and bool(not pd.isna(last_m["ma5"]) and last_m["close"] > last_m["ma5"])  # > 5ma
+                )
+            else:
+                market_pass = False
+        except Exception:
+            market_pass = False
+        result["market"] = market_pass
+
+        result["pass_count"] = sum([bb_pass, kbar_pass, slope_pass, market_pass])
+        result["fails"] = [k for k in ("bb", "kbar", "slope", "market") if not result[k]]
+
+        # strength score: distance above ma20 + vol ratio (capped 5) + body size
+        try:
+            ma20_val = float(ma20.iloc[-1]) if not pd.isna(ma20.iloc[-1]) else 0.0
+            close_v  = float(today["close"])
+            dist_ma20 = max(0.0, (close_v - ma20_val) / ma20_val) if ma20_val else 0.0
+            prev_vol_v = float(today["prev_volume"]) if not pd.isna(today["prev_volume"]) else 0.0
+            vol_ratio_prev = (float(today["volume"]) / prev_vol_v) if prev_vol_v else 1.0
+            result["strength_score"] = (
+                dist_ma20
+                + min(vol_ratio_prev, 5.0)
+                + abs(body_pct)
+            )
+        except Exception:
+            result["strength_score"] = 0.0
+
+    except Exception as e:
+        result["error"] = str(e)[:40]
+
+    return result
+
+
+def _overnight_status_text(r: dict) -> str:
+    """Generate status column text from evaluation result dict (spec §6)."""
+    if r.get("error"):
+        return "無資料"
+    pc = r["pass_count"]
+    fails = r.get("fails") or [k for k in ("bb", "kbar", "slope", "market") if not r[k]]
+    if pc == 4:
+        return "✅ 可進場"
+    if pc == 3:
+        label_map = {"bb": "布林", "kbar": "K棒", "slope": "斜率", "market": "大盤"}
+        f = label_map.get(fails[0], fails[0]) if fails else "?"
+        return f"⭐ 接近 (差 {f})"
+    if pc == 2:
+        label_map = {"bb": "布林", "kbar": "K棒", "slope": "斜率", "market": "大盤"}
+        f0 = label_map.get(fails[0], fails[0]) if len(fails) > 0 else "?"
+        f1 = label_map.get(fails[1], fails[1]) if len(fails) > 1 else "?"
+        return f"🟡 監控 ({f0}+{f1})"
+    if pc == 1:
+        return "⚪ 監控 (差 3)"
+    return "⚫ 完全不符"
 
 
 # ── Pin dialog ────────────────────────────────────────────────────────────────
@@ -381,10 +558,10 @@ class MonitorApp(App[None]):
         Binding("ctrl+r",  "refresh_data",    "重整"),
         Binding("q",       "quit",            "退出"),
         Binding("1",       "switch_tab_1",    "持倉", show=False),
-        Binding("2",       "switch_tab_2",    "可進場", show=False),
-        Binding("3",       "switch_tab_3",    "觀察", show=False),
-        Binding("4",       "switch_tab_4",    "Pinned", show=False),
-        Binding("5",       "switch_tab_5",    "隔日沖", show=False),
+        Binding("2",       "switch_tab_2",    "隔日沖", show=False),
+        Binding("3",       "switch_tab_3",    "可進場", show=False),
+        Binding("4",       "switch_tab_4",    "觀察", show=False),
+        Binding("5",       "switch_tab_5",    "Pinned", show=False),
         Binding("6",       "switch_tab_6",    "Scanner", show=False),
         Binding("shift+left",  "page_up",   "↑頁"),
         Binding("shift+right", "page_down", "↓頁"),
@@ -432,10 +609,10 @@ class MonitorApp(App[None]):
         self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
         self._page_size_default: int = 40
 
-        # ── overnight signals cache ──────────────────────────────────────────
+        # ── overnight live evaluation cache ─────────────────────────────────
         self._overnight_signals: list[dict] = []
-        self._overnight_cache_ts: float = 0.0  # last load time (monotonic)
-        self._overnight_cache_ttl: float = 300.0  # 5 minutes
+        self._overnight_cache_ts: float = 0.0  # last eval time (monotonic)
+        self._overnight_cache_ttl: float = 60.0  # 1 minute
 
         # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
         held_tickers = [str(i.get('ticker', '')) for i in self._held
@@ -458,6 +635,11 @@ class MonitorApp(App[None]):
                 yield DataTable(id="dt-held", zebra_stripes=True,
                                 cursor_type="row")
 
+            with TabPane(TAB_LABELS[TAB_OVERNIGHT], id=TAB_OVERNIGHT,
+                         classes="overnight-pane"):
+                yield DataTable(id="dt-overnight", zebra_stripes=True,
+                                cursor_type="row")
+
             with TabPane(TAB_LABELS[TAB_CONFIRMED], id=TAB_CONFIRMED,
                          classes="confirmed-pane"):
                 yield DataTable(id="dt-confirmed", zebra_stripes=True,
@@ -471,11 +653,6 @@ class MonitorApp(App[None]):
             with TabPane(TAB_LABELS[TAB_PINNED], id=TAB_PINNED,
                          classes="pinned-pane"):
                 yield DataTable(id="dt-pinned", zebra_stripes=True,
-                                cursor_type="row")
-
-            with TabPane(TAB_LABELS[TAB_OVERNIGHT], id=TAB_OVERNIGHT,
-                         classes="overnight-pane"):
-                yield DataTable(id="dt-overnight", zebra_stripes=True,
                                 cursor_type="row")
 
             with TabPane(TAB_LABELS[TAB_SCANNER], id=TAB_SCANNER,
@@ -598,6 +775,10 @@ class MonitorApp(App[None]):
         while not self._quit:
             try:
                 self._fetch_all()
+            except Exception:
+                pass
+            try:
+                self._overnight_cache_refresh()
             except Exception:
                 pass
             # demo: 0.5s cycle 快一點、real: 3s
@@ -858,7 +1039,11 @@ class MonitorApp(App[None]):
             return len(items)
 
         if tab_id == TAB_OVERNIGHT:
-            return len(self._overnight_signals)
+            from datetime import time as _time
+            sigs = self._overnight_signals
+            if datetime.now().time() >= _time(13, 0):
+                sigs = [r for r in sigs if r.get("pass_count", 0) == 4]
+            return len(sigs)
 
         if tab_id == TAB_SCANNER:
             items = list(self._watch)
@@ -1118,97 +1303,92 @@ class MonitorApp(App[None]):
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
-    def _load_overnight_signals(self) -> list[dict]:
-        """讀取 overnight_swing backtest CSV，過濾近 7 天，補上股名，按 signal_date desc 排序。
-        結果 cache 5 分鐘（不必每 tick 重讀 CSV）。
+    def _overnight_cache_refresh(self) -> None:
+        """背景評估全 universe 的隔日沖條件，結果存入 _overnight_signals。
+        Cache TTL = 60s。每次 _refresh_loop 末尾呼叫一次。
         """
         now_mono = time.monotonic()
         if (self._overnight_signals and
                 now_mono - self._overnight_cache_ts < self._overnight_cache_ttl):
-            return self._overnight_signals
+            return  # still fresh
 
-        signals: list[dict] = []
+        universe = _load_overnight_universe()
+        db_path = str(_v1.DB)
+
+        # 查股名 (一次 batch)
+        name_map: dict[str, str] = {}
         try:
-            if not _OVERNIGHT_CSV.exists():
-                self._overnight_signals = signals
-                self._overnight_cache_ts = now_mono
-                return signals
-
-            cutoff = (date.today() - timedelta(days=7)).isoformat()
-
-            # 讀 CSV
-            with open(_OVERNIGHT_CSV, newline="", encoding="utf-8") as fh:
-                reader = csv.DictReader(fh)
-                for row in reader:
-                    if row.get("signal_date", "") >= cutoff:
-                        signals.append(dict(row))
-
-            # 補股名（DB lookup）
-            if signals:
-                tickers = list({r["ticker"] for r in signals})
-                name_map: dict[str, str] = {}
-                try:
-                    db_path = str(_v1.DB)
-                    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
-                    placeholders = ",".join("?" * len(tickers))
-                    rows = con.execute(
-                        f"SELECT ticker, stock_name FROM stock_info WHERE ticker IN ({placeholders})",
-                        tickers,
-                    ).fetchall()
-                    con.close()
-                    name_map = {r[0]: r[1] for r in rows}
-                except Exception:
-                    pass
-                for row in signals:
-                    row["name"] = name_map.get(row["ticker"], "")
-
-            # 按 signal_date desc 排序
-            signals.sort(key=lambda r: r.get("signal_date", ""), reverse=True)
-
+            con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
+            placeholders = ",".join("?" * len(universe))
+            rows = con.execute(
+                f"SELECT ticker, stock_name FROM stock_info WHERE ticker IN ({placeholders})",
+                universe,
+            ).fetchall()
+            con.close()
+            name_map = {r[0]: r[1] for r in rows}
         except Exception:
-            signals = []
+            pass
 
-        self._overnight_signals = signals
+        results: list[dict] = []
+        for tk in universe:
+            r = _evaluate_overnight_conditions(tk, db_path)
+            r["name"] = name_map.get(tk, "")
+            results.append(r)
+
+        # 排序: pass_count desc → strength_score desc (永不 drop)
+        results.sort(key=lambda r: (-r["pass_count"], -r["strength_score"]))
+
+        self._overnight_signals = results
         self._overnight_cache_ts = now_mono
-        return signals
+
+    def _get_overnight_signals(self) -> list[dict]:
+        """回傳已 cache 的 overnight 評估結果。若 cache 空則觸發同步更新。"""
+        if not self._overnight_signals:
+            self._overnight_cache_refresh()
+        return self._overnight_signals
 
     def _refresh_overnight_table(self) -> None:
-        """刷新 🌅 隔日沖 tab 的 DataTable。"""
+        """刷新 🌅 隔日沖 tab 的 DataTable（live 條件評估）。
+
+        13:00 前: 全顯示（含等待狀態）
+        13:00 後: 只顯示 4/4 全過的
+        """
+        from datetime import time as _time
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
-        signals = self._load_overnight_signals()
+        all_results = self._get_overnight_signals()
         dt.clear()
-        if not signals:
-            # 顯示「無資料」提示 row
-            dt.add_row("—", "無資料", "—", "—", "—", "—", "—", "—", key="__empty__")
+        if not all_results:
+            dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—",
+                       key="__loading__")
+            self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
-        for sig in signals:
-            ticker = sig.get("ticker", "")
-            name   = sig.get("name", "")
-            sig_dt = sig.get("signal_date", "")
-            try:
-                entry  = f"{float(sig.get('entry_price', 0)):.2f}"
-            except Exception:
-                entry  = sig.get("entry_price", "—")
-            try:
-                stop   = f"{float(sig.get('stop_loss', 0)):.2f}"
-            except Exception:
-                stop   = sig.get("stop_loss", "—")
-            exit_p = sig.get("exit_price", "")
-            try:
-                exit_s = f"{float(exit_p):.2f}" if exit_p else "—"
-            except Exception:
-                exit_s = str(exit_p) or "—"
-            try:
-                ret_pct = float(sig.get("return_pct", 0))
-                sign    = "+" if ret_pct >= 0 else ""
-                ret_s   = f"{sign}{ret_pct:.2f}%"
-            except Exception:
-                ret_s   = sig.get("return_pct", "—")
-            reason  = sig.get("exit_reason", "—") or "—"
-            row_key = f"{ticker}_{sig_dt}"
-            dt.add_row(ticker, name, sig_dt, entry, stop, exit_s, ret_s, reason,
-                       key=row_key)
+
+        # 13:00 filter
+        show_all = datetime.now().time() < _time(13, 0)
+        results = all_results if show_all else [r for r in all_results if r["pass_count"] == 4]
+
+        # cache age 顯示 (status bar 顯示)
+        cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
+        age_suffix = f"  [資料{cache_age}s前]"
+
+        for i, r in enumerate(results):
+            ticker = r.get("ticker", "")
+            name   = r.get("name", "")
+            price  = r.get("price", 0.0)
+            price_s = f"{price:.2f}" if price else "—"
+            bb_s   = "✅" if r.get("bb") else "❌"
+            kbar_s = "✅" if r.get("kbar") else "❌"
+            slope_s= "✅" if r.get("slope") else "❌"
+            mkt_s  = "✅" if r.get("market") else "❌"
+            pc     = r.get("pass_count", 0)
+            pass_s = f"{pc}/4"
+            status = _overnight_status_text(r)
+            # append cache age on last row
+            if i == len(results) - 1:
+                status = status + age_suffix
+            dt.add_row(ticker, name, price_s, bb_s, kbar_s, slope_s, mkt_s,
+                       pass_s, status, key=ticker or f"__r{id(r)}__")
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _refresh_scanner_table(self, ld: dict) -> None:
@@ -1336,16 +1516,16 @@ class MonitorApp(App[None]):
         self._switch_to_tab(TAB_HELD)
 
     def action_switch_tab_2(self) -> None:
-        self._switch_to_tab(TAB_CONFIRMED)
+        self._switch_to_tab(TAB_OVERNIGHT)
 
     def action_switch_tab_3(self) -> None:
-        self._switch_to_tab(TAB_WATCHING)
+        self._switch_to_tab(TAB_CONFIRMED)
 
     def action_switch_tab_4(self) -> None:
-        self._switch_to_tab(TAB_PINNED)
+        self._switch_to_tab(TAB_WATCHING)
 
     def action_switch_tab_5(self) -> None:
-        self._switch_to_tab(TAB_OVERNIGHT)
+        self._switch_to_tab(TAB_PINNED)
 
     def action_switch_tab_6(self) -> None:
         self._switch_to_tab(TAB_SCANNER)
