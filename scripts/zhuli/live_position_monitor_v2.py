@@ -326,7 +326,9 @@ def _load_overnight_universe_unused() -> list[str]:
 
 
 # ── overnight candidates loader (前一日 scanner 候選) ────────────────────────
-_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "backtest_ytd" / "overnight_swing_trades.csv"
+# 改用 zhuli_scanner.py 每晚 22:00 cron 輸出的 pre-market scanner CSV
+# (com.howard.zhuli.overnight_scanner.plist)
+_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "overnight_swing_scanner.csv"
 
 def _load_overnight_candidates() -> tuple[list[str], str]:
     """讀 overnight_swing_trades.csv、回傳最新 signal_date 的 (ticker list, signal_date str)。
