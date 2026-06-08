@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.overnight_scanner</string>
+
+    <!--
+      每晚 22:00 跑 overnight_swing scanner、輸出 pre-market 候選清單給 monitor v2:
+        - 22:00 等 21:00 evening_fetch + 21:30 retry + 21:45 daily_scanner 完成
+        - 覆蓋寫 data/analysis/zhuli/overnight_swing_scanner.csv (pandas to_csv 預設覆蓋)
+        - user 可手動再跑覆蓋
+      log: /tmp/zhuli_overnight_scanner.log
+    -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/howard/.pyenv/shims/python3</string>
+        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli_scanner.py</string>
+        <string>--signal</string>
+        <string>overnight_swing</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/howard/Repository/stock-k-bar/scripts:/Users/howard/Repository/stock-analysis-system</string>
+    </dict>
+
+    <!-- 每週一~五 22:00 -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>0</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/zhuli_overnight_scanner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/zhuli_overnight_scanner.err</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
