@@ -4,63 +4,67 @@
 <dict>
     <key>Label</key>
     <string>com.howard.zhuli.evening_fetch_retry</string>
-
-    <!--
-      每晚 21:30 資料補完 retry：
-        - 檢查法人 / broker cache / 1分K 是否完整
-        - 不完整則補跑缺漏部分
-      log: ~/Library/Logs/zhuli_evening_fetch_retry.log
-    -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FINMIND_TOKEN</key>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/evening_fetch_retry.sh</string>
+        <string>-c</string>
+        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /bin/bash /Users/howard/Repository/stock-k-bar/scripts/zhuli/evening_fetch_retry.sh; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
     </array>
-
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
-        <key>FINMIND_TOKEN</key>
-        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
-    </dict>
-
-    <!-- 每週一~五 21:30 -->
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.evening_fetch_retry.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.evening_fetch_retry.err</string>
     <key>StartCalendarInterval</key>
     <array>
         <dict>
-            <key>Weekday</key><integer>1</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+            <key>Weekday</key>
+            <integer>1</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>2</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+            <key>Weekday</key>
+            <integer>2</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>3</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+            <key>Weekday</key>
+            <integer>3</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>4</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+            <key>Weekday</key>
+            <integer>4</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>5</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>30</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+            <key>Weekday</key>
+            <integer>5</integer>
         </dict>
     </array>
-
-    <key>StandardOutPath</key>
-    <string>/Users/howard/Library/Logs/zhuli_evening_fetch_retry.log</string>
-    <key>StandardErrorPath</key>
-    <string>/Users/howard/Library/Logs/zhuli_evening_fetch_retry.log</string>
-
-    <key>RunAtLoad</key>
-    <false/>
 </dict>
 </plist>
