@@ -1,8 +1,8 @@
 {
   "_meta": {
     "description": "Howard 持倉 + ETF。FIFO 反算自對帳單。",
-    "last_updated": "2026-05-28 13:34 (5/28 大清倉後)",
-    "source": "證券對帳單 20260528133408.csv"
+    "last_updated": "2026-06-08 (含 6/3-6/5 全部交易)",
+    "source": "broker_statement DB (~/.four_seasons/data.sqlite)"
   },
   "holdings": {
     "_6_1_summary": {
@@ -60,13 +60,82 @@
     },
     "1605_華新": {
       "name": "華新",
-      "shares": 8,
-      "cost": 40.1,
-      "entry_date": "2026-06-01",
+      "shares": 12,
+      "cost": 40.52,
+      "entry_date": "2026-06-01 + 6/3 加碼",
+      "lots": "8@40.10 (6/1) + 2@41.15 (6/3) + 2@41.45 (6/3)",
       "stop_loss": 38.75,
       "stop_loss_source": "雙錨 / 5/29 收盤",
       "category": "Tier-S core / 子弟兵",
       "catalyst": "Q2 結帳發酵"
+    },
+    "3481_群創": {
+      "name": "群創",
+      "shares": 2,
+      "cost": 58.7,
+      "entry_date": "2026-06-03",
+      "stop_loss": 56.2,
+      "stop_loss_source": "結構底 / 老師 5/31 影片親口",
+      "category": "面板 / 玻璃 chain",
+      "catalyst": "老師 6/7 玻璃熟悉股、6/3 進場時 OK、6/4 進處置、6/17 出處置",
+      "disposition_warning": "🚨 6/4 進處置、6/17 出關、扛 7 天、流動性差砍不掉"
+    },
+    "1303_南亞": {
+      "name": "南亞",
+      "shares": 1,
+      "cost": 104.5,
+      "entry_date": "2026-06-05",
+      "stop_loss": 92.7,
+      "stop_loss_source": "MA20",
+      "category": "ABF / CCL chain",
+      "catalyst": "老師 6/7 ABF 後來認可、新進場 Stage 1 試水",
+      "note": "原 exclusion_list 5/26「南亞那塊不做了」已過 2-3 週、老師「看過的可以再看」rule"
+    },
+    "3264_欣銓": {
+      "name": "欣銓",
+      "shares": 1,
+      "cost": 228.5,
+      "entry_date": "2026-06-05",
+      "stop_loss": 226.1,
+      "stop_loss_source": "雙錨",
+      "category": "封測",
+      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一"
+    },
+    "6257_矽格": {
+      "name": "矽格",
+      "shares": 1,
+      "cost": 223.0,
+      "entry_date": "2026-06-05",
+      "stop_loss": 219.9,
+      "stop_loss_source": "雙錨",
+      "category": "封測 / IC 測試",
+      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一"
+    },
+    "8046_南電_CLOSED": {
+      "name": "南電 (已出清 2026-06-05、隔日沖)",
+      "shares": 0,
+      "cost": 898.36,
+      "entry_date": "2026-06-04",
+      "exit_date": "2026-06-05",
+      "exit_dates": [
+        "2026-06-04 現買 1 張 @ 900.0 (cost 900,359)",
+        "2026-06-04 現買 200 股 @ 890.0 (cost 178,071)",
+        "2026-06-05 現賣 1 張 @ 851.0 (net 848,108)",
+        "2026-06-05 現賣 200 股 @ 838.0 (net 167,031)"
+      ],
+      "realized_pnl": -63291,
+      "realized_pct": -5.87,
+      "lesson": "隔日沖大虧、教訓: 6/4 進場時大盤已弱、6/5 跳空殺、不該追高價股當沖"
+    },
+    "2303_聯電_DAYTRADE_CLOSED": {
+      "name": "聯電當沖 (2026-06-03)",
+      "shares": 0,
+      "exit_dates": [
+        "2026-06-03 沖買 2 張 @ 133.0",
+        "2026-06-03 沖賣 2 張 @ 132.5"
+      ],
+      "realized_pnl": -1608,
+      "lesson": "當沖小虧"
     },
     "2885": {
       "name": "元大金",
