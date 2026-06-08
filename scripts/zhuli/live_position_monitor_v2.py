@@ -1515,7 +1515,7 @@ class MonitorApp(App[None]):
         n_pass3   = sum(1 for r in all_results if r.get("pass_count") == 3)
         header_info = (
             f"static asof: {asof_date}  universe {n_univ} 檔  "
-            f"(顯示 4/4: {n_pass4} | 隱藏 3/4: {n_pass3})  [eval {cache_age}s前]"
+            f"(顯示 4/4: {n_pass4} 檔 | 隱藏 3/4: {n_pass3} 檔)  [eval {cache_age}s前]"
         )
 
         if not results:
