@@ -196,66 +196,66 @@ def _backfill_single_ticker(
         return rs
 
     updated = 0
+    # Collect (outcome, rowid) pairs and bulk-UPDATE at the end with
+    # executemany — was ~0.3ms × N branches of round-trips before; now a
+    # single transaction. Updating by rowid is also faster than the old
+    # 3-key WHERE because rowid is an integer primary key.
+    update_batch: list[tuple[int, int]] = []
 
-    with sqlite3.connect(str(db_path)) as conn:
-        for (rowid, run_id, scenario_idx, branch_id,
-             when_json_str, next_day_n, trade_date) in rows:
+    for (rowid, run_id, scenario_idx, branch_id,
+         when_json_str, next_day_n, trade_date) in rows:
 
-            # Skip if run date not in our df
-            if trade_date not in date_to_pos:
+        # Skip if run date not in our df
+        if trade_date not in date_to_pos:
+            continue
+
+        # For each lookahead n in 1..next_day_n, evaluate the condition and
+        # read it AT THE FIRED ROW (the DSL is row-relative: at row T,
+        # `next_day.close` = close.shift(-n) evaluated against today.* on T,
+        # so the answer for "did the n-th day satisfy the branch" lives in
+        # result_series.loc[trade_date], NOT loc[trade_date + n]).
+        run_pos = date_to_pos[trade_date]
+        matched_n: Optional[int] = None
+        had_unparseable_dsl = False
+        had_any_eval = False
+
+        for n in range(1, next_day_n + 1):
+            # If the n-th lookahead falls past the end of available data,
+            # the answer is unknown for this n. Skip but keep trying smaller
+            # n already done (or larger — n grows, so subsequent n also fails).
+            if run_pos + n >= len(all_dates):
+                break
+            rs = _eval_series(when_json_str, n)
+            if rs is None:
+                had_unparseable_dsl = True
+                break
+            had_any_eval = True
+            try:
+                fired = bool(rs.loc[trade_date])
+            except (KeyError, TypeError):
                 continue
+            if fired:
+                matched_n = n
+                break
 
-            # For each lookahead n in 1..next_day_n, evaluate the condition and
-            # read it AT THE FIRED ROW (the DSL is row-relative: at row T,
-            # `next_day.close` = close.shift(-n) evaluated against today.* on T,
-            # so the answer for "did the n-th day satisfy the branch" lives in
-            # result_series.loc[trade_date], NOT loc[trade_date + n]).
-            run_pos = date_to_pos[trade_date]
-            matched_n: Optional[int] = None
-            had_unparseable_dsl = False
-            had_any_eval = False
+        # Skip (leave NULL) if DSL was unparseable OR we never managed an eval
+        # (e.g., run_pos+1 already off the end → not enough future data yet).
+        if had_unparseable_dsl or not had_any_eval:
+            continue
 
-            for n in range(1, next_day_n + 1):
-                # If the n-th lookahead falls past the end of available data,
-                # the answer is unknown for this n. Skip but keep trying smaller
-                # n already done (or larger — n grows, so subsequent n also fails).
-                if run_pos + n >= len(all_dates):
-                    break
-                rs = _eval_series(when_json_str, n)
-                if rs is None:
-                    had_unparseable_dsl = True
-                    break
-                had_any_eval = True
-                try:
-                    fired = bool(rs.loc[trade_date])
-                except (KeyError, TypeError):
-                    continue
-                if fired:
-                    matched_n = n
-                    break
+        # matched_n=None means we evaluated 1..N and none matched
+        outcome = matched_n if matched_n is not None else -1
+        update_batch.append((outcome, rowid))
 
-            # Skip (leave NULL) if DSL was unparseable OR we never managed an eval
-            # (e.g., run_pos+1 already off the end → not enough future data yet).
-            if had_unparseable_dsl or not had_any_eval:
-                continue
-
-            # matched_n=None means we evaluated 1..N and none matched
-            outcome = matched_n if matched_n is not None else -1
-
-            conn.execute(
-                """
-                UPDATE advisor_branches
-                SET matched_after_n_days = ?
-                WHERE run_id = ?
-                  AND scenario_idx = ?
-                  AND branch_id = ?
-                  AND matched_after_n_days IS NULL
-                """,
-                (outcome, run_id, scenario_idx, branch_id),
+    if update_batch:
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.executemany(
+                "UPDATE advisor_branches SET matched_after_n_days = ? "
+                "WHERE rowid = ? AND matched_after_n_days IS NULL",
+                update_batch,
             )
-            updated += 1
-
-        conn.commit()
+            conn.commit()
+        updated = len(update_batch)
 
     return updated
 
@@ -651,10 +651,24 @@ def _simulate_one_ticker(
             db_path=worker_db_path,
         )
 
+    # Per-ticker backfill — runs immediately on this worker's DB so the work
+    # parallelises across workers. The global backfill loop in
+    # simulate_advisor_history still runs as a safety net (it's idempotent —
+    # only touches NULL rows, which there should be ~none of after this).
+    n_branches_backfilled = 0
+    if save_to_db and worker_db_path.exists():
+        try:
+            n_branches_backfilled = _backfill_single_ticker(
+                ticker, ticker_df, worker_db_path, None
+            )
+        except Exception:
+            n_branches_backfilled = 0
+
     return {
         "ticker": ticker,
         "n_runs_saved": n_runs_saved,
         "n_runs_skipped": n_runs_skipped,
+        "n_branches_backfilled": n_branches_backfilled,
     }
 
 
@@ -870,6 +884,11 @@ def simulate_advisor_history(
 
     n_runs_saved = 0
     n_runs_skipped = 0
+    # _simulate_one_ticker now runs per-ticker backfill on its worker DB so
+    # the work parallelises. The global backfill loop below still runs as a
+    # safety net (idempotent — only touches NULL rows), but it's mostly a
+    # no-op now; we report whichever count was actually done.
+    n_branches_backfilled_in_workers = 0
 
     if n_workers <= 1:
         # ---------- Serial path (preserves existing behaviour) ----------
@@ -888,6 +907,7 @@ def simulate_advisor_history(
             )
             n_runs_saved += res["n_runs_saved"]
             n_runs_skipped += res["n_runs_skipped"]
+            n_branches_backfilled_in_workers += res.get("n_branches_backfilled", 0)
     else:
         # ---------- Parallel path ----------
         # Per-worker temp DBs under db_path.parent / <stem>.workers/
@@ -928,6 +948,7 @@ def simulate_advisor_history(
                 res = fut.result()
                 worker_saved_sum += res["n_runs_saved"]
                 n_runs_skipped += res["n_runs_skipped"]
+                n_branches_backfilled_in_workers += res.get("n_branches_backfilled", 0)
 
         if save_to_db:
             worker_dbs = [wdb for (_t, _df, wdb) in tasks]
@@ -960,29 +981,40 @@ def simulate_advisor_history(
             except OSError:
                 pass
 
-    # Back-fill matched_after_n_days for every ticker (vectorized pass)
-    n_branches_backfilled = 0
+    # Back-fill matched_after_n_days. Per-worker backfill already ran inside
+    # _simulate_one_ticker (parallelises with the advisor work). This global
+    # pass is a safety net for any NULL rows that survived (e.g. branches
+    # whose future-day data wasn't yet available when the worker ran but is
+    # now). It's idempotent — only touches matched_after_n_days IS NULL rows.
+    n_branches_backfilled = n_branches_backfilled_in_workers
     if save_to_db:
-        for ticker in ticker_list:
-            if "ticker" in bars_df.columns:
-                ticker_df = bars_df[bars_df["ticker"] == ticker].copy()
-            else:
-                ticker_df = bars_df.copy()
+        # Quick check: any NULL rows left? Skip the loop entirely if not.
+        with sqlite3.connect(str(db_path)) as conn:
+            null_count = conn.execute(
+                "SELECT COUNT(*) FROM advisor_branches WHERE matched_after_n_days IS NULL"
+            ).fetchone()[0]
 
-            if ticker_df.empty:
-                continue
+        if null_count > 0:
+            for ticker in ticker_list:
+                if "ticker" in bars_df.columns:
+                    ticker_df = bars_df[bars_df["ticker"] == ticker].copy()
+                else:
+                    ticker_df = bars_df.copy()
 
-            # Ensure features are present for evaluate_vectorized
-            try:
-                from ..features import add_features as _add_features
-                sentinel = "prev_close"
-                if sentinel not in ticker_df.columns:
-                    ticker_df = _add_features(ticker_df)
-            except Exception:
-                pass
+                if ticker_df.empty:
+                    continue
 
-            updated = _backfill_single_ticker(ticker, ticker_df, db_path, playbook_dirs)
-            n_branches_backfilled += updated
+                # Ensure features are present for evaluate_vectorized
+                try:
+                    from ..features import add_features as _add_features
+                    sentinel = "prev_close"
+                    if sentinel not in ticker_df.columns:
+                        ticker_df = _add_features(ticker_df)
+                except Exception:
+                    pass
+
+                updated = _backfill_single_ticker(ticker, ticker_df, db_path, playbook_dirs)
+                n_branches_backfilled += updated
 
     n_dates = len(_trading_dates_in_range(bars_df, start_date, end_date))
 
