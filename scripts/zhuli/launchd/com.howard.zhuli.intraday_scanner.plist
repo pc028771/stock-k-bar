@@ -25,7 +25,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/intraday_scanner.py; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; echo "--- step 1/2: intraday_scanner (尾盤快報) ---"; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/intraday_scanner.py; echo "--- step 2/2: intraday_overnight_quickscan (overnight 預估) ---"; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/intraday_overnight_quickscan.py; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
     </array>
     <key>RunAtLoad</key>
     <false/>

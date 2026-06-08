@@ -294,7 +294,8 @@ COLS_OVERNIGHT = [
     ("slope",   "斜率",  5),   # ✅ / ❌
     ("market",  "大盤",  5),   # ✅ / ❌
     ("pass",    "通過",  6),   # "3/4" / "4/4"
-    ("status",  "狀態", 20),   # "等斜率" / "✅ 可進場" etc.
+    ("asof",    "資料時間", 10),  # Fubon snap timestamp HH:MM:SS
+    ("status",  "狀態", 22),   # "等斜率" / "✅ 可進場" etc.
 ]
 
 # ── overnight universe loader (保留備用) ─────────────────────────────────────
@@ -325,137 +326,221 @@ def _load_overnight_universe_unused() -> list[str]:
     return sorted(tickers)
 
 
-# ── overnight candidates loader (前一日 scanner 候選) ────────────────────────
-# 改用 zhuli_scanner.py 每晚 22:00 cron 輸出的 pre-market scanner CSV
-# (com.howard.zhuli.overnight_scanner.plist)
-_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "overnight_swing_scanner.csv"
+# ── overnight universe + static features ─────────────────────────────────────
+# 新架構: 不再讀 candidates CSV、而是 332 檔 universe live eval (Fubon snap + static cache)
+# static cache 由 scripts/zhuli/precompute_overnight_static.py 每天 08:30 / 12:30 預算
+_OVERNIGHT_STATIC_JSON  = _REPO / "data" / "analysis" / "zhuli" / "overnight_static_features.json"
 
-def _load_overnight_candidates() -> tuple[list[str], str]:
-    """讀 overnight_swing_trades.csv、回傳最新 signal_date 的 (ticker list, signal_date str)。
+# 舊 CSV 路徑保留為 fallback / 歷史檔（不再讀進 monitor）
+_OVERNIGHT_CSV          = _REPO / "data" / "analysis" / "zhuli" / "overnight_swing_scanner.csv"
+
+
+def _load_overnight_static() -> dict:
+    """讀 precomputed static features JSON、回傳 dict.
+
+    Returns: dict (含 _meta / _market / {ticker: features...})
+             若 JSON 不存在或無法 parse、回傳 {}.
+    """
+    try:
+        import json as _json
+        if not _OVERNIGHT_STATIC_JSON.exists():
+            return {}
+        with open(_OVERNIGHT_STATIC_JSON, encoding="utf-8") as fh:
+            return _json.load(fh)
+    except Exception:
+        return {}
+
+
+def _load_overnight_universe() -> list[str]:
+    """讀老師 universe (sector_tickers ∪ picks_2026 ≈ 332 檔)。"""
+    import json as _json
+    tickers: set[str] = set()
+    base = _REPO / "docs" / "主力大課程"
+    try:
+        with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
+            d = _json.load(fh)
+        for v in d.values():
+            if isinstance(v, list):
+                tickers.update(str(t) for t in v)
+    except Exception:
+        pass
+    try:
+        with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
+            d = _json.load(fh)
+        for k in d:
+            if isinstance(k, str) and k.isdigit() and len(k) == 4:
+                tickers.add(k)
+    except Exception:
+        pass
+    return sorted(tickers)
+
+
+# ── legacy: 舊 candidate-based loader (已停用、僅保留供將來參考) ──────────
+def _load_overnight_candidates_legacy() -> tuple[list[dict], str]:
+    """讀兩個 CSV 並合併，回傳 (candidate_list, signal_date_str)。
+
+    每個 candidate dict 包含 {"ticker": str, "source": "✅ 確認" | "⚡ 預估"}.
+    dedup by (signal_date, ticker)，確認版優先（相同 ticker 確認版覆蓋預估版）。
+    signal_date 以確認版最新日期為準（若無，用預估版）。
 
     Returns:
-        (ticker_list, signal_date_str) — 若 CSV 不存在或空，回傳 ([], "")
+        (candidate_list, signal_date_str) — 若兩個 CSV 皆不存在或空，回傳 ([], "")
     """
     try:
         import pandas as pd
-        if not _OVERNIGHT_CSV.exists():
+
+        rows: list[dict] = []   # {"ticker", "source", "signal_date"}
+
+        # ── 確認版 ────────────────────────────────────────────────────────────
+        confirmed_date = ""
+        if _OVERNIGHT_CSV.exists():
+            df_c = pd.read_csv(_OVERNIGHT_CSV, dtype={"ticker": str})
+            if not df_c.empty and "signal_date" in df_c.columns and "ticker" in df_c.columns:
+                confirmed_date = str(df_c["signal_date"].max())
+                latest_c = df_c[df_c["signal_date"] == confirmed_date]
+                for tk in latest_c["ticker"].dropna().astype(str).unique():
+                    rows.append({"ticker": tk, "source": "✅ 確認", "signal_date": confirmed_date})
+
+        # ── 預估版 ────────────────────────────────────────────────────────────
+        intraday_date = ""
+        if _OVERNIGHT_INTRADAY_CSV.exists():
+            df_i = pd.read_csv(_OVERNIGHT_INTRADAY_CSV, dtype={"ticker": str})
+            if not df_i.empty and "signal_date" in df_i.columns and "ticker" in df_i.columns:
+                intraday_date = str(df_i["signal_date"].max())
+                latest_i = df_i[df_i["signal_date"] == intraday_date]
+                for tk in latest_i["ticker"].dropna().astype(str).unique():
+                    rows.append({"ticker": tk, "source": "⚡ 預估", "signal_date": intraday_date})
+
+        if not rows:
             return [], ""
-        df = pd.read_csv(_OVERNIGHT_CSV, dtype={"ticker": str})
-        if df.empty or "signal_date" not in df.columns or "ticker" not in df.columns:
-            return [], ""
-        # 篩最新 signal_date
-        max_date = str(df["signal_date"].max())
-        latest   = df[df["signal_date"] == max_date]
-        tickers  = sorted(latest["ticker"].dropna().astype(str).unique().tolist())
-        return tickers, max_date
+
+        # dedup: 同 ticker 確認版優先
+        seen: dict[str, dict] = {}
+        for r in rows:
+            tk = r["ticker"]
+            if tk not in seen or r["source"] == "✅ 確認":
+                seen[tk] = r
+
+        candidates = sorted(seen.values(), key=lambda r: r["ticker"])
+        signal_date = confirmed_date or intraday_date
+        return candidates, signal_date
+
     except Exception:
         return [], ""
 
 
-# ── overnight condition evaluator ─────────────────────────────────────────────
-def _evaluate_overnight_conditions(ticker: str, db_path) -> dict:
-    """Evaluate 4 overnight_swing conditions for a single ticker.
+# ── overnight condition evaluator (live: static cache + Fubon snap) ─────────
+def _evaluate_overnight_live(
+    ticker: str,
+    static: dict,
+    snap: dict | None,
+    market_static: dict,
+    market_snap: dict | None,
+) -> dict:
+    """Live 評估 4 條件：用 static cache 提供 BB/MA/斜率/量基線、用 snap 提供今日 close/open/volume.
 
-    Returns dict with keys:
-        bb, kbar, slope, market (bool each),
-        price (float), pass_count (int), strength_score (float),
-        fails (list[str]), error (str | None)
+    static: 該 ticker 在 overnight_static_features.json 內的 dict (含 bb_upper / bandwidth_prev /
+            ma20_slope_5d / prev_close / prev_volume / vol_20d_avg ...)
+    snap:   Fubon get_realtime_snapshot 結果 (close/open/total_volume) — 可能為 None
+    market_static: static["_market"]["TAIEX"] 或 ["TPEX"]
+    market_snap:   Fubon snap for TAIEX (可能為 None)
+
+    Returns dict 同舊 _evaluate_overnight_conditions schema、外加 "asof": HH:MM:SS.
     """
     result = {
         "ticker": ticker, "price": 0.0,
         "bb": False, "kbar": False, "slope": False, "market": False,
         "pass_count": 0, "strength_score": 0.0, "fails": [],
-        "error": None,
+        "error": None, "asof": "",
     }
     try:
-        import sqlite3 as _sq
-        import numpy as np
-        import pandas as pd
+        if not static or static.get("error") and "asof_date" not in static:
+            result["error"] = static.get("error") if static else "no_static"
+            return result
+
         from zhuli.config import OvernightSwingConfig
         cfg = OvernightSwingConfig()
 
-        # ── load bar data ──────────────────────────────────────────────────
-        with _sq.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5) as con:
-            df = pd.read_sql_query(
-                "SELECT trade_date, open, close, low, volume "
-                "FROM standard_daily_bar "
-                "WHERE ticker=? ORDER BY trade_date DESC LIMIT 60",
-                con, params=(ticker,),
+        bb_upper       = static.get("bb_upper")
+        bandwidth_prev = static.get("bandwidth_prev")
+        slope_5d       = static.get("ma20_slope_5d")
+        ma20           = static.get("ma20")
+        prev_close_v   = static.get("prev_close") or 0.0
+        prev_vol       = static.get("prev_volume") or 0.0
+
+        # snap → today close/volume；無 snap (盤前) 則 fallback 用 static prev_close 不評估
+        close_ = 0.0
+        vol_   = 0.0
+        if snap:
+            try:
+                close_ = float(snap.get("close") or 0)
+                vol_   = float(snap.get("total_volume") or 0)
+            except Exception:
+                pass
+            ts = snap.get("ts") or snap.get("timestamp") or ""
+            if ts:
+                # ts 可能是 datetime 物件或 str；取 HH:MM:SS
+                try:
+                    if hasattr(ts, "strftime"):
+                        result["asof"] = ts.strftime("%H:%M:%S")
+                    else:
+                        s = str(ts)
+                        result["asof"] = s[-8:] if len(s) >= 8 else s
+                except Exception:
+                    pass
+            if not result["asof"]:
+                result["asof"] = datetime.now().strftime("%H:%M:%S")
+
+        result["price"] = close_
+
+        # ── 條件 1: BB ────────────────────────────────────────────────────
+        bb_pass = False
+        if close_ and bb_upper and bandwidth_prev is not None:
+            bb_pass = (close_ > float(bb_upper)) and (
+                float(bandwidth_prev) < cfg.bandwidth_max
             )
-        if len(df) < 22:
-            result["error"] = "資料不足"
-            return result
-
-        df = df.sort_values("trade_date").reset_index(drop=True)
-        df["prev_close"] = df["close"].shift(1)
-        df["prev_volume"] = df["volume"].shift(1)
-        df["prev_low"]   = df["low"].shift(1)
-
-        today = df.iloc[-1]
-        result["price"] = float(today["close"])
-
-        # ── condition 1: BB ────────────────────────────────────────────────
-        close_s = df["close"]
-        bb_mid  = close_s.rolling(20, min_periods=20).mean()
-        bb_std  = close_s.rolling(20, min_periods=20).std(ddof=0)
-        bb_upper = bb_mid + 2 * bb_std
-        bandwidth = (4 * bb_std) / bb_mid.replace(0, np.nan)
-        bw_prev   = bandwidth.shift(1)
-
-        idx = df.index[-1]
-        bb_pass = (
-            bool(today["close"] > bb_upper.iloc[-1])
-            and bool(bw_prev.iloc[-1] < cfg.bandwidth_max)
-        )
         result["bb"] = bb_pass
 
-        # ── condition 2: K棒 ──────────────────────────────────────────────
-        prev_close_v = float(today["prev_close"]) if not pd.isna(today["prev_close"]) else 0.0
-        body_pct = (today["close"] - prev_close_v) / prev_close_v if prev_close_v else 0.0
-        vol_lots  = float(today["volume"]) / 1000.0
-        prev_vol  = float(today["prev_volume"]) if not pd.isna(today["prev_volume"]) else 0.0
+        # ── 條件 2: K棒 (body / 量 / 量增) ───────────────────────────────
+        body_pct = ((close_ - prev_close_v) / prev_close_v
+                    if prev_close_v and close_ else 0.0)
+        vol_lots = vol_ / 1000.0 if vol_ else 0.0
         kbar_pass = (
             body_pct >= cfg.body_min
             and vol_lots >= cfg.min_volume_lots
-            and float(today["volume"]) > prev_vol * cfg.prev_volume_multiplier
+            and vol_ > prev_vol * cfg.prev_volume_multiplier
         )
         result["kbar"] = kbar_pass
 
-        # ── condition 3: MA20 slope ────────────────────────────────────────
-        ma20 = close_s.rolling(20, min_periods=20).mean()
-        # 5-day slope: (ma20[-1] - ma20[-6]) / ma20[-6]
-        if len(ma20.dropna()) >= 6:
-            m_now  = float(ma20.iloc[-1])
-            m_prev = float(ma20.iloc[-6])
-            slope_5d = (m_now - m_prev) / m_prev if m_prev else 0.0
-        else:
-            slope_5d = 0.0
-        slope_pass = slope_5d > cfg.ma20_slope_min
+        # ── 條件 3: MA20 斜率 (純 static) ────────────────────────────────
+        slope_pass = (slope_5d is not None
+                      and float(slope_5d) > cfg.ma20_slope_min)
         result["slope"] = slope_pass
 
-        # ── condition 4: 大盤 (TAIEX only — TPEX 資料不在 DB) ─────────────
+        # ── 條件 4: 大盤 (snap-based + static MA5 fallback) ──────────────
+        market_pass = False
         try:
-            with _sq.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5) as con:
-                mdf = pd.read_sql_query(
-                    "SELECT trade_date, open, close, volume "
-                    "FROM standard_daily_bar "
-                    "WHERE ticker='TAIEX' ORDER BY trade_date DESC LIMIT 10",
-                    con,
-                )
-            if len(mdf) >= 2:
-                mdf = mdf.sort_values("trade_date").reset_index(drop=True)
-                mdf["ma5"] = mdf["close"].rolling(5, min_periods=5).mean()
-                mdf["prev_vol"] = mdf["volume"].shift(1)
-                last_m = mdf.iloc[-1]
-                market_pass = (
-                    bool(last_m["close"] > last_m["open"])        # 紅 K
-                    and bool(last_m["volume"] > float(last_m["prev_vol"] or 0))  # 量增
-                    and bool(not pd.isna(last_m["ma5"]) and last_m["close"] > last_m["ma5"])  # > 5ma
-                )
-            else:
-                market_pass = False
+            if market_snap and market_static:
+                m_close = float(market_snap.get("close") or 0)
+                m_open  = float(market_snap.get("open")  or 0)
+                m_vol   = float(market_snap.get("total_volume") or 0)
+                prev_v  = float(market_static.get("prev_volume") or 0)
+                ma5     = market_static.get("ma5")
+                if m_close and m_open and ma5:
+                    market_pass = (
+                        m_close > m_open                # 紅 K
+                        and m_vol > prev_v              # 量增
+                        and m_close > float(ma5)        # > 5MA
+                    )
+            elif market_static:
+                # 無 live snap → 用 static prev (asof_date 那天的結果) 當 fallback
+                m_close = float(market_static.get("prev_close") or 0)
+                m_open  = float(market_static.get("prev_open")  or 0)
+                ma5     = market_static.get("ma5")
+                if m_close and m_open and ma5:
+                    market_pass = (m_close > m_open and m_close > float(ma5))
         except Exception:
-            market_pass = False
+            pass
         result["market"] = market_pass
 
         result["pass_count"] = sum([bb_pass, kbar_pass, slope_pass, market_pass])
@@ -463,11 +548,10 @@ def _evaluate_overnight_conditions(ticker: str, db_path) -> dict:
 
         # strength score: distance above ma20 + vol ratio (capped 5) + body size
         try:
-            ma20_val = float(ma20.iloc[-1]) if not pd.isna(ma20.iloc[-1]) else 0.0
-            close_v  = float(today["close"])
-            dist_ma20 = max(0.0, (close_v - ma20_val) / ma20_val) if ma20_val else 0.0
-            prev_vol_v = float(today["prev_volume"]) if not pd.isna(today["prev_volume"]) else 0.0
-            vol_ratio_prev = (float(today["volume"]) / prev_vol_v) if prev_vol_v else 1.0
+            ma20_val = float(ma20) if ma20 else 0.0
+            dist_ma20 = (max(0.0, (close_ - ma20_val) / ma20_val)
+                         if ma20_val and close_ else 0.0)
+            vol_ratio_prev = (vol_ / prev_vol) if prev_vol else 1.0
             result["strength_score"] = (
                 dist_ma20
                 + min(vol_ratio_prev, 5.0)
@@ -1331,50 +1415,63 @@ class MonitorApp(App[None]):
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _overnight_cache_refresh(self) -> None:
-        """評估前一日 scanner 候選的隔日沖條件，結果存入 _overnight_signals。
-        資料來源: overnight_swing_trades.csv（最新 signal_date 的候選，通常 5-20 檔）。
+        """Live eval 全 universe (≈332 檔) 的隔日沖 4 條件，結果存入 _overnight_signals。
+
+        資料來源:
+          - static features: overnight_static_features.json (precompute_overnight_static.py
+            每天 08:30 / 12:30 跑、cron 在 launchd plist 設定)
+          - live snap: FubonClient.get_realtime_snapshot(ticker) — 13:20 後才有意義
+
         Cache TTL = 60s。每次 _refresh_loop 末尾呼叫一次。
+        永不 drop — 332 檔全顯，依 pass_count desc + strength_score desc 排序。
         """
         now_mono = time.monotonic()
         if (self._overnight_signals and
                 now_mono - self._overnight_cache_ts < self._overnight_cache_ttl):
             return  # still fresh
 
-        candidates, signal_date = _load_overnight_candidates()
-        db_path = str(_v1.DB)
+        static_all = _load_overnight_static()
+        meta       = static_all.get("_meta", {}) if static_all else {}
+        market_static = (static_all.get("_market", {}) or {}).get("TAIEX", {})
 
-        # CSV 找不到或為空 → 寫入提示 row、不 crash
-        if not candidates:
+        if not static_all:
             self._overnight_signals = [{
-                "ticker": "—", "name": "無候選資料、scanner 未跑",
+                "ticker": "—", "name": "無 static cache、請跑 precompute_overnight_static.py",
                 "price": 0.0, "bb": False, "kbar": False, "slope": False,
                 "market": False, "pass_count": 0, "strength_score": 0.0,
-                "fails": [], "error": "無候選",
+                "fails": [], "error": "no_static_cache", "asof": "",
             }]
-            self._overnight_candidate_date = signal_date or ""
+            self._overnight_candidate_date = ""
             self._overnight_cache_ts = now_mono
             return
 
-        self._overnight_candidate_date = signal_date
+        universe = _load_overnight_universe()
+        self._overnight_candidate_date = meta.get("asof_date", "")
 
-        # 查股名 (一次 batch)
-        name_map: dict[str, str] = {}
+        # 拿 client (real / demo 都有 get_realtime_snapshot)
+        client = self._demo_client if self._demo_mode else self._client
+
+        # TAIEX live snap
+        market_snap = None
         try:
-            con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
-            placeholders = ",".join("?" * len(candidates))
-            rows = con.execute(
-                f"SELECT ticker, stock_name FROM stock_info WHERE ticker IN ({placeholders})",
-                candidates,
-            ).fetchall()
-            con.close()
-            name_map = {r[0]: r[1] for r in rows}
+            if client is not None:
+                market_snap = client.get_realtime_snapshot("TAIEX") or None
         except Exception:
-            pass
+            market_snap = None
 
         results: list[dict] = []
-        for tk in candidates:
-            r = _evaluate_overnight_conditions(tk, db_path)
-            r["name"] = name_map.get(tk, "")
+        for tk in universe:
+            static_tk = static_all.get(tk, {}) or {}
+            snap = None
+            try:
+                if client is not None:
+                    snap = client.get_realtime_snapshot(tk) or None
+            except Exception:
+                snap = None
+            r = _evaluate_overnight_live(
+                tk, static_tk, snap, market_static, market_snap,
+            )
+            r["name"] = static_tk.get("stock_name", "") or ""
             results.append(r)
 
         # 排序: pass_count desc → strength_score desc (永不 drop)
@@ -1390,44 +1487,53 @@ class MonitorApp(App[None]):
         return self._overnight_signals
 
     def _refresh_overnight_table(self) -> None:
-        """刷新 🌅 隔日沖 tab 的 DataTable（live 條件評估）。
+        """刷新 🌅 隔日沖 tab 的 DataTable（live eval 全 universe）。
 
-        資料來源: overnight_swing_trades.csv 最新 signal_date 候選（通常 5-20 檔）。
-        永不 drop — 全顯、依 pass_count desc + strength_score desc 排序。
+        資料來源:
+          - static cache: overnight_static_features.json (precompute_overnight_static.py)
+          - live snap:    FubonClient.get_realtime_snapshot (13:20 後才有意義)
+
+        永不 drop — universe 全顯、依 pass_count desc → strength_score desc 排序。
         """
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
         results = self._get_overnight_signals()
         dt.clear()
         if not results:
-            dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—",
+            # 10 cols
+            dt.add_row("—", "載入中…", "—", "—", "—", "—", "—", "—", "—", "—",
                        key="__loading__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
 
-        # 候選日期 + cache age 顯示
         cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
-        cand_date = self._overnight_candidate_date or "—"
-        n_cands   = len([r for r in results if r.get("ticker", "—") != "—"])
-        header_info = f"候選來源日: {cand_date} ({n_cands}檔)  [資料{cache_age}s前]"
+        asof_date = self._overnight_candidate_date or "—"
+        n_univ    = len([r for r in results if r.get("ticker", "—") != "—"])
+        n_pass4   = sum(1 for r in results if r.get("pass_count") == 4)
+        n_pass3   = sum(1 for r in results if r.get("pass_count") == 3)
+        header_info = (
+            f"static asof: {asof_date}  universe {n_univ} 檔  "
+            f"(4/4: {n_pass4} | 3/4: {n_pass3})  [eval {cache_age}s前]"
+        )
 
         for i, r in enumerate(results):
-            ticker = r.get("ticker", "")
-            name   = r.get("name", "")
-            price  = r.get("price", 0.0)
+            ticker  = r.get("ticker", "")
+            name    = r.get("name", "")
+            price   = r.get("price", 0.0)
             price_s = f"{price:.2f}" if price else "—"
-            bb_s   = "✅" if r.get("bb") else "❌"
-            kbar_s = "✅" if r.get("kbar") else "❌"
-            slope_s= "✅" if r.get("slope") else "❌"
-            mkt_s  = "✅" if r.get("market") else "❌"
-            pc     = r.get("pass_count", 0)
-            pass_s = f"{pc}/4"
-            status = _overnight_status_text(r)
-            # 第一 row 的 status 欄附上候選日期 / cache age
+            bb_s    = "✅" if r.get("bb") else "❌"
+            kbar_s  = "✅" if r.get("kbar") else "❌"
+            slope_s = "✅" if r.get("slope") else "❌"
+            mkt_s   = "✅" if r.get("market") else "❌"
+            pc      = r.get("pass_count", 0)
+            pass_s  = f"{pc}/4"
+            asof_s  = r.get("asof", "") or "—"
+            status  = _overnight_status_text(r)
+            # 第一 row 的 status 欄附上 cache header info
             if i == 0:
                 status = f"{status}  [{header_info}]"
             dt.add_row(ticker, name, price_s, bb_s, kbar_s, slope_s, mkt_s,
-                       pass_s, status, key=ticker or f"__r{id(r)}__")
+                       pass_s, asof_s, status, key=ticker or f"__r{id(r)}__")
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _refresh_scanner_table(self, ld: dict) -> None:
