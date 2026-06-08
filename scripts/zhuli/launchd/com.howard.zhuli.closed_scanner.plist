@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.howard.stock.sync_today</string>
+    <string>com.howard.zhuli.closed_scanner</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>FINMIND_TOKEN</key>
@@ -25,14 +25,16 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /Users/howard/.pyenv/versions/3.12.12/bin/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/sync_today.py --skip-institutional; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+        <string>mkdir -p /tmp/launchd
+echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="
+echo "--- step 1/2: sync_today (Fubon snapshot → DB) ---"
+/Users/howard/.pyenv/versions/3.12.12/bin/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/sync_today.py --skip-institutional
+echo "--- step 2/2: overnight_swing scanner ---"
+/Users/howard/.pyenv/versions/3.12.12/bin/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli_scanner.py --signal overnight_swing --date $(date +%Y-%m-%d)
+echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
     </array>
-    <key>RunAtLoad</key>
-    <false/>
-    <key>StandardOutPath</key>
-    <string>/tmp/launchd/com.howard.stock.sync_today.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/launchd/com.howard.stock.sync_today.err</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar</string>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
@@ -40,5 +42,11 @@
         <key>Minute</key>
         <integer>35</integer>
     </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.closed_scanner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.closed_scanner.err</string>
+    <key>RunAtLoad</key>
+    <false/>
 </dict>
 </plist>

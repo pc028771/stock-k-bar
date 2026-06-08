@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.zhuli.daily_scanner_evening</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FINMIND_TOKEN</key>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>mkdir -p /tmp/launchd
+echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="
+/Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py
+echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/howard/Repository/stock-k-bar</string>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>1</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>2</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>3</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>4</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>5</integer>
+        </dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.daily_scanner_evening.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.daily_scanner_evening.err</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
