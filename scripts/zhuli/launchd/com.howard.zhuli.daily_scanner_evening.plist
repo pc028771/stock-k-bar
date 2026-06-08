@@ -4,64 +4,67 @@
 <dict>
     <key>Label</key>
     <string>com.howard.zhuli.daily_scanner_evening</string>
-
-    <!--
-      每晚 21:45 完整版 scanner（21:00 法人/分點/1分K 齊全後跑）：
-        - 覆蓋 /tmp/scanner_candidates_<date>.md
-        - 不加 --allow-missing-* 旗標（資料應已完整）
-        - 若有缺資料會記 log 但不爆（現有邏輯）
-      log: /tmp/zhuli_daily_scanner_evening.log
-    -->
-    <key>ProgramArguments</key>
-    <array>
-        <string>/Users/howard/.pyenv/shims/python3</string>
-        <string>/Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py</string>
-    </array>
-
     <key>EnvironmentVariables</key>
     <dict>
-        <key>PATH</key>
-        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
         <key>FINMIND_TOKEN</key>
         <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
     </dict>
-
-    <!-- 每週一~五 21:45 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.daily_scanner_evening.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.zhuli.daily_scanner_evening.err</string>
     <key>StartCalendarInterval</key>
     <array>
         <dict>
-            <key>Weekday</key><integer>1</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>45</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>1</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>2</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>45</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>2</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>3</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>45</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>3</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>4</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>45</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>4</integer>
         </dict>
         <dict>
-            <key>Weekday</key><integer>5</integer>
-            <key>Hour</key><integer>21</integer>
-            <key>Minute</key><integer>45</integer>
+            <key>Hour</key>
+            <integer>21</integer>
+            <key>Minute</key>
+            <integer>45</integer>
+            <key>Weekday</key>
+            <integer>5</integer>
         </dict>
     </array>
-
-    <key>StandardOutPath</key>
-    <string>/tmp/zhuli_daily_scanner_evening.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/zhuli_daily_scanner_evening.err</string>
-
-    <key>RunAtLoad</key>
-    <false/>
 </dict>
 </plist>
