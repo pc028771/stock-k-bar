@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.howard.stock.sync_today</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>FINMIND_TOKEN</key>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xNyAyMjoyMTo1MSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjMxLjE5MiJ9.ePJpQ7zqRLDo1SscAY_TalW2Fcbl3QL4G-R9RYiSjyc</string>
+        <key>FUBON_API_KEY</key>
+        <string>CAD10AD5F4F0EA880FC3529FC7C7857D08228988EE9F718B7E83A8EE8C3B196A</string>
+        <key>FUBON_CREDENTIAL_FILE</key>
+        <string>/Users/howard/.fubon/A123309212_20270401.p12</string>
+        <key>FUBON_CREDENTIAL_PWD</key>
+        <string>My253845</string>
+        <key>FUBON_PID</key>
+        <string>A123309212</string>
+        <key>FUBON_PWD</key>
+        <string>camGep2zaz</string>
+        <key>PATH</key>
+        <string>/Users/howard/.pyenv/versions/3.12.12/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /Users/howard/.pyenv/versions/3.12.12/bin/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/sync_today.py --skip-institutional; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+    </array>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/tmp/launchd/com.howard.stock.sync_today.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/launchd/com.howard.stock.sync_today.err</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>13</integer>
+        <key>Minute</key>
+        <integer>35</integer>
+    </dict>
+</dict>
+</plist>
