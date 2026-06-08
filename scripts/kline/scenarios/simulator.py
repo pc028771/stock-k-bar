@@ -180,6 +180,7 @@ def _backfill_single_ticker(
 
     n_total_dates = len(all_dates)
     update_batch: list[tuple[int, int]] = []
+    updated = 0
 
     parse_cache: dict[str, dict] = {}
     for (when_json_str, n_max), group_rows in groups.items():
