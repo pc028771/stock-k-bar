@@ -297,9 +297,11 @@ COLS_OVERNIGHT = [
     ("status",  "狀態", 20),   # "等斜率" / "✅ 可進場" etc.
 ]
 
-# ── overnight universe loader ────────────────────────────────────────────────
-def _load_overnight_universe() -> list[str]:
-    """讀取老師 332 檔 universe (sector_tickers + picks_2026 dedup union)。"""
+# ── overnight universe loader (保留備用) ─────────────────────────────────────
+def _load_overnight_universe_unused() -> list[str]:
+    """讀取老師 332 檔 universe (sector_tickers + picks_2026 dedup union)。
+    注意: 已改用 _load_overnight_candidates()，此函式保留供未來參考。
+    """
     tickers: set[str] = set()
     base = _REPO / "docs" / "主力大課程"
     try:
@@ -321,6 +323,31 @@ def _load_overnight_universe() -> list[str]:
     except Exception:
         pass
     return sorted(tickers)
+
+
+# ── overnight candidates loader (前一日 scanner 候選) ────────────────────────
+_OVERNIGHT_CSV = _REPO / "data" / "analysis" / "zhuli" / "backtest_ytd" / "overnight_swing_trades.csv"
+
+def _load_overnight_candidates() -> tuple[list[str], str]:
+    """讀 overnight_swing_trades.csv、回傳最新 signal_date 的 (ticker list, signal_date str)。
+
+    Returns:
+        (ticker_list, signal_date_str) — 若 CSV 不存在或空，回傳 ([], "")
+    """
+    try:
+        import pandas as pd
+        if not _OVERNIGHT_CSV.exists():
+            return [], ""
+        df = pd.read_csv(_OVERNIGHT_CSV, dtype={"ticker": str})
+        if df.empty or "signal_date" not in df.columns or "ticker" not in df.columns:
+            return [], ""
+        # 篩最新 signal_date
+        max_date = str(df["signal_date"].max())
+        latest   = df[df["signal_date"] == max_date]
+        tickers  = sorted(latest["ticker"].dropna().astype(str).unique().tolist())
+        return tickers, max_date
+    except Exception:
+        return [], ""
 
 
 # ── overnight condition evaluator ─────────────────────────────────────────────
@@ -613,6 +640,7 @@ class MonitorApp(App[None]):
         self._overnight_signals: list[dict] = []
         self._overnight_cache_ts: float = 0.0  # last eval time (monotonic)
         self._overnight_cache_ttl: float = 60.0  # 1 minute
+        self._overnight_candidate_date: str = ""  # signal_date of last loaded candidates
 
         # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
         held_tickers = [str(i.get('ticker', '')) for i in self._held
@@ -1301,7 +1329,8 @@ class MonitorApp(App[None]):
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
     def _overnight_cache_refresh(self) -> None:
-        """背景評估全 universe 的隔日沖條件，結果存入 _overnight_signals。
+        """評估前一日 scanner 候選的隔日沖條件，結果存入 _overnight_signals。
+        資料來源: overnight_swing_trades.csv（最新 signal_date 的候選，通常 5-20 檔）。
         Cache TTL = 60s。每次 _refresh_loop 末尾呼叫一次。
         """
         now_mono = time.monotonic()
@@ -1309,17 +1338,31 @@ class MonitorApp(App[None]):
                 now_mono - self._overnight_cache_ts < self._overnight_cache_ttl):
             return  # still fresh
 
-        universe = _load_overnight_universe()
+        candidates, signal_date = _load_overnight_candidates()
         db_path = str(_v1.DB)
+
+        # CSV 找不到或為空 → 寫入提示 row、不 crash
+        if not candidates:
+            self._overnight_signals = [{
+                "ticker": "—", "name": "無候選資料、scanner 未跑",
+                "price": 0.0, "bb": False, "kbar": False, "slope": False,
+                "market": False, "pass_count": 0, "strength_score": 0.0,
+                "fails": [], "error": "無候選",
+            }]
+            self._overnight_candidate_date = signal_date or ""
+            self._overnight_cache_ts = now_mono
+            return
+
+        self._overnight_candidate_date = signal_date
 
         # 查股名 (一次 batch)
         name_map: dict[str, str] = {}
         try:
             con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=3)
-            placeholders = ",".join("?" * len(universe))
+            placeholders = ",".join("?" * len(candidates))
             rows = con.execute(
                 f"SELECT ticker, stock_name FROM stock_info WHERE ticker IN ({placeholders})",
-                universe,
+                candidates,
             ).fetchall()
             con.close()
             name_map = {r[0]: r[1] for r in rows}
@@ -1327,7 +1370,7 @@ class MonitorApp(App[None]):
             pass
 
         results: list[dict] = []
-        for tk in universe:
+        for tk in candidates:
             r = _evaluate_overnight_conditions(tk, db_path)
             r["name"] = name_map.get(tk, "")
             results.append(r)
@@ -1347,7 +1390,8 @@ class MonitorApp(App[None]):
     def _refresh_overnight_table(self) -> None:
         """刷新 🌅 隔日沖 tab 的 DataTable（live 條件評估）。
 
-        永不 drop — universe 332 檔全顯、依 pass_count desc + strength_score desc 排序。
+        資料來源: overnight_swing_trades.csv 最新 signal_date 候選（通常 5-20 檔）。
+        永不 drop — 全顯、依 pass_count desc + strength_score desc 排序。
         """
         dt: DataTable = self.query_one("#dt-overnight", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
@@ -1359,9 +1403,11 @@ class MonitorApp(App[None]):
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
 
-        # cache age 顯示 (status bar 顯示)
+        # 候選日期 + cache age 顯示
         cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
-        age_suffix = f"  [資料{cache_age}s前]"
+        cand_date = self._overnight_candidate_date or "—"
+        n_cands   = len([r for r in results if r.get("ticker", "—") != "—"])
+        header_info = f"候選來源日: {cand_date} ({n_cands}檔)  [資料{cache_age}s前]"
 
         for i, r in enumerate(results):
             ticker = r.get("ticker", "")
@@ -1375,9 +1421,9 @@ class MonitorApp(App[None]):
             pc     = r.get("pass_count", 0)
             pass_s = f"{pc}/4"
             status = _overnight_status_text(r)
-            # append cache age on last row
-            if i == len(results) - 1:
-                status = status + age_suffix
+            # 第一 row 的 status 欄附上候選日期 / cache age
+            if i == 0:
+                status = f"{status}  [{header_info}]"
             dt.add_row(ticker, name, price_s, bb_s, kbar_s, slope_s, mkt_s,
                        pass_s, status, key=ticker or f"__r{id(r)}__")
         self._restore_table_state(dt, saved_cursor, saved_scroll)
