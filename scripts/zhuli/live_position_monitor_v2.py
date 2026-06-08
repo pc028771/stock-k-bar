@@ -595,18 +595,34 @@ class MonitorApp(App[None]):
                 # ── dump signals: only for HELD tickers ─────────────────────
                 dump_warn = ""
                 dump_warn_full = ""
-                # prev_close 三層查找: baseline → DB latest close → 0
-                # baseline 易過期 (5/28 製作)、DB 最可靠
+                # prev_close 取「前一交易日收盤」(不是今天 partial、不是 stale baseline)
+                # DB 直查、用 trade_date < today、避免 backfill 的當日 partial 污染
                 prev_close = 0.0
-                if tk in held_tickers:
-                    b = self._dump_baseline.get(tk, {}) if self._dump_baseline else {}
-                    prev_close = float(b.get('yesterday_close') or 0)
-                if not prev_close:
-                    # 所有 ticker (held + watch + plan) fallback DB
+                try:
+                    import sqlite3 as _sql
+                    from datetime import date as _date
+                    _today = _date.today().isoformat()
+                    _con = _sql.connect(f"file:{str(_v1.DB)}?mode=ro", uri=True, timeout=3)
+                    _row = _con.execute(
+                        "SELECT close FROM standard_daily_bar WHERE ticker=? AND trade_date < ? ORDER BY trade_date DESC LIMIT 1",
+                        (tk, _today)
+                    ).fetchone()
+                    _con.close()
+                    if _row:
+                        prev_close = float(_row[0])
+                except Exception:
+                    prev_close = 0.0
+                # baseline fallback (只取 ≤ 3 天前的、避免 stale)
+                if not prev_close and tk in held_tickers and self._dump_baseline:
+                    b = self._dump_baseline.get(tk, {})
+                    _yd = b.get('yesterday_date', '')
                     try:
-                        prev_close = float(load_prev_close(tk) or 0)
+                        from datetime import datetime as _dt, date as _dt_date
+                        if _yd and (_dt_date.fromisoformat(_dt.strptime(_yd, "%Y-%m-%d").strftime("%Y-%m-%d")) -
+                                   _dt_date.fromisoformat(_today)).days >= -3:
+                            prev_close = float(b.get('yesterday_close') or 0)
                     except Exception:
-                        prev_close = 0.0
+                        pass
                 if tk in held_tickers:
                     try:
                         self._dump_tracker.update_tick(
