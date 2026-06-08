@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.howard.zhuli.evening_fetch</string>
+	<string>com.howard.zhuli.full_scanner</string>
 	<key>EnvironmentVariables</key>
 	<dict>
 		<key>PATH</key>
@@ -15,7 +15,7 @@
 	<array>
 		<string>/bin/bash</string>
 		<string>-c</string>
-		<string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; /bin/bash /Users/howard/Repository/stock-k-bar/scripts/zhuli/evening_fetch.sh; echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
+		<string>mkdir -p /tmp/launchd; echo "=== START $(date +%Y-%m-%d_%H:%M:%S) ==="; echo "--- step 1/2: daily_scanner_job ---"; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli/daily_scanner_job.py; echo "--- step 2/2: overnight_swing scanner ---"; /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli_scanner.py --signal overnight_swing --date $(date +%Y-%m-%d); echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$? ==="</string>
 	</array>
 	<key>StartCalendarInterval</key>
 	<array>
@@ -25,7 +25,7 @@
 			<key>Hour</key>
 			<integer>21</integer>
 			<key>Minute</key>
-			<integer>30</integer>
+			<integer>45</integer>
 		</dict>
 		<dict>
 			<key>Weekday</key>
@@ -33,7 +33,7 @@
 			<key>Hour</key>
 			<integer>21</integer>
 			<key>Minute</key>
-			<integer>30</integer>
+			<integer>45</integer>
 		</dict>
 		<dict>
 			<key>Weekday</key>
@@ -41,7 +41,7 @@
 			<key>Hour</key>
 			<integer>21</integer>
 			<key>Minute</key>
-			<integer>30</integer>
+			<integer>45</integer>
 		</dict>
 		<dict>
 			<key>Weekday</key>
@@ -49,7 +49,7 @@
 			<key>Hour</key>
 			<integer>21</integer>
 			<key>Minute</key>
-			<integer>30</integer>
+			<integer>45</integer>
 		</dict>
 		<dict>
 			<key>Weekday</key>
@@ -57,13 +57,15 @@
 			<key>Hour</key>
 			<integer>21</integer>
 			<key>Minute</key>
-			<integer>30</integer>
+			<integer>45</integer>
 		</dict>
 	</array>
 	<key>StandardOutPath</key>
-	<string>/tmp/launchd/com.howard.zhuli.evening_fetch.log</string>
+	<string>/tmp/launchd/com.howard.zhuli.full_scanner.log</string>
 	<key>StandardErrorPath</key>
-	<string>/tmp/launchd/com.howard.zhuli.evening_fetch.err</string>
+	<string>/tmp/launchd/com.howard.zhuli.full_scanner.err</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/howard/Repository/stock-k-bar</string>
 	<key>RunAtLoad</key>
 	<false/>
 </dict>
