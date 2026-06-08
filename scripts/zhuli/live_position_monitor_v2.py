@@ -588,6 +588,9 @@ class MonitorApp(App[None]):
                 snap = client.get_realtime_snapshot(tk) or {}
                 close_ = float(snap.get('close') or 0)
                 open_  = float(snap.get('open')  or 0)
+                # snap 失敗 (close=0) 且之前有值、保留不覆蓋 (避免 race 把已抓到的好資料清掉)
+                if not close_ and tk in self._live_data:
+                    continue
                 vol_   = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_) if vol_ else None)
                 ma10   = load_ma10(tk)
