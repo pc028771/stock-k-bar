@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>主力大 / K線力量 — 盤前篩選 vs 盤中判斷</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+    margin: 24px;
+    background: #0f172a;
+    color: #e2e8f0;
+    max-width: 1500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h1 { color: #fbbf24; border-bottom: 2px solid #fbbf24; padding-bottom: 8px; }
+  h2 { color: #60a5fa; margin-top: 32px; }
+  h3 { color: #c084fc; }
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+    padding: 12px;
+    background: #1e293b;
+    border-radius: 8px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .swatch { width: 16px; height: 16px; border-radius: 3px; }
+  .mermaid {
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .notes {
+    background: #1e293b;
+    padding: 16px 24px;
+    border-radius: 8px;
+    border-left: 4px solid #60a5fa;
+    margin: 24px 0;
+  }
+  .notes.premarket { border-left-color: #38bdf8; }
+  .notes.intraday  { border-left-color: #4ade80; }
+  .notes.warning   { border-left-color: #f87171; }
+  .notes ul { margin: 8px 0; }
+  .notes li { margin: 6px 0; line-height: 1.6; }
+  code {
+    background: #334155;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: #fbbf24;
+    font-size: 13px;
+  }
+  .stage-title {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin-right: 12px;
+  }
+  .premarket-tag { background: #0c4a6e; color: #7dd3fc; }
+  .intraday-tag { background: #14532d; color: #86efac; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  th, td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #334155;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: #0f172a; color: #fbbf24; }
+  tr:hover td { background: #243044; }
+</style>
+</head>
+<body>
+
+<h1>🎯 主力大 / K線力量 — 盤前篩選 vs 盤中判斷</h1>
+
+<p>
+  <span class="stage-title premarket-tag">🌙 盤前 (前晚 21:45 / 早上開盤前)</span>
+  <span class="stage-title intraday-tag">📈 盤中 (09:00-13:30)</span>
+</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="swatch" style="background:#0c4a6e"></div>🌙 盤前 篩選層</div>
+  <div class="legend-item"><div class="swatch" style="background:#1e3a8a"></div>🎯 完整策略 scanner</div>
+  <div class="legend-item"><div class="swatch" style="background:#7c2d12"></div>📊 排序加分指標</div>
+  <div class="legend-item"><div class="swatch" style="background:#581c87"></div>🛡️ 紅線過濾</div>
+  <div class="legend-item"><div class="swatch" style="background:#14532d"></div>📈 盤中 即時判斷</div>
+  <div class="legend-item"><div class="swatch" style="background:#92400e"></div>🚦 盤中 Trigger</div>
+  <div class="legend-item"><div class="swatch" style="background:#7f1d1d"></div>🚪 出場規則</div>
+</div>
+
+<h2>🔄 兩階段流程</h2>
+<div class="mermaid">
+graph LR
+    classDef strategy fill:#1e3a8a,stroke:#60a5fa,color:#fff,stroke-width:2px
+    classDef indicator fill:#7c2d12,stroke:#fb923c,color:#fff
+    classDef trigger fill:#92400e,stroke:#fbbf24,color:#fff,stroke-width:2px
+    classDef filter fill:#581c87,stroke:#c084fc,color:#fff
+    classDef intra fill:#14532d,stroke:#4ade80,color:#fff,stroke-width:2px
+    classDef pipeline fill:#0c4a6e,stroke:#38bdf8,color:#fff
+    classDef exit fill:#7f1d1d,stroke:#f87171,color:#fff
+    classDef output fill:#365314,stroke:#a3e635,color:#fff,stroke-width:3px
+
+    subgraph 盤前 ["🌙 盤前 (前晚 21:45 / 早上開盤前) — 篩選候選池"]
+        direction TB
+
+        subgraph 策略層 ["🎯 完整策略 scanner (21 個)"]
+            S_zhuli["主力大入門 6<br/>small_structure<br/>w_bottom_launch<br/>uniform_ma_above<br/>post_attack_watchlist<br/>ma5_pivot<br/>glued_ma5"]:::strategy
+            S_adv["主力大進階 9<br/>suffocation 窒息量<br/>institutional_firstbuy<br/>institutional_swing<br/>swing_breakout<br/>reversal_breakout<br/>pennant_flag<br/>bbands_upper_break<br/>overnight_swing 隔日沖<br/>foreign_buy_on_black_k"]:::strategy
+            S_kline["K線力量入門 6<br/>breakout<br/>sunrise<br/>tweezer_top_breakout<br/>pattern_breakout_only<br/>shoulder_gap_up_pullback<br/>trend_reversal"]:::strategy
+        end
+
+        subgraph 排序指標層 ["📊 排序加分指標 (歷史資料)"]
+            I_pattern["K線型態 25+<br/>doji engulfing<br/>morning_star<br/>zhongshu_pattern"]:::indicator
+            I_score["scoring 11個<br/>attack_continuity<br/>attack_intensity<br/>overhead_supply<br/>shadow_position"]:::indicator
+            I_chip["籌碼<br/>外資5d 投信5d<br/>dual_axis<br/>老師分點 TIER1/2<br/>管錢/站前/信義"]:::indicator
+            I_struct["結構<br/>dist_ma10_pct<br/>扣抵值MA5/10/20/60<br/>vol_ratio 5d avg"]:::indicator
+            I_meta["meta tag<br/>sector 警示族群<br/>處置股<br/>連續漲停"]:::indicator
+        end
+
+        subgraph 盤前過濾 ["🛡️ 盤前紅線過濾"]
+            F_overheat["位階高度<br/>第4段不進<br/>距20MA超過30% 不進"]:::filter
+            F_locked["紅線 #2<br/>漲停隔日 +5%+ skip"]:::filter
+            F_disposal["處置股 sizing 限制"]:::filter
+            F_warning["警示族群 50% sizing<br/>PCB 散熱 連接器"]:::filter
+        end
+
+        OUT["📋 daily_watchlist<br/>YYYY-MM-DD.json<br/>含 P1/P2/P3 分級"]:::output
+    end
+
+    subgraph 盤中 ["📈 盤中 (09:00-13:30) — 即時判定進不進"]
+        direction TB
+
+        subgraph 盤中資料 ["🔴 即時 Fubon snap"]
+            D_snap["分K 資料<br/>open / high / low<br/>close / vol"]:::intra
+            D_market["大盤即時<br/>regime / session<br/>殺盤判定"]:::intra
+        end
+
+        subgraph 盤中即時filter ["🛡️ 盤中紅線 (要看實際開盤)"]
+            FI_gap["紅線 #1<br/>跳空 ≥+3% 不追"]:::filter
+            FI_session["紅線 #3<br/>09:00-13:00 不推"]:::filter
+            FI_3iron["短線三鐵<br/>前5分 大於 5% skip<br/>前10分 不切入<br/>雙錨停損"]:::filter
+            FI_premarket["紅線 #8<br/>試撮漲停 = 主力倒貨"]:::filter
+        end
+
+        subgraph 盤中trigger ["🚦 進場 Trigger 判定"]
+            T_first["首攻 Ch5-3<br/>09:00-13:00"]:::trigger
+            T_t1["續攻 T1<br/>09:45+"]:::trigger
+            T_t2["反彈 T2<br/>09:45+"]:::trigger
+            T_close["⭐ 尾盤_confirmed<br/>13:00-13:25<br/>3-4/5 Win 82%<br/>最佳進場"]:::trigger
+            T_over["尾盤_過熱<br/>5/5 Win 40%<br/>已被拉走"]:::trigger
+            T_skip["尾盤_skip<br/>小於 3/5"]:::trigger
+            T_break["破底 TC<br/>跌破停損"]:::trigger
+        end
+
+        subgraph 盤中出貨 ["📉 持倉出貨警示 即時"]
+            DUMP["dump_signals py<br/>跌破停損<br/>跳空 +3%<br/>上影5%<br/>破MA5<br/>12點殺盤未恢復"]:::intra
+        end
+
+        DECISION["💎 進場決策<br/>Stage 1 試水 2-3張<br/>Stage 2 加碼 +10%<br/>Stage 3 突破"]:::output
+    end
+
+    subgraph 出場 ["🚪 出場規則 (跟進場分離)"]
+        E_c6["C6 sizing-based<br/>partial exit (5 倉)"]:::exit
+        E_struct["結構底跌破<br/>收盤確認"]:::exit
+        E_pattern["大黑K 包覆<br/>低點趨勢消失"]:::exit
+        E_sell["殺盤日 5 分內出"]:::exit
+    end
+
+    %% 盤前流向
+    S_zhuli & S_adv & S_kline --> OUT
+    I_pattern & I_score --> S_zhuli & S_adv & S_kline
+    I_chip --> S_adv
+    I_struct --> S_zhuli
+    I_meta --> F_warning & F_disposal
+    F_overheat & F_locked & F_disposal & F_warning -.-> OUT
+
+    %% 盤前 → 盤中 銜接
+    OUT ==>|"09:00 開盤"| 盤中
+
+    %% 盤中流向
+    D_snap --> T_first & T_t1 & T_t2 & T_close & T_over & T_skip & T_break
+    D_market --> FI_gap & FI_session
+    OUT --> FI_gap & FI_session & FI_3iron & FI_premarket
+    FI_gap & FI_session & FI_3iron & FI_premarket --> T_first & T_t1 & T_t2 & T_close
+    T_first & T_t1 & T_t2 & T_close ==> DECISION
+    T_over & T_skip -.-x DECISION
+
+    %% 出場 (盤中觸發)
+    D_snap --> DUMP
+    DUMP --> E_struct & E_pattern & E_sell
+    T_break --> E_struct
+</div>
+
+<h2>📋 細項比對表</h2>
+<table>
+<tr><th width="20%">項目</th><th width="40%">🌙 盤前處理</th><th width="40%">📈 盤中處理</th></tr>
+<tr>
+  <td><b>跑的時機</b></td>
+  <td>前晚 21:45 launchd / 早上開盤前手動</td>
+  <td>09:00-13:30 即時迴圈 (3s refresh)</td>
+</tr>
+<tr>
+  <td><b>資料來源</b></td>
+  <td>EOD bar / 法人籌碼 / 分點 daily</td>
+  <td>Fubon snap 即時報價 / 分K</td>
+</tr>
+<tr>
+  <td><b>輸出</b></td>
+  <td><code>daily_watchlist/YYYY-MM-DD.json</code> 候選清單 + P1/P2/P3</td>
+  <td>進場 / 加碼 / 出場 即時決策</td>
+</tr>
+<tr>
+  <td><b>策略 scanner</b></td>
+  <td>✅ 全 21 個都跑（純歷史資料判定）</td>
+  <td>❌ 不重跑（直接吃 daily_watchlist）</td>
+</tr>
+<tr>
+  <td><b>排序指標</b></td>
+  <td>✅ K線型態 / scoring / 籌碼 / 扣抵值 全套用</td>
+  <td>❌ 不重算（已 frozen 在 watchlist）</td>
+</tr>
+<tr>
+  <td><b>紅線過濾</b></td>
+  <td>🟦 位階高度 / 漲停隔日 +5%+ / 處置股 / 警示族群（前晚就能判定）</td>
+  <td>🟩 跳空 ≥+3% / 09:00-13:00 不推 / 短線三鐵 / 試撮漲停（要看實際開盤）</td>
+</tr>
+<tr>
+  <td><b>Trigger 判定</b></td>
+  <td>❌ 沒有概念（盤前無「現在進場」可言）</td>
+  <td>✅ 首攻/續攻/反彈/尾盤/破底（核心）</td>
+</tr>
+<tr>
+  <td><b>大盤判斷</b></td>
+  <td>夜盤期貨 / 美股 / 老師講稿（戰略）</td>
+  <td>regime chip 即時 / session chip 時段</td>
+</tr>
+<tr>
+  <td><b>出貨警示</b></td>
+  <td>EOD 結構底計算（停損價）</td>
+  <td>dump_signals 即時偵測 6 種出貨訊號</td>
+</tr>
+<tr>
+  <td><b>典型問題</b></td>
+  <td>「明天該看哪些股？」</td>
+  <td>「現在這檔該進嗎？該出嗎？」</td>
+</tr>
+</table>
+
+<h2>🔑 重點解讀</h2>
+
+<div class="notes premarket">
+  <h3>🌙 盤前是「候選池建立」</h3>
+  <ul>
+    <li><b>所有 21 個策略 scanner</b> + <b>所有排序指標</b> + <b>4 條前晚可判定的紅線</b> 都在此階段</li>
+    <li>輸出固定: <code>daily_watchlist/YYYY-MM-DD.json</code>（一旦 frozen 就不改）</li>
+    <li>核心關鍵字：篩選、排序、過濾、分級</li>
+    <li>策略本身能不能進場？ ➜ <b>不能</b>（只決定「候選」資格、不決定「進場」時機）</li>
+  </ul>
+</div>
+
+<div class="notes intraday">
+  <h3>📈 盤中是「進場時機判定」</h3>
+  <ul>
+    <li>吃 daily_watchlist 當 input、不重跑 scanner</li>
+    <li>用 <b>盤中 Trigger</b>（首攻 / 續攻 / 反彈 / 尾盤 / 破底）判定 watch 標的「現在」可不可以進</li>
+    <li>4 條盤中即時紅線過濾（要看實際開盤行為）</li>
+    <li>核心關鍵字：trigger、即時、Stage 1/2/3、出貨警示</li>
+    <li>沒進候選池就不該盤中看 ➜ <b>「沒在 watchlist 不該追」</b> 是紀律</li>
+  </ul>
+</div>
+
+<div class="notes">
+  <h3>🟰 兩階段關係 = 倒漏斗</h3>
+  <ul>
+    <li><b>盤前 21 個策略</b> ➜ 收斂為 ~30-40 候選 (daily_watchlist)</li>
+    <li><b>盤中 trigger 篩</b> ➜ 收斂為 0-3 檔「可進場」</li>
+    <li><b>實際進場</b> ➜ Stage 1 試水 2-3 張、Stage 2 加碼需 +10% 通則、Stage 3 突破</li>
+  </ul>
+</div>
+
+<div class="notes warning">
+  <h3>⚠️ 容易誤會的兩種情境</h3>
+  <ul>
+    <li><b>「scanner 跑出 X、所以可以進」</b> — 錯。Scanner 只說「值得看」、進場要等盤中 trigger</li>
+    <li><b>「持倉 monitor 顯示尾盤_confirmed」</b> — 該訊號是<b>對首次進場</b>的統計、持倉看到不是叫你加碼。加碼要 +10% 通則</li>
+    <li><b>「不在 watchlist 但盤中突然強勢」</b> — 紅線 #4 不追沒在 watchlist 的標的（避免 FOMO）</li>
+    <li><b>「09:00-13:00 看到 trigger 就進」</b> — 紅線 #3、09:00-13:00 純觀察、13:00 後才考慮</li>
+  </ul>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#1e293b',
+      primaryColor: '#1e3a8a',
+      primaryTextColor: '#fff',
+      primaryBorderColor: '#60a5fa',
+      lineColor: '#94a3b8',
+      fontFamily: '-apple-system, "PingFang TC", sans-serif'
+    },
+    flowchart: {
+      curve: 'basis',
+      htmlLabels: true,
+      nodeSpacing: 30,
+      rankSpacing: 60
+    }
+  });
+</script>
+
+</body>
+</html>
