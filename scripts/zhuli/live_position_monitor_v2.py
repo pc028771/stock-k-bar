@@ -91,6 +91,29 @@ load_5d_avg_volume   = _v1.load_5d_avg_volume
 load_prev_close      = _v1.load_prev_close
 TRIGGER_DISPLAY      = _v1.TRIGGER_DISPLAY
 TRIGGER_RANK         = _v1.TRIGGER_RANK
+
+# 持倉專用 trigger label — 把進場語言 (最佳進場/守住進場) 改成「訊號統計」、
+# 避免讓 user 誤以為持倉觸發 = 叫他加碼。加碼還需 +10% 通則 + 回測支撐。
+_HELD_OVERRIDE = {
+    '尾盤_confirmed':     '🟢 尾盤訊號 3-4/5 (對首次進場 Win 82%、加碼需 +10%)',
+    'Closing_confirmed':  '🟢 尾盤訊號 3-4/5 (對首次進場 Win 82%、加碼需 +10%)',
+    '首攻':               '🟢 首攻訊號 (對首次進場守住、加碼需 +10%)',
+    'Ch5-3':              '🟢 首攻訊號 (對首次進場守住、加碼需 +10%)',
+    '續攻':               '🟢 續攻訊號 (持倉繼續持、加碼需 +10%)',
+    'T1':                 '🟢 續攻訊號 (持倉繼續持、加碼需 +10%)',
+    '反彈':               '🎯 反彈訊號 (持倉觀察、加碼需 +10%)',
+    'T2':                 '🎯 反彈訊號 (持倉觀察、加碼需 +10%)',
+}
+
+# 進場 confirmed trigger set (給 watch classifier 判定用)
+_CONFIRMED_TRIGGERS = {
+    '首攻', '續攻', '反彈',
+    'Ch5-3', 'T1', 'T2',                   # 舊英文 alias
+    '尾盤_confirmed', 'Closing_confirmed',
+}
+_EXCLUDED_TRIGGERS = {'破底', 'TC'}
+_WATCHING_TRIGGERS = {'T1_watch', 'T2_watch', '續攻_watch', '反彈_watch',
+                      '首攻_pullback', '首攻_signal', 'Ch5-3_pullback', 'Ch5-3_signal'}
 _get_market_regime_chip = _v1._get_market_regime_chip
 _get_session_chip    = _v1._get_session_chip
 _merge_scanner_watchlist = _v1._merge_scanner_watchlist
@@ -1245,8 +1268,12 @@ class MonitorApp(App[None]):
         sign = "+" if dist >= 0 else ""
         return f"{sign}{dist:.1f}%"
 
-    def _fmt_trigger(self, trig_key: str, reason: str = "") -> str:
-        label = TRIGGER_DISPLAY.get(trig_key, "⚪ 無訊號")
+    def _fmt_trigger(self, trig_key: str, reason: str = "", for_held: bool = False) -> str:
+        # 持倉 tab 用 _HELD_OVERRIDE 改寫進場語言 (避免誤導加碼)
+        if for_held and trig_key in _HELD_OVERRIDE:
+            label = _HELD_OVERRIDE[trig_key]
+        else:
+            label = TRIGGER_DISPLAY.get(trig_key, "⚪ 無訊號")
         if reason and trig_key not in ("none", None, ""):
             return f"{label} ({reason[:35]})"
         return label
@@ -1292,7 +1319,7 @@ class MonitorApp(App[None]):
                        if close_ else "—")
             dist_str = self._fmt_dist(d.get('dist_stop', 999.0))
             stat  = self._get_status_icon(item, ld)
-            trig  = self._fmt_trigger(d.get('trigger', 'none'), "")
+            trig  = self._fmt_trigger(d.get('trigger', 'none'), "", for_held=True)
             cost  = item.get('cost', 0)
             prev_close = d.get('prev_close', 0)
             gap_str   = self._fmt_gap(open_, prev_close)
@@ -1307,21 +1334,21 @@ class MonitorApp(App[None]):
 
     def _classify_watch(self, item: dict, d: dict) -> str:
         """分類 WATCH item: confirmed / watching / excluded。
-        重用 v1 _classify_watch_item 邏輯 (依 trigger key)。
+
+        ⚠️ 不再 delegate 給 v1 _classify_watch_item (該函式 trigger 識別
+        set 沒跟新的中文命名 + 尾盤_confirmed/Closing_confirmed、會把已觸發
+        進場訊號的 watch 標的誤分到 watching、導致可進場 tab 永遠空)。
+        統一用 v2 _CONFIRMED_TRIGGERS / _EXCLUDED_TRIGGERS / _WATCHING_TRIGGERS set。
         """
-        if _classify_watch_item:
-            try:
-                return _classify_watch_item(item, d)
-            except Exception:
-                pass
-        # fallback
         trig = d.get('trigger', 'none')
-        if trig in ('首攻', '續攻', '反彈', 'Ch5-3', 'T1', 'T2',
-                    '尾盤_confirmed', 'Closing_confirmed'):
+        if trig in _CONFIRMED_TRIGGERS:
             return 'confirmed'
-        if trig in ('破底', 'TC'):
+        if trig in _EXCLUDED_TRIGGERS:
             return 'excluded'
-        return 'watching'
+        if trig in _WATCHING_TRIGGERS:
+            return 'watching'
+        # 無訊號 / 未識別 trigger → 依 priority 分 (priority>=2 watch、否則 excluded)
+        return 'watching' if int(item.get('priority', 1) or 1) >= 2 else 'excluded'
 
     def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict,
                               tab_id: str | None = None) -> None:
