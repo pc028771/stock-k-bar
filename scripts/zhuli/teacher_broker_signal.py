@@ -40,6 +40,7 @@ _FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 TEACHER_BROKERS_TIER1 = {
     "管錢哥（元大館前）": [r"元大.*館前"],
     "站前哥（凱基站前）": [r"凱基.*站前"],
+    "凱基-信義（波段大戶）": [r"凱基.*信義"],  # 6/9 加入、ch9-1 老師波段大戶清單 + ch1 2486 案例
 }
 TEACHER_BROKERS_TIER2 = {
     "永豐金惠利": [r"永豐.*惠利"],
