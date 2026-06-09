@@ -1833,13 +1833,46 @@ class MonitorApp(App[None]):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _build_real_client():
-    """嘗試建立真實 FubonClient。"""
+    """建立真實 FubonClient + 連線探測。
+
+    分步驟列印進度、讓 user 看清楚是 VPN 卡 / SDK init 卡 / probe 卡，
+    避免「Textual 起來看到一片空白搞不清楚問題在哪」。
+    """
+    import time as _t
+    t0 = _t.monotonic()
+
+    print("[1/4] import FubonClient…", flush=True)
     try:
         from clients.fubon_client import FubonClient
-        return FubonClient()
     except Exception as e:
-        print(f"[警告] FubonClient 初始化失敗: {e}", file=sys.stderr)
+        print(f"  ❌ import 失敗: {e}", file=sys.stderr, flush=True)
         return None
+    print(f"  ✅ {_t.monotonic()-t0:.1f}s", flush=True)
+
+    t1 = _t.monotonic()
+    print("[2/4] FubonClient() 建構 (讀 cred / 認證)…", flush=True)
+    try:
+        client = FubonClient()
+    except Exception as e:
+        print(f"  ❌ 建構失敗 (常見原因: cred 缺 / VPN 沒開): {e}", file=sys.stderr, flush=True)
+        return None
+    print(f"  ✅ {_t.monotonic()-t1:.1f}s", flush=True)
+
+    t2 = _t.monotonic()
+    print("[3/4] 探測連線 (2330 snap)…", flush=True)
+    try:
+        snap = client.get_realtime_snapshot("2330")
+        if snap and snap.get("close"):
+            print(f"  ✅ {_t.monotonic()-t2:.1f}s — 2330 close={snap.get('close')} vol={snap.get('total_volume')}",
+                  flush=True)
+        else:
+            print(f"  ⚠️  {_t.monotonic()-t2:.1f}s — snap 回空 (盤前試撮無資料 / 連線異常)",
+                  flush=True)
+    except Exception as e:
+        print(f"  ❌ probe 失敗 (VPN 阻擋? 認證過期?): {e}", file=sys.stderr, flush=True)
+        # 不 return None — client 物件有效、後續可能恢復、讓 monitor 自己 retry
+    print(f"[4/4] 啟動 Textual…  總計 {_t.monotonic()-t0:.1f}s", flush=True)
+    return client
 
 
 def main():
