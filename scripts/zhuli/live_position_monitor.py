@@ -1190,13 +1190,16 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
         triggered = result.get('triggered', False)
 
         # base trigger
-        if not triggered:
-            if not pass_disc:
-                base = ('none', disc_reason)
-            else:
-                base = ('none', reason)
-        else:
+        # ⚠️ 2026-06-10 修正: discipline_filter (紅線 #1 跳空+3%/#2 漲停隔日+5%)
+        # 必須優先於 triggered。此前 triggered=True 會直接放行、紅線完全失效、
+        # 漲停拉回 (跳空+9~10%) 會被標「最佳進場 Win 82%」嚴重誤導 user。
+        # 案例: 6/10 13:19 user 看到 6209 +10%/2368 +10.3%/3042 +9.3% 全標 confirmed。
+        if not pass_disc:
+            base = ('none', disc_reason)  # 紅線一律擋、不論 triggered
+        elif triggered:
             base = (det, reason)
+        else:
+            base = ('none', reason)
 
         # Ch5 補強 + extras 合成（always-on Ch5、extras 看 --extras flag）
         try:
