@@ -291,6 +291,7 @@ COLS_HELD = [
     ("pnl",     "P&L",    14),
     ("dist_stop","距停",    8),
     ("status",  "狀",      4),
+    ("dump",    "出貨",    8),    # 6/10 拆出獨立欄、跟 detail 對齊、避免 Trigger 欄看似 2 燈號
     ("trigger", "Trigger", 40),
 ]
 
@@ -1328,11 +1329,10 @@ class MonitorApp(App[None]):
             prev_close = d.get('prev_close', 0)
             gap_str   = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
-            dump_warn = d.get('dump_warn', '') or ""
-            trig_combined = f"{dump_warn} {trig}".strip() if dump_warn else trig
+            dump_warn = d.get('dump_warn', '') or "—"
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
                      gap_str, price_str,
-                     vol, pnl_str, dist_str, stat, trig_combined)
+                     vol, pnl_str, dist_str, stat, dump_warn, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
@@ -1450,11 +1450,10 @@ class MonitorApp(App[None]):
             prev_close = d.get('prev_close', 0)
             gap_str   = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
-            dump_warn = d.get('dump_warn', '') or ""
-            trig_combined = f"{dump_warn} {trig}".strip() if dump_warn else trig
+            dump_warn = d.get('dump_warn', '') or "—"
             row   = (tk, item.get('name', ''), f"{cost:.1f}" if cost else "—",
                      gap_str, price_str,
-                     vol, pnl_str, dist_str, stat, trig_combined)
+                     vol, pnl_str, dist_str, stat, dump_warn, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
 
