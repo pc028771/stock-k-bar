@@ -655,3 +655,39 @@ class TestClosingPanel:
         )
         assert result["level"] == "not_in_window"
         assert result["triggered"] is False
+
+    def test_尾盤_結構失敗必skip_即使3of5pass(self):
+        """🔴 Regression (2026-06-10 bug 6ca1638):
+        結構守住 (close < MA10) 失敗時、即使其他 3/4 條件通過、必須 level='skip'、
+        絕不可標 'confirmed'。
+
+        Repro 案例: 8064 東捷 6/9 13:09、close=141 / MA10 ~146 (結構❌) /
+        反彈❌、但殺盤✓+量縮✓+未追高✓ = 3/5 → 此前實作標「最佳進場 Win 82%」
+        嚴重誤導 user。
+        """
+        from scripts.zhuli.intraday_stage_helper import StageTrigger
+        df = self._make_base_df()
+        # cond1 fail: close 設 < MA10 (98 < 100)
+        df["close"] = 98.0
+        df["open"]  = 98.0
+        df["high"]  = 99.0
+        df["low"]   = 97.0
+        # 其他 3 條保持 pass (kill_test/volume_calm/not_chasing)
+        # 反彈 cond3 在 13:00+ 已是黑K (close=98 = open=98 平盤、不算紅K) → fail
+        # 總和: cond1 ❌ cond2 ✓ cond3 ❌ cond4 ✓ cond5 ✓ = 3/5
+        st = StageTrigger()
+        result = st.check_closing_panel(
+            ticker="TEST", k5=df, ma10=100.0, _now_override="13:10",
+        )
+        scores = result.get("scores", {})
+        # 重點: 結構必失敗 (precondition for this regression)
+        assert scores.get("structure_hold") is False, (
+            f"precondition fail: structure_hold should be False, got {scores}"
+        )
+        # 核心斷言: 結構失敗 → 永遠 skip、不論 pass_count
+        assert result["level"] == "skip", (
+            f"Expected skip when structure_hold=False, got {result['level']} "
+            f"pass_count={result.get('pass_count')} scores={scores}. "
+            f"BUG: 破底股不可標最佳進場 (8064 教訓)"
+        )
+        assert result["triggered"] is False

@@ -1213,6 +1213,13 @@ class StageTrigger:
         # 此前實作允許 3/5 pass 但結構失敗 → 破底股 (如 8064 -7.2%) 仍被標
         # 「最佳進場 Win 82%」嚴重誤導。老師明說「結構守住」是核心、backtest
         # 82% 樣本應該都有結構守住、此 patch 補上 implicit assumption。
+        #
+        # 📝 TODO (user 2026-06-10): MA10 之後想調鬆一點點 / 加彈性。
+        # 候選做法:
+        #   1. close > MA10 × 0.98 (容忍 -2% 微破、避免雞蛋裡挑骨頭)
+        #   2. close > MA10 OR (close > MA20 AND 日內反彈 ≥ +3%)
+        #   3. close 觸 MA10 後又站回 (盤中暫破不算)
+        # 改之前要先 backtest 驗證不會把 Win 82% 樣本拉低。
         if not cond1:  # 結構失敗 (close < MA10) → 一律 skip、不論其他幾項過
             level = "skip"
         elif pass_count == 5:
