@@ -91,26 +91,6 @@
       "catalyst": "老師 6/7 ABF 後來認可、新進場 Stage 1 試水",
       "note": "原 exclusion_list 5/26「南亞那塊不做了」已過 2-3 週、老師「看過的可以再看」rule"
     },
-    "3264_欣銓": {
-      "name": "欣銓",
-      "shares": 1,
-      "cost": 228.5,
-      "entry_date": "2026-06-05",
-      "stop_loss": 226.1,
-      "stop_loss_source": "雙錨",
-      "category": "封測",
-      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一"
-    },
-    "6257_矽格": {
-      "name": "矽格",
-      "shares": 1,
-      "cost": 223.0,
-      "entry_date": "2026-06-05",
-      "stop_loss": 219.9,
-      "stop_loss_source": "雙錨",
-      "category": "封測 / IC 測試",
-      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一"
-    },
     "8046_南電_CLOSED": {
       "name": "南電 (已出清 2026-06-05、隔日沖)",
       "shares": 0,
@@ -216,6 +196,28 @@
       "sell_total_net": 523406,
       "realized_pct": 1.51,
       "broker_statement_verified": "20260602172534.csv"
+    },
+    "3264_欣銓_CLOSED": {
+      "name": "欣銓",
+      "shares": 1,
+      "cost": 228.5,
+      "entry_date": "2026-06-05",
+      "stop_loss": 226.1,
+      "stop_loss_source": "雙錨",
+      "category": "封測",
+      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一",
+      "_status": "CLOSED"
+    },
+    "6257_矽格_CLOSED": {
+      "name": "矽格",
+      "shares": 1,
+      "cost": 223.0,
+      "entry_date": "2026-06-05",
+      "stop_loss": 219.9,
+      "stop_loss_source": "雙錨",
+      "category": "封測 / IC 測試",
+      "catalyst": "老師 6/3 中長期 watchlist 8 檔之一",
+      "_status": "CLOSED"
     }
   },
   "etf_locked": {
@@ -299,6 +301,26 @@
       "realized_pnl": -4611,
       "shares": 3,
       "notes": "賣 5/26 lot 3 張、剩 5/27 lot 3 張"
+    },
+    "3264": {
+      "name": "欣銓",
+      "exit_date": "2026-06-10",
+      "exit_price": 222.0,
+      "lots": 1,
+      "cost": 228.5,
+      "realized_pnl": -7345,
+      "realized_pct": -3.21,
+      "notes": "6/9 跌破 6/5 低點 (220.5) + 跌破停損 (226.1)、按尼克老師 6/9 課「沒收復 6/5 低、都要小心」規則出場。距停損已過 -1.81%。"
+    },
+    "6257": {
+      "name": "矽格",
+      "exit_date": "2026-06-10",
+      "exit_price": 212.0,
+      "lots": 1,
+      "cost": 223.0,
+      "realized_pnl": -11808,
+      "realized_pct": -5.3,
+      "notes": "6/9 跌破 6/5 低點 (219) -3.2% + 跌破停損 (219.9)、按尼克老師「沒收復 6/5 低」規則出場。封測族群同 3264 一起減倉。"
     }
   },
   "watchlist": {
