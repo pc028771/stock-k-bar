@@ -1208,7 +1208,14 @@ class StageTrigger:
         #   5/5 = Win 40% / -0.78%  → overheated (已被拉走、不該追)
         #   3-4/5 = Win 82% / +1.62% → confirmed (最佳進場)
         #   <3/5 = Win 73% / +1.35%  → skip (不進)
-        if pass_count == 5:
+        #
+        # ⚠️ 2026-06-10 修正: 結構守住 (close > MA10) 設為必過條件。
+        # 此前實作允許 3/5 pass 但結構失敗 → 破底股 (如 8064 -7.2%) 仍被標
+        # 「最佳進場 Win 82%」嚴重誤導。老師明說「結構守住」是核心、backtest
+        # 82% 樣本應該都有結構守住、此 patch 補上 implicit assumption。
+        if not cond1:  # 結構失敗 (close < MA10) → 一律 skip、不論其他幾項過
+            level = "skip"
+        elif pass_count == 5:
             level = "overheated"
         elif pass_count >= 3:
             level = "confirmed"
