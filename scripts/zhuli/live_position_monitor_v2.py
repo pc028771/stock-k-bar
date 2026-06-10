@@ -949,12 +949,22 @@ class MonitorApp(App[None]):
             if not tk:
                 continue
             try:
+                # ── trigger 必須每 cycle 重算 (不依賴 snap)、否則 13:25 後 trigger
+                # 會凍結在「尾盤_confirmed」永遠不會回 'none'、可進場 tab 永遠顯示
+                # 已過時段的標的。check_trigger_inline 內部會時段判定、盤外回 'none'。
+                _trig_fn = _v1.check_trigger_inline if self._demo_mode else check_trigger_inline
+                trig_key, trig_reason = _trig_fn(tk, item.get('tactic', '核心'))
+                record_trigger_fire(tk, trig_key)
+
                 snap = client.get_realtime_snapshot(tk) or {}
                 close_ = float(snap.get('close') or 0)
                 open_  = float(snap.get('open')  or 0)
-                # snap 失敗 (close=0) → 完全 skip、不寫入 0 (寧可顯示「—」)
-                # 包含首次失敗、避免後續 race 出 0 P&L (HELD 看到 0 會誤判已停損)
+                # snap 失敗 (close=0) → 只更新 trigger、其他欄位保留 (避免 P&L race)
                 if not close_:
+                    with self._data_lock:
+                        if tk in self._live_data:
+                            self._live_data[tk]['trigger'] = trig_key
+                            self._live_data[tk]['trig_reason'] = trig_reason
                     continue
                 vol_   = snap.get('total_volume')
                 vol_ratio = compute_vol_ratio(tk, float(vol_) if vol_ else None)
@@ -1016,13 +1026,7 @@ class MonitorApp(App[None]):
                     except Exception:
                         pass
 
-                # trigger (demo: mock override)
-                if self._demo_mode:
-                    trig_key, trig_reason = _v1.check_trigger_inline(tk, item.get('tactic', '核心'))
-                else:
-                    trig_key, trig_reason = check_trigger_inline(tk, item.get('tactic', '核心'))
-
-                record_trigger_fire(tk, trig_key)
+                # trigger 已在 snap 前計算過 (見上方)、此處不再重算
 
                 # P&L (held only) — 永遠從 held_by_ticker 查、不靠 item (避免 watch/plan 蓋掉)
                 _held_item = held_by_ticker.get(tk, {})
