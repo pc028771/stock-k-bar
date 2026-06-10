@@ -217,10 +217,25 @@ def _load_broker_chip(tickers: list[str], target_date: str) -> dict[str, str]:
         raise MissingChipDataError(f"broker cache dir 不存在: {_BROKER_CACHE_DIR}")
 
     result: dict[str, str] = {}
+    missing_brokers: list[str] = []
+    fetched_on_demand: list[str] = []
     for ticker in tickers:
         cache = _BROKER_CACHE_DIR / f"{ticker}_{target_date}.json"
         if not cache.exists():
-            raise MissingChipDataError(f"broker cache 缺 {ticker} @ {target_date}: {cache}")
+            # 單股補抓：嘗試現抓寫 cache、抓不到才列為 missing
+            try:
+                from zhuli.chip_broker import _fetch_broker_daily
+                df = _fetch_broker_daily(ticker, target_date)
+                # _fetch_broker_daily 內部會寫 cache、但保險起見再檢查一次
+                if cache.exists():
+                    fetched_on_demand.append(ticker)
+                else:
+                    # 沒寫 cache 就是抓不到、列 missing
+                    missing_brokers.append(ticker)
+                    continue
+            except Exception:
+                missing_brokers.append(ticker)
+                continue
         data = json.loads(cache.read_text())
 
         broker_net: dict[str, int] = {}
@@ -252,6 +267,12 @@ def _load_broker_chip(tickers: list[str], target_date: str) -> dict[str, str]:
         else:
             result[ticker] = ""
 
+    if fetched_on_demand:
+        print(f"  [broker] 🔄 單股補抓成功 {len(fetched_on_demand)} 檔（cache miss → on-demand fetch）", flush=True)
+    if missing_brokers:
+        raise MissingChipDataError(
+            f"broker cache 缺 {len(missing_brokers)} 檔 @ {target_date}: {sorted(missing_brokers)}"
+        )
     return result
 
 
@@ -1342,20 +1363,47 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         uma_tickers = uma_wl['ticker'].tolist()
     all_chip_tickers = list(set(all_chip_tickers + pa_tickers + uma_tickers))
 
+    # 缺檔容忍政策：< MAX_TOLERABLE_MISSING_CHIP 自動容忍 + 寫補跑清單、>= 直接停下提醒
+    MAX_TOLERABLE_MISSING_CHIP = 5
+    chip_retry_path = Path(f"/tmp/scanner_chip_retry_{target_date}.json")
+
+    def _parse_missing(exc_msg: str) -> set[str]:
+        import re as _re
+        m = _re.search(r"缺 \d+ 檔.*?: \[(.*?)\]", exc_msg)
+        if not m:
+            return set()
+        return {t.strip().strip("'\"") for t in m.group(1).split(",")}
+
+    def _save_retry_list(kind: str, missing: set[str]) -> None:
+        import json as _json
+        existing = {}
+        if chip_retry_path.exists():
+            try:
+                existing = _json.loads(chip_retry_path.read_text())
+            except Exception:
+                existing = {}
+        existing.setdefault(kind, [])
+        existing[kind] = sorted(set(existing[kind]) | missing)
+        existing['_date'] = target_date
+        chip_retry_path.write_text(_json.dumps(existing, ensure_ascii=False, indent=2))
+        print(f"  [chip] 📝 寫入補跑清單 ({kind} {len(missing)} 檔): {chip_retry_path}", flush=True)
+
     chip_map: dict[str, dict] = {}
     if db_path and all_chip_tickers:
         print(f"  [chip] 查詢 {len(all_chip_tickers)} 檔法人籌碼 5d...", flush=True)
         try:
             chip_map = _load_institutional_chip(all_chip_tickers, target_date, db_path)
         except MissingChipDataError as exc:
-            if allow_missing_institutional:
-                print(f"  [chip] ⚠️ institutional 缺、--allow-missing-institutional 容忍: {exc}", flush=True)
+            missing_tickers = _parse_missing(str(exc))
+            n_missing = len(missing_tickers)
+            tolerate = allow_missing_institutional or (0 < n_missing < MAX_TOLERABLE_MISSING_CHIP)
+            if tolerate:
+                if allow_missing_institutional:
+                    print(f"  [chip] ⚠️ institutional 缺 {n_missing} 檔、--allow-missing-institutional 容忍", flush=True)
+                else:
+                    print(f"  [chip] ⚠️ institutional 缺 {n_missing} 檔 (< {MAX_TOLERABLE_MISSING_CHIP})、自動容忍", flush=True)
+                _save_retry_list('institutional', missing_tickers)
                 # 取得有資料的部分；缺的 ticker 從候選清單剔除
-                import re as _re
-                m = _re.search(r"缺 \d+ 檔.*?: \[(.*?)\]", str(exc))
-                missing_tickers = set()
-                if m:
-                    missing_tickers = {t.strip().strip("'\"") for t in m.group(1).split(",")}
                 all_chip_tickers = [t for t in all_chip_tickers if t not in missing_tickers]
                 chip_map = _load_institutional_chip(all_chip_tickers, target_date, db_path)
                 # 把 hits / ma5_pivot / glued_ma5 / pa_wl 內 missing ticker 也過濾掉
@@ -1367,6 +1415,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
                 if isinstance(uma_wl, pd.DataFrame) and not uma_wl.empty and 'ticker' in uma_wl.columns:
                     uma_wl = uma_wl[~uma_wl['ticker'].isin(missing_tickers)].reset_index(drop=True)
             else:
+                print(f"  [chip] ❌ institutional 缺 {n_missing} 檔 (>= {MAX_TOLERABLE_MISSING_CHIP})、整個停下、需手動處理", flush=True)
                 raise
         tag_counts: dict[str, int] = {}
         for v in chip_map.values():
@@ -1377,10 +1426,28 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         try:
             broker_tags = _load_broker_chip(all_chip_tickers, target_date)
         except MissingChipDataError as exc:
-            if allow_missing_broker:
-                print(f"  [chip] ⚠️ broker cache 缺、--allow-missing-broker 容忍: {exc}", flush=True)
-                broker_tags = {t: "" for t in all_chip_tickers}
+            missing_brokers = _parse_missing(str(exc))
+            n_missing_b = len(missing_brokers)
+            tolerate_b = allow_missing_broker or (0 < n_missing_b < MAX_TOLERABLE_MISSING_CHIP)
+            if tolerate_b:
+                if allow_missing_broker:
+                    print(f"  [chip] ⚠️ broker cache 缺 {n_missing_b} 檔、--allow-missing-broker 容忍", flush=True)
+                else:
+                    print(f"  [chip] ⚠️ broker cache 缺 {n_missing_b} 檔 (< {MAX_TOLERABLE_MISSING_CHIP})、自動容忍", flush=True)
+                _save_retry_list('broker', missing_brokers)
+                # 缺的 ticker 從 chip_map 與下游清單剔除
+                all_chip_tickers = [t for t in all_chip_tickers if t not in missing_brokers]
+                chip_map = {t: v for t, v in chip_map.items() if t not in missing_brokers}
+                all_hits = [h for h in all_hits if h['ticker'] not in missing_brokers]
+                ma5_pivot_hits = [h for h in ma5_pivot_hits if h['ticker'] not in missing_brokers]
+                glued_ma5_hits = [h for h in glued_ma5_hits if h['ticker'] not in missing_brokers]
+                if isinstance(pa_wl, pd.DataFrame) and not pa_wl.empty and 'ticker' in pa_wl.columns:
+                    pa_wl = pa_wl[~pa_wl['ticker'].isin(missing_brokers)].reset_index(drop=True)
+                if isinstance(uma_wl, pd.DataFrame) and not uma_wl.empty and 'ticker' in uma_wl.columns:
+                    uma_wl = uma_wl[~uma_wl['ticker'].isin(missing_brokers)].reset_index(drop=True)
+                broker_tags = _load_broker_chip(all_chip_tickers, target_date)
             else:
+                print(f"  [chip] ❌ broker cache 缺 {n_missing_b} 檔 (>= {MAX_TOLERABLE_MISSING_CHIP})、整個停下、需手動處理", flush=True)
                 raise
         broker_hit_count = sum(1 for v in broker_tags.values() if v)
         print(f"  [chip] 老師分點命中（快取內）: {broker_hit_count} 檔", flush=True)
