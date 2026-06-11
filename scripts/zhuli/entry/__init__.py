@@ -9,7 +9,7 @@ Public API:
   FILTER_REGISTRY — 課程中為輔助判斷工具（如布林帶位置、開盤意圖），
                     不作為獨立進場訊號，應作為其他 scanner 的過濾條件使用
 
-Course: 主力大全方位操盤教戰守則 (林家洋)
+Course: 主力大全方位操盤教戰守則 (尼克)
 
 ENTRY_REGISTRY:
     suffocation            — H 窒息量策略 (Ex1-1 ~ Ex1-3)

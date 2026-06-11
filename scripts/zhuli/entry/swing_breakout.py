@@ -1,6 +1,6 @@
 """A 大波段選股策略 entry signal — 主力大 Ch3-1, Ch3-2.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §A 大波段選股策略（Swing Breakout）
   - course_principles.md §7 大波段選股 SOP
 

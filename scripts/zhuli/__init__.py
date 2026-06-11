@@ -6,6 +6,6 @@ zhuli course content (主力大).
 Each submodule is self-contained — only depends on pandas/numpy
 and reuses kline.bars for data loading.
 
-Course: 主力大全方位操盤教戰守則 (林家洋)
+Course: 主力大全方位操盤教戰守則 (尼克)
 Prefix convention: zhuli_*
 """

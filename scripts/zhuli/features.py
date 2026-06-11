@@ -1,6 +1,6 @@
 """Derived features for zhuli course strategies.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
 
 Input: bars DataFrame from kline.bars.load_bars(), sorted by (ticker, trade_date).
 Output: same DataFrame with zhuli-specific derived columns added.

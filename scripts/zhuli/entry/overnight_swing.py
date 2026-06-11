@@ -1,6 +1,6 @@
 """G 隔日沖策略 entry signal — 主力大 Ch6-1 + Ch6-2.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §G 隔日沖策略
   - HD vision Ch6-1 04:39+05:18 (大盤條件)
   - HD vision Ch6-2 00:44 (個股速篩)

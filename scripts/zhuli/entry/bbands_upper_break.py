@@ -1,6 +1,6 @@
 """D 布林上軌進出策略 entry signal — 主力大 Ch4-2.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §D 布林上軌進出策略
   - HD vision Ch4-2 32:07 / 34:47 / 35:19
 
@@ -28,7 +28,7 @@ Output columns:
     stop_loss               — 出場參考價 = BB_upper（跌入即出）
     entry_note              — 文字註記
 
-Course: 主力大全方位操盤教戰守則 (林家洋) — Ch4-2
+Course: 主力大全方位操盤教戰守則 (尼克) — Ch4-2
 """
 from __future__ import annotations
 
