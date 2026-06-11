@@ -69,6 +69,10 @@ def detect(
     if cfg.require_body_above_ma10:
         mask &= df["body_low"] > df["ma10"]
 
+    # 3b. ma5 在實體下方（🎓 課程「5/10/20 均線皆在反轉紅K 之下」、v1.6 補漏）
+    if cfg.require_body_above_ma5:
+        mask &= df["body_low"] > df["ma5"]
+
     # 4. 短均線上彎（**課程明示用扣底值判斷** — §C spec）
     # spec: 「短均線開始上彎（扣底值判斷）」
     # 扣抵預判: today_close > 5 天前 close → 明日 MA5 將上揚
@@ -79,8 +83,9 @@ def detect(
             # fallback: 用 slope_5d
             mask &= df["ma5_slope_5d"].fillna(-1) > 0
 
-    # 5. 均線發散度
-    mask &= df["ma_dispersion"].fillna(99) < cfg.max_ma_dispersion
+    # 5. 均線發散度（🔬 課程列「尚未發散」為加分非必要、5% 為回測歸納 → 預設不過濾）
+    if cfg.enforce_ma_dispersion:
+        mask &= df["ma_dispersion"].fillna(99) < cfg.max_ma_dispersion
 
     # 6. 前 60D 跌深
     mask &= df["decline_pct"].fillna(0) >= cfg.min_decline_pct

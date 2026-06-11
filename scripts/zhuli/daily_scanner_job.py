@@ -1515,11 +1515,16 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         f"",
         f"## 各 scanner 統計",
         f"",
+        f"> 來源標記（spec R-ENT-007）：shakeout_strong / 小結構家族 / W底 = 🔬 案例歸納（非課程明授、user 核准使用）；",
+        f"> uniform_ma 額外濾網 = 🛠️ 反向工程推測；J/I/F/外資黑K = 🎓 課程。打分/Tier 分級為實作 heuristic、非課程分數。",
+        f"",
         f"| Scanner | 命中數 |",
         f"|---|---|",
     ]
+    _EXTRAS_LABEL = {"shakeout_strong": "shakeout_strong 🔬", "small_structure": "small_structure 🔬",
+                     "w_bottom_launch": "w_bottom_launch 🔬"}
     for s, hits in results.items():
-        md.append(f"| {s} | {len(hits)} |")
+        md.append(f"| {_EXTRAS_LABEL.get(s, s)} | {len(hits)} |")
     pa_count = len(pa_wl) if pa_wl is not None and not pa_wl.empty else 0
     uma_count = len(uma_wl) if uma_wl is not None and not uma_wl.empty else 0
     md.append(f"| post_attack_watchlist | {pa_count} |")
@@ -2180,6 +2185,131 @@ def write_daily_watchlist_json(
     return out_path
 
 
+def run_holdings_exit_check(target_date: str, db_path: Path) -> str:
+    """每日持倉出場檢查（spec v1.5 R-EXT-003 接線要求）。
+
+    對 holdings.json active 持倉跑：Rule A (MA10 容忍+量縮例外) +
+    掀傘 daily + 高檔長黑K + 停利里程碑 + 當日跳空回顧。
+    """
+    import json as _json
+    from zhuli.exit.detectors import check_high_long_black, check_umbrella_exit_daily
+
+    header = f"\n\n## 🚪 持倉出場檢查（R-EXT-003、{target_date}）\n\n"
+    holdings_path = _REPO / "docs" / "主力大課程" / "holdings.json"
+    try:
+        data = _json.loads(holdings_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return header + f"⚠️ holdings.json 讀取失敗: {e}\n"
+
+    active: dict[str, dict] = {}
+    for key, v in (data.get("holdings") or {}).items():
+        if key.startswith("_") or "_CLOSED" in key or not isinstance(v, dict):
+            continue
+        ticker = key.split("_")[0]
+        if ticker.isdigit() and v.get("shares"):
+            active[ticker] = v
+    if not active:
+        return header + "（無 active 持倉）\n"
+
+    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=10)
+    rows = [
+        "| 持倉 | 收盤 | 損益% | Rule A（MA10） | 🌂掀傘 | 🦘高檔長黑 | 💰里程碑 | 當日跳空 |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    alerts: list[str] = []
+    for ticker, info in sorted(active.items()):
+        name = str(info.get("name", ""))
+        label = f"{ticker} {name}".strip()
+        cost = float(info.get("cost") or 0)
+        df = pd.read_sql_query(
+            "SELECT trade_date, open, high, low, close, volume FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 80",
+            con, params=(ticker, target_date),
+        ).iloc[::-1].reset_index(drop=True)
+        if df.empty or cost <= 0:
+            rows.append(f"| {label} | — | — | ⚠️ 無日K或無成本資料 | — | — | — | — |")
+            continue
+        if str(df["trade_date"].iloc[-1]) != target_date:
+            rows.append(f"| {label} | — | — | ⚠️ 日K stale（最新 {df['trade_date'].iloc[-1]}） | — | — | — | — |")
+            continue
+
+        close = float(df["close"].iloc[-1])
+        pnl_pct = (close / cost - 1) * 100
+
+        # Rule A：MA10 容忍 + 量縮例外（同 backtest_standard_workflow.should_exit_ma10_tolerant）
+        if len(df) >= 20:
+            ma10_series = df["close"].rolling(10).mean()
+            ma10 = float(ma10_series.iloc[-1])
+            vol20 = float(df["volume"].rolling(20).mean().iloc[-1])
+            vol_ratio = float(df["volume"].iloc[-1]) / vol20 if vol20 > 0 else 0.0
+            dist_pct = (close - ma10) / ma10 * 100
+            days_below = 0
+            for i in range(len(df) - 1, -1, -1):
+                m = ma10_series.iloc[i]
+                if pd.isna(m):
+                    break
+                d = (float(df["close"].iloc[i]) - m) / m * 100
+                if -2.0 < d < 0:
+                    days_below += 1
+                else:
+                    break
+            if dist_pct >= 0:
+                rule_a = f"✅ 站上（{dist_pct:+.1f}%）"
+            elif dist_pct <= -2.0:
+                rule_a = f"🔴 深破 {dist_pct:+.1f}% → 出"
+            elif vol_ratio >= 1.0:
+                rule_a = f"🔴 放量小破（量比 {vol_ratio:.2f}）→ 出"
+            elif days_below >= 2:
+                rule_a = f"🔴 容忍區連 {days_below} 天 → 出"
+            else:
+                rule_a = f"🟡 量縮容忍第 1 天（{dist_pct:+.1f}%、量比 {vol_ratio:.2f}）觀察"
+            if rule_a.startswith("🔴"):
+                alerts.append(f"{label}: Rule A {rule_a[2:].strip()}")
+        else:
+            rule_a = "⚠️ 日K不足 20 根"
+
+        umb = check_umbrella_exit_daily(df, entry_price=cost)
+        umb_txt = f"🔴 {umb['reason']}" if umb.get("triggered") else "—"
+        if umb.get("triggered"):
+            alerts.append(f"{label}: 掀傘 {umb['reason']}")
+
+        hlb = check_high_long_black(df)
+        hlb_txt = f"🔴 {hlb['reason']}" if hlb.get("triggered") else "—"
+        if hlb.get("triggered"):
+            alerts.append(f"{label}: 高檔長黑 {hlb['reason']}")
+
+        hit = [f"+{t}%" for t in (10, 20, 30) if pnl_pct >= t]
+        milestone_txt = " ".join(hit) + " 已達" if hit else "—"
+
+        gap_txt = "—"
+        if len(df) >= 2:
+            prev_close = float(df["close"].iloc[-2])
+            open_px = float(df["open"].iloc[-1])
+            if prev_close > 0 and open_px > 0:
+                gap_pct = (open_px / prev_close - 1) * 100
+                if gap_pct <= -5.0:
+                    gap_txt = f"🔴 {gap_pct:+.1f}%（盤中緊急出條件、回顧）"
+                elif gap_pct <= -3.0:
+                    gap_txt = f"🟡 {gap_pct:+.1f}%"
+                else:
+                    gap_txt = f"{gap_pct:+.1f}%"
+
+        rows.append(
+            f"| {label} | {close:.2f} | {pnl_pct:+.1f}% | {rule_a} | {umb_txt} | {hlb_txt} | {milestone_txt} | {gap_txt} |"
+        )
+    con.close()
+
+    out = header
+    if alerts:
+        out += "⚠️ **觸發出場條件（收盤確認、隔日執行；core 持倉停損依結構底 R-EXT-002、出清前必跑 R-EXT-005 checklist）：**\n"
+        out += "".join(f"- {a}\n" for a in alerts) + "\n"
+    else:
+        out += "✅ 無持倉觸發出場條件。\n\n"
+    out += "\n".join(rows) + "\n"
+    out += "\n> 來源：Rule A=R-EXT-001 🔬（C6）、掀傘/高檔長黑/里程碑=R-EXT-003 🎓、跳空=盤中規則之收盤回顧。\n"
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", default=None, help="目標收盤日（預設今天）")
@@ -2268,6 +2398,16 @@ def main():
                          allow_missing_broker=args.allow_missing_broker,
                          allow_missing_institutional=args.allow_missing_institutional,
                          disposal_map=disposal_map if (not args.disable_disposal) else None)
+
+    # ── 持倉出場檢查（spec v1.5 R-EXT-003 接線）─────────────────────────
+    try:
+        exit_section = run_holdings_exit_check(target_date, db_path)
+        md += exit_section
+        n_alerts = exit_section.count("\n- ")
+        print(f"\n[holdings exit] 持倉出場檢查完成、觸發 {n_alerts} 項", flush=True)
+    except Exception as e:
+        md += f"\n\n## 🚪 持倉出場檢查\n\n⚠️ 執行失敗: {e}\n"
+        print(f"\n[holdings exit] 失敗: {e}", flush=True)
 
     out_md = out_dir / f"scanner_candidates_{target_date}.md"
     out_md.write_text(md, encoding="utf-8")
