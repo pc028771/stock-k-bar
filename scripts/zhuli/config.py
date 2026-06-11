@@ -197,7 +197,7 @@ class InstitutionalFirstBuyConfig:
     # Source: strategy-indicators.md §J — 「前面至少 2 個月（最好 3 個月）無投信買超」
     # ex2-3 字幕 05:42、截圖 07:24 確認「越長空白越高勝率」
     # 預設 60 天（約 2 個月）；user 拍板
-    no_buy_window_days: int = 60            # 前 60 天無投信買超
+    no_buy_window_days: int = 60            # 前 60 天無投信買超（課程「前 2 個月、最好 3 個月」、60=下限、🛠️）
 
     # 「無投信買超」的定義：sitc_net ≤ 0（含賣超與零買）
     # Source: strategy-indicators.md §J — 「前面都非常乾淨」（字幕 01:53）
@@ -294,6 +294,21 @@ class SwingBreakoutConfig:
     # Source: strategy-indicators.md §A — 「同產業 ≥ 3 檔出現在買超前列」
     sector_density_min_count: int = 3                   # 同族群 ≥ 3 檔籌碼面成立
     require_sector_density: bool = True                 # 族群面為必要條件
+
+    # === MA60 近底部放寬條件（實驗性，非課程明說）===
+    # 當 MA60 仍在下彎，但幅度極小（幾近平坦）且 MA20 已連續上彎 → 視為「即將轉彎」
+    # 觸發條件（同時滿足）：
+    #   1. ma60_slope_5d < 0（MA60 仍在下彎）
+    #   2. 5日 MA60 最大跌幅 < ma60_near_bottom_max_drop_pct（近乎平坦）
+    #   3. MA20 連續 ma60_near_bottom_ma20_up_days 天上彎
+    # 🔬 課程外條件（6449 單案歸納）：課程明授「20ma 與 60ma 皆上彎」
+    # 依課程外條件隔離原則預設 OFF、需顯式 opt-in（spec R-ENT-007 #1、2026-06-12 審計）
+    # 診斷依據：docs/主力大課程/analysis/scanner_diagnosis_6449_delay.md
+    #   6449 鈺邦 5/5 attack day: MA60 slope = -0.0096（5日跌幅 0.71%）
+    #   當日 MA20 slope = +0.020 且已連續 > 5 天上彎 → 值得放行
+    ma60_near_bottom_enabled: bool = False               # 🔬 預設 OFF（spec v1.6 改、原 True）
+    ma60_near_bottom_max_drop_pct: float = 1.0          # 5日 MA60 最大跌幅 < 1.0%
+    ma60_near_bottom_ma20_up_days: int = 5              # MA20 連續上彎天數門檻
 
     # === 流動性過濾（課程中立操作門檻）===
     min_avg_volume_20: int = 200                        # 20日均量 ≥ 200 張
@@ -519,11 +534,14 @@ class ReversalBreakoutConfig:
     require_red_bar: bool = True              # 紅 K (close > open)
     require_body_above_ma20: bool = True      # ma20 必須在實體下方
     require_body_above_ma10: bool = True      # ma10 必須在實體下方
+    require_body_above_ma5: bool = True       # 🎓 ma5 必須在實體下方（課程「5/10/20 皆在反轉紅K之下」、v1.6 補漏）
     require_ma5_uptrend: bool = True          # ma5 上彎
 
     # === Soft margins ===
-    # 均線發散度 (max - min)/close — 太大 = 均線發散，反轉不穩
-    # 6441 失敗 5.31% / 1904 1.67% / 3042 2.88%
+    # 🔬 均線發散度 (max - min)/close — 課程列「尚未發散」為加分非必要（course_principles.md:241）
+    # 5% 數值是回測歸納（6441 失敗 5.31% / 1904 1.67% / 3042 2.88%）
+    # 依課程外條件隔離原則、硬過濾預設 OFF（spec R-ENT-007 #3、2026-06-12 審計）
+    enforce_ma_dispersion: bool = False       # 🔬 預設 OFF（v1.6 改、原為無條件過濾）
     max_ma_dispersion: float = 0.05
 
     # 前 N 日跌深 (反轉特徵)
@@ -659,10 +677,11 @@ class InstitutionalSwingConfig:
 
     # ⚠️ 改加分不過濾（user 偏好）— 均線已排列 = 趨勢中段已晚，
     # 抓更多獲利空間應允許「其他指標達到但均線還沒排列」進場
+    # ⚠️ TODO(spec R-ENT-007 ①): 課程 §I 列「必要」、user 偏好降加分（6/12 裁決維持、待 backtest 兩種設定再定）
     require_ma_alignment: bool = False        # MA5 > MA10 > MA20 上彎 (加分)
 
     # 「剛上榜」窗口：過去 N 天無此 ticker 命中
-    first_appearance_days: int = 30
+    first_appearance_days: int = 30           # 課程「剛上榜」未定量、30 天為實作預設（🛠️）
 
     # === Soft margins ===
     # 警戒線 (目前 FinMind 無投信持股 ratio 資料 → log only)
@@ -728,6 +747,7 @@ class IntradayConfig:
     # === Hard rules from course ===
     # ⚠️ 改加分不過濾（user 偏好）— 均線排列是趨勢中段晚進場訊號，
     # F 當沖更依賴量價爆發而非均線多頭排列
+    # ⚠️ TODO(spec R-ENT-007 ①): 課程 §F 列「必要」、user 偏好降加分（6/12 裁決維持、待 backtest 再定）
     require_ma_alignment: bool = False      # MA5>10>20 + 三條上彎 (加分)
     min_vol_2d_lots: int = 20000            # 兩天量 > 2 萬張
     min_range_3d: float = 0.08              # 3 天振幅 > 8%
