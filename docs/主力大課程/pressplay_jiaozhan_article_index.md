@@ -1,7 +1,7 @@
 # 主力大全方位操盤教戰守則 — 文章索引
 
 **課程 / Project ID:** `65060FADFE44CB31DDB7175D6471A736`
-**老師:** 林家洋（主力大）— 課程「主力大全方位操盤教戰守則｜選股、波段、短線、當沖策略公開」
+**老師:** 主力大（尼克）— 課程「主力大全方位操盤教戰守則｜選股、波段、短線、當沖策略公開」
 **Base URL:** `https://www.pressplay.cc/project/65060FADFE44CB31DDB7175D6471A736/articles/{article_id}`
 **抓取日期:** 2026-05-17
 **文章總數:** 31 篇（unique；下方表格 row 31 是 PressPlay UI 自動插入的「上次學到」continue-watching banner，與 row 11 是同一篇 CH4.2，已標註）

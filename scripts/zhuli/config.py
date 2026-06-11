@@ -2,7 +2,7 @@
 
 All values are CALIBRATABLE — see calibration.py for the update interface.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
 """
 from __future__ import annotations
 

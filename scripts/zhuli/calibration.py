@@ -3,7 +3,7 @@
 Currently stub. Future: feed POC #2 large_volume_ratios.csv or sanity-check
 case data to suggest refined parameter defaults.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
 Status: Phase 1 stub — to be implemented after backtest sanity check (Phase 2).
 """
 from __future__ import annotations

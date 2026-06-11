@@ -1,6 +1,6 @@
 """J 投信首買策略 entry signal — 主力大 Ex2-3.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §J 投信首買策略（Ex2-3）
   - course_principles.md §17 投信跟單加碼
 

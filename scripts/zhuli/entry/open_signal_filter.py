@@ -1,6 +1,6 @@
 """主力意圖判斷 — M 收高開低 / 收低開高 filter (M 策略).
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §M 主力意圖判斷（Open Price Signal）
   - course_principles.md §15 主力意圖（Ch7-3）
 

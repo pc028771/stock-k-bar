@@ -20,7 +20,7 @@ Usage:
     python scripts/zhuli_scanner.py --signal swing_breakout --date 2026-05-15
     python scripts/zhuli_scanner.py --signal swing_breakout --config-override enforce_dist_to_ma20=true
 
-Course: 主力大全方位操盤教戰守則 (林家洋)
+Course: 主力大全方位操盤教戰守則 (尼克)
 """
 from __future__ import annotations
 
@@ -196,7 +196,7 @@ def main():
         prog="zhuli_scanner",
         description=(
             "主力大 daily scanner — 窒息量（H策略）及其他主力大進場訊號。\n"
-            "Course: 主力大全方位操盤教戰守則 (林家洋)"
+            "Course: 主力大全方位操盤教戰守則 (尼克)"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""

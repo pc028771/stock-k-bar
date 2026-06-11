@@ -2,7 +2,7 @@
 
 > **Worktree:** `course-zhuli-integration`（branch: `worktree-course-zhuli-integration`）
 > **起始日：** 2026-05-17 ｜ **最後更新：** 2026-05-18
-> **目的：** 整理林家洋（主力大）老師兩套 PressPlay 課程內容，借用 stock-k-bar 框架結構，但 **內容完全獨立、不混入 K線力量教學**。
+> **目的：** 整理主力大（尼克）老師兩套 PressPlay 課程內容，借用 stock-k-bar 框架結構，但 **內容完全獨立、不混入 K線力量教學**。
 > **狀態：** 課程整理階段完成（零真實 STUB）；scanner 實作未開始。
 
 ---

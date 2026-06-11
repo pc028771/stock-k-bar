@@ -1,6 +1,6 @@
 """窒息量 entry signal (H 策略) — 主力大 Ex1-1 ~ Ex1-3.
 
-Course source: 主力大全方位操盤教戰守則 (林家洋)
+Course source: 主力大全方位操盤教戰守則 (尼克)
   - strategy-indicators.md §H 窒息量策略
   - course_principles.md §16 窒息量加碼
   - phase1_scanner_proposal.md §3 H 窒息量最小可行版
