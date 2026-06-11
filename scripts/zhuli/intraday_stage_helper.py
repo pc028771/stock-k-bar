@@ -179,21 +179,41 @@ def load_stock_names(db: Path) -> dict[str, str]:
     return {r[0]: r[1] for r in rows}
 
 
-@functools.lru_cache(maxsize=4096)
+# DB data version: standard_daily_bar 的 MAX(trade_date)。
+# 長駐 process (live monitor) 啟動後 DB 可能被晚到的 sync 補入新日K、
+# 純 (ticker, date) key 的 cache 會永遠回傳啟動當下的舊值 (6/11 4939 假燈事件)。
+# 把 data version 納入 cache key、DB 一進新日K整批 cache 自動失效。
+_DATA_VERSION_TTL = 60.0
+_data_version_cache: dict[str, tuple[float, str]] = {}
+
+
+def db_data_version(db: Path = _DB) -> str:
+    """回傳 DB 最新 trade_date 字串 (TTL 60s)、查失敗回 ''。"""
+    now = time.monotonic()
+    hit = _data_version_cache.get(str(db))
+    if hit and now - hit[0] < _DATA_VERSION_TTL:
+        return hit[1]
+    try:
+        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+            r = con.execute("SELECT MAX(trade_date) FROM standard_daily_bar").fetchone()
+        v = str(r[0]) if r and r[0] else ""
+    except Exception:
+        v = ""
+    _data_version_cache[str(db)] = (now, v)
+    return v
+
+
 def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
-    """從 standard_daily_bar 取 target_date 前一交易日的 MA10。
+    """從 standard_daily_bar 取 target_date 前一交易日的 MA10（data-version-keyed cache）。"""
+    return _get_ma10_versioned(ticker, target_date, db, db_data_version(db))
 
-    Cache: 同一 (ticker, target_date) 在 backtest / live monitor 內會被反覆查、
+
+@functools.lru_cache(maxsize=4096)
+def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
+                        data_version: str) -> Optional[float]:
+    """Cache: 同一 (ticker, target_date) 在 backtest / live monitor 內會被反覆查、
     每次都開新 sqlite connection 很貴 (profile 看到 19k+ connects)。lru_cache
-    把每對 (ticker, date) 的查詢降到 1 次。
-
-    Args:
-        ticker:      股票代號
-        target_date: 當日日期字串 'YYYY-MM-DD'（取其之前最新一筆）
-        db:          SQLite DB 路徑
-
-    Returns:
-        MA10 浮點數，查無則回 None。
+    把每對 (ticker, date) 的查詢降到 1 次。data_version 進 key、DB 補日K後自動失效。
     """
     try:
         with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:

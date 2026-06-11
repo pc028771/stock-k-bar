@@ -2180,6 +2180,17 @@ _avg_vol_cache: dict[str, float | None] = {}
 _ma10_cache: dict[str, float | None] = {}
 
 
+def reset_daily_caches() -> None:
+    """清掉所有依賴日K的 process-lifetime cache。
+
+    monitor 啟動後 DB 才補入新日K時必呼叫、否則 MA10 / 均量 / 籌碼
+    全部停留在啟動當下的舊基準 (6/11 4939 假燈事件)。
+    """
+    _avg_vol_cache.clear()
+    _ma10_cache.clear()
+    _chip_cache.clear()
+
+
 def load_ma10(ticker: str) -> float | None:
     """MA10 close (排除今天)。讀 standard_daily_bar.ma10 欄位、cache."""
     if ticker in _ma10_cache:

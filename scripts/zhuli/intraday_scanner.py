@@ -598,6 +598,9 @@ def main():
     watchlist_analyses: list[dict] = []
 
     for ticker, info in watchlist.items():
+        # holdings.json watchlist 混有筆記型條目 (key 非 ticker / value 非 dict)、跳過
+        if not (ticker.isdigit() and isinstance(info, dict)):
+            continue
         name = info.get("name") or stock_info.get(ticker, {}).get("name", ticker)
         hist = load_hist_bars(ticker, target_date, con)
 
