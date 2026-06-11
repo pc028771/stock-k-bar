@@ -113,7 +113,7 @@ suffocation（窒息量）/ institutional_firstbuy / swing_breakout / overnight_
 | R-DISC-009 | 雙錨停損 = max(開盤價, 昨收, 第一根 5 分 K 低) | 🎓 5/28 spec「副錨」+ 🛠️ max 邏輯為實作選擇 | 人工執行 |
 | R-DISC-010 | 試撮漲停 ≠ 真實開盤、9:10 後才判斷 | ⚠️ 6/1 嘉晶 -$21,388 + 🎓 老師試撮教法 | 人工紀律 |
 
-| R-DISC-011 | **漲停隔日：開高（gap > 0%）一律不做無條件進場**；要進必走鎖漲停隔日 SOP（試撮判讀 + 9:30 委買量比）。開低非禁區、依一般 entry 規則評估 | 🔬 backtest n=10,329（`strategies/limit_up_next_day_gap_backtest_20260611.md`）：開高全桶負期望、開低 +1.27%/win 52.7% | 人工紀律、**取代舊「+3% 門檻」表述** |
+| R-DISC-011 | **漲停隔日：早盤/開盤不做無條件進場**（開高全桶負期望）。**尾盤窗口（R-DISC-005）進場時、跳空不是否決項**：開高且「守住開盤價」反而是最強動能確認（+5% 守住 → win 73-82%）、沒守住 skip — 由 Closing panel 守住/結構邏輯把關 | 🔬 backtest n=10,329 + 尾盤版 n=10,241（`strategies/limit_up_next_day_gap_backtest_20260611.md`）；對應 🎓「開盤站賣方、尾盤做事情」 | 人工紀律、**取代舊「+3% 門檻」表述** |
 
 ### ❌ 已否決（留案存查）
 - ~~鎖漲停隔日跳空 ≥ +3% 禁推~~（4526 教訓 n=1）→ backtest 否決「門檻」概念、升級為 R-DISC-011（candidates C-001 結案）
@@ -191,3 +191,4 @@ suffocation（窒息量）/ institutional_firstbuy / swing_breakout / overnight_
 |---|---|---|
 | v1.0 | 2026-06-11 | 自 `策略總整理_20260611.md` 升級：加來源 4 分類 + 規則 ID；補驗證報告 5 項紀律疏漏（R-DISC-004/005/008、R-EXT-003 掀傘補無連續紅K、R-DISC-006 改人工紀律）；鎖漲停 +3% 移入 candidates 等 backtest |
 | v1.1 | 2026-06-11 | C-001 backtest 結案（n=10,329）：否決 +3%/+5% 門檻、新增 R-DISC-011「漲停隔日開高一律不無條件進場」 |
+| v1.2 | 2026-06-11 | R-DISC-011 加範圍註記（尾盤版 backtest n=10,241）：跳空否決只適用早盤進場；尾盤進場時「守住開盤價」才是關鍵、開高守住 = 動能加分非禁區 |
