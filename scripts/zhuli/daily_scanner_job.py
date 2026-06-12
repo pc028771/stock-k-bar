@@ -1448,7 +1448,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         f"",
         f"## 各 scanner 統計",
         f"",
-        f"> 來源標記（spec R-ENT-007）：shakeout_strong / 小結構家族 / W底 = 🔬 案例歸納（非課程明授、user 核准使用）；",
+        f"> 來源標記（spec R-ENT-007）：shakeout_strong = 🔬 自創（user 核准）；小結構家族（含 N字）/ W底 = 🎓 老師補充教學（5/21 群創課）+ 🛠️ 量化門檻；",
         f"> uniform_ma 額外濾網 = 🛠️ 反向工程推測；J/I/F/外資黑K = 🎓 課程。打分/Tier 分級為實作 heuristic、非課程分數。",
         f"",
         f"| Scanner | 命中數 |",
