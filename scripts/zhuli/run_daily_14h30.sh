@@ -12,6 +12,6 @@ DATE=$(date +%Y-%m-%d)
 echo "=== 14:30 盤後批次 === $DATE ==="
 
 echo "[1/1] 跑 scanner..."
-$PYTHON "$REPO/scripts/zhuli/daily_scanner_job.py" --date "$DATE"
+$PYTHON "$REPO/scripts/zhuli/daily_scanner_job.py" --date "$DATE" --enable-kline-tier-a
 
 echo "=== 14:30 批次完成 ==="
