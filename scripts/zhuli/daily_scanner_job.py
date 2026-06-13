@@ -2033,6 +2033,24 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     return "\n".join(md)
 
 
+def _is_main_worktree() -> bool:
+    """主 worktree = .git 跟 git-common-dir 在同位置；linked worktree 則分離。"""
+    import subprocess as _sp
+    try:
+        gd = _sp.check_output(
+            ["git", "rev-parse", "--git-dir"], cwd=str(_REPO), text=True
+        ).strip()
+        gcd = _sp.check_output(
+            ["git", "rev-parse", "--git-common-dir"], cwd=str(_REPO), text=True
+        ).strip()
+        # 解析相對路徑
+        gd_p = (Path(_REPO) / gd).resolve() if not Path(gd).is_absolute() else Path(gd).resolve()
+        gcd_p = (Path(_REPO) / gcd).resolve() if not Path(gcd).is_absolute() else Path(gcd).resolve()
+        return gd_p == gcd_p
+    except Exception:
+        return True  # 安全 default、避免誤寫 experimental 漏掉資料
+
+
 def write_daily_watchlist_json(
     target_date: str,
     results: dict,
@@ -2054,8 +2072,19 @@ def write_daily_watchlist_json(
     """
     import json as _json
 
-    out_dir = _REPO / "docs" / "主力大課程" / "daily_watchlist"
+    _base_dir = _REPO / "docs" / "主力大課程" / "daily_watchlist"
+    if _is_main_worktree():
+        out_dir = _base_dir
+        _filename = f"{target_date}.json"
+        _wt_note = "主 worktree → source of truth"
+    else:
+        out_dir = _base_dir / "_experimental"
+        _wt_name = _REPO.resolve().name  # e.g. "intraday-monitor"
+        _filename = f"{target_date}.{_wt_name}.json"
+        _wt_note = (f"linked worktree '{_wt_name}' → _experimental 暫存 "
+                    f"（不進 git；正式版請 merge 後在主 worktree 跑）")
     out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  [watchlist] {_wt_note}", flush=True)
 
     # ── 從 results 收集所有命中 ticker ──────────────────────────────────────
     # ticker → { sources: set, hits: list[dict] }
@@ -2199,7 +2228,7 @@ def write_daily_watchlist_json(
         'leaders': results.get('leaders', []),
     }
 
-    out_path = out_dir / f"{target_date}.json"
+    out_path = out_dir / _filename
     out_path.write_text(_json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
     return out_path
 

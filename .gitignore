@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Linked worktree 跑 daily_scanner 的暫存輸出（主 worktree 寫固定檔名是 source of truth）
+docs/主力大課程/daily_watchlist/_experimental/
+
 # 大型音檔/影片 — 放 iCloud 備份不入 repo
 *.m4a
 *.webm
