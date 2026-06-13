@@ -60,3 +60,11 @@ else
 fi
 
 echo "=== evening_fetch 完成 === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+
+# 4/4 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
+echo "[4/4] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if "$REPO/scripts/zhuli/sync_db_to_icloud.sh" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[4/4] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+else
+    echo "[4/4] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+fi
