@@ -26,6 +26,8 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import sqlite3
@@ -38,7 +40,7 @@ import pandas as pd
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _STRAT_DIR = _REPO / "docs" / "主力大課程" / "strategies"
 _PICKS_JSON = _REPO / "docs" / "主力大課程" / "teacher_picks_2026.json"
 
@@ -135,7 +137,7 @@ def load_teacher_signals() -> list[TeacherSignal]:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _db_con() -> sqlite3.Connection:
-    return sqlite3.connect(str(_DB), timeout=30)
+    return get_conn(_DB, timeout=30)
 
 
 def get_trading_dates(start: str, end: str) -> list[str]:

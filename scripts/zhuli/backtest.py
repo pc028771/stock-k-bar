@@ -23,8 +23,9 @@ Course: 主力大全方位操盤教戰守則 + K 線力量入門
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
-import sqlite3
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -129,7 +130,7 @@ def _load_minute_bars(db_path_minute: Optional[Path] = None) -> dict:
     if not minute_db.exists():
         return {}
     try:
-        conn = sqlite3.connect(str(minute_db))
+        conn = get_conn(minute_db)
         df = pd.read_sql_query(
             "SELECT ticker, trade_datetime, open, high, low, close FROM stock_minute_kbar ORDER BY ticker, trade_datetime",
             conn,

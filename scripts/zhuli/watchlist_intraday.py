@@ -14,7 +14,7 @@
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -114,7 +114,7 @@ CHECKS = {
 
 def get_db_baseline(db_path: Path, tickers: list[str]) -> dict:
     """取最後一筆 baseline: ma20 / ma60 / ma20_slope / vol_ma20."""
-    with sqlite3.connect(db_path) as conn:
+    with get_conn(db_path) as conn:
         cur = conn.cursor()
         result = {}
         for t in tickers:
@@ -213,7 +213,7 @@ def get_group_flow_state(db_path: Path, ticker: str) -> tuple[str, float, str]:
         return ("未知", 0.0, "")
     tickers = _GROUP_TICKERS[group]
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             placeholders = ",".join(["?"] * len(tickers))
             df = pd.read_sql_query(
                 f"SELECT trade_date, sitc_net, foreign_net "
@@ -252,7 +252,7 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
     """
     triggers = []
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             df = pd.read_sql_query(
                 "SELECT trade_date, open, high, low, close, volume "
                 "FROM standard_daily_bar WHERE ticker=? AND is_usable=1 "
@@ -321,10 +321,11 @@ def baseline_ch2_warnings(db_path: Path, ticker: str) -> tuple[int, list[str]]:
 
         # 6. 收盤跌破 MA5 (短均跌破 = 早期警示)
         if "ma5" not in df.columns:
-            cur = sqlite3.connect(str(db_path), timeout=15).execute(
-                "SELECT ma5 FROM standard_daily_bar WHERE ticker=? AND trade_date=?",
-                (ticker, latest["trade_date"]),
-            ).fetchone()
+            with get_conn(db_path, timeout=15) as _con:
+                cur = _con.execute(
+                    "SELECT ma5 FROM standard_daily_bar WHERE ticker=? AND trade_date=?",
+                    (ticker, latest["trade_date"]),
+                ).fetchone()
             ma5 = cur[0] if cur else None
         else:
             ma5 = latest.get("ma5")

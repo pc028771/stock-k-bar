@@ -17,17 +17,18 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import re
-import sqlite3
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _REPO      = Path(__file__).parent.parent.parent
-_DB        = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _HOLDINGS  = _REPO / "docs" / "主力大課程" / "holdings.json"
 _BRIEF_DIR = _REPO / "docs" / "主力大課程" / "daily_brief"
 _JOURNAL_DIR = _REPO / "docs" / "主力大課程" / "trade_journal"
@@ -75,7 +76,7 @@ def _load_dage_action(target_date: str, no_dage: bool, mode: str) -> dict | None
 def _get_close_and_ma(ticker: str, trade_date: str) -> dict:
     """從 DB 取完整 MA 狀態。"""
     try:
-        con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(_DB, timeout=5)
         row = con.execute(
             "SELECT close, ma5, ma10, ma20, stop_loss_ref FROM standard_daily_bar "
             "WHERE ticker=? AND trade_date=?",
@@ -84,7 +85,7 @@ def _get_close_and_ma(ticker: str, trade_date: str) -> dict:
         con.close()
         if row is None:
             # stop_loss_ref 欄位不一定存在，改用基本欄位
-            con2 = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+            con2 = get_conn(_DB, timeout=5)
             row2 = con2.execute(
                 "SELECT close, ma5, ma10, ma20 FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date=?",
@@ -99,7 +100,7 @@ def _get_close_and_ma(ticker: str, trade_date: str) -> dict:
         return {"close": close, "ma5": ma5, "ma10": ma10, "ma20": ma20, "stop_loss_ref": sl_ref}
     except Exception:
         try:
-            con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+            con = get_conn(_DB, timeout=5)
             row = con.execute(
                 "SELECT close, ma5, ma10, ma20 FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date=?",

@@ -34,6 +34,8 @@ Note:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import os
 import sqlite3
@@ -54,8 +56,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS_DIR)]:
 from clients.finmind_client import fetch_kbar  # noqa: E402
 
 # ── 常數 ──────────────────────────────────────────────────────────────────────
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS stock_minute_kbar (
     ticker        TEXT NOT NULL,
@@ -187,7 +188,7 @@ def backfill(
         sys.exit("ERROR: FINMIND_TOKEN env var not set.")
 
     all_days = _trading_days(start_date, end_date)
-    conn = sqlite3.connect(str(db_path), timeout=30)
+    conn = get_conn(db_path, readonly=False, timeout=30)
     ensure_table(conn)
 
     stats = {

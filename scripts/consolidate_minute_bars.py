@@ -19,6 +19,8 @@ Sources:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import json
 import os
 import shutil
@@ -29,7 +31,7 @@ from pathlib import Path
 import pandas as pd
 
 WORKTREE_ROOT = Path("/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power")
-MAIN_DB_SYMLINK = Path.home() / ".four_seasons" / "data.sqlite"
+MAIN_DB_SYMLINK = MAIN_DB
 CSV_CACHE_DIR = Path.home() / ".four_seasons" / "finmind_kbar_cache"
 JSON_CACHE_DIR = Path.home() / ".cache" / "finmind" / "kbar"
 SMALL_DB = WORKTREE_ROOT / "data/analysis/kline_patterns/attack_cost_minute_data.sqlite"

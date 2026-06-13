@@ -13,12 +13,13 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import json
-import sqlite3
 from collections import defaultdict
 from pathlib import Path
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
+DB = MAIN_DB
 HOLDINGS_JSON = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "holdings.json"
 
 LONG_BUY_ACTIONS = {"現買", "券買"}
@@ -30,7 +31,7 @@ def calc_broker_positions(db: Path = DB) -> dict[str, dict]:
 
     回傳 dict[ticker → {shares, avg_cost, stock_name}]
     """
-    with sqlite3.connect(str(db)) as con:
+    with get_conn(db) as con:
         rows = con.execute(
             """SELECT id, stock_name, ticker, trade_date, shares, action, price, fee
                FROM broker_statement

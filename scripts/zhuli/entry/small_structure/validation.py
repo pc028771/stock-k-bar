@@ -27,6 +27,8 @@ E. Sector universe 對比 (5/20 trigger)
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -36,8 +38,7 @@ import pandas as pd
 
 # ── 路徑設定 ─────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)

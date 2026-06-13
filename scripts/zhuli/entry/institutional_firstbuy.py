@@ -38,7 +38,7 @@ Output columns:
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 import os
 import shutil
 import sys
@@ -73,7 +73,7 @@ def load_institutional(db_path: Path) -> pd.DataFrame:
         conn_path = str(db_path)
 
     try:
-        with sqlite3.connect(conn_path, timeout=15) as conn:
+        with get_conn(conn_path, timeout=15) as conn:
             # 先確認表存在
             cur = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"

@@ -10,11 +10,12 @@ allows this: "有些股票四季不明顯").
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import json
 import os
 import shutil
-import sqlite3
 import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
@@ -245,13 +246,13 @@ def _snapshot_db(db_path: Path) -> str:
 
 
 def _load_stock_names(conn_path: str) -> dict[str, str]:
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query("select ticker, name from stock_name", conn)
     return dict(zip(df.ticker.astype(str), df.name))
 
 
 def _list_trade_dates(conn_path: str, start: str, end: str) -> list[pd.Timestamp]:
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(
             "select distinct trade_date from standard_daily_bar "
             "where is_usable=1 and trade_date between ? and ? order by trade_date",
@@ -303,7 +304,7 @@ def load_bars_as_of(
         select * from ranked where rn <= ?
     """
     params = params + (LOAD_DAYS,)
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(query, conn, params=params, parse_dates=["trade_date"])
 
     if df.empty:

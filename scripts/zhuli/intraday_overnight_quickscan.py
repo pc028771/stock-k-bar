@@ -22,6 +22,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -42,7 +44,7 @@ from zhuli.config import OvernightSwingConfig                            # noqa
 from zhuli.entry.overnight_swing import _compute_bbands                  # noqa
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-_DB        = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _OUT_CSV   = _REPO / "data" / "analysis" / "zhuli" / "overnight_swing_scanner_intraday.csv"
 _OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
@@ -309,7 +311,7 @@ def main() -> None:
         write_empty_csv()
         return
 
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db_path, timeout=15)
 
     # 候選 tickers：有現價快照 + 有歷史資料
     if fubon_ok:

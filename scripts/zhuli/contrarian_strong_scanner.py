@@ -39,6 +39,8 @@ Output:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import math
@@ -53,7 +55,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _PICKS = _REPO / "docs" / "主力大課程" / "teacher_picks_2026.json"
 _BROKER_NOTES = _REPO / "docs" / "主力大課程" / "broker_activity_notes.md"
 
@@ -270,7 +272,7 @@ def score_candidate(bar: dict, mention: dict, broker_strong: bool) -> tuple[int,
 
 def run_scan(target_date: str, min_score: int = 5, include_broker: bool = True, broker_top_n: int = 30, include_inst: bool = True) -> list[dict]:
     picks = load_picks()
-    conn = sqlite3.connect(_DB)
+    conn = get_conn(_DB)
     results = []
     for ticker, info in picks.items():
         bar = get_bar_features(conn, ticker, target_date)

@@ -31,6 +31,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import functools
 import logging
@@ -69,8 +71,7 @@ except ImportError as _e:
     def check_profit_milestone(*a, **kw):return {"triggered": False, "reason": "detector 未載入"}
     def check_gap_down_emergency(*a, **kw): return {"triggered": False, "reason": "detector 未載入"}
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -166,7 +167,7 @@ def notify_mac(title: str, msg: str, sound: str = "Glass") -> None:
 def _db_con(db: Path) -> sqlite3.Connection:
     for _ in range(3):
         try:
-            return sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+            return get_conn(db, timeout=15)
         except sqlite3.OperationalError as e:
             log.warning("DB 連線失敗，1s 後重試: %s", e)
             time.sleep(1)
@@ -194,7 +195,7 @@ def db_data_version(db: Path = _DB) -> str:
     if hit and now - hit[0] < _DATA_VERSION_TTL:
         return hit[1]
     try:
-        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+        with get_conn(db) as con:
             r = con.execute("SELECT MAX(trade_date) FROM standard_daily_bar").fetchone()
         v = str(r[0]) if r and r[0] else ""
     except Exception:
@@ -216,7 +217,7 @@ def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
     把每對 (ticker, date) 的查詢降到 1 次。data_version 進 key、DB 補日K後自動失效。
     """
     try:
-        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+        with get_conn(db) as con:
             r = con.execute(
                 "SELECT ma10 FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date < ? "
@@ -957,7 +958,7 @@ class StageTrigger:
         try:
             for attempt in range(3):
                 try:
-                    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+                    con = get_conn(db_path, timeout=10)
                     # 先嘗試取當日
                     row = con.execute(
                         "SELECT close, open, ma5 FROM standard_daily_bar "

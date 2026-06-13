@@ -8,7 +8,7 @@
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from pathlib import Path
 
 # ── 實際 FinMind TaiwanStockHoldingSharesPer 回傳的 level 名稱 ──
@@ -58,7 +58,7 @@ def concentration_warnings(
     若資料不足（少於 2 週）返回 (0, ['  ? 集中度資料不足']).
     """
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             rows = conn.execute(
                 """
                 SELECT date, level, percent

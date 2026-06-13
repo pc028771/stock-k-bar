@@ -12,13 +12,15 @@ User 拍板門檻 (2026-06-04):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
+DB = MAIN_DB
 _REPO = Path(__file__).parent.parent.parent.parent  # stock-k-bar root
 
 FOREIGN_5D_MIN: float = 3000.0   # 張
@@ -172,7 +174,7 @@ def _load_universe(db: Path) -> list[str]:
 def _load_names(db: Path) -> dict[str, str]:
     """從 stock_info / stock_name 取名稱。"""
     try:
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
+        con = get_conn(db, timeout=10)
         rows = con.execute("SELECT ticker, name FROM stock_info").fetchall()
         con.close()
         return {r[0]: r[1] for r in rows}
@@ -199,7 +201,7 @@ def detect(
         universe = _load_universe(db)
 
     names = _load_names(db)
-    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db, timeout=15)
 
     try:
         taiex_pct = _get_taiex_pct(con, date)
@@ -213,7 +215,7 @@ def detect(
     if taiex_pct > TAIEX_DROP_THRESHOLD:
         return []
 
-    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db, timeout=15)
     try:
         stock_data = _get_stock_data(con, universe, date)
         chip_data = _get_chip_5d(con, universe, date)
@@ -295,7 +297,7 @@ def backtest(
         universe = list(set(universe) | set(extra_tickers))
 
     # 取 TAIEX 全期資料計算漲跌幅
-    con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db, timeout=15)
     taiex_rows = con.execute(
         "SELECT trade_date, close FROM standard_daily_bar "
         "WHERE ticker='TAIEX' AND trade_date >= date(?, '-7 days') AND trade_date <= ? "
@@ -357,7 +359,7 @@ def backtest(
 
     for date in taiex_drop_days:
         taiex_pct = taiex_pct_map[date]
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+        con = get_conn(db, timeout=15)
         try:
             stock_data = _get_stock_data(con, universe, date)
             chip_data = _get_chip_5d(con, universe, date)

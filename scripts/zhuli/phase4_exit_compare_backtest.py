@@ -9,8 +9,9 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 from pathlib import Path
 from typing import Optional
@@ -23,8 +24,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 # ── Import detectors ────────────────────────────────────────────────────────
 from scripts.zhuli.exit.detectors import (
     check_umbrella_exit_daily,
@@ -86,7 +86,7 @@ def calc_pnl(entry: float, exit_p: float, shares: int) -> float:
 def load_daily_bars(ticker: str, start_date: str, end_date: str = "2026-06-03") -> pd.DataFrame:
     """從 DB 取日線資料。"""
     try:
-        with sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=10) as con:
+        with get_conn(_DB, timeout=10) as con:
             rows = con.execute(
                 """SELECT trade_date, open, high, low, close, volume, ma10, vol_ma20
                    FROM standard_daily_bar

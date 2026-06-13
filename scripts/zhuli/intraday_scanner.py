@@ -24,6 +24,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import sqlite3
@@ -48,7 +50,7 @@ from zhuli.daily_scanner_job import (                                      # noq
     TIER_A_WBOTTOM, TIER_A_SMALLSTR, MA10_DIST_RISKY,
 )
 
-_DB         = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _HOLDINGS   = _REPO / "docs" / "主力大課程" / "holdings.json"
 _BRIEF_DIR  = _REPO / "docs" / "主力大課程" / "daily_brief"
 
@@ -542,7 +544,7 @@ def main():
             print("  非測試模式：仍繼續（快照欄位全為 None）", flush=True)
 
     # ── 連接 DB ───────────────────────────────────────────────────────────────
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+    con = get_conn(db_path, timeout=15)
     stock_info = load_stock_info(con)
 
     # ── 持倉分析 ──────────────────────────────────────────────────────────────

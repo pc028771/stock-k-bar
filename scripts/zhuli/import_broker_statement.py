@@ -13,14 +13,15 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import csv
 import sqlite3
 import sys
 from pathlib import Path
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+DB = MAIN_DB
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS broker_statement (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +79,7 @@ def lookup_ticker(con: sqlite3.Connection, stock_name: str) -> str | None:
 
 
 def import_csv(csv_path: Path, db: Path = DB) -> dict:
-    con = sqlite3.connect(db)
+    con = get_conn(db, readonly=False)
     con.executescript(SCHEMA)
 
     inserted = 0

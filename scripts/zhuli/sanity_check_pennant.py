@@ -8,8 +8,9 @@ Instructor cases (Ch4-2):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -62,7 +63,7 @@ def _check_bar_data(db_path: Path, ticker: str, date: str) -> bool:
         d = pd.Timestamp(date)
         d_min = (d - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
         d_max = (d + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             cur = conn.execute(
                 "SELECT COUNT(*) FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date BETWEEN ? AND ? AND is_usable=1",

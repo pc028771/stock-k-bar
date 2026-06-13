@@ -10,6 +10,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -21,9 +23,7 @@ _SCRIPTS = Path(__file__).parent.parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
-
+DB = MAIN_DB
 def check(target_date: str | None = None) -> bool:
     today = target_date or date.today().isoformat()
 

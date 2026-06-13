@@ -30,6 +30,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import json
 import sqlite3
@@ -283,7 +285,7 @@ def import_all(
 
     conn: sqlite3.Connection | None = None
     if not dry_run:
-        conn = sqlite3.connect(str(db_path), timeout=60)
+        conn = get_conn(db_path, readonly=False, timeout=60)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
         ensure_table(conn)

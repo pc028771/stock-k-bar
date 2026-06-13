@@ -15,6 +15,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import os
 import sqlite3
@@ -31,7 +33,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-DB_PATH = Path.home() / ".four_seasons" / "data.sqlite"
+DB_PATH = MAIN_DB
 DATA_SOURCE_ID = 1
 
 
@@ -78,7 +80,7 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path, dry_run: bool = 
 
     dry_run=True 時跳過 INSERT、只回傳統計（用於盤中只看不存）.
     """
-    con = sqlite3.connect(str(db_path), timeout=30)
+    con = get_conn(db_path, readonly=False, timeout=30)
     tickers = new_df["ticker"].unique()
     upserted = 0
     skipped = 0
@@ -192,7 +194,7 @@ def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set |
 def upsert_institutional(df: pd.DataFrame, db_path: Path, dry_run: bool = False) -> int:
     if dry_run:
         return len(df)
-    con = sqlite3.connect(str(db_path), timeout=30)
+    con = get_conn(db_path, readonly=False, timeout=30)
     n = 0
     for _, r in df.iterrows():
         con.execute("""

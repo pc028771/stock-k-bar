@@ -12,9 +12,10 @@ Design constraints (從 spec):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
-import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -73,7 +74,7 @@ def _compute_lights_hit_rates(db_path: Path, min_runs: int = 10) -> pd.DataFrame
     if not db_path.exists():
         return pd.DataFrame(columns=["light_id", "severity", "n_fires", "n_runs", "fire_rate"])
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path) as conn:
         total_runs = conn.execute("SELECT COUNT(*) FROM advisor_runs").fetchone()[0]
         if total_runs == 0:
             return pd.DataFrame(columns=["light_id", "severity", "n_fires", "n_runs", "fire_rate"])
@@ -101,7 +102,7 @@ def _get_pattern_trigger_stats(db_path: Path) -> pd.DataFrame:
     if not db_path.exists():
         return pd.DataFrame()
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path) as conn:
         # Detect schema version (pattern_name column may not exist in older DBs)
         col_info = conn.execute("PRAGMA table_info(advisor_branches)").fetchall()
         col_names = {row[1] for row in col_info}

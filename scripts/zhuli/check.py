@@ -12,10 +12,11 @@ Usage (agent 跑):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import datetime as _dt
 import logging
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -31,14 +32,12 @@ logging.getLogger("clients.fubon_client").setLevel(logging.ERROR)
 
 from clients.fubon_client import FubonClient  # noqa: E402
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
-
+DB = MAIN_DB
 def check_one(c: FubonClient, ticker: str, cost: float | None = None,
               shares: int | None = None, stop: float | None = None,
               days: int = 7) -> None:
     """印出單檔分析."""
-    con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    con = get_conn(DB)
     try:
         # 取股名 + 最新日線
         r = con.execute(

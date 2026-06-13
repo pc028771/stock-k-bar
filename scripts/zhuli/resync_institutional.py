@@ -8,9 +8,10 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import os
-import sqlite3
 import sys
 import time
 from datetime import date, timedelta
@@ -23,12 +24,10 @@ for _p in [str(_REPO), str(_REPO / "scripts"), "/Users/howard/Repository/stock-a
 
 from zhuli.sync_today import fetch_institutional_whole, upsert_institutional
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
-
+DB = MAIN_DB
 def get_trading_dates(start: str, end: str) -> list[str]:
     """從 standard_daily_bar 取既有交易日（避免拉假日）."""
-    conn = sqlite3.connect(DB)
+    conn = get_conn(DB)
     rows = conn.execute(
         "SELECT DISTINCT trade_date FROM standard_daily_bar WHERE trade_date BETWEEN ? AND ? ORDER BY trade_date",
         (start, end),
@@ -38,7 +37,7 @@ def get_trading_dates(start: str, end: str) -> list[str]:
 
 
 def get_valid_tickers() -> set:
-    conn = sqlite3.connect(DB)
+    conn = get_conn(DB)
     rows = conn.execute("SELECT DISTINCT ticker FROM stock_info").fetchall()
     conn.close()
     return {r[0] for r in rows}

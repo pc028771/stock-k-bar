@@ -18,8 +18,9 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 from datetime import datetime, date
 from pathlib import Path
@@ -32,14 +33,12 @@ for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 # 嘗試引入 kline DB 路徑 (標準日 K baseline)
 try:
     from kline.bars import DEFAULT_DB_PATH as _KLINE_DB  # noqa: E402
 except Exception:
-    _KLINE_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+    _KLINE_DB = MAIN_DB
 import pandas as pd
 
 
@@ -48,7 +47,7 @@ import pandas as pd
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _db():
-    return sqlite3.connect(str(_DB), timeout=15)
+    return get_conn(_DB, timeout=15)
 
 
 def get_active_holdings() -> list[dict]:
@@ -89,7 +88,7 @@ def get_latest_stance(ticker: str) -> dict | None:
 def get_db_ohlcv(ticker: str, n: int = 10) -> pd.DataFrame:
     """取最近 n 日 OHLCV + MA baseline."""
     try:
-        with sqlite3.connect(str(_KLINE_DB), timeout=15) as conn:
+        with get_conn(_KLINE_DB, timeout=15) as conn:
             df = pd.read_sql_query(
                 """SELECT trade_date, open, high, low, close, volume,
                           ma5, ma10, ma20, ma60, ma20_slope, vol_ma20
@@ -108,7 +107,7 @@ def get_kickout_closes(ticker: str) -> dict:
     """取 MA5/10/20/60 扣抵 close（N 天前 close）."""
     result = {}
     try:
-        with sqlite3.connect(str(_KLINE_DB), timeout=15) as conn:
+        with get_conn(_KLINE_DB, timeout=15) as conn:
             for n, label in [(5, "ma5"), (10, "ma10"), (20, "ma20"), (60, "ma60")]:
                 row = conn.execute(
                     "SELECT trade_date, close FROM standard_daily_bar "

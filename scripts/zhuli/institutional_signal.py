@@ -101,7 +101,8 @@ def main():
         print("Usage: institutional_signal.py <ticker> <date>")
         sys.exit(1)
     ticker, d = sys.argv[1], sys.argv[2]
-    conn = sqlite3.connect(Path.home() / ".four_seasons" / "data.sqlite")
+    from zhuli.db import get_conn
+    conn = get_conn()
     r = institutional_5d(ticker, d, conn)
     print(f"\n=== {ticker} 三大法人 5d 訊號 (截至 {d}) ===")
     print(f"投信 5d 淨買: {r['sitc_5d']:+,} 張 / streak {r['sitc_streak_buy']} 日 → {r['sitc_score']} 分")

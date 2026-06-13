@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import sqlite3
 import sys
 import threading
 import time
@@ -1946,6 +1945,24 @@ def main():
     p.add_argument("--interval", type=float, default=5.0,
                    help="Demo auto-cycle 秒 (預設 5)")
     args = p.parse_args()
+
+    # spec R-MON 護欄：非 demo 模式必須有今日 DB（防 6/12 office 6/8 殭屍）
+    if not args.demo:
+        from datetime import date as _date
+        from zhuli.db import latest_trade_date, MAIN_DB
+        _latest = latest_trade_date()
+        _today = _date.today().isoformat()
+        if not _latest or _latest < _today:
+            from datetime import timedelta as _td
+            # 允許收盤前未補資料、但若超過 1 天 stale 就警告
+            _yday = (_date.today() - _td(days=1)).isoformat()
+            if not _latest or _latest < _yday:
+                print(f"⚠️  WARNING: DB stale — 最新 {_latest!r}、今天 {_today}", flush=True)
+                print(f"    DB: {MAIN_DB}", flush=True)
+                print(f"    monitor 可能顯示昨收/MA10 假基準。建議先跑:", flush=True)
+                print(f"      python3 scripts/zhuli/sync_missing_daily_bars.py", flush=True)
+                print(f"    或 Ctrl+C 後修正。3 秒後繼續...", flush=True)
+                import time as _time; _time.sleep(3)
 
     if args.demo:
         mock = MockClient()

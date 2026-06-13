@@ -20,13 +20,15 @@ from datetime import datetime
 from pathlib import Path
 from functools import lru_cache
 
+from zhuli.db import get_conn
+
 DB_PATH = os.path.expanduser("~/four_seasons_local/data.sqlite")
 WATCHLIST_DIR = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "daily_watchlist"
 REPORT_DIR = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "recommendation_accuracy"
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = get_conn(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 

@@ -5,12 +5,12 @@ Swing Turning-Point Capture Rate Analysis
 Measures whether the scanner identifies pivot points (能不能抓到轉折),
 not trade frequency or win rate.
 """
-
-import sqlite3
 import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
+from zhuli.db import get_conn
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 DB_PATH        = "/Users/howard/.four_seasons/data.sqlite"
@@ -41,7 +41,7 @@ tickers = universe["ticker"].astype(str).str.zfill(4).unique().tolist()
 print(f"  Universe tickers: {len(tickers)}")
 
 print("Loading stock names...")
-conn = sqlite3.connect(DB_PATH)
+conn = get_conn(DB_PATH)
 names_df = pd.read_sql("SELECT ticker, name FROM stock_name", conn)
 names_df["ticker"] = names_df["ticker"].astype(str).str.zfill(4)
 names_map = dict(zip(names_df["ticker"], names_df["name"]))

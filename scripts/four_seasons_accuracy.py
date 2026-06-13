@@ -12,10 +12,11 @@ Course expectation (docs/四季投資法/course_principles.md):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
 import shutil
-import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -36,7 +37,7 @@ def _snapshot(db: Path) -> str:
 
 def load_close_panel(conn_path: str) -> pd.DataFrame:
     """All (ticker, trade_date, close), sorted, indexed for fast lookup."""
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(
             "select ticker, trade_date, close from standard_daily_bar where is_usable=1",
             conn, parse_dates=["trade_date"],

@@ -18,8 +18,9 @@ Entry: signal_date + 1 day open (含 0.3% 滑價)
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import json
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -35,7 +36,7 @@ from kline.extras.shakeout_strong import detect as detect_shakeout  # noqa
 from zhuli.entry.small_structure import detect as detect_small_structure  # noqa
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom  # noqa
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _REPO_DIR = Path(__file__).parent.parent.parent
 
 START_DATE = "2026-01-01"
@@ -167,7 +168,7 @@ def run() -> dict:
     teacher_set = load_teacher_tickers()
     print(f"老師族群 ticker: {len(teacher_set)}")
 
-    con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=15)
+    con = get_conn(_DB, timeout=15)
     db_tickers = set(r[0] for r in con.execute(
         "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
     ).fetchall())

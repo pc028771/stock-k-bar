@@ -8,6 +8,8 @@ Cases:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import os
 import sqlite3
 import sys
@@ -219,7 +221,7 @@ def analyze_case(ticker: str, date: str, name: str, label: str, conn: sqlite3.Co
 
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn(DB_PATH, readonly=False)
     init_db(conn)
 
     print("=== Attack Cost Minute Data Fetch ===")

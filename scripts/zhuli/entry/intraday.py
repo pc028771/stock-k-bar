@@ -15,7 +15,7 @@ Logic:
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from pathlib import Path
 from typing import Optional
 
@@ -27,7 +27,7 @@ from zhuli.config import IntradayConfig
 
 def _load_shareholding(db_path: Path) -> pd.DataFrame:
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             return pd.read_sql_query(
                 "SELECT ticker, trade_date, shares_issued FROM stock_shareholding", conn
             )
