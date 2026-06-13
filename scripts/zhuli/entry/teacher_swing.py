@@ -49,6 +49,8 @@ python scripts/zhuli/entry/teacher_swing.py --date 2026-05-29 --relaxed
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -60,8 +62,7 @@ import pandas as pd
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 
 _REPO = Path(__file__).parent.parent.parent.parent  # stock-k-bar root
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -601,7 +602,7 @@ def run_scan(
     if cfg is None:
         cfg = DEFAULT_CFG
 
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=30)
+    con = get_conn(db_path, timeout=30)
     stock_names = _load_stock_info(con)
     shares_map  = _load_shares_issued(con, target_date)
 

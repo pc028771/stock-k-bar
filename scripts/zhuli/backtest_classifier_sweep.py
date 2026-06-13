@@ -21,9 +21,10 @@ Ground Truth:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import os
 import sys
-import sqlite3
 from datetime import date, timedelta
 from itertools import product
 from pathlib import Path
@@ -57,7 +58,7 @@ TIER1_EVAL_DATE = "2026-05-29"
 # ── DB 存取 ─────────────────────────────────────────────────────────────────────
 def load_bars(ticker: str, start: str, end: str) -> pd.DataFrame | None:
     """從 DB 讀取 standard_daily_bar，回傳含必要欄位的 DataFrame."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn(DB_PATH)
     df = pd.read_sql_query(
         """
         SELECT trade_date, close, high, low, open, volume,

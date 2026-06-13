@@ -19,6 +19,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from zhuli.db import get_conn
+
 DB_PATH = os.path.expanduser("~/four_seasons_local/data.sqlite")
 BACKUP_PATH = "/tmp/data.sqlite.v1_backup"
 
@@ -86,7 +88,7 @@ def migrate(dry_run: bool = False):
     else:
         print("  (dry-run: 跳過備份)")
 
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = get_conn(DB_PATH, readonly=False, timeout=10)
     conn.row_factory = sqlite3.Row
 
     # ── 確認舊表存在 ─────────────────────────────────────────────

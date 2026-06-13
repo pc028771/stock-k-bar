@@ -7,8 +7,9 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -23,8 +24,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 from zhuli.entry.small_structure.glued_ma5_platform import detect_with_diagnostics  # noqa
 from zhuli.entry.small_structure.ma5_pivot_breakout import detect_ma5_pivot          # noqa
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 # ── Ground truth spec ──────────────────────────────────────────────────────────
 GROUND_TRUTH = {
     "3481": {
@@ -113,7 +113,7 @@ def run_ground_truth_validation(db_path: Path, n_days: int = 3) -> dict:
     使用 detect_with_diagnostics 顯示每日條件細節。
     同時用 n_days=1（單日）驗證，便於確認個別日期是否符合基礎條件。
     """
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+    con = get_conn(db_path, timeout=10)
     results = {}
 
     print("=" * 70)
@@ -247,7 +247,7 @@ def run_fullmarket_analysis(
     print("2. 全市場噪音評估（sector_week 過濾）")
     print("=" * 70)
 
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=30)
+    con = get_conn(db_path, timeout=30)
 
     # sector_week universe 以 end_date 為基準
     sw_universe = _load_sector_week_universe(end_date)

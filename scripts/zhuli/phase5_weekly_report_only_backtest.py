@@ -26,6 +26,8 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -37,7 +39,7 @@ import pandas as pd
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _DOCS = _REPO / "docs" / "主力大課程" / "pressplay_articles"
 _STRAT_DIR = _REPO / "docs" / "主力大課程" / "strategies"
 

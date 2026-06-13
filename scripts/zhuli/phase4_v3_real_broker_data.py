@@ -14,8 +14,9 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -29,8 +30,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 # ── Import detectors from v2 ────────────────────────────────────────────────
 try:
     from scripts.zhuli.exit.detectors import (
@@ -56,7 +56,7 @@ ANALYSIS_START = "2026-05-01"
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_broker_trades(db: Path = _DB) -> list[dict]:
-    with sqlite3.connect(str(db)) as con:
+    with get_conn(db) as con:
         rows = con.execute(
             """SELECT id, stock_name, ticker, trade_date, shares, action, price, fee, tax
                FROM broker_statement
@@ -176,7 +176,7 @@ def extract_closed_day_trips(trades: list[dict]) -> list[dict]:
 
 def load_daily_bars(ticker: str, start_date: str, end_date: str = "2026-06-04") -> pd.DataFrame:
     try:
-        with sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=10) as con:
+        with get_conn(_DB, timeout=10) as con:
             rows = con.execute(
                 """SELECT trade_date, open, high, low, close, volume, ma10, vol_ma20
                    FROM standard_daily_bar
@@ -196,7 +196,7 @@ def load_daily_bars(ticker: str, start_date: str, end_date: str = "2026-06-04") 
 
 def load_minute_bars(ticker: str, start_date: str, end_date: str = "2026-06-04") -> pd.DataFrame:
     try:
-        with sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=10) as con:
+        with get_conn(_DB, timeout=10) as con:
             rows = con.execute(
                 """SELECT trade_datetime, open, high, low, close, volume
                    FROM stock_minute_kbar

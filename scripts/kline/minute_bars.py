@@ -8,6 +8,8 @@ no journal touched, no sync race.
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import shutil
 import sqlite3
 import tempfile
@@ -16,8 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-MAIN_DB_SYMLINK = Path.home() / ".four_seasons" / "data.sqlite"
-
+MAIN_DB_SYMLINK = MAIN_DB
 _conn: sqlite3.Connection | None = None
 _conn_lock = threading.Lock()
 _copy_path: Path | None = None  # fallback tmp copy if URI mode fails

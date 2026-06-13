@@ -38,6 +38,8 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -49,7 +51,7 @@ import pandas as pd
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _STRAT_DIR = _REPO / "docs" / "主力大課程" / "strategies"
 
 for _p in [str(_REPO), str(_REPO / "scripts")]:
@@ -333,7 +335,7 @@ ALL_SOURCES: list[TeacherSource] = [
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _db_con() -> sqlite3.Connection:
-    return sqlite3.connect(str(_DB), timeout=30)
+    return get_conn(_DB, timeout=30)
 
 
 def get_trading_dates(start: str, end: str) -> list[str]:

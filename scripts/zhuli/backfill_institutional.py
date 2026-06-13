@@ -29,6 +29,8 @@ Note:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import sqlite3
 import sys
@@ -235,9 +237,10 @@ def backfill(
         shutil.copy2(db_path, tmp)
         read_conn = sqlite3.connect(str(tmp), timeout=15)
     except Exception:
-        read_conn = sqlite3.connect(str(db_path), timeout=15)
+        # fallback 純讀 ticker 清單、不需 RW lock
+        read_conn = get_conn(db_path, timeout=15)
 
-    write_conn = sqlite3.connect(str(db_path), timeout=30)
+    write_conn = get_conn(db_path, readonly=False, timeout=30)
     ensure_table(write_conn)
 
     # 取得全部 ticker 清單

@@ -9,6 +9,8 @@ Schema:    trade_date TEXT PK, limit_down_count INTEGER
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import sqlite3
 from pathlib import Path
 
@@ -37,7 +39,7 @@ CREATE TABLE IF NOT EXISTS limit_down_daily (
 
 def _init_out_db(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+    conn = get_conn(db_path, readonly=False)
     conn.execute(CREATE_TABLE_SQL)
     conn.commit()
     return conn

@@ -29,10 +29,11 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import math
-import sqlite3
 import sys
 from pathlib import Path
 from datetime import date
@@ -48,7 +49,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 
 from zhuli.daily_scanner_job import run_scanners  # noqa
 
-_DB_DEFAULT = Path.home() / ".four_seasons" / "data.sqlite"
+_DB_DEFAULT = MAIN_DB
 _CACHE_DIR_DEFAULT = Path("/tmp/bt_scanner_cache")
 _START_DATE = "2026-05-01"
 _END_DATE   = "2026-06-04"
@@ -59,7 +60,7 @@ MAX_POSITIONS_C6 = 4
 # ── Trading calendar ─────────────────────────────────────────────────────────
 
 def get_trading_dates(db_path: Path, start: str, end: str) -> list[str]:
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     rows = con.execute(
         "SELECT DISTINCT trade_date FROM standard_daily_bar "
         "WHERE trade_date >= ? AND trade_date <= ? ORDER BY trade_date",
@@ -216,7 +217,7 @@ def evaluate_rotation(
 
 def get_price(db_path: Path, ticker: str, trade_date: str) -> dict | None:
     """回傳 {open, high, low, close, ma10, vol_ratio_20} for ticker on trade_date."""
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     row = con.execute(
         "SELECT open, high, low, close, ma10, vol_ratio_20 FROM standard_daily_bar "
         "WHERE ticker=? AND trade_date=?",
@@ -272,7 +273,7 @@ def should_exit_chip_confirmed(ticker: str, current_date: str, db_path: Path) ->
     資料來源: institutional_investors 表 (foreign_net / sitc_net 單位: 股)
     若資料不足 2 天 → 保守不出 (return False)
     """
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     rows = con.execute(
         "SELECT trade_date, foreign_net, sitc_net "
         "FROM institutional_investors "
@@ -298,7 +299,7 @@ def should_exit_chip_confirmed(ticker: str, current_date: str, db_path: Path) ->
 
 def is_odd_lot_eligible(ticker: str, db_path: Path) -> bool:
     """twse/tpex 可零股交易; emerging (興櫃) 只能整張."""
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     row = con.execute("SELECT type FROM stock_info WHERE ticker=?", (ticker,)).fetchone()
     con.close()
     if not row:

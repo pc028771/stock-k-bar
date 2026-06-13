@@ -30,6 +30,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import os
@@ -51,7 +53,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 
 from zhuli.intraday_stage_helper import StageTrigger, _get_ma10, _DB as _HELPER_DB  # noqa
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _TMP = Path("/tmp")
 _CACHE_DIR = _TMP / "finmind_kbar_cache"
 _CACHE_DIR.mkdir(exist_ok=True)
@@ -234,7 +236,7 @@ def fetch_finmind_kbar_5m(ticker: str, target_date: str) -> pd.DataFrame:
 def get_prev_levels(ticker: str, d: str) -> dict:
     for attempt in range(3):
         try:
-            con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=10)
+            con = get_conn(_DB, timeout=10)
             rows = con.execute(
                 "SELECT trade_date, close, high, low FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date<? ORDER BY trade_date DESC LIMIT 10",
@@ -259,7 +261,7 @@ def get_prev_levels(ticker: str, d: str) -> dict:
 def get_open_price_next_day(ticker: str, d: str) -> Optional[float]:
     for attempt in range(3):
         try:
-            con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=10)
+            con = get_conn(_DB, timeout=10)
             row = con.execute(
                 "SELECT open FROM standard_daily_bar WHERE ticker=? AND trade_date=?",
                 (ticker, d),

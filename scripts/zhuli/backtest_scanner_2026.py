@@ -8,6 +8,8 @@ Step 2 — Precision Test: 族群 universe (~300 檔) → 每交易日跑 scanne
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import json
 import sqlite3
 import sys
@@ -21,7 +23,7 @@ import numpy as np
 
 # ── 路徑設定 ────────────────────────────────────────────────────────────────────
 REPO = Path("/Users/howard/Repository/stock-k-bar")
-DB_PATH = Path.home() / ".four_seasons" / "data.sqlite"
+DB_PATH = MAIN_DB
 DOCS_DIR = REPO / "docs" / "主力大課程"
 
 sys.path.insert(0, str(REPO))

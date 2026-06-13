@@ -9,8 +9,9 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
-import sqlite3
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -26,7 +27,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
 
 def get_kline_history(ticker: str, target_date: str, db_path: Path) -> pd.DataFrame:
     """抓 ticker 200 日歷史日 K（給 K-line classifier 用）。"""
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db_path, timeout=15)
     df = pd.read_sql(
         """SELECT trade_date, trade_date as date, open, high, low, close, volume,
                   vol_ratio_20, ma5, ma10, ma20, ma60
@@ -69,7 +70,7 @@ def main():
         classify_kline_patterns, confirm_open, pick_one,
     )
 
-    con = sqlite3.connect(f"file:{DEFAULT_DB_PATH}?mode=ro", uri=True, timeout=15)
+    con = get_conn(DEFAULT_DB_PATH, timeout=15)
     trade_dates = [r[0] for r in con.execute(
         "SELECT DISTINCT trade_date FROM standard_daily_bar "
         "WHERE trade_date >= ? AND trade_date <= ? ORDER BY trade_date",

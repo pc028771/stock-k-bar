@@ -41,6 +41,8 @@ Public API
 
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import json
 import sqlite3
 from pathlib import Path
@@ -128,7 +130,7 @@ def save(
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         _ensure_tables(conn)
 
         # Insert run summary
@@ -227,7 +229,7 @@ def load_runs(
     if not db_path.exists():
         return []
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         conn.row_factory = sqlite3.Row
         cur = conn.execute(
             """
@@ -270,7 +272,7 @@ def update_branch_outcome(
     """
     db_path = Path(db_path)
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         conn.execute(
             """
             UPDATE advisor_branches

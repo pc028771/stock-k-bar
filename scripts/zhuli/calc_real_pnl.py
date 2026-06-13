@@ -7,14 +7,14 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+DB = MAIN_DB
 # 手續費 / 交易稅率 (備用，優先用對帳單欄位)
 FEE_RATE = 0.000399
 TAX_RATE = 0.003
@@ -27,7 +27,7 @@ LONG_SELL_ACTIONS = {"現賣", "券賣"}
 
 def load_trades(db: Path = DB) -> list[dict]:
     """載入所有對帳單，依 trade_date + id 排序。"""
-    with sqlite3.connect(str(db)) as con:
+    with get_conn(db) as con:
         rows = con.execute(
             """SELECT id, stock_name, ticker, trade_date, shares, action,
                       price, fee, tax, net_amount, cost

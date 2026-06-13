@@ -24,6 +24,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import sys
 from pathlib import Path
@@ -108,9 +110,8 @@ TOLERANCE_DAYS = 2  # ±2 calendar days for date matching
 
 def _get_db_date_range(db_path: Path) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     """Return (min_date, max_date) from the DB, or (None, None) on error."""
-    import sqlite3
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             row = conn.execute(
                 "SELECT MIN(trade_date), MAX(trade_date) "
                 "FROM standard_daily_bar WHERE is_usable=1"

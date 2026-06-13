@@ -17,6 +17,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
 import sqlite3
@@ -44,7 +46,7 @@ TODAY = date.today().isoformat()
 
 def get_ticker_max_dates(db_path: Path) -> dict[str, str]:
     """Return {ticker: max_trade_date} for all tickers in standard_daily_bar."""
-    with sqlite3.connect(db_path) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         df = pd.read_sql_query(
             "SELECT ticker, MAX(trade_date) AS max_date FROM standard_daily_bar GROUP BY ticker",
             conn,
@@ -54,7 +56,7 @@ def get_ticker_max_dates(db_path: Path) -> dict[str, str]:
 
 def get_ticker_inst_max_dates(db_path: Path) -> dict[str, str]:
     """Return {ticker: max_trade_date} for institutional_investors."""
-    with sqlite3.connect(db_path) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         df = pd.read_sql_query(
             "SELECT ticker, MAX(trade_date) AS max_date FROM institutional_investors GROUP BY ticker",
             conn,
@@ -216,7 +218,7 @@ def main():
     failed_bars = []
     failed_inst = []
 
-    with sqlite3.connect(args.db) as conn:
+    with get_conn(args.db, readonly=False) as conn:
         for i, ticker in enumerate(all_tickers, 1):
             # Bars
             if not args.skip_bars:

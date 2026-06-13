@@ -34,6 +34,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -54,8 +56,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 # ── 預設監控池 ─────────────────────────────────────────────────────────────────
 PRIMARY_WATCHLIST: list[str] = [
     # 5/29 黏 MA5 3 天
@@ -83,7 +84,7 @@ _fubon_client = None
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _db_con(db_path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=15)
+    return get_conn(db_path, timeout=15)
 
 
 def _safe_float(v) -> Optional[float]:

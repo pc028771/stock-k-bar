@@ -13,6 +13,8 @@ Output:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import sqlite3
@@ -27,7 +29,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), "/Users/howard/Repository/stock-a
 
 from zhuli.contrarian_strong_scanner import run_scan
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _PICKS = _REPO / "docs" / "主力大課程" / "teacher_picks_2026.json"
 
 
@@ -111,7 +113,7 @@ def next_n_day_max_lu_streak(conn: sqlite3.Connection, ticker: str, base_date: s
 
 
 def run_backtest(start: str, end: str, score_threshold: int = 10, top_n: int = 10) -> dict:
-    conn = sqlite3.connect(_DB)
+    conn = get_conn(_DB)
     dates = get_trading_dates(start, end, conn)
     print(f"回測 {len(dates)} 個交易日: {dates[0]} → {dates[-1]}")
 

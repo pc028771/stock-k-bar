@@ -15,8 +15,9 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 import webbrowser
 from pathlib import Path
@@ -32,11 +33,9 @@ import pandas as pd
 plt.rcParams["font.family"] = ["Heiti TC", "Arial Unicode MS", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-DB_PATH = Path.home() / ".four_seasons" / "data.sqlite"
-
-
+DB_PATH = MAIN_DB
 def load_bars(ticker: str, start: str = "2026-04-01", end: str = "2026-05-29") -> pd.DataFrame:
-    con = sqlite3.connect(str(DB_PATH))
+    con = get_conn(DB_PATH)
     rows = con.execute(
         """SELECT trade_date, open, high, low, close, volume, ma5, ma10, ma20, ma60
            FROM standard_daily_bar
@@ -54,7 +53,7 @@ def load_bars(ticker: str, start: str = "2026-04-01", end: str = "2026-05-29") -
 
 
 def load_stock_name(ticker: str) -> str:
-    con = sqlite3.connect(str(DB_PATH))
+    con = get_conn(DB_PATH)
     r = con.execute(
         "SELECT industry FROM standard_daily_bar WHERE ticker=? ORDER BY trade_date DESC LIMIT 1",
         (ticker,),

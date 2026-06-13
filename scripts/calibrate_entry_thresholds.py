@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import importlib
 import math
-import sqlite3
 import subprocess
 import sys
 from datetime import datetime

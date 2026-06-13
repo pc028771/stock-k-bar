@@ -48,16 +48,16 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
-import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 QUEUE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS publish_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_publish_queue_status ON publish_queue(status);
 
 
 def _db():
-    return sqlite3.connect(str(_DB), timeout=15)
+    return get_conn(_DB, readonly=False, timeout=15)
 
 
 def _ensure_schema():

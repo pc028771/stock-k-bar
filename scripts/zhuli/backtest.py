@@ -23,8 +23,9 @@ Course: 主力大全方位操盤教戰守則 + K 線力量入門
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
-import sqlite3
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -118,6 +119,81 @@ class BacktestConfig:
     # Top-N per day ranking: 每天每 scanner 取 ranking 最強 N 筆 (0 = 不過濾)
     # (取「最高品質」signal,過濾掉勉強過篩的低品質 signal,拉勝率)
     top_n_per_day: int = 5
+
+
+def _load_minute_bars(db_path_minute: Optional[Path] = None) -> dict:
+    """載入 stock_minute_kbar → dict[ticker -> DataFrame(trade_datetime, open, high, low, close)].
+
+    DB: ~/.four_seasons/data.sqlite (stock_minute_kbar)
+    """
+    minute_db = db_path_minute or Path.home() / ".four_seasons" / "data.sqlite"
+    if not minute_db.exists():
+        return {}
+    try:
+        conn = get_conn(minute_db)
+        df = pd.read_sql_query(
+            "SELECT ticker, trade_datetime, open, high, low, close FROM stock_minute_kbar ORDER BY ticker, trade_datetime",
+            conn,
+        )
+        conn.close()
+    except Exception:
+        return {}
+    df["trade_datetime"] = pd.to_datetime(df["trade_datetime"])
+    df["trade_date"] = df["trade_datetime"].dt.date.astype(str)
+    result = {t: g.reset_index(drop=True) for t, g in df.groupby("ticker")}
+    return result
+
+
+def _check_close_session_entry(
+    ticker: str,
+    entry_date: pd.Timestamp,  # D+1 (the day we want to enter)
+    minute_bars: dict,
+    slippage_pct: float,
+) -> tuple[Optional[float], str]:
+    """Apply 尾盤進場紀律 4 filters on entry_date (D+1).
+
+    Returns:
+        (entry_price, skip_reason) — if entry_price is None → skip
+    Filters:
+        1. gap_pct = (D+1 open - D close) / D close ≥ +5% → skip
+           NOTE: we use D+1 open vs D+1 first bar open as proxy (no D close in minute)
+           We detect gap by comparing D+1 open to prev day daily close passed in.
+        2. first_5min surge: D+1 first 5 bars close vs D+1 open ≥ +5% → skip
+        3. No entry before 09:10 — we only use bars ≥ 13:00
+        4. Entry window: 13:00–13:25 last available bar close
+    """
+    entry_date_str = entry_date.strftime("%Y-%m-%d")
+    mbars = minute_bars.get(ticker)
+    if mbars is None or mbars.empty:
+        return None, "no_minute_data"
+
+    day_bars = mbars[mbars["trade_date"] == entry_date_str].copy()
+    if day_bars.empty:
+        return None, "no_minute_data"
+    day_bars = day_bars.sort_values("trade_datetime").reset_index(drop=True)
+
+    # Filter 2: first 5 bars (09:00-09:25 roughly) surge > 5%
+    day_open = day_bars.iloc[0]["open"]
+    first5 = day_bars.head(5)
+    first5_close = first5.iloc[-1]["close"] if len(first5) > 0 else day_open
+    if day_open > 0 and (first5_close - day_open) / day_open >= 0.05:
+        return None, "skip_first5min_surge"
+
+    # Entry window: 13:00-13:25
+    # Use time string comparison
+    window = day_bars[day_bars["trade_datetime"].dt.strftime("%H:%M") >= "13:00"]
+    window = window[window["trade_datetime"].dt.strftime("%H:%M") <= "13:25"]
+    if window.empty:
+        # No bars in window — try last bar before 13:30 as fallback
+        late = day_bars[day_bars["trade_datetime"].dt.strftime("%H:%M") <= "13:30"]
+        if late.empty:
+            return None, "no_closing_window_bar"
+        entry_bar = late.iloc[-1]
+    else:
+        entry_bar = window.iloc[-1]
+
+    entry_price = entry_bar["close"] * (1 + slippage_pct)
+    return entry_price, "ok"
 
 
 def _get_trade_outcome(

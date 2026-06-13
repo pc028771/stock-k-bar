@@ -1,7 +1,7 @@
 """Generate Phase 4.3 report from existing DB results."""
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from pathlib import Path
 
 import pandas as pd
@@ -17,7 +17,7 @@ def main() -> None:
     hit_rates = compute_branch_hit_rates(db_path=DB_PATH, min_runs=10)
     hit_rates_sorted = hit_rates.sort_values("hit_rate", ascending=False)
 
-    with sqlite3.connect(str(DB_PATH)) as conn:
+    with get_conn(DB_PATH) as conn:
         total_runs = conn.execute("SELECT COUNT(*) FROM advisor_runs").fetchone()[0]
         n_tickers = conn.execute("SELECT COUNT(DISTINCT ticker) FROM advisor_runs").fetchone()[0]
         n_branches_total = conn.execute("SELECT COUNT(*) FROM advisor_branches").fetchone()[0]

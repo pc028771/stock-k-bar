@@ -32,9 +32,10 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import subprocess
-import sqlite3
 import sys
 import termios
 import tty
@@ -61,8 +62,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 
 from clients.fubon_client import FubonClient  # noqa
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+DB = MAIN_DB
 # ─────────────────────────────────────────────────────────────────────────
 # 編輯區 (每天晚上鎖 plan 時改)
 # ─────────────────────────────────────────────────────────────────────────
@@ -1893,7 +1893,7 @@ def load_5d_avg_volume(ticker: str) -> float | None:
     if cached is not None:
         return cached
     try:
-        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(DB, timeout=5)
         rows = con.execute(
             "SELECT volume FROM standard_daily_bar "
             "WHERE ticker=? AND trade_date < date('now', 'localtime') "
@@ -1939,7 +1939,7 @@ def mk_chip_signal_text(
     if ticker in _chip_cache:
         return _chip_cache[ticker]
     try:
-        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+        con = get_conn(db_path, timeout=5)
         rows = con.execute(
             "SELECT trade_date, foreign_net, sitc_net "
             "FROM institutional_investors "
@@ -2185,7 +2185,7 @@ def load_ma10(ticker: str) -> float | None:
     if ticker in _ma10_cache:
         return _ma10_cache[ticker]
     try:
-        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(DB, timeout=5)
         r = con.execute(
             "SELECT ma10 FROM standard_daily_bar "
             "WHERE ticker=? AND trade_date < date('now', 'localtime') "
@@ -2235,7 +2235,7 @@ def r_dist_ref(c: float, ref: float) -> Text:
 
 def load_prev_close(ticker: str) -> float | None:
     try:
-        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(DB, timeout=5)
         r = con.execute(
             "SELECT close FROM standard_daily_bar WHERE ticker=? ORDER BY trade_date DESC LIMIT 1",
             (ticker,)

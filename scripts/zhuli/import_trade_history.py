@@ -5,6 +5,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import csv
 import re
@@ -12,8 +14,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-DB_PATH = Path.home() / ".four_seasons" / "data.sqlite"
-
+DB_PATH = MAIN_DB
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS trade_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +60,7 @@ def parse_float(s: str) -> float:
 
 def import_csv(csv_path: Path, db_path: Path = DB_PATH, dry_run: bool = False) -> dict:
     """匯入 CSV，回傳 {imported, skipped, no_ticker} stats."""
-    conn = sqlite3.connect(str(db_path), timeout=15)
+    conn = get_conn(db_path, readonly=False, timeout=15)
     init_schema(conn)
 
     stats = {"imported": 0, "skipped": 0, "no_ticker": [], "errors": []}

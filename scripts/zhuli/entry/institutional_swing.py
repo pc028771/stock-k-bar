@@ -15,7 +15,7 @@ Output:
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from pathlib import Path
 from typing import Optional
 
@@ -26,7 +26,7 @@ from zhuli.config import InstitutionalSwingConfig
 
 
 def _load_institutional(db_path: Path) -> pd.DataFrame:
-    with sqlite3.connect(str(db_path), timeout=15) as conn:
+    with get_conn(db_path, timeout=15) as conn:
         return pd.read_sql_query("""
             SELECT ticker, trade_date, sitc_buy, sitc_sell, sitc_net
             FROM institutional_investors
@@ -35,7 +35,7 @@ def _load_institutional(db_path: Path) -> pd.DataFrame:
 
 def _load_shareholding(db_path: Path) -> pd.DataFrame:
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             return pd.read_sql_query("""
                 SELECT ticker, trade_date, shares_issued FROM stock_shareholding
             """, conn)

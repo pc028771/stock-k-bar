@@ -12,9 +12,10 @@ Date range: 2020-06-01 ~ 2021-06-30  (includes MA60 warmup + post-signal buffer)
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -171,7 +172,7 @@ def insert_into_db(df: pd.DataFrame, db_path: Path, dry_run: bool = False) -> in
         f"VALUES ({placeholders})"
     )
 
-    with sqlite3.connect(str(db_path), timeout=30) as conn:
+    with get_conn(db_path, readonly=False, timeout=30) as conn:
         conn.executemany(
             sql,
             [
@@ -228,7 +229,7 @@ def main() -> None:
 
     # Verify
     if not args.dry_run:
-        with sqlite3.connect(str(args.db), timeout=15) as conn:
+        with get_conn(args.db, readonly=False, timeout=15) as conn:
             result = conn.execute(
                 "SELECT ticker, COUNT(*) as cnt, MIN(trade_date) as min_d, MAX(trade_date) as max_d "
                 "FROM standard_daily_bar "

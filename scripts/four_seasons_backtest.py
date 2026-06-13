@@ -29,11 +29,12 @@ Notes:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import json
 import os
 import shutil
-import sqlite3
 import sys
 import tempfile
 from dataclasses import asdict, dataclass
@@ -247,7 +248,7 @@ def _snapshot(db: Path) -> str:
 
 
 def load_panel(conn_path: str) -> pd.DataFrame:
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(
             "select ticker, trade_date, close, ma20, volume, vol_ratio_20, "
             "dev_ma240_pct, main_force_20d "
@@ -261,7 +262,7 @@ def load_panel(conn_path: str) -> pd.DataFrame:
 
 
 def load_names(conn_path: str) -> dict[str, str]:
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query("select ticker, name from stock_name", conn)
     return dict(zip(df.ticker.astype(str), df.name))
 

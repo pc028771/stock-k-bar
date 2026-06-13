@@ -21,7 +21,7 @@ Output columns:
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from pathlib import Path
 from typing import Optional
 
@@ -52,7 +52,7 @@ def _load_market_index(db_path: Path, ticker: str) -> pd.DataFrame:
     Returns DataFrame with columns: trade_date, is_market_bull
     """
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             df = pd.read_sql_query(
                 "SELECT trade_date, open, close, volume FROM standard_daily_bar "
                 "WHERE ticker=? ORDER BY trade_date",

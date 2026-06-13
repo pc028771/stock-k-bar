@@ -9,11 +9,11 @@ reverse_engineer_uniform_ma.py
 DB: ~/.four_seasons/data.sqlite
 Target date: 2026-06-03
 """
-
-import sqlite3
 import json
 from pathlib import Path
 from collections import Counter, defaultdict
+
+from zhuli.db import get_conn
 
 DB_PATH = Path.home() / ".four_seasons/data.sqlite"
 TEACHER_JSON = Path("docs/主力大課程/teacher_44_uniform_ma_20260604.json")
@@ -27,7 +27,7 @@ def load_teacher_tickers():
 
 
 def connect():
-    return sqlite3.connect(str(DB_PATH))
+    return get_conn(DB_PATH)
 
 
 def get_trading_dates(conn, n=65):

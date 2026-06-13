@@ -16,6 +16,8 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -24,8 +26,7 @@ from pathlib import Path
 import pandas as pd
 
 _REPO = Path(__file__).parent.parent.parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
@@ -64,7 +65,7 @@ def _stock_info(con: sqlite3.Connection) -> dict[str, str]:
 def run_detect_mode(args) -> None:
     """全市場掃描並輸出 detect()=True 清單."""
     target_date = args.date
-    con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)
+    con = get_conn(_DB)
 
     tickers = _all_tickers(con)
     info = _stock_info(con)
@@ -99,7 +100,7 @@ def run_watchlist_mode(args) -> None:
     """Watchlist 三級分類輸出."""
     target_date = args.date
     universe = args.universe
-    con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True)
+    con = get_conn(_DB)
 
     tickers = _all_tickers(con)
     info = _stock_info(con)

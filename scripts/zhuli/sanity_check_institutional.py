@@ -18,8 +18,9 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
-import sqlite3
 import sys
 from pathlib import Path
 
@@ -78,7 +79,7 @@ TOLERANCE_DAYS = 2   # ±2 個交易日容忍
 def _check_institutional_table(db_path: Path) -> bool:
     """回傳 True 若 institutional_investors 表存在且有資料。"""
     try:
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             cur = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"
             )
@@ -96,7 +97,7 @@ def _check_bar_data(db_path: Path, ticker: str, date: str) -> bool:
         d = pd.Timestamp(date)
         d_min = (d - pd.Timedelta(days=10)).strftime("%Y-%m-%d")
         d_max = (d + pd.Timedelta(days=10)).strftime("%Y-%m-%d")
-        with sqlite3.connect(str(db_path), timeout=15) as conn:
+        with get_conn(db_path, timeout=15) as conn:
             cur = conn.execute(
                 "SELECT COUNT(*) FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date BETWEEN ? AND ? AND is_usable=1",

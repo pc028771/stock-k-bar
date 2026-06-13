@@ -14,6 +14,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -61,7 +63,7 @@ from zhuli.kline_confirmation import (  # noqa  (K 線力量 Tier-A 升等訊號
 # from zhuli.entry.reversal_breakout import detect as detect_reversal
 # from zhuli.entry.suffocation import detect as detect_suffocation
 
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _TMP  = Path("/tmp")
 _REPO = Path(__file__).parent.parent.parent
 
@@ -337,7 +339,7 @@ def _db_uri(path: Path) -> str:
 
 def load_stock_info(db_path: Path) -> dict[str, dict]:
     """回傳 {ticker: {name, industry}} 對照表."""
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
+    con = get_conn(db_path, timeout=5)
     rows = con.execute(
         "SELECT ticker, stock_name, industry_category FROM stock_info"
     ).fetchall()
@@ -426,7 +428,7 @@ def run_scanners(target_date: str, db_path: Path,
     由 watchlist.py 統一處理族群過濾 + tier 分類。
     shakeout_strong + w_bottom_launch 維持原有 per-ticker 邏輯。
     """
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+    con = get_conn(db_path, timeout=15)
     stock_info = load_stock_info(db_path)
 
     # 全市場 ticker
@@ -535,7 +537,7 @@ def run_scanners(target_date: str, db_path: Path,
     # ── 批次載入外資/投信近 10 日資料 → 注入 ticker_dfs ───────────────────────────
     print(f"  [institutional] 批次載入近 10 日外資/投信資料...", flush=True)
     try:
-        con_inst = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        con_inst = get_conn(db_path, timeout=15)
         inst_tickers = list(ticker_dfs.keys())
         _ph = ",".join("?" * len(inst_tickers)) if inst_tickers else "''"
         inst_rows = con_inst.execute(
@@ -944,7 +946,7 @@ def run_scanners(target_date: str, db_path: Path,
         _sector_week_universe = set()
 
     try:
-        con2 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        con2 = get_conn(db_path, timeout=15)
         for t in all_tickers:
             # sector_week 過濾
             if _sector_week_universe and t not in _sector_week_universe:
@@ -1002,7 +1004,7 @@ def run_scanners(target_date: str, db_path: Path,
     # 跟 ma5_pivot 互補：此為「平台中」、ma5_pivot 為「突破當下」
     print(f"  [glued_ma5] 掃描黏 MA5 平台 (sector_week 過濾)...")
     try:
-        con3 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        con3 = get_conn(db_path, timeout=15)
         for t in all_tickers:
             if _sector_week_universe and t not in _sector_week_universe:
                 continue
@@ -1099,7 +1101,7 @@ def run_scanners(target_date: str, db_path: Path,
 
         # Pass B: 對 leaders 名單算 build_leader_info (含 60m DIF metrics)
         print(f"  [leaders] Pass B: 算 60m DIF metrics...", flush=True)
-        con_60 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        con_60 = get_conn(db_path, timeout=15)
         with_60m = 0
         for t in leader_tickers:
             df_t = ticker_dfs[t]
@@ -2005,7 +2007,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         # 先快速取 TAIEX 漲跌幅判斷是否觸發
         _taiex_pct = None
         if db_path:
-            _con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+            _con = get_conn(db_path, timeout=10)
             _row = _con.execute(
                 "SELECT close FROM standard_daily_bar WHERE ticker='TAIEX' AND trade_date=?",
                 (target_date,),
@@ -2304,7 +2306,7 @@ def run_holdings_exit_check(target_date: str, db_path: Path) -> str:
     if not active:
         return header + "（無 active 持倉）\n"
 
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=10)
+    con = get_conn(db_path, timeout=10)
     rows = [
         "| 持倉 | 收盤 | 損益% | Rule A（MA10） | 🌂掀傘 | 🦘高檔長黑 | 💰里程碑 | 當日跳空 |",
         "|---|---|---|---|---|---|---|---|",
@@ -2436,6 +2438,10 @@ def main():
     print(f"=== Daily Scanner Job ===")
     print(f"目標日期: {target_date}")
     print(f"DB: {db_path}")
+
+    # spec R-MON 護欄：DB 必須有 target_date 才能跑 scanner
+    from zhuli.db import assert_fresh
+    assert_fresh(target_date, db_path)
     if (not args.disable_disposal):
         print(f"處置股分型: ✅ 啟用 (default)")
     else:
@@ -2459,7 +2465,7 @@ def main():
     _market_5d_ret: float | None = None
     _regime: str | None = None
     try:
-        _con_tx = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+        _con_tx = get_conn(db_path, timeout=10)
         # 取目標日 + 過去 60 個交易日 close (給 MA20/60 用)
         _tx_rows = _con_tx.execute(
             "SELECT trade_date, close FROM standard_daily_bar "

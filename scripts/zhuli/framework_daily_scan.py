@@ -16,6 +16,8 @@ CLI 用法（直接執行驗證）：
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import json
 import sqlite3
 import sys
@@ -24,7 +26,7 @@ from pathlib import Path
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _REPO      = Path(__file__).parent.parent.parent
-_DB        = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _DOCS_DIR  = _REPO / "docs" / "主力大課程"
 _BRIEF_DIR = _DOCS_DIR / "daily_brief"
 
@@ -47,7 +49,7 @@ def _db_connect(db_path: Path, retries: int = 3) -> sqlite3.Connection:
     """連 DB，含簡易 retry。"""
     for i in range(retries):
         try:
-            con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+            con = get_conn(db_path, timeout=10)
             return con
         except sqlite3.OperationalError as e:
             if i == retries - 1:

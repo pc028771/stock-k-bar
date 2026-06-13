@@ -15,7 +15,7 @@
 """
 from __future__ import annotations
 
-import sqlite3
+from zhuli.db import get_conn
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -49,7 +49,7 @@ def _trading_days_since(start_date: str, target_date: str, db_path: Path) -> int
     若 DB 沒覆蓋到 target_date（target=今日盤前/盤中、bar 還沒入庫），
     fallback 用 pandas bdate_range，避免少算 1 天。
     """
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
+    con = get_conn(db_path, timeout=5)
     row = con.execute(
         """SELECT COUNT(DISTINCT trade_date), MAX(trade_date)
            FROM standard_daily_bar
@@ -112,7 +112,7 @@ def _get_price_data(
         disposal_closes: 處置期間所有 close
         latest_mas:    target_date 均線 dict
     """
-    con = sqlite3.connect(_db_uri(db_path), uri=True, timeout=5)
+    con = get_conn(db_path, timeout=5)
 
     # T-1 資料
     t1_row = con.execute(

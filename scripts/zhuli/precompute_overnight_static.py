@@ -47,6 +47,8 @@ Schema:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import sqlite3
@@ -60,7 +62,7 @@ import pandas as pd
 
 # ── path ─────────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _OUT  = _REPO / "data" / "analysis" / "zhuli" / "overnight_static_features.json"
 _TEACHER_DIR = _REPO / "docs" / "主力大課程"
 
@@ -236,7 +238,7 @@ def main() -> int:
         print(f"[info] universe: {n_univ} 檔")
 
     t0 = time.time()
-    con = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True, timeout=10)
+    con = get_conn(args.db, timeout=10)
 
     names = fetch_stock_names(con, universe)
     market = compute_market_features(con)

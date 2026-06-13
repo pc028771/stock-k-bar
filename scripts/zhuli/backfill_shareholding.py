@@ -9,9 +9,10 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
-import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -35,7 +36,7 @@ def main():
     token = os.environ["FINMIND_TOKEN"]
 
     # 取得 ticker 清單
-    with sqlite3.connect(DEFAULT_DB_PATH, timeout=30) as conn:
+    with get_conn(DEFAULT_DB_PATH, readonly=False, timeout=30) as conn:
         if args.tickers:
             tickers = args.tickers.split(",")
         else:

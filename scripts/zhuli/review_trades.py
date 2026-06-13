@@ -7,14 +7,13 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 from collections import defaultdict
 from pathlib import Path
 
-DB = Path.home() / ".four_seasons" / "data.sqlite"
-
-
+DB = MAIN_DB
 def rule_chase_high(conn) -> list[dict]:
     """違規：同檔個股連續加碼且價格越買越高（追高）.
 
@@ -146,7 +145,7 @@ def main():
     ap.add_argument("--db", default=str(DB))
     args = ap.parse_args()
 
-    conn = sqlite3.connect(args.db, timeout=15)
+    conn = get_conn(args.db, timeout=15)
     rules_to_run = list(RULES) if args.rule == "all" else [args.rule]
 
     total_violations = 0

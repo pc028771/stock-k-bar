@@ -13,10 +13,11 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import math
-import sqlite3
 import sys
 from pathlib import Path
 from datetime import date
@@ -28,7 +29,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_DB_DEFAULT = Path.home() / ".four_seasons" / "data.sqlite"
+_DB_DEFAULT = MAIN_DB
 _CACHE_DIR_DEFAULT = Path("/tmp/bt_scanner_cache")
 _START_DATE = "2026-05-01"
 _END_DATE   = "2026-06-04"
@@ -39,7 +40,7 @@ _INITIAL    = 3_200_000
 # ── Trading calendar ─────────────────────────────────────────────────────────
 
 def get_trading_dates(db_path: Path) -> list[str]:
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     rows = con.execute(
         "SELECT DISTINCT trade_date FROM standard_daily_bar "
         "WHERE trade_date >= ? AND trade_date <= ? ORDER BY trade_date",
@@ -100,7 +101,7 @@ def get_price(db_path: Path, ticker: str, trade_date: str) -> dict | None:
     key = (ticker, trade_date)
     if key in _price_cache:
         return _price_cache[key]
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     row = con.execute(
         "SELECT open, high, low, close, ma10 FROM standard_daily_bar "
         "WHERE ticker=? AND trade_date=?",
@@ -119,7 +120,7 @@ def get_structure_floor(db_path: Path, ticker: str, entry_date: str, days: int =
     key = (ticker, entry_date, days)
     if key in _structure_floor_cache:
         return _structure_floor_cache[key]
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con = get_conn(db_path)
     row = con.execute(
         """
         SELECT MIN(low) FROM (

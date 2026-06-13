@@ -17,9 +17,10 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
-import sqlite3
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -372,7 +373,7 @@ def get_top10_for_date(target_date: str, db_path: Path, scoring: str = 'v3',
         _intraday_confidence_score, _filter_and_rank_intraday,
     )
 
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=15)
+    con = get_conn(db_path, timeout=15)
     all_tickers = [r[0] for r in con.execute(
         "SELECT DISTINCT ticker FROM standard_daily_bar WHERE trade_date=?",
         (target_date,)
@@ -461,7 +462,7 @@ def main():
     from kline.bars import DEFAULT_DB_PATH
 
     # 列出範圍內交易日
-    con = sqlite3.connect(f"file:{DEFAULT_DB_PATH}?mode=ro", uri=True, timeout=15)
+    con = get_conn(DEFAULT_DB_PATH, timeout=15)
     trade_dates = [r[0] for r in con.execute(
         "SELECT DISTINCT trade_date FROM standard_daily_bar "
         "WHERE trade_date >= ? AND trade_date <= ? ORDER BY trade_date",

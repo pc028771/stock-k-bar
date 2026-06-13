@@ -31,6 +31,8 @@ Usage:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import functools
 import logging
@@ -69,8 +71,7 @@ except ImportError as _e:
     def check_profit_milestone(*a, **kw):return {"triggered": False, "reason": "detector 未載入"}
     def check_gap_down_emergency(*a, **kw): return {"triggered": False, "reason": "detector 未載入"}
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
-
+_DB = MAIN_DB
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -166,7 +167,7 @@ def notify_mac(title: str, msg: str, sound: str = "Glass") -> None:
 def _db_con(db: Path) -> sqlite3.Connection:
     for _ in range(3):
         try:
-            return sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=15)
+            return get_conn(db, timeout=15)
         except sqlite3.OperationalError as e:
             log.warning("DB 連線失敗，1s 後重試: %s", e)
             time.sleep(1)
@@ -177,6 +178,35 @@ def load_stock_names(db: Path) -> dict[str, str]:
     with _db_con(db) as con:
         rows = con.execute("SELECT ticker, stock_name FROM stock_info").fetchall()
     return {r[0]: r[1] for r in rows}
+
+
+# DB data version: standard_daily_bar 的 MAX(trade_date)。
+# 長駐 process (live monitor) 啟動後 DB 可能被晚到的 sync 補入新日K、
+# 純 (ticker, date) key 的 cache 會永遠回傳啟動當下的舊值 (6/11 4939 假燈事件)。
+# 把 data version 納入 cache key、DB 一進新日K整批 cache 自動失效。
+_DATA_VERSION_TTL = 60.0
+_data_version_cache: dict[str, tuple[float, str]] = {}
+
+
+def db_data_version(db: Path = _DB) -> str:
+    """回傳 DB 最新 trade_date 字串 (TTL 60s)、查失敗回 ''。"""
+    now = time.monotonic()
+    hit = _data_version_cache.get(str(db))
+    if hit and now - hit[0] < _DATA_VERSION_TTL:
+        return hit[1]
+    try:
+        with get_conn(db) as con:
+            r = con.execute("SELECT MAX(trade_date) FROM standard_daily_bar").fetchone()
+        v = str(r[0]) if r and r[0] else ""
+    except Exception:
+        v = ""
+    _data_version_cache[str(db)] = (now, v)
+    return v
+
+
+def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
+    """從 standard_daily_bar 取 target_date 前一交易日的 MA10（data-version-keyed cache）。"""
+    return _get_ma10_versioned(ticker, target_date, db, db_data_version(db))
 
 
 @functools.lru_cache(maxsize=4096)
@@ -196,7 +226,7 @@ def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
         MA10 浮點數，查無則回 None。
     """
     try:
-        with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as con:
+        with get_conn(db) as con:
             r = con.execute(
                 "SELECT ma10 FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date < ? "
@@ -937,7 +967,7 @@ class StageTrigger:
         try:
             for attempt in range(3):
                 try:
-                    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
+                    con = get_conn(db_path, timeout=10)
                     # 先嘗試取當日
                     row = con.execute(
                         "SELECT close, open, ma5 FROM standard_daily_bar "

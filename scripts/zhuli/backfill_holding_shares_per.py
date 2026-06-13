@@ -12,6 +12,8 @@ Env:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import os
 import sqlite3
 import time
@@ -140,7 +142,7 @@ def main() -> None:
     print(f"Throttle: sleep {_SLEEP_PER_CALL}s / call")
     print()
 
-    with sqlite3.connect(str(_DB_PATH), timeout=30) as conn:
+    with get_conn(_DB_PATH, readonly=False, timeout=30) as conn:
         ensure_table(conn)
 
     total_rows = 0
@@ -149,7 +151,7 @@ def main() -> None:
     for i, ticker in enumerate(_ALL_TICKERS, start=1):
         try:
             rows = fetch_one_ticker(ticker)
-            with sqlite3.connect(str(_DB_PATH), timeout=30) as conn:
+            with get_conn(_DB_PATH, readonly=False, timeout=30) as conn:
                 inserted = upsert_ticker_data(conn, rows)
             total_rows += inserted
             if i % 10 == 0 or i == len(_ALL_TICKERS):

@@ -15,6 +15,8 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import sqlite3
 import sys
@@ -26,7 +28,7 @@ import pandas as pd
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _REPO    = Path(__file__).parent.parent.parent
-_DB      = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _STRAT   = _REPO / "docs" / "主力大課程" / "strategies"
 
 for _p in [str(_REPO), str(_REPO / "scripts")]:
@@ -112,7 +114,7 @@ PHASE5_ALL_TICKERS = {s.ticker for s in PHASE5_SIM_RESULTS}
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _db_con() -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=30)
+    return get_conn(_DB, timeout=30)
 
 
 def get_stock_name(ticker: str) -> str:

@@ -10,6 +10,8 @@ Output schema (sorted by ticker, trade_date asc):
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import os
 import shutil
 import sqlite3
@@ -139,7 +141,7 @@ def load_bars(
     if _parquet_cache is not None:
         return _parquet_cache
 
-    with sqlite3.connect(conn_path, timeout=15) as conn:
+    with get_conn(conn_path, timeout=15) as conn:
         df = pd.read_sql_query(query, conn, params=params, parse_dates=["trade_date"])
     # Normalise to ns precision (pandas 3.x defaults to us; tests expect ns)
     df["trade_date"] = df["trade_date"].astype("datetime64[ns]")

@@ -24,6 +24,8 @@ Note:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import argparse
 import os
 import sqlite3
@@ -151,7 +153,7 @@ def backfill(
         print(f"[dry-run] 會寫入 {len(rows)} 筆（未實際寫入）。")
         return {"fetched": fetched, "inserted": 0, "errors": 0}
 
-    conn = sqlite3.connect(str(db_path), timeout=30)
+    conn = get_conn(db_path, readonly=False, timeout=30)
     ensure_table(conn)
     inserted = upsert_stock_info(conn, rows)
     conn.close()

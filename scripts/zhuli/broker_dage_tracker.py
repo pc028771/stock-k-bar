@@ -18,11 +18,12 @@ CLI:
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
 import json
 import os
 import re
-import sqlite3
 import sys
 import time
 from collections import defaultdict
@@ -33,7 +34,7 @@ import requests
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_DB   = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _CACHE_DIR = Path.home() / ".zhuli_cache" / "broker"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
 _FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
@@ -160,7 +161,7 @@ def _build_ticker_universe(mode: str = "extended") -> list[str]:
     if mode == "full":
         # DB 全市場
         try:
-            con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+            con = get_conn(_DB, timeout=5)
             rows = con.execute(
                 "SELECT DISTINCT ticker FROM standard_daily_bar ORDER BY ticker"
             ).fetchall()
@@ -175,7 +176,7 @@ def _build_ticker_universe(mode: str = "extended") -> list[str]:
 def _load_stock_names() -> dict[str, str]:
     """從 DB 載入 {ticker: name} 對照。"""
     try:
-        con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(_DB, timeout=5)
         rows = con.execute("SELECT ticker, stock_name FROM stock_info").fetchall()
         con.close()
         return {r[0]: r[1] for r in rows}
@@ -186,7 +187,7 @@ def _load_stock_names() -> dict[str, str]:
 def _get_price_and_ma(ticker: str, target_date: str) -> tuple[float | None, float | None]:
     """從 DB 取收盤價 + MA10，算距 MA10%。回傳 (close, dist_ma10_pct)。"""
     try:
-        con = sqlite3.connect(f"file:{_DB}?mode=ro", uri=True, timeout=5)
+        con = get_conn(_DB, timeout=5)
         row = con.execute(
             "SELECT close, ma10 FROM standard_daily_bar WHERE ticker=? AND trade_date=?",
             (ticker, target_date)

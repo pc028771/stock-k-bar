@@ -39,13 +39,14 @@
 """
 from __future__ import annotations
 
+from zhuli.db import get_conn, MAIN_DB
+
 import argparse
-import sqlite3
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-_DB = Path.home() / ".four_seasons" / "data.sqlite"
+_DB = MAIN_DB
 _FLAG_DIR = Path("/tmp")
 _FLAG_PREFIX = "article_watcher_trigger_"
 _CHECK_INTERVAL_HOURS = 1  # 每小時最多觸發一次
@@ -60,7 +61,7 @@ CREATE TABLE IF NOT EXISTS zhuli_metadata (
 
 
 def _db():
-    return sqlite3.connect(str(_DB), timeout=15)
+    return get_conn(_DB, readonly=False, timeout=15)
 
 
 def _ensure_metadata_table():

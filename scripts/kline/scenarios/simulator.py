@@ -34,6 +34,8 @@ Design constraints
 
 from __future__ import annotations
 
+from zhuli.db import get_conn
+
 import json
 import os
 import sqlite3
@@ -135,7 +137,7 @@ def _backfill_single_ticker(
         return 0
 
     # ----- Fetch all pending branches for this ticker -----
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         rows = conn.execute(
             """
             SELECT ab.rowid, ab.run_id, ab.scenario_idx, ab.branch_id,
@@ -235,7 +237,7 @@ def _backfill_single_ticker(
             update_batch.append((outcome, rowid))
 
     if update_batch:
-        with sqlite3.connect(str(db_path)) as conn:
+        with get_conn(db_path, readonly=False) as conn:
             conn.executemany(
                 "UPDATE advisor_branches SET matched_after_n_days = ? "
                 "WHERE rowid = ? AND matched_after_n_days IS NULL",
@@ -402,7 +404,7 @@ def _batch_save_runs(
     from .persistence import _ensure_tables  # type: ignore[attr-defined]
 
     saved = 0
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         _ensure_tables(conn)
 
         for (trade_date, result) in rows_to_insert:
@@ -706,7 +708,7 @@ def _merge_worker_dbs(main_db: Path, worker_dbs: list[Path]) -> tuple[int, int]:
     main_db.parent.mkdir(parents=True, exist_ok=True)
     n_inserted = 0
     n_skipped_dup = 0
-    with sqlite3.connect(str(main_db)) as main_conn:
+    with get_conn(main_db, readonly=False) as main_conn:
         from .persistence import _ensure_tables  # type: ignore[attr-defined]
         _ensure_tables(main_conn)
 
@@ -858,7 +860,7 @@ def simulate_advisor_history(
     # Ensure DB tables exist on main DB
     if save_to_db:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(str(db_path)) as conn:
+        with get_conn(db_path, readonly=False) as conn:
             from .persistence import _ensure_tables  # type: ignore[attr-defined]
             _ensure_tables(conn)
             conn.commit()
@@ -976,7 +978,7 @@ def simulate_advisor_history(
     n_branches_backfilled = n_branches_backfilled_in_workers
     if save_to_db:
         # Quick check: any NULL rows left? Skip the loop entirely if not.
-        with sqlite3.connect(str(db_path)) as conn:
+        with get_conn(db_path, readonly=False) as conn:
             null_count = conn.execute(
                 "SELECT COUNT(*) FROM advisor_branches WHERE matched_after_n_days IS NULL"
             ).fetchone()[0]
@@ -1070,7 +1072,7 @@ def compute_branch_hit_rates(
     # For now, we group by branch_id only (cross-pattern branch_ids are unique
     # in practice due to naming convention like "B1_attack_cost_hold").
 
-    with sqlite3.connect(str(db_path)) as conn:
+    with get_conn(db_path, readonly=False) as conn:
         # Check if pattern_name column exists (Phase 4.3+ schema).
         # Older DBs without this column fall back to action_type as proxy.
         col_info = conn.execute("PRAGMA table_info(advisor_branches)").fetchall()

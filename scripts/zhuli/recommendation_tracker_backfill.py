@@ -21,6 +21,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from zhuli.db import get_conn
+
 DB_PATH = os.path.expanduser("~/four_seasons_local/data.sqlite")
 WATCHLIST_DIR = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "daily_watchlist"
 
@@ -49,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_rec_outcomes_source   ON recommendation_outcomes(
 
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn = get_conn(DB_PATH, readonly=False, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.executescript(DDL)
     return conn
