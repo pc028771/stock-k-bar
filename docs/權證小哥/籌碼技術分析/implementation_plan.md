@@ -1,13 +1,13 @@
 # 權證小哥 detector 實作計畫
 
-> 對應 spec：`docs/權證小哥課程/detector_spec.md`
-> 對應筆記：`docs/權證小哥課程/快速上手筆記.md`
+> 對應 spec：`docs/權證小哥/籌碼技術分析/detector_spec.md`
+> 對應筆記：`docs/權證小哥/籌碼技術分析/快速上手筆記.md`
 
 ---
 
 ## Phase 0 — 文件 + 課程整理（本階段、純文件）
 
-- [x] 階段 1：抓章節索引（`docs/權證小哥課程/pressplay_xiaoge_article_index.md`）
+- [x] 階段 1：抓章節索引（`docs/權證小哥/籌碼技術分析/pressplay_xiaoge_article_index.md`）
 - [x] 階段 2：抓所有字幕 VTT（`data/analysis/xiaoge/transcripts/ch01-19.txt`、19 章 ~ 180 分鐘）
 - [x] 階段 3：講稿整理 + 截圖需求清單
 - [ ] 階段 4：必要截圖補抓（見「需要截圖的章節」表、可派 subagent）
@@ -27,17 +27,18 @@
 - **task 1.1**：列出 detector 1-6 需要的所有資料欄位（個股 K、分點買賣超、外資/投信/自營商、集保戶數、大戶持股、5MA/20MA 等）。
 - **task 1.2**：對照 `stock-analysis-system/` 既有 client / DB schema 找出哪些已有、哪些缺。
 - **task 1.3**：FinMind 完整盤點 — 確認 `TaiwanStockShareholding` (集保戶) / `TaiwanStockHoldingSharesPer` (大戶持股) / 機構買賣超 dataset 的 schema 與更新頻率。
-- **task 1.4**：**最關鍵** — 分點資料 audit：
-  - 確認 FinMind 是否有「個股 × 日 × 分點」買賣超表（目前 MEMORY 沒記錄這條）
-  - 若無 → 給 user 三方案選擇：付費 CMoney API / 爬 Goodinfo / 用機構買賣超代理
-- **task 1.5**：產出 `docs/權證小哥課程/data_audit.md`，列出每個 detector 的可行性 + 阻塞點。
+- **task 1.4**：分點資料 audit — **走 FinMind**（user 2026-06-13 拍板）：
+  - 盤點 FinMind 是否有「個股 × 日 × 分點」買賣超 dataset（如 `TaiwanStockBrokerTradeRecord` 之類）
+  - 若 FinMind 該資料不夠完整 → 回報 user、不自動切換到付費 / 爬蟲方案
+  - 確認分點 ID → 中文名稱對照表來源（沿用既有 `memory/reference_broker_aliases.md`）
+- **task 1.5**：產出 `docs/權證小哥/籌碼技術分析/data_audit.md`，列出每個 detector 的可行性 + 阻塞點。
 
 ### 預期產出
-- `docs/權證小哥課程/data_audit.md`
+- `docs/權證小哥/籌碼技術分析/data_audit.md`
 - 對 user 提的決策請求清單（detector_spec.md 第 「待 user 決策的開放問題」 6 條）
 
 ### 依賴
-- 需要 user 對「分點資料來源」拍板 → 才能繼續 Phase 2/3。
+- ~~需要 user 對「分點資料來源」拍板~~ → **已拍板 FinMind**、可直接進 Phase 2。
 
 ---
 
@@ -54,7 +55,7 @@
   - 對照 K 線力量 / zhuli 的同期表現
 - **task 2.3**：對照「離開上軌 = 停利」規則跑出場（**這是課程明說、不要自加 ATR**）。
 - **task 2.4**：spot check 5 檔已知強勢股（如 3037 欣興、3163 波若威等 scanner_q1_top10）是否被抓到。
-- **task 2.5**：產出 `docs/權證小哥課程/backtest_bb_squeeze.md`。
+- **task 2.5**：產出 `docs/權證小哥/籌碼技術分析/backtest_bb_squeeze.md`。
 
 ### 預期產出
 - `scripts/xiaoge/entry/bb_squeeze_breakout.py`
@@ -106,25 +107,23 @@
 
 ---
 
-## Phase 6（選配）— xiaoge_warrant_pick_helper
+## ~~Phase 6（選配）— xiaoge_warrant_pick_helper~~ ❌ 取消
 
-> 老師 ch19 明確「差槓比低 + 比較價內 + 好券商」3 口訣。
-
-- **task 6.1**：盤後抓元大權證網 / 凱基 / 統一權證列表（要不要做、user 決定）
-- **task 6.2**：score = f(差槓比、價內外、發行商) 排序
-- **task 6.3**：當 stage 2/3 加碼想用權證時、提供候選清單（**屬於 extras 範疇、不是進場 detector**）
+> User 2026-06-13 拍板：**權證不操作、僅當輔助資訊**。Phase 6 全部取消。
+> 老師 ch16-ch19 教的權證口訣（差槓比低 + 比較價內 + 好券商）保留在 `快速上手筆記.md` 作為知識備查、不工程化。
 
 ---
 
-## 依賴關係 + 風險
+## 依賴關係 + 風險（更新 2026-06-13）
 
 ### 阻塞點
-- **R1（最大）**：分點資料是否能取得 / 何種成本 → 影響 detector 4/5 是否能落地。
+- ~~**R1（最大）**：分點資料是否能取得 / 何種成本~~ → **已拍板 FinMind**、降級為 R2
+- **R1 (新)**：FinMind 分點 dataset 完整度 / 歷史深度 → 影響 detector 4/5 backtest 樣本品質。
 - **R2**：集保戶數只有週粒度（FinMind），detector 2/3 觸發精度受限。
 - **R3**：「主力 ≥ 20 張」門檻在中小型股可能過鬆 / 過嚴 → 需 Phase 1-2 backtest 校正。
 
 ### 風險緩解
-- **沒有分點資料時**：detector 1/2/3/5 都可以先做（用機構買賣超代理）；detector 4 暫緩。
+- **FinMind 分點不完整時**：detector 1/2/3/5 都可以先做（用機構買賣超代理）；detector 4 重新評估資料夠不夠才做。
 - **集保戶數週粒度**：用「`本週 - 上週` 環比」+ 週末更新後生效，daily_brief 用最新可得值。
 
 ---
@@ -137,7 +136,7 @@
 - T1.1 列出 detector 1-6 資料欄位需求
 - T1.2 stock-analysis-system schema 對照
 - T1.3 FinMind dataset 盤點（集保戶 / 大戶持股 / 機構買賣超）
-- T1.4 **分點資料三方案 (CMoney / 爬蟲 / 機構代理) 給 user 決策**
+- T1.4 **FinMind 分點 dataset audit**（已拍板 FinMind、確認完整度）
 - T1.5 產出 `data_audit.md`
 
 ### Phase 2 — bb_squeeze_breakout 原型
@@ -151,7 +150,7 @@
 - T3.1 `main_chip_holder` 用機構代理先做
 - T3.2 集保戶數接入
 - T3.3 backtest
-- T3.4 **（等 T1.4）** `key_broker_signal`
+- T3.4 `key_broker_signal`（FinMind 分點資料可用後啟動）
 - T3.5 關鍵分點池離線 build
 - T3.6 每日 scanner 接入
 - T3.7 `main_chip_distribution` exit warn
@@ -167,16 +166,13 @@
 - T5.3 跟既有訊號 dedup
 - T5.4 更新 CLAUDE.md / MEMORY
 
-### Phase 6 — 權證 helper（選配）
-- T6.1 抓權證列表
-- T6.2 score 排序
-- T6.3 stage 2/3 加碼候選清單
+### ~~Phase 6 — 權證 helper~~ ❌ 取消（user 拍板權證只當輔助、不工程化）
 
 ---
 
-## 開工前須確認（給 user 的問題）
+## 開工前 user 已拍板（2026-06-13）
 
-1. **分點資料來源拍板**（detector 4/5 阻塞點）：付費 / 爬蟲 / 機構代理三選一
-2. **xiaoge prefix 是否獨立 daily_brief section、還是 merge 進 cross_scanner**
-3. **Phase 6（權證 helper）要不要做** — 還是只當文件保留、不工程化
-4. **截圖**（detector_spec.md 列了 12 個必截章節）什麼時候派 subagent 抓
+1. ✅ **分點資料源**：FinMind（不爬蟲、不付費 CMoney）
+2. ⏳ **xiaoge prefix daily_brief 整合方式**：待 Phase 5
+3. ✅ **權證**：不操作、僅輔助資訊（Phase 6 取消）
+4. ✅ **截圖**：12 章已派 subagent 抓中（agentId a0fde85ea1c262f61）

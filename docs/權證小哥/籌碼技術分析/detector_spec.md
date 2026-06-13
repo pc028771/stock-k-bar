@@ -2,8 +2,13 @@
 
 > 目的：把權證小哥課程中「可量化規則」翻成 detector / scanner 用得到的條件。
 > 命名前綴：`xiaoge_`（避免跟 `kline_course_` / `zhuli_` / `four_seasons_` 衝突）
-> 來源：`docs/權證小哥課程/快速上手筆記.md` + `data/analysis/xiaoge/transcripts/ch01.txt ~ ch19.txt`
+> 來源：`docs/權證小哥/籌碼技術分析/快速上手筆記.md` + `data/analysis/xiaoge/transcripts/ch01.txt ~ ch19.txt`
 > 涵蓋：Lesson 2-5（布林 + 籌碼 + 分點）— 跟 swing scanner 直接相關。ch01/ch04/ch16-ch19 不在本 spec 範圍。
+>
+> **User 決策（2026-06-13）：**
+> - 分點資料源 → FinMind（dataset 盤點移到 implementation_plan Phase 1）
+> - 權證 → **不操作、僅輔助資訊**（detector 6 + Phase 6 標記為「文件保留、不工程化」）
+> - 權證小哥獨立 tab，兩課（四季+籌碼技術）合併到 `docs/權證小哥/`、prefix 各自保留
 
 ---
 
@@ -219,16 +224,17 @@
 
 ---
 
-## 待 user 決策的開放問題
+## 待 user 決策的開放問題（更新 2026-06-13）
 
-| # | 問題 | 影響 |
-|---|---|---|
-| 1 | 是否花錢取得分點層級資料？（CMoney / 神秘券商 / 其他付費 API） | detector 4/5 是否能落地 |
-| 2 | 布林帶寬「正常 10 / 寬 20 / 窄 5」門檻直接套用、還是要按台股 2024-2026 環境 backtest 重校？ | detector 1 精度 |
-| 3 | 「主力大買 ≥ 20 張」門檻是否要按股票流動性比例化？ | detector 2 在低流動性股的有效性 |
-| 4 | 集保戶數只有週粒度，detector 2/3 是否接受 weekly resolution？ | detector 觸發頻率 |
-| 5 | 關鍵分點池建立是否要由人工驗證（user 確認）？還是純自動排序？ | detector 4 信號品質 |
-| 6 | xiaoge prefix 的 detector 是否要單獨進 daily_brief、還是 merge 進 cross_scanner 既有 pipeline？ | 工程整合方式 |
+| # | 問題 | 影響 | 拍板 |
+|---|---|---|---|
+| 1 | ~~分點資料來源三選一~~ | ~~detector 4/5 阻塞~~ | **✅ FinMind**（Phase 1 audit FinMind 分點 dataset） |
+| 2 | 布林帶寬「正常 10 / 寬 20 / 窄 5」門檻直接套用、還是要按台股 2024-2026 環境 backtest 重校？ | detector 1 精度 | ⏳ 待 Phase 2 backtest |
+| 3 | 「主力大買 ≥ 20 張」門檻是否要按股票流動性比例化？ | detector 2 在低流動性股的有效性 | ⏳ 待 Phase 2 backtest |
+| 4 | 集保戶數只有週粒度，detector 2/3 是否接受 weekly resolution？ | detector 觸發頻率 | ⏳ Phase 1 補 audit |
+| 5 | 關鍵分點池建立是否要由人工驗證（user 確認）？還是純自動排序？ | detector 4 信號品質 | ⏳ 待 Phase 3 設計階段 |
+| 6 | xiaoge prefix 的 detector 是否要單獨進 daily_brief、還是 merge 進 cross_scanner 既有 pipeline？ | 工程整合方式 | ⏳ 待 Phase 5 |
+| 7 | ~~權證 helper 做不做？~~ | ~~Phase 6 範圍~~ | **✅ 不操作、僅輔助資訊**（Phase 6 取消、權證概念保留文件） |
 
 ---
 
