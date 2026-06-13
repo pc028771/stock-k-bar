@@ -45,6 +45,10 @@ from zhuli.chip.dual_axis_relative_strength import (  # noqa
 )
 
 from zhuli.entry.intraday import detect as detect_intraday  # noqa  (Ch5-1/5-2 當沖前夜篩、2026-06-05 啟用)
+from zhuli.kline_confirmation import (  # noqa  (K 線力量 Tier-A 升等訊號、--enable-kline-tier-a 啟用)
+    apply_confirmations as _apply_kline_confirmations,
+    detect_kline_tier_a as _detect_kline_tier_a,
+)
 
 # 以下 scanner 尚未驗證門檻值，暫不加入 daily job
 # from zhuli.entry.bbands_upper_break import detect as detect_bbands
@@ -414,7 +418,8 @@ def _build_hit_dict(
 
 
 def run_scanners(target_date: str, db_path: Path,
-                 skip_leaders_minute: bool = False) -> dict[str, list[dict]]:
+                 skip_leaders_minute: bool = False,
+                 enable_kline_tier_a: bool = False) -> dict[str, list[dict]]:
     """跑三個 scanner 並回傳每個的命中清單.
 
     small_structure 改用 run_scan(combined_df, universe='sector_week')，
@@ -1137,6 +1142,25 @@ def run_scanners(target_date: str, db_path: Path,
     except Exception as _e:
         print(f"  [leaders] 失敗: {_e}", flush=True)
 
+    # ── K 線力量 Tier-A 升等訊號 (--enable-kline-tier-a) ────────────────────────
+    # 2 支 bull-direction、backtest A' vs B' 5d +3.11pp, cap10 2.5x：
+    #   attack_cost_displayed / morning_star_island_reversal
+    # 已被其他 scanner 命中的候選 + 同日亮這個 pattern → tier 升等 + ✨ badge.
+    # 儲存於 results['_kline_confirmations'] (底線 prefix、render_markdown 不當 scanner 顯示)
+    if enable_kline_tier_a and ticker_dfs:
+        from zhuli.kline_confirmation import KLINE_TIER_A_PATTERNS as _KTA_PATS
+        print(f"  [kline_tier_a] 跑 K 線力量 Tier-A 升等訊號 ({len(_KTA_PATS)} patterns)...", flush=True)
+        try:
+            confirmations = _detect_kline_tier_a(ticker_dfs, target_date)
+            results['_kline_confirmations'] = confirmations
+            print(f"  [kline_tier_a] 命中 {len(confirmations)} 檔: {list(confirmations.keys())[:10]}",
+                  flush=True)
+        except Exception as _e:
+            print(f"  [kline_tier_a] 失敗: {_e}", flush=True)
+            results['_kline_confirmations'] = {}
+    else:
+        results['_kline_confirmations'] = {}
+
     return results
 
 
@@ -1377,6 +1401,9 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     i_hits = results.pop('institutional_swing', [])
     fbk_hits = results.pop('foreign_buy_on_black_k', [])
     intra_hits = results.pop('intraday', [])
+    # K 線力量 Tier-A 升等訊號 (--enable-kline-tier-a)；
+    # underscore prefix = 非 scanner、不顯示在「各 scanner 統計」表
+    kline_confirmations: dict[str, list[str]] = results.pop('_kline_confirmations', {}) or {}
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
     all_hits = []
@@ -1486,6 +1513,23 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         else:
             h['has_prior_entry'] = False
 
+    # ── K 線力量 Tier-A 升等訊號 套用 ─────────────────────────────────────────
+    # 在 in_section() 分組之前升 tier、之後分組才會走到對的 section.
+    # 套用到所有 hit 集合 (all_hits + ma5_pivot + glued_ma5 + j/i/fbk/intra).
+    if kline_confirmations:
+        _b_all = _apply_kline_confirmations(all_hits, kline_confirmations)
+        _b_ma5p = _apply_kline_confirmations(ma5_pivot_hits, kline_confirmations)
+        _b_glue = _apply_kline_confirmations(glued_ma5_hits, kline_confirmations)
+        _b_j = _apply_kline_confirmations(j_hits, kline_confirmations)
+        _b_i = _apply_kline_confirmations(i_hits, kline_confirmations)
+        _b_fbk = _apply_kline_confirmations(fbk_hits, kline_confirmations)
+        _b_intra = _apply_kline_confirmations(intra_hits, kline_confirmations)
+        print(
+            f"  [kline_tier_a] 升等: main={_b_all} ma5p={_b_ma5p} glued={_b_glue} "
+            f"J={_b_j} I={_b_i} fbk={_b_fbk} intra={_b_intra}",
+            flush=True,
+        )
+
     # 分組 (6/3 校正、籌碼優先)
     def in_section(h, section):
         d = h.get('dist_ma10_pct')
@@ -1527,6 +1571,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         f"",
         f"> Tier 排序：🔥 Tier-A（P90+ 高機率）→ ⭐ Tier-B（老師指名）→ ➕ 加碼 → 一般",
         f"> ✨黃金期 = W底 + 老師首提 8-30天；✨二波期 = 小結構 + 老師首提 >30天",
+        f"> ✨攻擊成本顯現 / ✨晨星島反轉 = K 線力量 Tier-A 升等訊號 (backtest A' vs B': 5d +3.11pp, cap10 2.5x)，看到請拉 chart 確認",
         f"> 「距MA10」> 10% 表示已起漲、移至「後續觀察名單」",
         f"",
         f"## 各 scanner 統計",
@@ -1565,7 +1610,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
             f"|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in entry_hits:
-            tier_label = h.get('tier', '') + h.get('timing_bonus', '')
+            tier_label = h.get('tier', '') + h.get('timing_bonus', '') + (' ' + h['kline_badge'] if h.get('kline_badge') else '')
             sectors_str = '/'.join(h.get('teacher_sectors', [])) or h.get('industry', '')
             days = h.get('days_since_first_mention')
             days_str = f"{days}d" if days is not None else '—'
@@ -1592,7 +1637,7 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
             f"|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for h in extended_hits:
-            tier_label = h.get('tier', '') + h.get('timing_bonus', '')
+            tier_label = h.get('tier', '') + h.get('timing_bonus', '') + (' ' + h['kline_badge'] if h.get('kline_badge') else '')
             chip = chip_map[h['ticker']]
             f_str, s_str, tag = _fmt_chip_cols(chip)
             md.append(f"| {h['ticker']} {tier_label} | {h['name']} | {h['scanner_name']} | "
@@ -2375,6 +2420,13 @@ def main():
                     ))
     ap.add_argument("--skip-leaders-minute", action="store_true",
                     help="跳過 leaders 名單分K backfill（預設執行、給 monitor 算 60m DIF 用）")
+    ap.add_argument("--enable-kline-tier-a", action="store_true",
+                    help=(
+                        "啟用 K 線力量 Tier-A 升等訊號 (default OFF). "
+                        "兩支 bull-direction, backtest 5d +3.11pp vs control: "
+                        "attack_cost_displayed / morning_star_island_reversal. "
+                        "已被其他 scanner 命中的候選 + 同日亮這個 pattern -> tier 升等 + ✨ badge."
+                    ))
     args = ap.parse_args()
 
     target_date = args.date or date.today().isoformat()
@@ -2388,10 +2440,15 @@ def main():
         print(f"處置股分型: ✅ 啟用 (default)")
     else:
         print(f"處置股分型: ❌ 停用 (--disable-disposal)")
+    if args.enable_kline_tier_a:
+        print(f"K 線 Tier-A 升等: ✅ 啟用 (--enable-kline-tier-a)")
+    else:
+        print(f"K 線 Tier-A 升等: ❌ 停用 (default、加 --enable-kline-tier-a 啟用)")
     print()
 
     results = run_scanners(target_date, db_path,
-                           skip_leaders_minute=args.skip_leaders_minute)
+                           skip_leaders_minute=args.skip_leaders_minute,
+                           enable_kline_tier_a=args.enable_kline_tier_a)
 
     print(f"\n結果:")
     for s, hits in results.items():
