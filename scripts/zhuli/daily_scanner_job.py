@@ -413,7 +413,8 @@ def _build_hit_dict(
     }
 
 
-def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
+def run_scanners(target_date: str, db_path: Path,
+                 skip_leaders_minute: bool = False) -> dict[str, list[dict]]:
     """跑三個 scanner 並回傳每個的命中清單.
 
     small_structure 改用 run_scan(combined_df, universe='sector_week')，
@@ -1053,6 +1054,88 @@ def run_scanners(target_date: str, db_path: Path) -> dict[str, list[dict]]:
         print(f"  [glued_ma5] 找到 {len(results['glued_ma5'])} 檔")
     except Exception as e:
         print(f"  [glued_ma5] 失敗: {e}")
+
+    # ── leaders detect：三軸全綠 + 外資5d淨買 > 0、附 MACD diff 方向性 ──────
+    # Pass A: 純日級篩 (不需分K)、決定 leaders 名單
+    print(f"  [leaders] Pass A: 純日級篩 leaders / laggards...", flush=True)
+    results['leaders'] = []
+    leader_tickers: list[str] = []
+    laggard_count = 0
+    try:
+        from zhuli.leaders_detect import build_leader_info, detect_leader, detect_laggard
+        for t, df_t in ticker_dfs.items():
+            if len(df_t) < 30:
+                continue
+            fn_5d = float(df_t['foreign_net'].tail(5).sum()) if 'foreign_net' in df_t.columns else None
+            if detect_leader(df_t, fn_5d):
+                leader_tickers.append(t)
+            elif detect_laggard(df_t):
+                laggard_count += 1
+        print(f"  [leaders] Pass A 完成: {len(leader_tickers)} 檔 leaders、{laggard_count} 檔 laggards", flush=True)
+
+        # Pass A.5: 補抓 leaders 名單分K (skip_existing、給 60m DIF 用)
+        if leader_tickers and not skip_leaders_minute:
+            from datetime import timedelta as _td
+            start_d = (date.fromisoformat(target_date) - _td(days=10)).isoformat()
+            print(f"  [leaders] backfill leaders 分K ({start_d} ~ {target_date})...", flush=True)
+            try:
+                from zhuli.backfill_minute_kbar import backfill as _backfill_minute
+                _stat = _backfill_minute(
+                    tickers=leader_tickers,
+                    start_date=start_d,
+                    end_date=target_date,
+                    skip_existing=True,
+                )
+                print(f"  [leaders] backfill done: api={_stat['api_calls']} "
+                      f"inserted={_stat['rows_inserted']} skipped={_stat['rows_skipped']} "
+                      f"errors={_stat['errors']}", flush=True)
+            except Exception as _e:
+                print(f"  [leaders] backfill 失敗、繼續無 60m DIF: {_e}", flush=True)
+
+        # Pass B: 對 leaders 名單算 build_leader_info (含 60m DIF metrics)
+        print(f"  [leaders] Pass B: 算 60m DIF metrics...", flush=True)
+        con_60 = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+        with_60m = 0
+        for t in leader_tickers:
+            df_t = ticker_dfs[t]
+            fn_5d = float(df_t['foreign_net'].tail(5).sum()) if 'foreign_net' in df_t.columns else None
+            b60_close = None
+            try:
+                m_rows = con_60.execute(
+                    """SELECT trade_datetime, close FROM stock_minute_kbar
+                       WHERE ticker=? AND trade_datetime >= date(?, '-10 days')
+                         AND trade_datetime <= ? || ' 13:30'
+                       ORDER BY trade_datetime""",
+                    (t, target_date, target_date),
+                ).fetchall()
+                if m_rows and len(m_rows) >= 100:
+                    m_df = pd.DataFrame(m_rows, columns=['ts', 'close'])
+                    m_df['ts'] = pd.to_datetime(m_df['ts'])
+                    m_df = m_df.set_index('ts')
+                    b60 = (m_df['close']
+                           .resample('60min', origin='start_day', offset='9h')
+                           .last()
+                           .dropna())
+                    b60 = b60[(b60.index.time >= pd.Timestamp('09:00').time())
+                              & (b60.index.time <= pd.Timestamp('13:30').time())]
+                    if len(b60) >= 30:
+                        b60_close = b60
+            except Exception:
+                pass
+            name = stock_info.get(t, {}).get('name', '')
+            info = build_leader_info(t, df_t, fn_5d, b60_close, name=name)
+            if info is None:
+                continue
+            teacher_secs = TEACHER_SECTOR_MAP.get(t, [])
+            info['sector'] = '/'.join(teacher_secs) if teacher_secs else stock_info.get(t, {}).get('industry', '')
+            results['leaders'].append(info)
+            if info.get('dif_60m') is not None:
+                with_60m += 1
+        con_60.close()
+        results['leaders'].sort(key=lambda r: -(r.get('ret20') or 0))
+        print(f"  [leaders] Pass B 完成: {len(results['leaders'])} 檔、{with_60m} 檔有 60m DIF", flush=True)
+    except Exception as _e:
+        print(f"  [leaders] 失敗: {_e}", flush=True)
 
     return results
 
@@ -1955,6 +2038,7 @@ def write_daily_watchlist_json(
     results: dict,
     taiex_pct: float | None = None,
     regime: str | None = None,
+    market_5d_ret: float | None = None,
 ) -> Path:
     """收集所有 scanner 命中、dedup + 彙整成 daily_watchlist JSON 寫進 repo.
 
@@ -2109,8 +2193,10 @@ def write_daily_watchlist_json(
         'date': target_date,
         'generated_at': datetime.now().isoformat(timespec='seconds'),
         'taiex_pct': taiex_pct,
+        'market_5d_ret': market_5d_ret,
         'regime': regime or ('weak' if (taiex_pct is not None and taiex_pct < -1.0) else 'normal'),
         'candidates': candidates,
+        'leaders': results.get('leaders', []),
     }
 
     out_path = out_dir / f"{target_date}.json"
@@ -2258,6 +2344,8 @@ def main():
                         "TWSE API 端 down 時可用此 flag 跳過、不擋主流程。"
                         "標記：🔒A 主升續攻 / 🔒B 反彈段 / 🔒C ❌ 不可進 / 🔒? 需人工"
                     ))
+    ap.add_argument("--skip-leaders-minute", action="store_true",
+                    help="跳過 leaders 名單分K backfill（預設執行、給 monitor 算 60m DIF 用）")
     args = ap.parse_args()
 
     target_date = args.date or date.today().isoformat()
@@ -2273,36 +2361,53 @@ def main():
         print(f"處置股分型: ❌ 停用 (--disable-disposal)")
     print()
 
-    results = run_scanners(target_date, db_path)
+    results = run_scanners(target_date, db_path,
+                           skip_leaders_minute=args.skip_leaders_minute)
 
     print(f"\n結果:")
     for s, hits in results.items():
         print(f"  {s}: {len(hits)} 檔")
 
-    # ── 取 TAIEX 漲跌幅 (給 JSON regime 判斷用) ──────────────────────────
+    # ── 取 TAIEX 漲跌幅 + 5d 報酬 + regime (bull/bear/chop) ─────────────
     _taiex_pct_for_json: float | None = None
+    _market_5d_ret: float | None = None
+    _regime: str | None = None
     try:
         _con_tx = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
-        _r = _con_tx.execute(
-            "SELECT close FROM standard_daily_bar WHERE ticker='TAIEX' AND trade_date=?",
+        # 取目標日 + 過去 60 個交易日 close (給 MA20/60 用)
+        _tx_rows = _con_tx.execute(
+            "SELECT trade_date, close FROM standard_daily_bar "
+            "WHERE ticker='TAIEX' AND trade_date<=? "
+            "ORDER BY trade_date DESC LIMIT 65",
             (target_date,),
-        ).fetchone()
-        _p = _con_tx.execute(
-            "SELECT close FROM standard_daily_bar "
-            "WHERE ticker='TAIEX' AND trade_date<? ORDER BY trade_date DESC LIMIT 1",
-            (target_date,),
-        ).fetchone()
+        ).fetchall()
         _con_tx.close()
-        if _r and _p:
-            _taiex_pct_for_json = round((_r[0] / _p[0] - 1) * 100, 2)
+        if _tx_rows and len(_tx_rows) >= 21:
+            _tx = list(reversed(_tx_rows))
+            _closes = [r[1] for r in _tx]
+            _today = _closes[-1]
+            _prev = _closes[-2]
+            _taiex_pct_for_json = round((_today / _prev - 1) * 100, 2)
+            _market_5d_ret = round((_today / _closes[-6] - 1) * 100, 2)
+            _ma20 = sum(_closes[-20:]) / 20
+            _ma60 = sum(_closes[-60:]) / 60 if len(_closes) >= 60 else None
+            if _ma60 is not None:
+                if _today > _ma20 > _ma60:
+                    _regime = "bull"
+                elif _today < _ma20 < _ma60:
+                    _regime = "bear"
+                else:
+                    _regime = "chop"
     except Exception as _e:
-        print(f"  [taiex_pct] 查詢失敗: {_e}、JSON taiex_pct=null", flush=True)
+        print(f"  [taiex] 查詢失敗: {_e}", flush=True)
 
     # ── 寫 daily_watchlist JSON 進 repo ──────────────────────────────────
     json_path = write_daily_watchlist_json(
         target_date,
         results,
         taiex_pct=_taiex_pct_for_json,
+        regime=_regime,
+        market_5d_ret=_market_5d_ret,
     )
     import json as _json_count
     _jcount = len(_json_count.loads(json_path.read_text(encoding='utf-8')).get('candidates', []))
