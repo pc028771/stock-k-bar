@@ -34,10 +34,9 @@ def _get_conn() -> sqlite3.Connection | None:
     with _conn_lock:
         if _conn is not None:
             return _conn
-        resolved = MAIN_DB_SYMLINK.resolve()
         try:
-            uri = f"file:{resolved}?mode=ro&immutable=1"
-            _conn = sqlite3.connect(uri, uri=True, timeout=15, check_same_thread=False)
+            from zhuli.db import get_conn
+            _conn = get_conn(timeout=15, immutable=True, check_same_thread=False)
             return _conn
         except Exception:
             pass

@@ -230,8 +230,7 @@ ALL_REPORTS: list[WeeklyReportEntry] = [
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _db_con(readonly: bool = True) -> sqlite3.Connection:
-    uri = f"file:{_DB}?mode=ro" if readonly else str(_DB)
-    return sqlite3.connect(uri, uri=readonly, timeout=30)
+    return get_conn(_DB, readonly=readonly, timeout=30)
 
 
 def get_trading_dates(start: str, end: str) -> list[str]:

@@ -44,8 +44,7 @@ def check(target_date: str | None = None) -> bool:
         prev = d - timedelta(days=3 if d.weekday() == 0 else 1)
         prev_str = prev.isoformat()
 
-    db_uri = f"file:{DB}?mode=ro"
-    con = sqlite3.connect(db_uri, uri=True, timeout=5)
+    con = get_conn(DB, timeout=5)
 
     print(f"\n=== 資料完備性檢查 (基準日: {today}) ===\n")
     ok = True

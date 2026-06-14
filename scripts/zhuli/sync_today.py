@@ -262,7 +262,7 @@ def main():
         if not token:
             print("⚠️  FINMIND_TOKEN 未設定，跳過法人資料")
         else:
-            con_r = sqlite3.connect(f"file:{Path(args.db)}?mode=ro", uri=True, timeout=5)
+            con_r = get_conn(Path(args.db), timeout=5)
             valid_tickers = set(r[0] for r in con_r.execute(
                 "SELECT DISTINCT ticker FROM standard_daily_bar WHERE is_usable=1"
             ).fetchall())

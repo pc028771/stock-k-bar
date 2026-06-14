@@ -57,8 +57,7 @@ from zhuli.entry.small_structure.watchlist import (
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
 def _open_db() -> sqlite3.Connection:
-    uri = f"file:{_DB}?mode=ro"
-    return sqlite3.connect(uri, uri=True)
+    return get_conn(_DB)
 
 
 def _load_bars(con: sqlite3.Connection, ticker: str, since: str, until: str) -> pd.DataFrame:
