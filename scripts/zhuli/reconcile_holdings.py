@@ -28,8 +28,9 @@ from zhuli.db import get_conn, MAIN_DB
 DB = MAIN_DB
 HOLDINGS_JSON = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "holdings.json"
 
-LONG_BUY_ACTIONS = {"現買", "券買"}
-LONG_SELL_ACTIONS = {"現賣", "券賣"}
+LONG_BUY_ACTIONS = {"現買"}     # 「券買」= 融券回補、不是 long buy、不計入持倉
+LONG_SELL_ACTIONS = {"現賣"}    # 「券賣」= 融券放空、不是 long sell
+# 排除: 沖買 / 沖賣 (當沖 intraday、隔日無倉)、券買 / 券賣 (融券 short side)
 
 
 def calc_broker_positions(db: Path = DB) -> dict[str, dict]:
