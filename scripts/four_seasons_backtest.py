@@ -90,6 +90,9 @@ class BacktestConfig:
     # 量價背離B: heavy volume but price barely moved → distribution / churning
     warn_vol_high_ratio: float = 3.0   # vol_ratio_20 > this = abnormally heavy vol
     warn_price_stall_pct: float = 1.0  # |daily_chg| < X% despite heavy vol = stall
+    # Exit mode: "standard" = 課程全部規則; "trailing_only" = 只保留 trailing_stop
+    # （for testing whether 立夏/盛夏 trailing-only 子集的 backtest 結果可以推廣）
+    exit_mode: str = "standard"
 
 
 def load_bt_config(path: Path | None) -> BacktestConfig:
@@ -163,7 +166,9 @@ def simulate_long(
     """
     entry_close = entry_row["close"]
     peak_close = entry_close
-    apply_price_stops = entry_row["season"] != "春"
+    trailing_only = getattr(bt, "exit_mode", "standard") == "trailing_only"
+    # 春多原本「不套用價格停損」(§三 春季 停損=基本面)；trailing_only 模式統一用 trailing.
+    apply_price_stops = trailing_only or entry_row["season"] != "春"
     ma20_break_streak = 0  # consecutive days closing below ma20
 
     for _, r in forward.iterrows():
@@ -172,22 +177,26 @@ def simulate_long(
         trailing_armed = peak_ret >= bt.trailing_trigger_pct
 
         if apply_price_stops:
-            if warning_signals_triggered(r, entry_row, peak_close, bt):
-                return _close_long(entry_row, r, name, "warning_signals", censored=False)
-            # 動態 ma20 break：未獲利 1 天即出（capital protection）；獲利後 3 天確認（ch7-1 @04:37）
-            if pd.notna(r["ma20"]) and r["close"] < r["ma20"]:
-                ma20_break_streak += 1
-                required = bt.ma20_break_consecutive_days if trailing_armed else 1
-                if ma20_break_streak >= required:
-                    reason = "ma20_break_3day" if trailing_armed else "ma20_break_protect"
-                    return _close_long(entry_row, r, name, reason, censored=False)
-            else:
-                ma20_break_streak = 0  # 站回月線，計數歸零
+            # standard mode: warning + ma20 break exits
+            if not trailing_only:
+                if warning_signals_triggered(r, entry_row, peak_close, bt):
+                    return _close_long(entry_row, r, name, "warning_signals", censored=False)
+                # 動態 ma20 break：未獲利 1 天即出（capital protection）；獲利後 3 天確認（ch7-1 @04:37）
+                if pd.notna(r["ma20"]) and r["close"] < r["ma20"]:
+                    ma20_break_streak += 1
+                    required = bt.ma20_break_consecutive_days if trailing_armed else 1
+                    if ma20_break_streak >= required:
+                        reason = "ma20_break_3day" if trailing_armed else "ma20_break_protect"
+                        return _close_long(entry_row, r, name, reason, censored=False)
+                else:
+                    ma20_break_streak = 0  # 站回月線，計數歸零
+            # trailing stop: 兩種 mode 都認 (trailing_only 模式下是唯一價格 exit)
             if trailing_armed:
                 stop_price = peak_close * (1 - bt.trailing_giveback_pct / 100)
                 if r["close"] <= stop_price:
                     return _close_long(entry_row, r, name, "trailing_stop", censored=False)
-        if r["season"] in LONG_EXIT_TO:
+        # season_change exit 只在 standard mode 觸發
+        if not trailing_only and r["season"] in LONG_EXIT_TO:
             return _close_long(entry_row, r, name, "season_change", censored=False)
 
     if forward.empty:
@@ -243,7 +252,12 @@ def _close_short(entry_row, exit_row, name, reason, censored) -> Trade:
 
 def _snapshot(db: Path) -> str:
     tmp = Path(tempfile.gettempdir()) / f"fs_bt_{os.getpid()}.sqlite"
+    db = Path(db).resolve()  # follow symlink → real file
     shutil.copy2(db, tmp)
+    for ext in ("-wal", "-shm"):
+        src = db.with_name(db.name + ext)
+        if src.exists():
+            shutil.copy2(src, str(tmp) + ext)
     return str(tmp)
 
 
@@ -423,6 +437,10 @@ def main() -> int:
                    help="Print default BacktestConfig as JSON and exit.")
     p.add_argument("--dump-classify-config", action="store_true",
                    help="Print default SeasonConfig as JSON and exit.")
+    p.add_argument("--exit-mode", choices=["standard", "trailing_only"], default="standard",
+                   help="standard = course-full exits (default); "
+                        "trailing_only = 只認 trailing_stop、忽略 warning/ma20_break/season_change "
+                        "(用來驗證 trailing-only 子集 backtest 的可推廣性)")
     args = p.parse_args()
 
     if args.dump_config:
@@ -433,6 +451,8 @@ def main() -> int:
         return 0
 
     bt = load_bt_config(args.config)
+    bt.exit_mode = args.exit_mode
+    print(f"[exit_mode] {bt.exit_mode}")
     conn_path = _snapshot(args.db)
 
     if args.inp is not None:

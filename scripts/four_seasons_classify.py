@@ -239,7 +239,13 @@ def _compute_bb_lower_slope(group: pd.DataFrame) -> float | None:
 def _snapshot_db(db_path: Path) -> str:
     try:
         tmp = Path(tempfile.gettempdir()) / f"fs_classify_snapshot_{os.getpid()}.sqlite"
+        # 跟著一起 copy WAL 模式 sidecars，否則 sqlite 無法 open snapshot
+        db_path = Path(db_path).resolve()  # follow symlink → real file
         shutil.copy2(db_path, tmp)
+        for ext in ("-wal", "-shm"):
+            src = db_path.with_name(db_path.name + ext)
+            if src.exists():
+                shutil.copy2(src, str(tmp) + ext)
         return str(tmp)
     except Exception:
         return str(db_path)
