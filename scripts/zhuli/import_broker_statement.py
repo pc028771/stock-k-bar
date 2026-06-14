@@ -74,13 +74,80 @@ def _date_iso(s: str) -> str:
 
 
 def lookup_ticker(con: sqlite3.Connection, stock_name: str) -> str | None:
-    """從 stock_info 反查 ticker、模糊匹配股名。"""
-    s = stock_name.replace("*", "").replace("-KY", "").strip()
-    r = con.execute(
-        "SELECT ticker FROM stock_info WHERE stock_name=? OR stock_name LIKE ? LIMIT 1",
-        (stock_name, f"%{s}%"),
-    ).fetchone()
-    return r[0] if r else None
+    """從 stock_info 反查 ticker — 嚴格 exact match 為主、避免「南亞」→「南亞科」誤命中。
+
+    順序:
+      1. exact match (含 *、-KY 等後綴)
+      2. 去後綴後 exact match
+      3. 都不中 → None (寧可空、不要亂寫)
+    """
+    cleaned = stock_name.replace("*", "").replace("-KY", "").strip()
+    for q in (stock_name, cleaned):
+        r = con.execute(
+            "SELECT ticker FROM stock_info WHERE stock_name=? LIMIT 1", (q,),
+        ).fetchone()
+        if r:
+            return r[0]
+    return None
+
+
+def _supersede_manual(
+    con: sqlite3.Connection, *,
+    trade_date: str, ticker: str | None, stock_name: str,
+    action: str, shares: int, price: float,
+) -> tuple[int, list[str]]:
+    """CSV import 前、清掉對應的 manual 暫存。
+
+    回傳 (auto_deleted_count, review_warnings)
+      - Layer 1 (exact): date+ticker+action+shares+price 一致 → 直接刪
+      - Layer 2 (fuzzy): date+ticker+action 一致、shares 或 price 接近 (差 ≤1%) → 刪 + log
+      - Layer 3 (suspect): date+ticker 一致、其他差異 → 不刪、印警告
+    """
+    if not ticker:
+        return 0, []
+    deleted = 0
+    warnings: list[str] = []
+
+    # Layer 1: 完全一致
+    cur = con.execute(
+        "DELETE FROM broker_statement "
+        "WHERE source='manual' AND trade_date=? AND ticker=? "
+        "AND action=? AND shares=? AND ABS(price-?) < 0.005",
+        (trade_date, ticker, action, shares, price),
+    )
+    if cur.rowcount > 0:
+        deleted += cur.rowcount
+        print(f"  ✅ Layer 1 supersede: {trade_date} {ticker} {stock_name} "
+              f"{action} {shares} @ {price} (-{cur.rowcount} manual)")
+        return deleted, warnings
+
+    # Layer 2: 模糊 (同 action、shares 或 price 差 ≤1%)
+    fuzzy_rows = con.execute(
+        "SELECT id, shares, price FROM broker_statement "
+        "WHERE source='manual' AND trade_date=? AND ticker=? AND action=?",
+        (trade_date, ticker, action),
+    ).fetchall()
+    for fid, fshares, fprice in fuzzy_rows:
+        shares_diff = abs(fshares - shares) / max(shares, 1)
+        price_diff = abs(fprice - price) / max(price, 0.01)
+        if shares_diff <= 0.01 or price_diff <= 0.01:
+            con.execute("DELETE FROM broker_statement WHERE id=?", (fid,))
+            deleted += 1
+            print(f"  ⚠️ Layer 2 fuzzy supersede: {trade_date} {ticker} {stock_name} "
+                  f"{action} manual({fshares}@{fprice}) ≈ CSV({shares}@{price})")
+
+    # Layer 3: 同 date+ticker 但其他不符 → 不刪、警告
+    suspects = con.execute(
+        "SELECT id, action, shares, price FROM broker_statement "
+        "WHERE source='manual' AND trade_date=? AND ticker=?",
+        (trade_date, ticker),
+    ).fetchall()
+    for sid, sact, sshares, sprice in suspects:
+        warnings.append(
+            f"{trade_date} {ticker} {stock_name}: "
+            f"manual({sact} {sshares}@{sprice}) vs CSV({action} {shares}@{price}) — 請手動 review (id={sid})"
+        )
+    return deleted, warnings
 
 
 def import_csv(csv_path: Path, db: Path = DB) -> dict:
@@ -89,7 +156,9 @@ def import_csv(csv_path: Path, db: Path = DB) -> dict:
 
     inserted = 0
     skipped = 0
+    superseded = 0
     not_matched: dict[str, int] = {}
+    review_warnings: list[str] = []
 
     with csv_path.open(encoding="utf-8") as f:
         # 跳過第一行 (篩選結果說明)、第二行是 header
@@ -105,6 +174,19 @@ def import_csv(csv_path: Path, db: Path = DB) -> dict:
             if not ticker:
                 not_matched[stock_name] = not_matched.get(stock_name, 0) + 1
 
+            trade_date = _date_iso(row.get("日期", ""))
+            shares = _to_int(row.get("成交股數", "0"))
+            price = _to_float(row.get("成交價", "0"))
+            action = row.get("買賣別", "").strip()
+
+            # 3 層 supersede pass、先清 manual 暫存
+            d, w = _supersede_manual(
+                con, trade_date=trade_date, ticker=ticker, stock_name=stock_name,
+                action=action, shares=shares, price=price,
+            )
+            superseded += d
+            review_warnings.extend(w)
+
             try:
                 con.execute(
                     """INSERT OR IGNORE INTO broker_statement (
@@ -114,11 +196,11 @@ def import_csv(csv_path: Path, db: Path = DB) -> dict:
                         short_fee, order_id
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
-                        stock_name, ticker, _date_iso(row.get("日期", "")),
-                        _to_int(row.get("成交股數", "0")),
+                        stock_name, ticker, trade_date,
+                        shares,
                         _to_int(row.get("淨收付金額", "0")),
-                        row.get("買賣別", "").strip(),
-                        _to_float(row.get("成交價", "0")),
+                        action,
+                        price,
                         _to_int(row.get("成本", "0")),
                         _to_int(row.get("手續費", "0")),
                         _to_int(row.get("交易稅", "0")),
@@ -143,7 +225,9 @@ def import_csv(csv_path: Path, db: Path = DB) -> dict:
     return {
         "inserted": inserted,
         "skipped": skipped,
+        "superseded": superseded,
         "not_matched_tickers": not_matched,
+        "review_warnings": review_warnings,
     }
 
 
@@ -158,13 +242,18 @@ def main() -> None:
         sys.exit(1)
 
     result = import_csv(path)
-    print(f"\n✅ Insert: {result['inserted']}")
-    print(f"⏭️  Skip:   {result['skipped']}")
+    print(f"\n✅ Insert:     {result['inserted']}")
+    print(f"⏭️  Skip:       {result['skipped']}")
+    print(f"🧹 Superseded: {result['superseded']} (manual 暫存被 CSV 取代)")
     if result["not_matched_tickers"]:
-        print(f"\n⚠️ 未匹配 ticker 的股名 ({len(result['not_matched_tickers'])} 種):")
+        print(f"\n⚠️ 未匹配 ticker 的股名 ({len(result['not_matched_tickers'])} 種、stock_info 沒對應、需手填):")
         for name, n in sorted(result["not_matched_tickers"].items(),
                               key=lambda x: -x[1]):
             print(f"   {name:12} ({n} 筆)")
+    if result["review_warnings"]:
+        print(f"\n🚨 Review 警告 ({len(result['review_warnings'])} 筆同 date+ticker 的 manual 沒對到 CSV):")
+        for w in result["review_warnings"]:
+            print(f"   {w}")
 
 
 if __name__ == "__main__":
