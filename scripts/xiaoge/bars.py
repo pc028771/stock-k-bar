@@ -40,7 +40,9 @@ def load_bars(start_date: str, end_date: str | None = None,
         f"""
         SELECT ticker, trade_date, open, high, low, close, volume,
                ma5, ma10, ma20, ma60,
-               bb_mid, bb_upper, bb_lower, bb_width_pct
+               bb_mid, bb_upper, bb_lower, bb_width_pct,
+               main_force_1d, main_force_5d, main_force_10d, main_force_20d,
+               custody_accounts
         FROM standard_daily_bar
         WHERE trade_date >= '{warmup_start}'
           {end_clause}
@@ -55,7 +57,9 @@ def load_bars(start_date: str, end_date: str | None = None,
     # Cast numerics
     for c in ["open", "high", "low", "close", "volume",
               "ma5", "ma10", "ma20", "ma60",
-              "bb_mid", "bb_upper", "bb_lower", "bb_width_pct"]:
+              "bb_mid", "bb_upper", "bb_lower", "bb_width_pct",
+              "main_force_1d", "main_force_5d", "main_force_10d", "main_force_20d",
+              "custody_accounts"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
 
