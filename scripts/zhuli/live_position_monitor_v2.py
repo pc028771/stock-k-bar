@@ -265,6 +265,7 @@ TAB_WATCHING  = "tab-watching"
 TAB_PINNED    = "tab-pinned"
 TAB_OVERNIGHT = "tab-overnight"
 TAB_SCANNER   = "tab-scanner"
+TAB_SETUPS    = "tab-setups"
 
 TAB_LABELS = {
     TAB_HELD:      "📊 持倉",
@@ -273,10 +274,11 @@ TAB_LABELS = {
     TAB_WATCHING:  "🔍 觀察",
     TAB_PINNED:    "📌 Pinned",
     TAB_SCANNER:   "📈 Scanner",
+    TAB_SETUPS:    "🎲 Setups",
 }
 
-# Tab order: 1=持倉 2=隔日沖 3=可進場 4=觀察 5=Pinned 6=Scanner
-_TAB_ORDER = [TAB_HELD, TAB_OVERNIGHT, TAB_CONFIRMED, TAB_WATCHING, TAB_PINNED, TAB_SCANNER]
+# Tab order: 1=持倉 2=隔日沖 3=可進場 4=觀察 5=Pinned 6=Scanner 7=Setups
+_TAB_ORDER = [TAB_HELD, TAB_OVERNIGHT, TAB_CONFIRMED, TAB_WATCHING, TAB_PINNED, TAB_SCANNER, TAB_SETUPS]
 
 # ── Column specs ─────────────────────────────────────────────────────────────
 # (key, label, width)
@@ -319,6 +321,17 @@ COLS_OVERNIGHT = [
     ("pass",    "通過",  6),   # "3/4" / "4/4"
     ("asof",    "資料時間", 10),  # Fubon snap timestamp HH:MM:SS
     ("status",  "狀態", 22),   # "等斜率" / "✅ 可進場" etc.
+]
+
+COLS_SETUPS = [
+    ("ticker",      "代號",    6),
+    ("name",        "股名",    8),
+    ("setup_id",    "ID",      4),   # F1/F2/F3/F4/S1/S2/S3
+    ("setup_name",  "Setup",  20),   # 中文名
+    ("exit",        "出場",   18),
+    ("perf",        "預期",   24),
+    ("sector",      "族群",   14),
+    ("price",       "現價",   10),
 ]
 
 # ── overnight universe loader (保留備用) ─────────────────────────────────────
@@ -699,6 +712,7 @@ class MonitorApp(App[None]):
         Binding("4",       "switch_tab_4",    "觀察", show=False),
         Binding("5",       "switch_tab_5",    "Pinned", show=False),
         Binding("6",       "switch_tab_6",    "Scanner", show=False),
+        Binding("7",       "switch_tab_7",    "Setups", show=False),
         Binding("shift+left",  "page_up",   "↑頁"),
         Binding("shift+right", "page_down", "↓頁"),
     ]
@@ -751,6 +765,14 @@ class MonitorApp(App[None]):
         self._overnight_cache_ttl: float = 60.0  # 1 minute
         self._overnight_candidate_date: str = ""  # signal_date of last loaded candidates
 
+        # ── setups (盤後 daily_scanner 算的 7 個達標 setup 命中清單) ─────────
+        self._setups: list[dict] = []
+        self._setups_regime: dict = {}
+        try:
+            self._load_setups_from_json()
+        except Exception:
+            pass
+
         # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
         held_tickers = [str(i.get('ticker', '')) for i in self._held
                         if i.get('ticker')]
@@ -796,6 +818,12 @@ class MonitorApp(App[None]):
             with TabPane(TAB_LABELS[TAB_SCANNER], id=TAB_SCANNER,
                          classes="scanner-pane"):
                 yield DataTable(id="dt-scanner", zebra_stripes=True,
+                                cursor_type="row")
+
+            with TabPane(TAB_LABELS[TAB_SETUPS], id=TAB_SETUPS,
+                         classes="setups-pane"):
+                yield Static("(載入中…)", id="setups-header")
+                yield DataTable(id="dt-setups", zebra_stripes=True,
                                 cursor_type="row")
 
         yield SearchBar(id="search-bar")
@@ -892,6 +920,7 @@ class MonitorApp(App[None]):
             ("dt-pinned",    COLS_HELD),
             ("dt-overnight", COLS_OVERNIGHT),
             ("dt-scanner",   COLS_WATCH),
+            ("dt-setups",    COLS_SETUPS),
         ]:
             dt: DataTable = self.query_one(f"#{table_id}", DataTable)
             for key, label, width in cols:
@@ -928,6 +957,36 @@ class MonitorApp(App[None]):
             t_end = time.time() + interval
             while time.time() < t_end and not self._quit:
                 time.sleep(0.1)
+
+    def _load_setups_from_json(self) -> None:
+        """從 docs/主力大課程/daily_watchlist/{today}.json 讀 setups + regime_info.
+
+        主 worktree 直接讀 {date}.json；linked worktree 讀 _experimental/{date}.{wt}.json。
+        找不到當天就找最近 7 天。
+        """
+        import json
+        from datetime import date as _dc, timedelta as _td
+        base = _REPO / "docs" / "主力大課程" / "daily_watchlist"
+        candidates = []
+        today = _dc.today()
+        # 先試主 worktree 標準檔名
+        for offset in range(0, 8):
+            d = (today - _td(days=offset)).isoformat()
+            candidates.append(base / f"{d}.json")
+        # 試 linked worktree experimental
+        wt_name = _REPO.resolve().name
+        for offset in range(0, 8):
+            d = (today - _td(days=offset)).isoformat()
+            candidates.append(base / "_experimental" / f"{d}.{wt_name}.json")
+        for p in candidates:
+            if p.exists():
+                try:
+                    payload = json.loads(p.read_text(encoding="utf-8"))
+                    self._setups = payload.get("setups", []) or []
+                    self._setups_regime = payload.get("regime_info", {}) or {}
+                    return
+                except Exception:
+                    continue
 
     def _check_data_version(self) -> None:
         """偵測 DB 日K是否在 monitor 啟動後被補入新交易日。
@@ -1630,6 +1689,67 @@ class MonitorApp(App[None]):
             items = [i for i in items if self._match_search(i)]
         self._refresh_watch_table("dt-scanner", items, ld, tab_id=TAB_SCANNER)
 
+    def _refresh_setups_table(self, ld: dict) -> None:
+        """Setups tab: 從 daily_watchlist JSON setups 區塊讀取、顯示今日命中。
+
+        Setups 是盤後 daily_scanner 算的「明日進場候選」(7 個達標 setup)、
+        每筆含 setup_id (F1-F4/S1-S3)、出場機制、預期績效。
+        """
+        try:
+            dt = self.query_one("#dt-setups", DataTable)
+        except Exception:
+            return
+        saved_cursor, saved_scroll = self._save_table_state(dt)
+        dt.clear()
+
+        setups = list(getattr(self, "_setups", []) or [])
+        regime_info = getattr(self, "_setups_regime", {}) or {}
+
+        # Header (regime + n 命中)
+        try:
+            header = self.query_one("#setups-header", Static)
+            regime = regime_info.get("regime_class", "—")
+            ret5 = regime_info.get("taiex_ret5")
+            ret20 = regime_info.get("taiex_ret20")
+            header_txt = (
+                f"Regime: {regime}  TAIEX 5d: {ret5}%  20d: {ret20}%  "
+                f"命中: {len(setups)} 個 setup"
+            )
+            header.update(header_txt)
+        except Exception:
+            pass
+
+        if not setups:
+            dt.add_row("—", "(今日無 setup 命中)", "—", "—", "—", "—", "—", "—",
+                       key="__no_setup__")
+            self._restore_table_state(dt, saved_cursor, saved_scroll)
+            return
+
+        # 排序: F1-F4 > S1-S3、同 setup 內按 ticker
+        order = {"F1": 0, "F2": 1, "F3": 2, "F4": 3, "S1": 4, "S2": 5, "S3": 6}
+        setups = sorted(setups, key=lambda s: (order.get(s.get("setup_id"), 9), s.get("ticker", "")))
+
+        if self.search_term:
+            setups = [s for s in setups if self._match_search(s)]
+
+        for s in setups:
+            tk = str(s.get("ticker", ""))
+            name = s.get("name", "") or ""
+            setup_id = s.get("setup_id", "") or ""
+            setup_name = s.get("setup_name", "") or ""
+            sec = s.get("sector", "") or ""
+            exit_m = s.get("exit", "") or ""
+            perf = s.get("perf", "") or ""
+
+            d = ld.get(tk, {}) if isinstance(ld, dict) else {}
+            price = d.get("price")
+            price_str = f"{price:.2f}" if price else "—"
+
+            dt.add_row(tk, name, setup_id, setup_name[:18], exit_m, perf, sec[:12], price_str,
+                       key=tk or f"__s{id(s)}__")
+
+        self._restore_table_state(dt, saved_cursor, saved_scroll)
+
     # ── table cursor/scroll preservation ─────────────────────────────────────
     def _save_table_state(self, dt: DataTable) -> tuple[int, float]:
         """儲存 cursor row + scroll_y，回傳 (cursor_row, scroll_y)。"""
@@ -1665,6 +1785,7 @@ class MonitorApp(App[None]):
         self._refresh_pinned_table(ld)
         self._refresh_overnight_table()
         self._refresh_scanner_table(ld)
+        self._refresh_setups_table(ld)
 
     # ── actions ──────────────────────────────────────────────────────────────
     def action_toggle_teacher(self) -> None:
@@ -1761,6 +1882,9 @@ class MonitorApp(App[None]):
 
     def action_switch_tab_6(self) -> None:
         self._switch_to_tab(TAB_SCANNER)
+
+    def action_switch_tab_7(self) -> None:
+        self._switch_to_tab(TAB_SETUPS)
 
     def _switch_to_tab(self, tab_id: str) -> None:
         tabs = self.query_one("#main-tabs", TabbedContent)

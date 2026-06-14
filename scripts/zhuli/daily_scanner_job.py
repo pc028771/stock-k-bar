@@ -458,7 +458,36 @@ def run_scanners(target_date: str, db_path: Path,
         ).fetchall()
     ]
 
+    # ── TAIEX regime features (給 Pass C setups detect 用) ────────────────
+    _regime_info = {}
+    try:
+        _tx_rows = con.execute(
+            "SELECT trade_date, close, high, low FROM standard_daily_bar "
+            "WHERE ticker='TAIEX' AND trade_date<=? ORDER BY trade_date DESC LIMIT 65",
+            (target_date,)).fetchall()
+        if _tx_rows and len(_tx_rows) >= 21:
+            _tx = list(reversed(_tx_rows))
+            _closes = [r[1] for r in _tx]
+            _highs = [r[2] for r in _tx]
+            _lows = [r[3] for r in _tx]
+            _regime_info['taiex_ret5'] = round((_closes[-1] / _closes[-6] - 1) * 100, 2)
+            _regime_info['taiex_ret20'] = round((_closes[-1] / _closes[-21] - 1) * 100, 2)
+            if len(_closes) >= 61:
+                _regime_info['taiex_ret60'] = round((_closes[-1] / _closes[-61] - 1) * 100, 2)
+                _h60 = max(_highs[-60:]); _l60 = min(_lows[-60:])
+                _mean60 = sum(_closes[-60:]) / 60
+                _regime_info['taiex_range60_pct'] = round((_h60 - _l60) / _mean60 * 100, 2) if _mean60 > 0 else None
+        from zhuli.setups_detect import classify_regime
+        _regime_info['regime_class'] = classify_regime(
+            _regime_info.get('taiex_ret20'),
+            _regime_info.get('taiex_ret60'),
+            _regime_info.get('taiex_range60_pct'),
+        )
+    except Exception as _e:
+        print(f"  [regime] 計算失敗: {_e}", flush=True)
+
     results = {
+        '_regime_info': _regime_info,
         'shakeout_strong': [], 'small_structure': [], 'w_bottom_launch': [],
         'ma5_pivot': [], 'glued_ma5': [],
         'institutional_firstbuy': [], 'institutional_swing': [],
@@ -1163,6 +1192,135 @@ def run_scanners(target_date: str, db_path: Path,
     except Exception as _e:
         print(f"  [leaders] 失敗: {_e}", flush=True)
 
+    # ── Pass C: setups detect (7 個達標 setup、regime gated) ────────────────
+    print(f"  [setups] Pass C: 跑 7 個達標 setup detect...", flush=True)
+    results['setups'] = []
+    try:
+        from zhuli.setups_detect import classify_regime as _cls_regime, detect_all_setups
+        # 用前面 main() 計算的 regime（會在 main 傳進 results） — 這裡先用 fallback
+        # 實際 regime 由 main 計算後注入 results['_regime_info']
+        regime_info = results.get('_regime_info', {})
+        regime = regime_info.get('regime_class') or _cls_regime(
+            regime_info.get('taiex_ret20'),
+            regime_info.get('taiex_ret60'),
+            regime_info.get('taiex_range60_pct'),
+        )
+        taiex_ret5 = regime_info.get('taiex_ret5')
+
+        if regime not in ("strong_bull", "chop"):
+            print(f"  [setups] regime={regime}、跳過 (僅 strong_bull / chop 適用)", flush=True)
+        else:
+            print(f"  [setups] regime={regime}、TAIEX 5d={taiex_ret5}、開始偵測", flush=True)
+            # 對所有 leaders + laggards 跑 detector
+            from zhuli.leaders_detect import detect_leader, detect_laggard
+            con_setup = sqlite3.connect(_db_uri(db_path), uri=True, timeout=15)
+            # leaders 已在 Pass B 算過、直接用 results['leaders']
+            lead_lookup = {r['ticker']: r for r in results['leaders']}
+            # laggards 需要單獨判定 (Pass A 沒記錄)
+            for t, df_t in ticker_dfs.items():
+                if len(df_t) < 30: continue
+                fn_5d = float(df_t['foreign_net'].tail(5).sum()) if 'foreign_net' in df_t.columns else None
+                is_lead = detect_leader(df_t, fn_5d)
+                is_lag = detect_laggard(df_t) and not is_lead
+
+                # 從 lead_lookup 拿 metrics、或重算 minimum (laggard)
+                if is_lead and t in lead_lookup:
+                    li = lead_lookup[t]
+                    trend_d = li.get('dif_d_trend', 'flat')
+                    streak = li.get('dif_d_up_streak', 0)
+                    trend_60m = li.get('dif_60m_trend', 'flat')
+                elif is_lag:
+                    # laggard 需要算日 DIF / 60m DIF metrics
+                    from zhuli.leaders_detect import compute_dif_metrics
+                    dm = compute_dif_metrics(df_t['close'])
+                    trend_d = dm.get('dif_d_trend', 'flat')
+                    streak = dm.get('dif_d_up_streak', 0)
+                    trend_60m = "flat"  # laggards 不算 60m DIF (省 API)
+                else:
+                    continue
+
+                # 5m / 30m TF + KD 需要當天分K
+                trend_5m = trend_30m = "flat"
+                K_5m = K_60m = None
+                try:
+                    m_rows = con_setup.execute(
+                        """SELECT trade_datetime, open, high, low, close FROM stock_minute_kbar
+                           WHERE ticker=? AND trade_datetime >= date(?, '-10 days')
+                             AND trade_datetime <= ? || ' 13:30'
+                           ORDER BY trade_datetime""",
+                        (t, target_date, target_date),
+                    ).fetchall()
+                    if m_rows and len(m_rows) >= 100:
+                        m_df = pd.DataFrame(m_rows, columns=['ts', 'open', 'high', 'low', 'close'])
+                        m_df['ts'] = pd.to_datetime(m_df['ts'])
+                        m_df = m_df.set_index('ts')
+                        # 5m
+                        b5 = m_df.resample('5min', origin='start_day', offset='9h').agg(
+                            {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'}).dropna()
+                        b5 = b5[(b5.index.time >= pd.Timestamp('09:00').time())
+                                & (b5.index.time <= pd.Timestamp('13:30').time())]
+                        if len(b5) >= 30:
+                            from zhuli.leaders_detect import compute_dif_metrics as _cdm
+                            dm5 = _cdm(b5['close'])
+                            trend_5m = dm5.get('dif_d_trend', 'flat')
+                            # KD(9,3,3) for 5m
+                            ln = b5['low'].rolling(9, min_periods=1).min()
+                            hn = b5['high'].rolling(9, min_periods=1).max()
+                            rsv = ((b5['close'] - ln) / (hn - ln).replace(0, np.nan) * 100).fillna(50)
+                            kk = np.zeros(len(rsv)); kp = 50.0
+                            for i, v in enumerate(rsv.values):
+                                kp = kp * 2 / 3 + v / 3
+                                kk[i] = kp
+                            K_5m = float(kk[-1])
+                        # 30m
+                        b30 = m_df.resample('30min', origin='start_day', offset='9h').agg(
+                            {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'}).dropna()
+                        b30 = b30[(b30.index.time >= pd.Timestamp('09:00').time())
+                                  & (b30.index.time <= pd.Timestamp('13:30').time())]
+                        if len(b30) >= 30:
+                            dm30 = compute_dif_metrics(b30['close'])
+                            trend_30m = dm30.get('dif_d_trend', 'flat')
+                        # 60m K
+                        b60 = m_df.resample('60min', origin='start_day', offset='9h').agg(
+                            {'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last'}).dropna()
+                        b60 = b60[(b60.index.time >= pd.Timestamp('09:00').time())
+                                  & (b60.index.time <= pd.Timestamp('13:30').time())]
+                        if len(b60) >= 30:
+                            ln60 = b60['low'].rolling(9, min_periods=1).min()
+                            hn60 = b60['high'].rolling(9, min_periods=1).max()
+                            rsv60 = ((b60['close'] - ln60) / (hn60 - ln60).replace(0, np.nan) * 100).fillna(50)
+                            kk60 = np.zeros(len(rsv60)); kp = 50.0
+                            for i, v in enumerate(rsv60.values):
+                                kp = kp * 2 / 3 + float(v) / 3
+                                kk60[i] = kp
+                            K_60m = float(kk60[-1])
+                            # 重算 60m trend (覆蓋 Pass B lookup 的)
+                            from zhuli.leaders_detect import compute_dif_metrics_60m
+                            dm60 = compute_dif_metrics_60m(b60['close'])
+                            trend_60m = dm60.get('dif_60m_trend', trend_60m)
+                except Exception:
+                    pass
+
+                hits = detect_all_setups(
+                    regime=regime, is_leader=is_lead, is_laggard=is_lag,
+                    taiex_ret5=taiex_ret5,
+                    trend_d=trend_d, trend_60m=trend_60m,
+                    trend_30m=trend_30m, trend_5m=trend_5m,
+                    dif_d_streak=streak, K_5m=K_5m, K_60m=K_60m,
+                )
+                for h in hits:
+                    name = stock_info.get(t, {}).get('name', '')
+                    teacher_secs = TEACHER_SECTOR_MAP.get(t, [])
+                    results['setups'].append({
+                        'ticker': t, 'name': name,
+                        'sector': '/'.join(teacher_secs) if teacher_secs else stock_info.get(t, {}).get('industry', ''),
+                        **h,
+                    })
+            con_setup.close()
+            print(f"  [setups] Pass C 完成: {len(results['setups'])} 個 setup 命中", flush=True)
+    except Exception as _e:
+        print(f"  [setups] 失敗: {_e}", flush=True)
+
     # ── K 線力量 Tier-A 升等訊號 (--enable-kline-tier-a) ────────────────────────
     # 2 支 bull-direction、backtest A' vs B' 5d +3.11pp, cap10 2.5x：
     #   attack_cost_displayed / morning_star_island_reversal
@@ -1427,9 +1585,16 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
     kline_confirmations: dict[str, list[str]] = results.pop('_kline_confirmations', {}) or {}
 
     # 把每個 hit 帶 scanner_name 後 flatten 成單一 list
+    # underscore prefix key (_regime_info / _kline_confirmations) 跳過
     all_hits = []
     for scanner, hits in results.items():
+        if scanner.startswith("_"):
+            continue
+        if not isinstance(hits, list):
+            continue
         for h in hits:
+            if not isinstance(h, dict):
+                continue
             h = dict(h)
             h['scanner_name'] = scanner
             all_hits.append(h)
@@ -2338,6 +2503,8 @@ def write_daily_watchlist_json(
         'regime': regime or ('weak' if (taiex_pct is not None and taiex_pct < -1.0) else 'normal'),
         'candidates': candidates,
         'leaders': results.get('leaders', []),
+        'setups': results.get('setups', []),
+        'regime_info': results.get('_regime_info', {}),
     }
 
     out_path = out_dir / _filename
@@ -2523,7 +2690,10 @@ def main():
 
     print(f"\n結果:")
     for s, hits in results.items():
-        print(f"  {s}: {len(hits)} 檔")
+        if s.startswith("_"):
+            continue
+        n = len(hits) if isinstance(hits, (list, dict)) else 0
+        print(f"  {s}: {n} 檔")
 
     # ── 取 TAIEX 漲跌幅 + 5d 報酬 + regime (bull/bear/chop) ─────────────
     _taiex_pct_for_json: float | None = None
