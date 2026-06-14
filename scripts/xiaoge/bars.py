@@ -41,6 +41,7 @@ def load_bars(start_date: str, end_date: str | None = None,
         SELECT ticker, trade_date, open, high, low, close, volume,
                ma5, ma10, ma20, ma60,
                bb_mid, bb_upper, bb_lower, bb_width_pct,
+               vol_ma20,
                main_force_1d, main_force_5d, main_force_10d, main_force_20d,
                custody_accounts
         FROM standard_daily_bar
@@ -58,6 +59,7 @@ def load_bars(start_date: str, end_date: str | None = None,
     for c in ["open", "high", "low", "close", "volume",
               "ma5", "ma10", "ma20", "ma60",
               "bb_mid", "bb_upper", "bb_lower", "bb_width_pct",
+              "vol_ma20",
               "main_force_1d", "main_force_5d", "main_force_10d", "main_force_20d",
               "custody_accounts"]:
         df[c] = pd.to_numeric(df[c], errors="coerce")
