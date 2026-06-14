@@ -204,13 +204,90 @@ def _get_trade_outcome(
     slippage_pct: float,
     ticker: str,
     entry_mode: str = "next_day_open",
+    minute_bars: Optional[dict] = None,
+    prev_close: Optional[float] = None,  # D close (for gap filter)
+    skip_stats: Optional[dict] = None,   # mutable dict to accumulate skip reasons
 ) -> Optional[dict]:
     """模擬單筆交易. Returns trade dict or None if can't enter.
 
     entry_mode:
         "next_day_open": entry = signal_date+1 day open (波段預設)
         "signal_day_close": entry = signal_date close, exit = next day open (G 隔日沖)
+        "close_session_disciplined": entry = D+1 尾盤 13:00-13:25, with 4-filter skip logic
     """
+    # === close_session_disciplined: 尾盤進場紀律 ===
+    if entry_mode == "close_session_disciplined":
+        after = sub[sub["trade_date"] > signal_date].head(1)
+        if after.empty:
+            return None
+        entry_day_row = after.iloc[0]
+        entry_date = entry_day_row["trade_date"]
+
+        # Filter 1: Gap ≥ +5% on D+1 open vs D close
+        d_close = prev_close if prev_close and prev_close > 0 else None
+        if d_close is None:
+            # fallback: use signal day close from sub
+            sig_row = sub[sub["trade_date"] == signal_date]
+            d_close = sig_row.iloc[0]["close"] if not sig_row.empty else None
+        if d_close and d_close > 0:
+            gap_pct = (entry_day_row["open"] - d_close) / d_close
+            if gap_pct >= 0.05:
+                if skip_stats is not None:
+                    skip_stats["skip_gap_5pct"] = skip_stats.get("skip_gap_5pct", 0) + 1
+                return None
+
+        # Filters 2-4 via minute bars
+        if minute_bars is None:
+            if skip_stats is not None:
+                skip_stats["skip_no_minute_data"] = skip_stats.get("skip_no_minute_data", 0) + 1
+            return None
+        entry_price, reason = _check_close_session_entry(ticker, entry_date, minute_bars, slippage_pct)
+        if entry_price is None:
+            if skip_stats is not None:
+                key = f"skip_{reason}"
+                skip_stats[key] = skip_stats.get(key, 0) + 1
+            return None
+
+        # Exit: use daily bars from D+1 onward with stop_loss / max_hold (same as next_day_open)
+        future = sub[sub["trade_date"] >= entry_date].reset_index(drop=True)
+        if future.empty:
+            return None
+
+        for i in range(min(len(future), max_hold_days)):
+            row = future.iloc[i]
+            if row["close"] < stop_loss:
+                if i + 1 < len(future):
+                    exit_row = future.iloc[i + 1]
+                    exit_price = exit_row["open"] * (1 - slippage_pct)
+                    exit_date = exit_row["trade_date"]
+                    exit_reason = "stop_loss"
+                else:
+                    exit_price = row["close"] * (1 - slippage_pct)
+                    exit_date = row["trade_date"]
+                    exit_reason = "stop_loss_eod"
+                hold_days = i + 1
+                break
+        else:
+            last_row = future.iloc[min(len(future), max_hold_days) - 1]
+            exit_price = last_row["close"] * (1 - slippage_pct)
+            exit_date = last_row["trade_date"]
+            exit_reason = "max_hold"
+            hold_days = min(len(future), max_hold_days)
+
+        ret = (exit_price - entry_price) / entry_price
+        return {
+            "ticker": ticker,
+            "signal_date": signal_date.strftime("%Y-%m-%d") if hasattr(signal_date, "strftime") else str(signal_date),
+            "entry_date": entry_date.strftime("%Y-%m-%d") if hasattr(entry_date, "strftime") else str(entry_date),
+            "exit_date": exit_date.strftime("%Y-%m-%d") if hasattr(exit_date, "strftime") else str(exit_date),
+            "entry_price": round(entry_price, 4),
+            "exit_price": round(exit_price, 4),
+            "stop_loss": round(stop_loss, 4),
+            "hold_days": hold_days,
+            "return_pct": round(ret * 100, 3),
+            "exit_reason": exit_reason,
+        }
+
     if entry_mode == "signal_day_close":
         # G 隔日沖: 當日尾盤買進 (signal_date close), 隔日 open 賣
         sig_row = sub[sub["trade_date"] == signal_date]
@@ -292,6 +369,8 @@ def run_backtest_for_scanner(
     feats: pd.DataFrame,
     cfg: BacktestConfig,
     db_path: Path,
+    global_entry_mode_override: Optional[str] = None,  # override ALL scanner entry modes
+    minute_bars: Optional[dict] = None,  # for close_session_disciplined mode
 ) -> tuple[pd.DataFrame, dict]:
     """跑單個 scanner 的 backtest. Returns (trades_df, stats)."""
 
@@ -304,6 +383,12 @@ def run_backtest_for_scanner(
     effective_entry_mode = scanner_cfg.get("entry_mode", "next_day_open")
     if scanner_cfg:
         print(f"  ⚙️  per-scanner override: max_hold={effective_max_hold}, entry_mode={effective_entry_mode}")
+
+    # Global entry mode override (e.g. close_session_disciplined) overrides per-scanner defaults
+    # but NOT signal_day_close scanners (G/F are fundamentally different strategies)
+    if global_entry_mode_override and effective_entry_mode != "signal_day_close":
+        effective_entry_mode = global_entry_mode_override
+        print(f"  🎯 global entry_mode override: {effective_entry_mode}")
 
     # 跑 scanner on full history
     kwargs = {}
@@ -375,7 +460,16 @@ def run_backtest_for_scanner(
 
     # 每筆 signal 模擬交易
     trades = []
+    skip_stats: dict = {}  # accumulate skip reasons for close_session_disciplined
     n_sig = len(signals)
+    # Pre-build ticker -> prev_close dict for gap filter
+    # (signal date close, looked up from daily bars)
+    prev_close_map: dict = {}
+    if effective_entry_mode == "close_session_disciplined":
+        for t, tdf in ticker_bars.items():
+            # dict: date_str -> close
+            prev_close_map[t] = dict(zip(tdf["trade_date"].astype(str), tdf["close"]))
+
     for i, sig in enumerate(signals.itertuples(index=False), 1):
         if i % 2000 == 0:
             print(f"    progress {i}/{n_sig}...")
@@ -385,13 +479,24 @@ def run_backtest_for_scanner(
         sub = ticker_bars.get(sig.ticker)
         if sub is None:
             continue
+        # Get prev_close for gap filter
+        prev_close = None
+        if effective_entry_mode == "close_session_disciplined":
+            sig_date_str = sig.sig_date_dt.strftime("%Y-%m-%d") if hasattr(sig.sig_date_dt, "strftime") else str(sig.sig_date_dt)
+            prev_close = prev_close_map.get(sig.ticker, {}).get(sig_date_str)
         trade = _get_trade_outcome(
             sub, sig.sig_date_dt, float(stop), effective_max_hold, cfg.slippage_pct, sig.ticker,
             entry_mode=effective_entry_mode,
+            minute_bars=minute_bars,
+            prev_close=prev_close,
+            skip_stats=skip_stats,
         )
         if trade:
             trade["scanner"] = scanner_name
             trades.append(trade)
+
+    if effective_entry_mode == "close_session_disciplined" and skip_stats:
+        print(f"  📊 skip reasons: {skip_stats}")
 
     if not trades:
         return pd.DataFrame(), {"trades": 0, "note": "no valid trades"}
@@ -434,6 +539,7 @@ def run_backtest_for_scanner(
 
     stats = {
         "trades": n,
+        "signals_fired": n_sig,
         "hit_rate_pct": round(hit_rate * 100, 2),
         "avg_return_pct": round(avg_ret, 3),
         "avg_win_pct": round(avg_win, 3),
@@ -446,6 +552,7 @@ def run_backtest_for_scanner(
         "sharpe": round(sharpe, 2),
         "avg_hold_days": round(df["hold_days"].mean(), 1),
         "exit_distribution": exit_dist,
+        "skip_reasons": skip_stats if skip_stats else {},
     }
     print(f"  trades: {n} | hit: {stats['hit_rate_pct']}% | EV: {expected_value:+.2f}% | win: {avg_win:+.2f}% | loss: {avg_loss:+.2f}% | PF: {profit_factor:.2f}")
     return df, stats
@@ -460,6 +567,20 @@ def main():
     parser.add_argument("--max-hold", type=int, default=60)
     parser.add_argument("--top-n", type=int, default=5, help="每天每 scanner 取 top N ranking (0=不過濾)")
     parser.add_argument("--out", type=Path, default=Path("data/analysis/zhuli/backtest"))
+    parser.add_argument(
+        "--entry-mode",
+        type=str,
+        default=None,
+        choices=["next_day_open", "close_session_disciplined"],
+        help=(
+            "Global entry mode override. "
+            "'next_day_open' = signal+1 day open (default). "
+            "'close_session_disciplined' = D+1 尾盤 13:00-13:25 with 4-filter skip "
+            "(gap≥5%% / first-5min surge≥5%% / no-minute-data → skip). "
+            "NOTE: requires stock_minute_kbar in ~/.four_seasons/data.sqlite. "
+            "G/F scanners (signal_day_close) are NOT overridden."
+        ),
+    )
     args = parser.parse_args()
 
     cfg = BacktestConfig(
@@ -473,6 +594,21 @@ def main():
     feats = load_features_cached(db_path=DEFAULT_DB_PATH).copy()
     feats = add_zhuli_features(feats)
     print(f"  bars: {len(feats):,} rows / {feats['ticker'].nunique():,} tickers")
+
+    # Load minute bars if needed
+    minute_bars: Optional[dict] = None
+    if args.entry_mode == "close_session_disciplined":
+        print("Loading minute bars for close_session_disciplined mode...")
+        minute_bars = _load_minute_bars()
+        n_tickers_with_min = len(minute_bars)
+        if n_tickers_with_min == 0:
+            print("  ⚠️  No minute data found — close_session_disciplined will skip ALL signals")
+        else:
+            dates = set()
+            for mdf in minute_bars.values():
+                dates.update(mdf["trade_date"].unique())
+            print(f"  Minute data: {n_tickers_with_min} tickers, {len(dates)} trading days "
+                  f"({min(dates)} ~ {max(dates)})")
 
     if args.all:
         # 排除出場 scanner + master (master 是 wrapper 的源，已被 entry/exit 拆解)
@@ -489,7 +625,11 @@ def main():
         if sname not in ENTRY_REGISTRY:
             print(f"  ⚠️ {sname} not in registry, skip")
             continue
-        trades_df, stats = run_backtest_for_scanner(sname, feats, feats, cfg, DEFAULT_DB_PATH)
+        trades_df, stats = run_backtest_for_scanner(
+            sname, feats, feats, cfg, DEFAULT_DB_PATH,
+            global_entry_mode_override=args.entry_mode,
+            minute_bars=minute_bars,
+        )
         all_stats[sname] = stats
         if not trades_df.empty:
             trades_df.to_csv(args.out / f"{sname}_trades.csv", index=False)

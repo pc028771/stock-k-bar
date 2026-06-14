@@ -1,0 +1,5 @@
+ticker,signal_date,entry_date,exit_date,entry_price,exit_price,stop_loss,hold_days,return_pct,exit_reason,scanner
+6205,2026-06-03,2026-06-04,2026-06-05,86.258,83.9474,87.6,1,-2.679,stop_loss,reversal_breakout
+3374,2026-06-03,2026-06-04,2026-06-05,254.762,247.256,259.0,1,-2.946,stop_loss,reversal_breakout
+3028,2026-06-04,2026-06-05,2026-06-05,78.8358,78.4639,83.5,1,-0.472,stop_loss_eod,reversal_breakout
+3289,2026-06-04,2026-06-05,2026-06-05,183.0475,181.9525,174.5,1,-0.598,max_hold,reversal_breakout

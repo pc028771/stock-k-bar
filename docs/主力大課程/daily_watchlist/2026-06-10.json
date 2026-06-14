@@ -1,6 +1,6 @@
 {
   "date": "2026-06-10",
-  "generated_at": "2026-06-10T20:50:56",
+  "generated_at": "2026-06-10T21:46:03",
   "taiex_pct": null,
   "regime": "normal",
   "candidates": [
@@ -387,14 +387,15 @@
       "ticker": "5439",
       "name": "高技",
       "sources": [
-        "small_structure"
+        "small_structure",
+        "teacher_mention_20260610"
       ],
-      "priority": 2,
+      "priority": 3,
       "sector": "PCB/低軌衛星",
       "tactic": "短打",
       "ref_close": 355.5,
       "dist_ma10_pct": -3.5,
-      "note": "小結構"
+      "note": "小結構 + 老師 6/10 註記「本來可以攻 380、被灌、看蠻久了」"
     },
     {
       "ticker": "5468",
@@ -694,6 +695,87 @@
       "ref_close": 28.2,
       "dist_ma10_pct": 10.415035238841035,
       "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2357",
+      "name": "華碩",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "光學",
+      "tactic": "觀察",
+      "note": "老師 6/10 光學類點名"
+    },
+    {
+      "ticker": "2476",
+      "name": "鉅祥",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "連接器",
+      "tactic": "觀察",
+      "note": "老師 6/10「也算 OK、但融資在丟」"
+    },
+    {
+      "ticker": "2493",
+      "name": "揚博",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "電子零組件",
+      "tactic": "觀察",
+      "note": "老師 6/10「今天跌不兇、收入清單」(耕耘期 30 檔之 1)"
+    },
+    {
+      "ticker": "3027",
+      "name": "聖達",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "通信網路",
+      "tactic": "觀察",
+      "note": "老師 6/10 列入觀察"
+    },
+    {
+      "ticker": "3362",
+      "name": "先進光",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "光學",
+      "tactic": "觀察",
+      "note": "老師 6/10 光學類點名"
+    },
+    {
+      "ticker": "3441",
+      "name": "聯一光",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "光學",
+      "tactic": "觀察",
+      "note": "老師 6/10「衝上去、要把它註記起來」光學類"
+    },
+    {
+      "ticker": "4916",
+      "name": "事欣科",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "通信網路",
+      "tactic": "觀察",
+      "note": "老師 6/10 高檔撐住、跌不兇 (講稿出現 2 次)"
+    },
+    {
+      "ticker": "6147",
+      "name": "頎邦",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "IC 封測",
+      "tactic": "觀察",
+      "note": "老師 6/10「昨天漲停 + 今天創新高、要註記起來」"
+    },
+    {
+      "ticker": "7788",
+      "name": "松川精密",
+      "sources": ["teacher_mention_20260610"],
+      "priority": 3,
+      "sector": "電子零組件",
+      "tactic": "觀察",
+      "note": "老師 6/10「直接鎖漲停、記起來」"
     }
   ]
 }

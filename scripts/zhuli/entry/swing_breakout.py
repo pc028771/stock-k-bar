@@ -242,8 +242,47 @@ def detect(
         df = df.copy()
         df["ma60_slope"] = 0.0
 
+    # === 預計算 ma60_near_bottom 特徵（全市場向量化）===
+    # 需要在 merge 之前對全量 df 計算，保留正確的時間序列排序
+    if cfg.ma60_near_bottom_enabled and "ma60" in df.columns:
+        if not isinstance(df, pd.DataFrame) or "ticker" not in df.columns:
+            df = df.copy()
+        else:
+            df = df.copy()
+        g_all = df.sort_values(["ticker", "trade_date"]).groupby("ticker", group_keys=False)
+
+        # 5 日 MA60 最大跌幅：(5日內最大 MA60 - 最小 MA60) / 5日內最大 MA60
+        ma60_5d_max = (
+            g_all["ma60"]
+            .rolling(5, min_periods=5)
+            .max()
+            .reset_index(level=0, drop=True)
+        )
+        ma60_5d_min = (
+            g_all["ma60"]
+            .rolling(5, min_periods=5)
+            .min()
+            .reset_index(level=0, drop=True)
+        )
+        df["_ma60_5d_max_drop_pct"] = (
+            (ma60_5d_max - ma60_5d_min) / ma60_5d_max.replace(0, float("nan")) * 100
+        )
+
+        # MA20 連續 N 天上彎：過去 N 天（包含今天）的 ma20_slope 均 > 0
+        n_days = cfg.ma60_near_bottom_ma20_up_days
+        ma20_slope_col = "ma20_slope" if "ma20_slope" in df.columns else "ma20_slope_5d"
+        df["_ma20_up_nd"] = (
+            g_all[ma20_slope_col]
+            .rolling(n_days, min_periods=n_days)
+            .min()
+            .reset_index(level=0, drop=True)
+        ) > 0
+
     # 流動性過濾前先合併，避免不必要的大 merge
-    merged = df[needed_cols + ["ma60_slope", "high", "low", "prev_volume"]].merge(
+    extra_cols = []
+    if cfg.ma60_near_bottom_enabled and "_ma60_5d_max_drop_pct" in df.columns:
+        extra_cols = ["_ma60_5d_max_drop_pct", "_ma20_up_nd"]
+    merged = df[needed_cols + ["ma60_slope", "high", "low", "prev_volume"] + extra_cols].merge(
         inst_daily,
         on=["ticker", "trade_date"],
         how="inner",  # 只保留兩邊都有的資料
@@ -285,7 +324,26 @@ def detect(
     # Source: strategy-indicators.md §A — 「20ma 與 60ma 皆呈現上彎」
     ma20_up = candidates["ma20_slope"].fillna(0) > 0
     ma60_up = candidates["ma60_slope"].fillna(0) > 0
-    tech_ok = ma20_up & ma60_up
+
+    # MA60 放寬條件（ma60_near_bottom）：MA60 幾近平坦且 MA20 已持續上彎
+    # 診斷依據：scanner_diagnosis_6449_delay.md — 6449 5/5 miss 原因
+    if cfg.ma60_near_bottom_enabled and "_ma60_5d_max_drop_pct" in candidates.columns:
+        ma60_slope_neg = candidates["ma60_slope"].fillna(0) < 0
+        ma60_flat = candidates["_ma60_5d_max_drop_pct"].fillna(float("inf")) < cfg.ma60_near_bottom_max_drop_pct
+        ma20_up_nd = candidates["_ma20_up_nd"].fillna(False)
+        ma60_near_bottom = ma60_slope_neg & ma60_flat & ma20_up_nd
+        ma60_pass = ma60_up | ma60_near_bottom
+    else:
+        ma60_near_bottom = pd.Series(False, index=candidates.index)
+        ma60_pass = ma60_up
+
+    tech_ok = ma20_up & ma60_pass
+
+    # 記錄哪些行是經由放寬條件通過的
+    candidates = candidates.copy()
+    candidates["_via_ma60_near_bottom"] = False
+    if cfg.ma60_near_bottom_enabled and "_ma60_5d_max_drop_pct" in candidates.columns:
+        candidates["_via_ma60_near_bottom"] = (~ma60_up) & ma60_near_bottom & ma20_up
 
     candidates = candidates[tech_ok].copy()
     if candidates.empty:
@@ -404,26 +462,27 @@ def detect(
 
     # === 建立輸出 DataFrame ===
     out = pd.DataFrame({
-        "ticker":           candidates["ticker"].values,
-        "name":             candidates.get("stock_name", pd.Series("", index=candidates.index)).values,
-        "signal_date":      candidates["trade_date"].values,
-        "industry":         candidates.get("industry", pd.Series("", index=candidates.index)).values,
-        "foreign_net":      candidates["foreign_net"].fillna(0).values,
-        "sitc_net":         candidates["sitc_net"].fillna(0).values,
-        "inst_net":         candidates["inst_net"].values,
-        "vol_ratio":        candidates["vol_ratio"].fillna(0).round(4).values,
-        "close":            candidates["close"].values,
-        "ma20":             candidates["ma20"].values,
-        "ma60":             candidates["ma60"].values,
-        "ma20_slope":       candidates["ma20_slope"].values,
-        "ma60_slope":       candidates["ma60_slope"].values,
-        "dist_to_ma20_pct": candidates["dist_to_ma20_pct"].fillna(0).round(4).values,
-        "sector_density":   candidates["sector_density"].values,
-        "sector_peers":     candidates["sector_peers"].values,
-        "gap_closed":       candidates["gap_closed"].values,
-        "stop_loss":        candidates["ma20"].values,  # 收盤跌破月線停損
-        "score":            candidates["score"].values,
-        "entry_note":       entry_note,
+        "ticker":               candidates["ticker"].values,
+        "name":                 candidates.get("stock_name", pd.Series("", index=candidates.index)).values,
+        "signal_date":          candidates["trade_date"].values,
+        "industry":             candidates.get("industry", pd.Series("", index=candidates.index)).values,
+        "foreign_net":          candidates["foreign_net"].fillna(0).values,
+        "sitc_net":             candidates["sitc_net"].fillna(0).values,
+        "inst_net":             candidates["inst_net"].values,
+        "vol_ratio":            candidates["vol_ratio"].fillna(0).round(4).values,
+        "close":                candidates["close"].values,
+        "ma20":                 candidates["ma20"].values,
+        "ma60":                 candidates["ma60"].values,
+        "ma20_slope":           candidates["ma20_slope"].values,
+        "ma60_slope":           candidates["ma60_slope"].values,
+        "dist_to_ma20_pct":     candidates["dist_to_ma20_pct"].fillna(0).round(4).values,
+        "sector_density":       candidates["sector_density"].values,
+        "sector_peers":         candidates["sector_peers"].values,
+        "gap_closed":           candidates["gap_closed"].values,
+        "stop_loss":            candidates["ma20"].values,  # 收盤跌破月線停損
+        "score":                candidates["score"].values,
+        "entry_note":           entry_note,
+        "ma60_near_bottom":     candidates.get("_via_ma60_near_bottom", pd.Series(False, index=candidates.index)).values,
     })
 
     return out.sort_values(
@@ -442,4 +501,5 @@ def _empty_output() -> pd.DataFrame:
         "close", "ma20", "ma60", "ma20_slope", "ma60_slope",
         "dist_to_ma20_pct", "sector_density", "sector_peers",
         "gap_closed", "stop_loss", "score", "entry_note",
+        "ma60_near_bottom",
     ])

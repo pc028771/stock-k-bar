@@ -210,20 +210,11 @@ def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
 
 
 @functools.lru_cache(maxsize=4096)
-def _get_ma10(ticker: str, target_date: str, db: Path = _DB) -> Optional[float]:
-    """從 standard_daily_bar 取 target_date 前一交易日的 MA10。
-
-    Cache: 同一 (ticker, target_date) 在 backtest / live monitor 內會被反覆查、
+def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
+                        data_version: str) -> Optional[float]:
+    """Cache: 同一 (ticker, target_date) 在 backtest / live monitor 內會被反覆查、
     每次都開新 sqlite connection 很貴 (profile 看到 19k+ connects)。lru_cache
-    把每對 (ticker, date) 的查詢降到 1 次。
-
-    Args:
-        ticker:      股票代號
-        target_date: 當日日期字串 'YYYY-MM-DD'（取其之前最新一筆）
-        db:          SQLite DB 路徑
-
-    Returns:
-        MA10 浮點數，查無則回 None。
+    把每對 (ticker, date) 的查詢降到 1 次。data_version 進 key、DB 補日K後自動失效。
     """
     try:
         with get_conn(db) as con:

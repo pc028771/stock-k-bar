@@ -1,0 +1,2 @@
+ticker,signal_date,entry_date,exit_date,entry_price,exit_price,stop_loss,hold_days,return_pct,exit_reason,scanner
+2382,2026-06-04,2026-06-05,2026-06-05,387.6595,389.3285,386.6,1,0.431,max_hold,pennant_flag

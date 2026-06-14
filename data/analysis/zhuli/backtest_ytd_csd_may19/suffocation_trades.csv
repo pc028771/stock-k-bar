@@ -1,0 +1,4 @@
+ticker,signal_date,entry_date,exit_date,entry_price,exit_price,stop_loss,hold_days,return_pct,exit_reason,scanner
+8027,2026-06-01,2026-06-02,2026-06-05,281.843,292.121,266.5,4,3.647,max_hold,suffocation
+2478,2026-06-04,2026-06-05,2026-06-05,150.45,149.55,130.0,1,-0.598,max_hold,suffocation
+3491,2026-06-04,2026-06-05,2026-06-05,1955.85,1929.195,1900.0,1,-1.363,max_hold,suffocation

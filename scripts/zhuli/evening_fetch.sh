@@ -1,6 +1,9 @@
 #!/bin/bash
-# 每日 21:00 晚間資料抓取
-# 依序執行：法人 → 1分K → broker cache
+# 每日 21:30 晚間資料抓取
+# 依序執行：法人 → broker cache (老師 universe) → 1分K (老師 universe)
+# 設計改變 (2026-06-10):
+#   - broker prefetch 復活、讀老師 universe 而非 scanner candidates (打破循環依賴)
+#   - 1分K 也改為老師 universe、不再等 scanner candidates md
 # log: ~/Library/Logs/zhuli_evening_fetch.log
 # 由 launchd com.howard.zhuli.evening_fetch 觸發
 
@@ -12,7 +15,7 @@ DATE=$(date +%Y-%m-%d)
 LOG_DIR="$HOME/Library/Logs"
 mkdir -p "$LOG_DIR"
 
-echo "=== 21:00 evening_fetch === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+echo "=== 21:30 evening_fetch === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 
 # 1/3 法人買賣超 (FinMind TaiwanStockInstitutionalInvestorsBuySell)
 echo "[1/3] backfill_institutional..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
@@ -24,30 +27,44 @@ else
     echo "[1/3] backfill_institutional FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi
 
-# 2/3 1分K (FinMind TaiwanStockKBar) — 需要 tickers 清單
-# 從當日 scanner 候選讀取，若沒有則略過並記 log
-CANDIDATES_FILE="/tmp/scanner_candidates_${DATE}.md"
-if [ -f "$CANDIDATES_FILE" ]; then
-    # 解析 4 碼 ticker（table 第一欄）
-    TICKERS=$(grep -oE '^[[:space:]]*\|[[:space:]]*([0-9]{4})[[:space:]]*\|' "$CANDIDATES_FILE" \
-              | grep -oE '[0-9]{4}' | sort -u | tr '\n' ',' | sed 's/,$//')
-    if [ -n "$TICKERS" ]; then
-        echo "[2/3] backfill_minute_kbar tickers=$TICKERS ..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-        if $PYTHON "$REPO/scripts/zhuli/backfill_minute_kbar.py" \
-            --tickers "$TICKERS" \
-            --start-date "$DATE" \
-            2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
-            echo "[2/3] backfill_minute_kbar OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-        else
-            echo "[2/3] backfill_minute_kbar FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-        fi
-    else
-        echo "[2/3] backfill_minute_kbar SKIP — 無法從 $CANDIDATES_FILE 解析 tickers" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-    fi
+# 2/3 broker cache 預熱 (老師 universe ~428 檔)
+echo "[2/3] daily_fetcher (broker cache, 老師 universe)..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if $PYTHON "$REPO/scripts/zhuli/daily_fetcher.py" --date "$DATE" \
+    2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[2/3] daily_fetcher OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 else
-    echo "[2/3] backfill_minute_kbar SKIP — $CANDIDATES_FILE 不存在" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    echo "[2/3] daily_fetcher FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi
 
-# (deprecated 6/8: 3/3 broker cache 預熱、daily_fetcher 已移除、邊際價值低 + 時序錯)
+# 3/3 1分K (FinMind TaiwanStockKBar) — 老師 universe
+echo "[3/3] backfill_minute_kbar (老師 universe)..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+TICKERS=$($PYTHON -c "
+import sys, json
+sys.path.insert(0, '$REPO/scripts')
+from zhuli.entry.small_structure.watchlist import _load_sector_all
+print(','.join(sorted(_load_sector_all())))
+")
+if [ -n "$TICKERS" ]; then
+    if $PYTHON "$REPO/scripts/zhuli/backfill_minute_kbar.py" \
+        --tickers "$TICKERS" \
+        --start-date "$DATE" \
+        --end-date "$DATE" \
+        --skip-existing \
+        2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+        echo "[3/3] backfill_minute_kbar OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    else
+        echo "[3/3] backfill_minute_kbar FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    fi
+else
+    echo "[3/3] backfill_minute_kbar SKIP — 老師 universe 為空" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+fi
 
 echo "=== evening_fetch 完成 === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+
+# 4/4 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
+echo "[4/4] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if "$REPO/scripts/zhuli/sync_db_to_icloud.sh" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[4/4] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+else
+    echo "[4/4] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+fi

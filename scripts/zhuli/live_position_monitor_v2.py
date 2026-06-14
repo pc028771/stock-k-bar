@@ -912,6 +912,10 @@ class MonitorApp(App[None]):
     def _refresh_loop(self) -> None:
         while not self._quit:
             try:
+                self._check_data_version()
+            except Exception:
+                pass
+            try:
                 self._fetch_all()
             except Exception:
                 pass
@@ -924,6 +928,29 @@ class MonitorApp(App[None]):
             t_end = time.time() + interval
             while time.time() < t_end and not self._quit:
                 time.sleep(0.1)
+
+    def _check_data_version(self) -> None:
+        """偵測 DB 日K是否在 monitor 啟動後被補入新交易日。
+
+        是 → 清掉所有依賴日K的 cache (v1 MA10/均量/籌碼 + overnight static)、
+        避免 trigger/closing panel 用啟動當下的舊基準判燈 (6/11 4939 假燈事件)。
+        """
+        try:
+            from zhuli.intraday_stage_helper import db_data_version
+        except ImportError:
+            from intraday_stage_helper import db_data_version
+        v = db_data_version()
+        if not v:
+            return
+        prev = getattr(self, "_db_data_version", "")
+        if prev and v != prev:
+            _v1.reset_daily_caches()
+            self._overnight_cache_ts = 0.0  # 強制 reload static json
+            try:
+                self.log(f"[data-version] DB 日K {prev} → {v}、已清 cache 重載基準")
+            except Exception:
+                pass
+        self._db_data_version = v
 
     def _fetch_all(self) -> None:
         """抓所有 ticker 的 snapshot + 計算衍生欄位。"""
@@ -1558,11 +1585,16 @@ class MonitorApp(App[None]):
 
         cache_age = int(time.monotonic() - self._overnight_cache_ts) if self._overnight_cache_ts else 0
         asof_date = self._overnight_candidate_date or "—"
+        # static 過期警示: asof 應 = DB 最新交易日、比它舊代表 precompute 沒跑
+        stale_tag = ""
+        db_latest = getattr(self, "_db_data_version", "")
+        if asof_date != "—" and db_latest and asof_date < db_latest:
+            stale_tag = f"  🔴 static 過期 (DB 已到 {db_latest}、請跑 precompute_overnight_static.py)"
         n_univ    = len([r for r in all_results if r.get("ticker", "—") != "—"])
         n_pass4   = len(results)
         n_pass3   = sum(1 for r in all_results if r.get("pass_count") == 3)
         header_info = (
-            f"static asof: {asof_date}  universe {n_univ} 檔  "
+            f"static asof: {asof_date}{stale_tag}  universe {n_univ} 檔  "
             f"(顯示 4/4: {n_pass4} 檔 | 隱藏 3/4: {n_pass3} 檔)  [eval {cache_age}s前]"
         )
         if header_widget:

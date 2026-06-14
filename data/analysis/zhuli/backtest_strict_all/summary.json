@@ -1,0 +1,21 @@
+{
+  "swing_breakout": {
+    "trades": 1885,
+    "hit_rate_pct": 28.59,
+    "avg_return_pct": 10.551,
+    "avg_win_pct": 52.368,
+    "avg_loss_pct": -6.195,
+    "worst_loss_pct": -85.69,
+    "best_win_pct": 754.92,
+    "expected_value_pct": 10.551,
+    "profit_factor": 3.39,
+    "max_loss_streak": 46,
+    "sharpe": 0.69,
+    "avg_hold_days": 23.0,
+    "exit_distribution": {
+      "stop_loss": 1330,
+      "max_hold": 549,
+      "stop_loss_eod": 6
+    }
+  }
+}
