@@ -124,7 +124,7 @@
 
 1. **章節索引** — Chrome MCP navigate + 抓 `.article-card` + 分頁迴圈 → markdown 索引
 2. **字幕 VTT** — videojs `textTracks().cues` 首選；EME 卡時走 VHS m3u8 + XHR (`withCredentials + Referer`) fallback
-3. **講稿** — 字幕 cues 本身即時間戳講稿
+3. **講稿** — 字幕 cues 本身即時間戳講稿；**字幕未生成或無字幕軌時、走 [🔴 SOP `feedback_pressplay_audio_extraction.md`](../../.claude/projects/-Users-howard-Repository-stock-k-bar/memory/feedback_pressplay_audio_extraction.md): m3u8 + ffmpeg + mlx_whisper（5/31 cookie 簡化版、< 5 分完成、禁 QuickTime、必加 `--condition-on-previous-text False`、必 spot-check 股名）**
 4. **講義 PDF** — pypdf 文字層 + pdftoppm + tesseract `chi_tra+eng` OCR
 5. **截圖** — 三層策略（依需求選）：
    - **L1 Sprite Thumbnail（首選）：** `media-v2.pressplay.cc` sprite + fetch + slice，**繞 DRM**、427×240 native（縮放至 960×540），適用投影片文字/SOP
@@ -141,6 +141,8 @@
 - ✋ **每張截圖間 sleep 3s、每 20 張小冷卻 30s、章間 60s、Batch 上限 ≤ 120 張**（L2）
 - ✋ **連 2 張 avgRGB 相同 → DRM 觸發，立即停下**（L2）
 - ✋ **JWT segment URL 只認 iframe context XHR**（L3，不是 parent page）
+- 🔴 **PressPlay session 只能 1 個**：派 agent 抓影片前必 reuse user 既有 tab、禁開新 window 登入（會擠掉 user session）
+- 🔴 **m3u8 + ffmpeg + mlx_whisper = audio 轉錄唯一 SOP**：禁走 QuickTime 即時錄音、Whisper 必加 `--condition-on-previous-text False` 避免無限 hallucinate
 - ✋ **補完課程內容前不更新主 spec 文件**（避免 churning）
 - ✋ **寫 scanner 前先讓 user 確認策略完備度**
 
