@@ -13,11 +13,17 @@
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import json
+import sys
 from collections import defaultdict
 from pathlib import Path
+
+_REPO = Path(__file__).parent.parent.parent
+for _p in [str(_REPO), str(_REPO / "scripts")]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from zhuli.db import get_conn, MAIN_DB
 
 DB = MAIN_DB
 HOLDINGS_JSON = Path(__file__).parent.parent.parent / "docs" / "主力大課程" / "holdings.json"
