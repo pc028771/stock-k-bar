@@ -54,6 +54,8 @@ def get_conn(
     *,
     readonly: bool = True,
     timeout: float = 10.0,
+    immutable: bool = False,
+    check_same_thread: bool = True,
 ) -> sqlite3.Connection:
     """統一 SQLite 連線入口。
 
@@ -61,14 +63,25 @@ def get_conn(
         db_path: 不傳 = MAIN_DB；傳入時用於 backtest worker / CLI --db override
         readonly: True (預設) = `?mode=ro` URI；寫入必須明確設 False
         timeout: 鎖定等待秒數
+        immutable: True = `?immutable=1` 效能提示（檔案 lifetime 內不變、跳過鎖檢查、
+            適合長期 cache 的 reader、用於 minute_bars 之類熱路徑）。預設 False。
+        check_same_thread: 預設 True (sqlite3 預設)；長期 cache 跨 thread 使用設 False。
 
     Returns:
         sqlite3.Connection。`with` 區塊離開時 commit/rollback 但 **不 close**。
     """
-    path = Path(db_path) if db_path else MAIN_DB
+    path = Path(db_path).resolve() if db_path else MAIN_DB.resolve() if immutable else MAIN_DB
     if readonly:
-        return sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=timeout)
-    return sqlite3.connect(str(path), timeout=timeout)
+        suffix = "?mode=ro"
+        if immutable:
+            suffix += "&immutable=1"
+        return sqlite3.connect(
+            f"file:{path}{suffix}",
+            uri=True,
+            timeout=timeout,
+            check_same_thread=check_same_thread,
+        )
+    return sqlite3.connect(str(path), timeout=timeout, check_same_thread=check_same_thread)
 
 
 @contextmanager

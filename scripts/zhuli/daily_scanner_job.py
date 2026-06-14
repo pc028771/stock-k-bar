@@ -120,8 +120,7 @@ def _load_institutional_chip(tickers: list[str], target_date: str, db_path: Path
     if not tickers:
         return {}
 
-    db_uri = f"file:{db_path}?mode=ro"
-    con = sqlite3.connect(db_uri, uri=True, timeout=10)
+    con = get_conn(db_path, timeout=10)
     ph = ",".join("?" * len(tickers))
     rows = con.execute(
         f"""SELECT ticker, SUM(foreign_net) AS f5d, SUM(sitc_net) AS s5d

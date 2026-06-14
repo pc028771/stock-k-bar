@@ -33,6 +33,7 @@ D. baseline  = 整個 universe × 所有日 (任意 day-stock 抽樣)
 - C > B → kline 單獨命中其實是訊號、考慮獨立 watchlist
 """
 from __future__ import annotations
+from zhuli.db import get_conn
 
 import json
 import sys
@@ -80,9 +81,7 @@ def load_universe() -> set[str]:
 
 def load_bars_for_ticker(ticker: str) -> pd.DataFrame:
     """Load standard_daily_bar columns daily_scanner_job uses."""
-    import sqlite3
-    uri = f"file:{DB_PATH}?mode=ro"
-    con = sqlite3.connect(uri, uri=True, timeout=10)
+    con = get_conn(DB_PATH, timeout=10)
     df = pd.read_sql(
         """SELECT ? as ticker, trade_date, open, high, low, close, volume,
                   vol_ratio_20, ma5, ma10, ma20, ma60,

@@ -66,8 +66,7 @@ def load_sector_timeline() -> str:
 # ── DB 工具 ─────────────────────────────────────────────────────────────────────
 
 def get_db_con() -> sqlite3.Connection:
-    uri = f"file:{DB_PATH}?mode=ro"
-    return sqlite3.connect(uri, uri=True, timeout=30)
+    return get_conn(DB_PATH, timeout=30)
 
 
 def get_trading_days(con: sqlite3.Connection, start: str = "2026-04-01", end: str = "2026-05-29") -> list[str]:
