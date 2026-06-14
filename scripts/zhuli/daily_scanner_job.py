@@ -14,8 +14,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import sqlite3
 import sys
@@ -33,6 +31,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 from kline.extras.shakeout_strong import detect as detect_shakeout        # noqa
 from zhuli.entry.small_structure import run_scan as small_structure_scan  # noqa
 from zhuli.entry.small_structure import run_post_attack_watchlist, format_post_attack_report  # noqa

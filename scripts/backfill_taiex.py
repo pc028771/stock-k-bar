@@ -8,8 +8,6 @@ Schema: trade_date TEXT PK, open REAL, high REAL, low REAL, close REAL, volume I
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import os
 import sqlite3
 import sys
@@ -27,6 +25,7 @@ SAS_PATH = Path("/Users/howard/Repository/stock-analysis-system")
 if str(SAS_PATH) not in sys.path:
     sys.path.insert(0, str(SAS_PATH))
 
+from zhuli.db import get_conn
 # ---------------------------------------------------------------------------
 # Load env token
 # ---------------------------------------------------------------------------

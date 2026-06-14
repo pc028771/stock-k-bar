@@ -21,8 +21,6 @@ Ground Truth:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import os
 import sys
 from datetime import date, timedelta
@@ -37,6 +35,7 @@ import numpy as np
 _REPO = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_REPO / "scripts"))
 
+from zhuli.db import get_conn
 DB_PATH = os.path.expanduser("~/.four_seasons/data.sqlite")
 OUTPUT_DIR = _REPO / "docs" / "主力大課程" / "strategies"
 OUTPUT_FILE = OUTPUT_DIR / "classifier_param_sweep_20260530.md"

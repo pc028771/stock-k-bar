@@ -16,8 +16,6 @@ CLI 用法（直接執行驗證）：
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import json
 import sqlite3
 import sys
@@ -32,6 +30,7 @@ _BRIEF_DIR = _DOCS_DIR / "daily_brief"
 
 sys.path.insert(0, str(_REPO / "scripts"))
 
+from zhuli.db import get_conn, MAIN_DB
 
 # ── 老師指名分點（Tier 1 大哥）────────────────────────────────────────────────
 _TEACHER_BROKERS: set[str] = {

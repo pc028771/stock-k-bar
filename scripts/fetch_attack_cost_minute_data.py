@@ -8,8 +8,6 @@ Cases:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import os
 import sqlite3
 import sys
@@ -19,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path("/Users/howard/Repository/stock-analysis-system")))
 
+from zhuli.db import get_conn
 import pandas as pd
 
 from clients import finmind_client

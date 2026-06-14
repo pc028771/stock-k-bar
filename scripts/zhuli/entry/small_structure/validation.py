@@ -27,8 +27,6 @@ E. Sector universe 對比 (5/20 trigger)
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import sqlite3
 import sys
@@ -43,6 +41,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 from zhuli.entry.small_structure.detector import detect, detect_with_diagnostics
 from zhuli.entry.small_structure.watchlist import (
     _load_sector_all,

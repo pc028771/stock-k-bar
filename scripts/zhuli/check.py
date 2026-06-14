@@ -12,8 +12,6 @@ Usage (agent 跑):
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import datetime as _dt
 import logging
@@ -27,6 +25,7 @@ for _p in [_REPO, _SAS]:
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+from zhuli.db import get_conn, MAIN_DB
 logging.basicConfig(level=logging.ERROR)
 logging.getLogger("clients.fubon_client").setLevel(logging.ERROR)
 

@@ -26,8 +26,6 @@
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import sqlite3
 import sys
@@ -47,6 +45,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 # ── 費率 ──────────────────────────────────────────────────────────────────────
 FEE_RATE   = 0.000399   # 0.0399% 手續費 (買賣各一次)
 TAX_RATE   = 0.003      # 0.3% 證交稅 (賣方)

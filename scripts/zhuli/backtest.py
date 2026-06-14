@@ -23,8 +23,6 @@ Course: 主力大全方位操盤教戰守則 + K 線力量入門
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import sys
 from dataclasses import dataclass, field
@@ -40,6 +38,7 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 from kline.bars import DEFAULT_DB_PATH
 from kline.features import load_features_cached
 from zhuli.features import add_zhuli_features

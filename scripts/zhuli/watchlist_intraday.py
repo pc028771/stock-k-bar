@@ -14,7 +14,6 @@
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +25,7 @@ for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 import pandas as pd
 
 from clients.fubon_client import FubonClient  # noqa: E402

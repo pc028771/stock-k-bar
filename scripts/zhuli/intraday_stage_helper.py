@@ -31,8 +31,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import functools
 import logging
@@ -54,6 +52,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 # ── Phase 1 出場 Detector 匯入 (lazy, 避免 import error 影響啟動) ──────────────
 try:
     from scripts.zhuli.exit.detectors import (

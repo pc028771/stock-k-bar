@@ -80,3 +80,4 @@ data/analysis/zhuli/*.csv
 
 # Sibling git worktrees (not source)
 .claude/worktrees/
+scripts/data/

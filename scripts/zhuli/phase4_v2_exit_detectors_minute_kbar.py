@@ -12,8 +12,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import sys
 from pathlib import Path
@@ -27,6 +25,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 _DB = MAIN_DB
 # ── Import daily detectors (高檔長黑 / 分批停利 沿用) ─────────────────────────
 from scripts.zhuli.exit.detectors import (
