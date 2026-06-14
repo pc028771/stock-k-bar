@@ -25,6 +25,7 @@ for SIG in suffocation institutional_firstbuy swing_breakout reversal_breakout p
     echo "  [scanner: $SIG]"
     /Users/howard/.pyenv/shims/python3 /Users/howard/Repository/stock-k-bar/scripts/zhuli_scanner.py --signal "$SIG" --date $(date +%Y-%m-%d) 2&gt;&amp;1 | tail -3
 done
+bash /Users/howard/Repository/stock-k-bar/scripts/zhuli/notify_kline_tier_a.sh
 echo "=== END $(date +%Y-%m-%d_%H:%M:%S) exit=$DSE_EXIT ==="</string>
     </array>
     <key>WorkingDirectory</key>
