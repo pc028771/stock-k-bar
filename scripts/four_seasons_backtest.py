@@ -29,8 +29,6 @@ Notes:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import json
 import os
@@ -46,6 +44,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent))
 import four_seasons_classify as _classify
 
+from zhuli.db import get_conn
 DEFAULT_DB = Path("/Users/howard/.four_seasons/data.sqlite")
 DEFAULT_OUT_TRADES = Path("data/analysis/four_seasons/backtest_trades.csv")
 DEFAULT_OUT_REPORT = Path("data/analysis/four_seasons/backtest_report.md")

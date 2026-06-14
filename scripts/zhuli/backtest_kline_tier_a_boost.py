@@ -33,7 +33,6 @@ D. baseline  = 整個 universe × 所有日 (任意 day-stock 抽樣)
 - C > B → kline 單獨命中其實是訊號、考慮獨立 watchlist
 """
 from __future__ import annotations
-from zhuli.db import get_conn
 
 import json
 import sys
@@ -49,6 +48,7 @@ for _p in [str(_REPO), str(_SCRIPTS), "/Users/howard/Repository/stock-analysis-s
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 from kline.features import add_features  # noqa: E402
 from kline.extras.shakeout_strong import detect as detect_shakeout  # noqa: E402
 from zhuli.entry.w_bottom_launch import detect as detect_wbottom  # noqa: E402

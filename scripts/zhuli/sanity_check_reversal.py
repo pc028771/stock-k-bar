@@ -12,8 +12,6 @@ Instructor cases (Ch4-2):
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import sys
 from pathlib import Path
@@ -26,6 +24,7 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 from kline.bars import DEFAULT_DB_PATH
 from kline.features import load_features_cached
 from zhuli.config import ReversalBreakoutConfig

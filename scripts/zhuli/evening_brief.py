@@ -17,8 +17,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import json
 import re
@@ -47,6 +45,7 @@ from zhuli.framework_daily_scan import (
     _DB as _SCAN_DB,
 )
 
+from zhuli.db import get_conn, MAIN_DB
 
 # ── 輔助函式 ──────────────────────────────────────────────────────────────────
 

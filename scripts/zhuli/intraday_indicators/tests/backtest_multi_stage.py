@@ -9,8 +9,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import sys
 from datetime import datetime, timedelta
@@ -24,6 +22,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 
 def get_kline_history(ticker: str, target_date: str, db_path: Path) -> pd.DataFrame:
     """抓 ticker 200 日歷史日 K（給 K-line classifier 用）。"""

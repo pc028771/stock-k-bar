@@ -15,8 +15,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import os
 import sqlite3
@@ -33,6 +31,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 DB_PATH = MAIN_DB
 DATA_SOURCE_ID = 1
 

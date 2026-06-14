@@ -17,8 +17,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import os
 import sys
@@ -35,6 +33,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 
 _CACHE_DIR = Path("/tmp/backtest_1m_cache")
 _CACHE_DIR.mkdir(exist_ok=True)

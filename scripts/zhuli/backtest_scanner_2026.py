@@ -8,8 +8,6 @@ Step 2 — Precision Test: 族群 universe (~300 檔) → 每交易日跑 scanne
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import json
 import sqlite3
 import sys
@@ -29,6 +27,7 @@ DOCS_DIR = REPO / "docs" / "主力大課程"
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / "scripts"))
 
+from zhuli.db import get_conn, MAIN_DB
 from zhuli.entry.teacher_swing import (
     detect,
     _compute_monthly_ma,

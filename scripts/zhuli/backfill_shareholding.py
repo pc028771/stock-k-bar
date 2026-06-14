@@ -9,8 +9,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import os
 import sys
@@ -23,6 +21,7 @@ _WORKTREE = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_WORKTREE / "scripts"))
 from kline.bars import DEFAULT_DB_PATH
 
+from zhuli.db import get_conn
 
 def main():
     ap = argparse.ArgumentParser()

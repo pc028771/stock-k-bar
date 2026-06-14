@@ -12,8 +12,6 @@ Design constraints (從 spec):
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import os
 import sys
@@ -32,6 +30,7 @@ SCRIPTS_DIR = Path(__file__).parent
 # Add scripts/ to path so `kline` package is importable (matches pytest pythonpath config)
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from zhuli.db import get_conn
 from kline.bars import load_bars
 from kline.scenarios.simulator import (
     compute_branch_hit_rates,

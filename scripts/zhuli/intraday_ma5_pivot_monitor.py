@@ -34,8 +34,6 @@ Usage:
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn, MAIN_DB
-
 import argparse
 import sqlite3
 import sys
@@ -56,6 +54,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn, MAIN_DB
 _DB = MAIN_DB
 # ── 預設監控池 ─────────────────────────────────────────────────────────────────
 PRIMARY_WATCHLIST: list[str] = [

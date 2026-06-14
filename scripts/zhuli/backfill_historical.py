@@ -12,8 +12,6 @@ Date range: 2020-06-01 ~ 2021-06-30  (includes MA60 warmup + post-signal buffer)
 """
 from __future__ import annotations
 
-from zhuli.db import get_conn
-
 import argparse
 import os
 import sys
@@ -29,6 +27,7 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from zhuli.db import get_conn
 from clients.finmind_client import FinMindClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
