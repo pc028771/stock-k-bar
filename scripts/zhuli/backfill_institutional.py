@@ -271,11 +271,13 @@ def backfill(
 
     stats = {"fetched": 0, "inserted": 0, "skipped": len(existing_set), "errors": 0}
 
+    import os as _os
+    _finmind_token = _os.environ.get("FINMIND_TOKEN", "")
     for i, ticker in enumerate(to_fetch, start=1):
         try:
             # 使用 stock-analysis-system 的 get_institutional（含 throttle）
             # ⚠️ 禁止直接 curl FinMind API
-            raw = get_institutional(ticker, start_date, end_date)
+            raw = get_institutional(ticker, start_date, end_date, token=_finmind_token)
             stats["fetched"] += 1
 
             rows = _parse_inst_df(raw, ticker)
