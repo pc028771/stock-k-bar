@@ -2344,6 +2344,22 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         f"",
         f"產生時間: {datetime.now():%Y-%m-%d %H:%M:%S}",
     ]
+
+    # ⛔ Skip 警示段 (foreign_lead v12_skip — 2024 backtest 反向達標)
+    v12_skip = results.get('foreign_lead_v12_skip', [])
+    if v12_skip:
+        md.append("")
+        md.append(f"## ⛔ Skip 警示 — 外資+投信背離 ({len(v12_skip)} 檔)")
+        md.append("")
+        md.append("**反向訊號**: 外資連 3 天買 + 黑K + 守 MA10、但**投信 5d 大賣** → 訊號模糊、不進場")
+        md.append("")
+        md.append("Backtest 驗證 (2024): WR 24.9% / n=197 / 102 ticker / 10 month、三維齊全反向訊號")
+        md.append("")
+        md.append("| 股 | 名 | 物理意義 |")
+        md.append("|---|---|---|")
+        for it in v12_skip:
+            md.append(f"| {it['ticker']} | {it['name']} | 外資+投信背離 |")
+
     return "\n".join(md)
 
 
@@ -2532,6 +2548,17 @@ def write_daily_watchlist_json(
     # 依 priority 降冪、ticker 升冪排序
     candidates.sort(key=lambda c: (-c['priority'], c['ticker']))
 
+    # ⛔ Skip 警示清單 (反向訊號、backtest 達標反向)
+    skip_warnings = []
+    for it in results.get('foreign_lead_v12_skip', []):
+        skip_warnings.append({
+            'ticker': it['ticker'],
+            'name': it['name'],
+            'reason': 'v12 外資+投信背離',
+            'note': it.get('note', ''),
+            'evidence': '2024 backtest WR 24.9% (n=197 / 102 ticker / 10 month) = 三維達標反向訊號',
+        })
+
     payload = {
         'date': target_date,
         'generated_at': datetime.now().isoformat(timespec='seconds'),
@@ -2542,6 +2569,7 @@ def write_daily_watchlist_json(
         'leaders': results.get('leaders', []),
         'setups': results.get('setups', []),
         'regime_info': results.get('_regime_info', {}),
+        'skip_warnings': skip_warnings,  # ⛔ 反向訊號、命中時降權
     }
 
     out_path = out_dir / _filename
