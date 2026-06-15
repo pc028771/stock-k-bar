@@ -7,7 +7,7 @@
     <key>EnvironmentVariables</key>
     <dict>
         <key>FINMIND_TOKEN</key>
-        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0xNyAyMjoyMTo1MSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjMxLjE5MiJ9.ePJpQ7zqRLDo1SscAY_TalW2Fcbl3QL4G-R9RYiSjyc</string>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoicGMwMjg3NzEiLCJlbWFpbCI6InBjMDI4NzcxQGhvdG1haWwuY29tIiwidG9rZW5fdmVyc2lvbiI6MH0.v-g0kPNYRs3pWQMk_UzjvGYZUcitFnEhRDSZAbpDnHo</string>
         <key>FUBON_API_KEY</key>
         <string>CAD10AD5F4F0EA880FC3529FC7C7857D08228988EE9F718B7E83A8EE8C3B196A</string>
         <key>FUBON_CREDENTIAL_FILE</key>
