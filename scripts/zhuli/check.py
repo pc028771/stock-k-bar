@@ -21,7 +21,7 @@ from pathlib import Path
 # 系統路徑
 _REPO = Path(__file__).resolve().parent.parent.parent
 _SAS = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [_REPO, _SAS]:
+for _p in [_REPO, _REPO / "scripts", _SAS]:
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
