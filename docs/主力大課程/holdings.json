@@ -44,19 +44,23 @@
       "紀律分": "3 戰 +$204 淨盈利 (含費)、紀律執行 + 消息單抓對、教科書級 risk management",
       "對帳單驗證": "20260602172534.csv"
     },
-    "6285_啟碁": {
-      "name": "啟碁",
-      "shares": 1,
+    "6285_啟碁_CLOSED": {
+      "name": "啟碁 (已出清 2026-06-15)",
+      "shares": 0,
       "cost": 315.0,
       "entry_date": "2026-06-01",
-      "stop_loss": 307.4,
-      "stop_loss_source": "5 日線 (老師 5/31 影片親口)、5/29 結構底",
+      "exit_date": "2026-06-15",
+      "exit_price": 273.0,
+      "exit_dates": [
+        "2026-06-01 現買 1 張 @ 315 (cost 315,125)",
+        "2026-06-02 沖買沖賣 1 張 (淨 -6,705)",
+        "2026-06-15 現賣 1 張 @ 273 (net ~272,072 after fee+tax)"
+      ],
+      "realized_pnl": -43053,
+      "realized_pct": -13.66,
+      "stop_loss_at_entry": 307.4,
       "category": "低軌衛星 / 網通",
-      "catalyst": "SpaceX 6/10 上線",
-      "teacher_tier": "frequent",
-      "teacher_signal": "老師明示「啟碁兆赫選一檔」→ 選啟碁",
-      "history_note": "6/2 早盤加碼 1 張 @ 312 (老師明示)、尾盤 306 出 1 張守紀律、實現 -$6,705 (對帳單校正)",
-      "broker_statement_verified": "20260602172534.csv"
+      "lesson": "6/8 收 273.5 已跌破停損 307.4、應該那天就出；user 等到 6/15 才出、晚 5 個交易日。實際損失差不多 (274.5 ≈ 273.5)、紀律 OK 但 lesson learned: 跌破停損當天就要出、別凹"
     },
     "1605_華新": {
       "name": "華新",
