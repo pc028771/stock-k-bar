@@ -70,15 +70,7 @@ DB = MAIN_DB
 # 格式: dict (必填: ticker, name, cost, shares, stop; 選填: tactic, priority, source, sector, note)
 # 舊 tuple (ticker, name, cost, shares, stop) 自動 convert
 HELD = [
-    {
-        'ticker': '6285', 'name': '啟碁',
-        'cost': 315.0, 'shares': 1000, 'stop': 301.0,
-        'strategy_mode': 'core',       # 核心持倉、結構底停損
-        'tactic': '核心', 'priority': 2,
-        'source': '老師明示',
-        'sector': '低軌衛星',
-        'note': '老師明示「兩檔選啟碁」、停損 MA10 動態'
-    },
+    # 6285 啟碁 6/15 全清 @ $273 (-$43,053 / -13.66%)、按紀律出場 (晚 5 天、6/8 已破停損)
     {
         'ticker': '1605', 'name': '華新',
         'cost': 40.23, 'shares': 12000, 'stop': 38.75,
