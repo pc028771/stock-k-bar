@@ -211,6 +211,7 @@ def evaluate_dump_signals(
     current_close: float | None = None,
     volume_spike: tuple[int, float, float] | None = None,
     now: datetime | None = None,
+    yesterday_close_override: float | None = None,
 ) -> list[str]:
     """評估該檔當前出貨訊號、回傳警示 list[str]。
 
@@ -222,6 +223,8 @@ def evaluate_dump_signals(
         current_close: 現價 (若 None、用 state['last_price'])
         volume_spike: (cur_vol, avg_vol, ratio) — 由 caller 從 tracker 取
         now: 用於 12 點殺盤判定 + spike threshold band
+        yesterday_close_override: 若有提供、優先用此值 (caller DB 直查、避免
+            baseline_snapshot.json stale 問題、5/27 後沒更新會誤判)
 
     Returns:
         list[str] of warnings。若無訊號回 []。
@@ -234,7 +237,8 @@ def evaluate_dump_signals(
         return warnings
 
     b = baseline.get(ticker, {}) if baseline else {}
-    yc = b.get("yesterday_close", 0) or 0
+    # yesterday_close: caller override (DB 直查) 優先、否則 fallback baseline
+    yc = yesterday_close_override if yesterday_close_override else (b.get("yesterday_close", 0) or 0)
     ma5 = b.get("ma5", 0) or 0
     ma10 = b.get("ma10", 0) or 0
 

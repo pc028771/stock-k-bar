@@ -1100,6 +1100,7 @@ class MonitorApp(App[None]):
                             self._dump_baseline,
                             current_close=close_ if close_ else None,
                             volume_spike=d_spike,
+                            yesterday_close_override=prev_close if prev_close else None,
                         )
                         if warns:
                             dump_warn_full = " | ".join(warns)
@@ -1311,6 +1312,7 @@ class MonitorApp(App[None]):
         self._refresh_pinned_table(ld)
         self._refresh_overnight_table()
         self._refresh_scanner_table(ld)
+        self._refresh_setups_table(ld)  # bug fix: 之前漏呼叫、Setups tab 永遠停在「載入中」
 
     def _fmt_otn(self, otn_pct: float | None) -> str:
         if otn_pct is None:
