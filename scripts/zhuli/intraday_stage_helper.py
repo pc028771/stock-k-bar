@@ -230,12 +230,19 @@ def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
 
 
 def load_daily_closes(ticker: str, db: Path, n: int = 20) -> pd.Series:
-    """取最近 n 日收盤，回傳 Series(index=date str, values=float)."""
+    """取最近 n 日收盤，回傳 Series(index=date str, values=float)。
+
+    只取 trade_date < today 的資料、避免盤後部分寫入的今日日K
+    污染 prev_close 計算（6/15 1605 +13.8% stale bug 教訓）。
+    """
     try:
+        from datetime import date as _date
+        today_str = _date.today().isoformat()
         with _db_con(db) as con:
             rows = con.execute(
-                "SELECT trade_date, close FROM standard_daily_bar WHERE ticker=? ORDER BY trade_date DESC LIMIT ?",
-                (ticker, n),
+                "SELECT trade_date, close FROM standard_daily_bar "
+                "WHERE ticker=? AND trade_date < ? ORDER BY trade_date DESC LIMIT ?",
+                (ticker, today_str, n),
             ).fetchall()
         if not rows:
             return pd.Series(dtype=float)
@@ -1465,11 +1472,16 @@ class StageTrigger:
 # ── 主監控邏輯 ────────────────────────────────────────────────────────────────
 
 def _get_prev_levels(ticker: str, db: Path) -> dict:
-    """從 DB 取前日收盤、前波高/低."""
+    """從 DB 取前日收盤、前波高/低。
+
+    load_daily_closes 已過濾 trade_date < today，
+    所以 iloc[-1] 就是最新交易日收盤（= prev_close）。
+    舊版用 iloc[-2] 是 bug：會取到前兩個交易日（stale）。
+    """
     closes = load_daily_closes(ticker, db, n=10)
-    if len(closes) < 2:
+    if len(closes) < 1:
         return {}
-    prev_close = float(closes.iloc[-2]) if len(closes) >= 2 else None
+    prev_close = float(closes.iloc[-1])
     recent_high = float(closes.tail(5).max())
     recent_low  = float(closes.tail(5).min())
     return {
