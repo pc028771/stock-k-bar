@@ -2811,6 +2811,28 @@ def main():
         md += f"\n\n## 🚪 持倉出場檢查\n\n⚠️ 執行失敗: {e}\n"
         print(f"\n[holdings exit] 失敗: {e}", flush=True)
 
+    # ── 持倉 trailing stop 建議 (per feedback_direct_cut_with_stop_loss) ──
+    # 結構底 trailing、3 條件: 新黑K低 / 回踩MA10守 / 連3天 low 墊高
+    # 只出建議、不自動 apply (user 鎖 Plan 紀律)
+    try:
+        from zhuli.tools.update_trailing_stops import run as update_stops
+        stop_out = update_stops(target_date, db_path)
+        if stop_out["suggested"] > 0:
+            section = f"\n\n## 📈 停損 trailing 建議 ({stop_out['suggested']} 檔)\n\n"
+            section += f"報告: `{Path(stop_out['review_path']).relative_to(_REPO)}`\n\n"
+            for i in stop_out["items"]:
+                if i.get("suggested_stop"):
+                    section += (f"- **{i['ticker']} {i['name']}**: "
+                                f"{i['current_stop']:.2f} → "
+                                f"**{i['suggested_stop']:.2f}** "
+                                f"(+{i['lift_pct']}%、{i['reason']})\n")
+            section += "\n跟 AI 說「apply 停損建議」才實際更新。\n"
+            md += section
+        print(f"\n[holdings trailing] 檢視 {stop_out['reviewed']} 檔、"
+              f"建議上移 {stop_out['suggested']} 檔、報告: {stop_out['review_path']}", flush=True)
+    except Exception as e:
+        print(f"\n[holdings trailing] 失敗: {e}", flush=True)
+
     out_md = out_dir / f"scanner_candidates_{target_date}.md"
     out_md.write_text(md, encoding="utf-8")
     print(f"\n→ 寫入 {out_md}")
