@@ -499,6 +499,8 @@ def run_scanners(target_date: str, db_path: Path,
         'foreign_lead_v07': [],   # 拉回承接
         'foreign_lead_v15': [],   # 重押旗標
         'foreign_lead_v12_skip': [],  # 反向 skip 警示
+        # ⭐⭐⭐ composite_2026 (2026-06-16 deploy、4 條 stack super signal)
+        'composite_2026': [],
     }
 
     # ⚠️ 只放已驗證門檻的 scanner
@@ -802,6 +804,34 @@ def run_scanners(target_date: str, db_path: Path,
             print(f"    [foreign_lead_{vid}] {len(items)} 檔", flush=True)
     except Exception as _e:
         print(f"  [foreign_lead] 失敗: {_e}", flush=True)
+
+    # ── composite_2026: 4 條 stack super signal (2026-06-16 deploy) ──
+    # 老師 universe + 籌碼共識 + 大盤 regime gate + 位階不過熱
+    print(f"  [composite_2026] 跑 4 條 stack...", flush=True)
+    try:
+        from zhuli.entry.composite_2026 import detect as detect_composite
+        c_hits = detect_composite(target_date, db_path=db_path)
+        for it in c_hits:
+            tk = it['ticker']
+            info = stock_info.get(tk, {"name": "", "industry": ""})
+            results['composite_2026'].append({
+                'ticker': tk,
+                'name': it['name'] or info['name'],
+                'industry': info['industry'],
+                'close': it['close'],
+                'dist_ma60_pct': it['dist_ma60_pct'],
+                'sources': it['sources'],
+                'n_sources': it['n_sources'],
+                'taiex_20d_ret': it['taiex_20d_ret'],
+                'priority': it['priority'],
+                'label': it['label'],
+                'note': it['note'],
+                'teacher_sectors': TEACHER_SECTOR_MAP.get(tk, []),
+                'teacher_tier': TEACHER_TIER.get(tk, ''),
+            })
+        print(f"    [composite_2026] {len(c_hits)} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [composite_2026] 失敗: {_e}", flush=True)
 
     # ── small_structure：改用 run_scan(combined_df, universe='sector_week') ──
     # run_scan 在 watchlist_mode=True 時呼叫 run_watchlist，
@@ -2345,6 +2375,22 @@ def render_markdown(target_date: str, results: dict, db_path: Path | None = None
         f"產生時間: {datetime.now():%Y-%m-%d %H:%M:%S}",
     ]
 
+    # ⭐⭐⭐ Composite_2026 段 (2026 specialized super signal)
+    composite_hits = results.get('composite_2026', [])
+    if composite_hits:
+        md.append("")
+        md.append(f"## ⭐⭐⭐ 2026 Composite super signal ({len(composite_hits)} 檔)")
+        md.append("")
+        md.append("**4 條 stack 全過**: 老師 universe + 籌碼共識 + 大盤 regime gate + 位階不過熱")
+        md.append("")
+        md.append("⚠️ Regime-specialized: 設計專為 2026 H1、跨年未驗證、命中時搭配老師大盤判讀")
+        md.append("")
+        md.append("| 股 | 名 | 收 | 距 MA60 | 籌碼 sources |")
+        md.append("|---|---|---|---|---|")
+        for it in composite_hits:
+            srcs = '+'.join(s.replace('foreign_lead_', 'FL.').replace('institutional_swing', 'InstSwing') for s in it['sources'])
+            md.append(f"| {it['ticker']} | {it['name']} | {it['close']:.2f} | {it['dist_ma60_pct']:+.1f}% | {srcs} |")
+
     # ⛔ Skip 警示段 (foreign_lead v12_skip — 2024 backtest 反向達標)
     v12_skip = results.get('foreign_lead_v12_skip', [])
     if v12_skip:
@@ -2545,8 +2591,62 @@ def write_daily_watchlist_json(
         }
         candidates.append(c)
 
-    # 依 priority 降冪、ticker 升冪排序
-    candidates.sort(key=lambda c: (-c['priority'], c['ticker']))
+    # 🅰️ Priority boost layer (2026-06-16 deploy):
+    # ticker 在老師 universe + 命中籌碼類 detector → priority +1
+    # 物理意義: 老師 universe filter 跨 3 年 backtest 都加分 PF
+    # (2024 0.50→0.57 / 2025 1.30→2.56 / 2026 2.63→3.62)
+    CHIP_DETECTOR_KEYS = {
+        'institutional_swing', 'institutional_firstbuy',
+        'foreign_buy_on_black_k',
+        'foreign_lead_v08', 'foreign_lead_v06',
+        'foreign_lead_v07', 'foreign_lead_v15',
+    }
+    for c in candidates:
+        if c['ticker'] not in TEACHER_SECTOR_MAP:
+            continue  # 不在老師 universe
+        sources = set(c.get('sources', []))
+        if sources & CHIP_DETECTOR_KEYS:
+            c['priority'] = min(c['priority'] + 1, 3)  # +1、上限 3
+            c.setdefault('boost_reason', [])
+            c['boost_reason'].append('🅰️ 老師 universe + 籌碼共識 boost')
+
+    # ⭐⭐⭐ Composite_2026 super signal (priority 3、頂部標記)
+    # 即使不在現有 candidates 內也自動加入 (確保 super signal 進 Top3)
+    composite_hits = results.get('composite_2026', [])
+    existing_tickers = {c['ticker'] for c in candidates}
+    for it in composite_hits:
+        tk = it['ticker']
+        if tk in existing_tickers:
+            # 已在 candidates、boost
+            for c in candidates:
+                if c['ticker'] == tk:
+                    c['priority'] = 3
+                    c['is_composite_2026'] = True
+                    c.setdefault('boost_reason', [])
+                    c['boost_reason'].append('⭐⭐⭐ 2026 Composite')
+        else:
+            # 新增進 candidates
+            sources_str = '+'.join(it['sources'])
+            candidates.append({
+                'ticker': tk,
+                'name': it['name'],
+                'sources': ['composite_2026'] + it['sources'],
+                'priority': 3,
+                'sector': '/'.join(it.get('teacher_sectors', [])),
+                'tactic': '波段',
+                'ref_close': it['close'],
+                'dist_ma10_pct': None,
+                'note': f"⭐⭐⭐ 2026 Composite ({sources_str})",
+                'is_composite_2026': True,
+                'boost_reason': ['⭐⭐⭐ 2026 Composite (4 條 stack super signal)'],
+            })
+
+    # 依 priority 降冪、composite 優先、ticker 升冪排序
+    candidates.sort(key=lambda c: (
+        -c['priority'],
+        0 if c.get('is_composite_2026') else 1,
+        c['ticker'],
+    ))
 
     # ⛔ Skip 警示清單 (反向訊號、backtest 達標反向)
     skip_warnings = []
