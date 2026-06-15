@@ -137,59 +137,57 @@ def upsert_rows(conn: sqlite3.Connection, rows: list[dict]) -> int:
 def _parse_inst_df(raw: pd.DataFrame, ticker: str) -> list[dict]:
     """將 get_institutional() 回傳的 DataFrame 轉成 DB insert rows。
 
-    get_institutional() 回傳 long-form：每日每法人一列，含 foreign_net / sitc_net。
-    我們要萃取投信（sitc_*）與外資（foreign_*），合併為每日一筆。
+    FinMind v4 回傳 long-form schema (2026 起):
+        [date, stock_id, buy, name, sell]
+      - 每日每法人一列 (外資 / 投信 / 自營商 / 外資自營)
+      - 沒有預先算好 net、需自行 buy - sell
 
-    ⚠️ FinMind 回傳單位為「股（shares）」，需除以 1000 轉換為「張（lots）」。
+    我們要萃取投信（sitc_*）與外資（foreign_*）、合併為每日一筆。
+
+    ⚠️ FinMind 回傳單位為「股（shares）」、需除以 1000 轉換為「張（lots）」。
        課程定義與 scanner 門檻均以「張」計（如「2 萬張」「1/3 成交量」）。
     """
     if raw.empty:
         return []
 
-    # sitc_net / foreign_net 是 date-level aggregate（transform sum），每日同值但多列 → dedupe
-    daily_nets = (
-        raw[["date", "sitc_net", "foreign_net"]]
-        .drop_duplicates(subset=["date"])
-        .copy()
+    if not {"name", "buy", "sell", "date"}.issubset(raw.columns):
+        return []
+
+    # 投信 (Investment Trust)
+    sitc_rows = raw[raw["name"].str.contains("投信|Investment_Trust", na=False)].copy()
+    sitc_daily = (
+        sitc_rows.groupby("date")[["buy", "sell"]].sum()
+        .rename(columns={"buy": "sitc_buy", "sell": "sitc_sell"})
+        .reset_index()
     )
+    sitc_daily["sitc_net"] = sitc_daily["sitc_buy"] - sitc_daily["sitc_sell"]
 
-    # buy / sell 原始值（從 long-form name 欄位篩選）
-    if {"name", "buy", "sell"}.issubset(raw.columns):
-        # 投信
-        sitc_rows = raw[raw["name"].str.contains("投信|Investment_Trust", na=False)].copy()
-        sitc_daily = (
-            sitc_rows[["date", "buy", "sell"]]
-            .rename(columns={"buy": "sitc_buy", "sell": "sitc_sell"})
-            .drop_duplicates(subset=["date"])
-        )
-        # 外資（含外資自營）
-        foreign_rows = raw[raw["name"].str.contains("外資|Foreign", na=False)].copy()
-        # 若有外資與外資自營，按 date 加總 buy/sell
-        if not foreign_rows.empty:
-            foreign_daily = (
-                foreign_rows.groupby("date")[["buy", "sell"]].sum()
-                .rename(columns={"buy": "foreign_buy", "sell": "foreign_sell"})
-                .reset_index()
-            )
-        else:
-            foreign_daily = pd.DataFrame(columns=["date", "foreign_buy", "foreign_sell"])
+    # 外資 (含外資自營)
+    foreign_rows = raw[raw["name"].str.contains("外資|Foreign", na=False)].copy()
+    foreign_daily = (
+        foreign_rows.groupby("date")[["buy", "sell"]].sum()
+        .rename(columns={"buy": "foreign_buy", "sell": "foreign_sell"})
+        .reset_index()
+    )
+    foreign_daily["foreign_net"] = foreign_daily["foreign_buy"] - foreign_daily["foreign_sell"]
 
-        daily_nets = daily_nets.merge(sitc_daily, on="date", how="left")
-        daily_nets = daily_nets.merge(foreign_daily, on="date", how="left")
-    else:
-        daily_nets["sitc_buy"] = 0.0
-        daily_nets["sitc_sell"] = 0.0
-        daily_nets["foreign_buy"] = 0.0
-        daily_nets["foreign_sell"] = 0.0
+    # 從 raw 取所有 unique dates 當 base
+    daily_nets = raw[["date"]].drop_duplicates().copy()
+    daily_nets = daily_nets.merge(sitc_daily, on="date", how="left")
+    daily_nets = daily_nets.merge(foreign_daily, on="date", how="left")
 
     daily_nets["ticker"] = ticker
     daily_nets = daily_nets.rename(columns={"date": "trade_date"})
+    # Timestamp → str for sqlite
+    daily_nets["trade_date"] = daily_nets["trade_date"].astype(str).str[:10]
 
     # Fill NaN with 0
     for col in ("sitc_buy", "sitc_sell", "sitc_net", "foreign_buy", "foreign_sell", "foreign_net"):
-        daily_nets[col] = daily_nets.get(col, 0).fillna(0)
+        if col not in daily_nets.columns:
+            daily_nets[col] = 0.0
+        daily_nets[col] = daily_nets[col].fillna(0)
 
-    # 單位換算：FinMind 回傳股（shares），課程與 scanner 門檻用張（lots = 1000股）
+    # 單位換算：FinMind 回傳股（shares）→ 課程與 scanner 用張（lots = 1000股）
     for col in ("sitc_buy", "sitc_sell", "sitc_net", "foreign_buy", "foreign_sell", "foreign_net"):
         daily_nets[col] = daily_nets[col] / 1000.0
 
