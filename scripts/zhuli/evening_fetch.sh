@@ -61,10 +61,19 @@ fi
 
 echo "=== evening_fetch 完成 === $DATE ===" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 
-# 4/4 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
-echo "[4/4] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
-if "$REPO/scripts/zhuli/sync_db_to_icloud.sh" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
-    echo "[4/4] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+# 4/5 重生 overnight_static_features.json (EOD baseline、用今日 close)
+# 修 stale prev_close 問題 (週末以前 13:00 plist 只用前一日 close、EOD 後沒更新)
+echo "[4/5] precompute_overnight_static..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if $PYTHON "$REPO/scripts/zhuli/precompute_overnight_static.py" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[4/5] precompute_overnight_static OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 else
-    echo "[4/4] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    echo "[4/5] precompute_overnight_static FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+fi
+
+# 5/5 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
+echo "[5/5] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if "$REPO/scripts/zhuli/sync_db_to_icloud.sh" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[5/5] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+else
+    echo "[5/5] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi

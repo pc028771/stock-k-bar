@@ -134,319 +134,77 @@ PLAN_BACKUP: list = []
 
 # 觀察清單 (dict 格式、兼容舊 tuple)
 WATCH = [
-    # 老師明示重壓 / 第二棒 / GT 基底
+    # ─────────────────────────────────────────────────────────────
+    # Tier-A: 6/14 直播戰術主推 (戰略 + 戰術雙重背書)
+    # ─────────────────────────────────────────────────────────────
     {
         'ticker': '2303', 'name': '聯電',
         'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/3 (條件式)',
-        'sector': 'GT基底/成熟製程',
-        'note': '⭐ 老師 6/3 條件式圈起來: 看 6/4 尾盤外資是否「黑 K 大買」連 2 天才升等'
+        'tactic': '波段', 'priority': 3,
+        'source': '老師明示 6/14 戰略級',
+        'sector': '成熟製程',
+        'note': '⭐⭐⭐ 6/14 戰略級 4 大論述 (8 吋復甦/22nm Intel/DTC 先進封裝/邊緣 AI)、CB 7/中觀察、6/15 處置出關'
     },
-    {
-        'ticker': '6770', 'name': '力積電',
-        'ref_close': 84.6, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/3 (觀察)',
-        'sector': 'GT基底/成熟製程',
-        'note': '🔴 老師「立即店」、6/3 破 MA5 $85.4、看 6/4 紅 K 收復 MA5 才升等'
-    },
-    {
-        'ticker': '3702', 'name': '大聯大',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/3',
-        'sector': 'IC通路',
-        'note': '⭐⭐⭐ 老師 6/3 圈起來「守月線、很簡單的股票、外資持續大買」'
-    },
-    {
-        'ticker': '3264', 'name': '欣銓',
-        'ref_close': 229.5, 'stop': 214.0,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/3',
-        'sector': '半導體封測',
-        'note': '⭐⭐⭐ 老師 6/3 圈起來、外資佈局上櫃、N 字回測完成 ($244→$214→$237 第二攻)、距 MA10 +4.4% 打擊區、停 $214 (6/2 回測底)'
-    },
-    # 老師 6/3 提到的個股 — 等 6/4 紅 K 收復所有均線才升等
-    {
-        'ticker': '6257', 'name': '矽格',
-        'ref_close': 230.0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/3 (觀察)',
-        'sector': '半導體封測',
-        'note': '🟢 6/3 已站全均線、看 6/4 守住 + 紅 K 即升等'
-    },
-    {
-        'ticker': '2451', 'name': '創見',
-        'ref_close': 358.0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/3 (觀察)',
-        'sector': '記憶體模組',
-        'note': '🟢 6/3 已站全均線、外資+融資進、6/4 守住紅 K 升等'
-    },
-    {
-        'ticker': '3042', 'name': '晶技',
-        'ref_close': 217.5, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/3 (觀察)',
-        'sector': '電子零組件',
-        'note': '🟢 6/3 已站全均線、6/4 守住紅 K 升等'
-    },
-    {
-        'ticker': '6239', 'name': '力成',
-        'ref_close': 343.0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/3 (觀察)',
-        'sector': '半導體封測',
-        'note': '🔒 處置 5/29-6/11、6/3 D+4 破 MA5、6/4 D+5 是最後機會、紅 K 收復 MA5 → 🔒A、否則降 🔒B/C'
-    },
-    {
-        'ticker': '3036', 'name': '文曄',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示',
-        'sector': 'IC通路',
-        'note': '⭐⭐ IC 通路 6/2 主流、老師明示 (3702 大聯大 / 3036 文曄)、持續監控'
-    },
-    {
-        'ticker': '2376', 'name': '技嘉',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示',
-        'sector': 'AI PC/全資股',
-        'note': '⭐⭐ 老師原話「我這波壓的」、AI PC 主流'
-    },
-    {
-        'ticker': '8064', 'name': '東捷',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示',
-        'sector': '玻璃',
-        'note': '⭐ 玻璃明示、frequent tier'
-    },
-    {
-        'ticker': '6116', 'name': '彩晶',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示',
-        'sector': '紅海第二棒',
-        'note': '⭐⭐ 紅海第二棒、管錢哥重押、外資挺'
-    },
-    # IC 設計 / 記憶體相關 (老師主流框架)
-    {
-        'ticker': '6147', 'name': '頎邦',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': 'scanner',
-        'sector': '記憶體封測',
-        'note': '⭐ 記憶體封測、user 提醒'
-    },
-    {
-        'ticker': '5351', 'name': '鈺創',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': 'scanner',
-        'sector': 'IC設計',
-        'note': '⭐ IC 設計 / 記憶體、user 提醒'
-    },
-    {
-        'ticker': '3006', 'name': '晶豪科',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': 'scanner',
-        'sector': '記憶體',
-        'note': '⭐ 記憶體 IC、user 提醒'
-    },
-    {
-        'ticker': '2344', 'name': '華邦電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示',
-        'sector': '記憶體',
-        'note': '⚠️ 漲多 50%、不主動推、等回測 MA10 才進、持續監控'
-    },
-    # 1303 6/5 已進 HELD、從 WATCH 移除
-    # 黃大標的、跟老師明示一起在 t 鍵 filter 顯示
-    {
-        'ticker': '4939', 'name': '亞電',
-        'ref_close': 59.7, 'stop': 59.7,
-        'tactic': '短打', 'priority': 3,
-        'source': '黃大 6/3 + 凱基系 6/5 大買',
-        'sector': '電池 / IC 通路',
-        'note': '⭐⭐⭐ 6/5 鎖漲停 $59.7 / 凱基信義 +4044 + 凱基台北 +1723 (凱基系 +5.8k 巨大、佔成交量 33%) + 外資大行 +2.3k (摩根/星洲/野村/高盛)。法人 6/5 FinMind 待補。6/8 SOP: 跳空 ≤+3% 進 Stage 1 2-3 張 / +3-5% 進 1 張 / +5%+ skip。停損 $59.7 (漲停收盤、跌破出)。⚠️ 6/7 美股+台指夜盤大跌、看 4939 抗跌否'
-    },
-    # 6/2 收盤後三軸狀態追蹤
-    {
-        'ticker': '6207', 'name': '雷科',
-        'ref_close': 127.0, 'stop': 115.0,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示',
-        'sector': '玻璃',
-        'note': '🟡 老師 [25:08]「壓著、尾盤關注、跟東捷類似」、距 MA10 +9.4%'
-    },
-    # 8046 南電 — 6/4 已進 HELD、移除 WATCH
-    # 老師 6/4 圈起來 + 均線全順向 (~44 檔之一) — user 列出 5 檔
-    {
-        'ticker': '6282', 'name': '康舒',
-        'ref_close': 64.4, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 圈起來',
-        'sector': 'AI電源/散熱',
-        'note': '🛡️ 6/4 圈起來、大盤跌時守均價線 (relative_strength validation case)'
-    },
-    {
-        'ticker': '2449', 'name': '京元電子',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 圈起來',
-        'sector': '半導體封測',
-        'note': '🛡️ 6/4 圈起來'
-    },
-    # 6/5 重電族群 — 同學討論、老師未指名、自選追蹤
-    {
-        'ticker': '8222', 'name': '寶一',
-        'ref_close': 37.3, 'stop': 36.1,
-        'tactic': '短打', 'priority': 2,
-        'source': '6/5 同學討論 重電',
-        'sector': '重電',
-        'note': '⚡ 重電打擊區、距 MA10 +2.5%、結構底 ~$36 (MA20)、老師未明示、追蹤'
-    },
-    {
-        'ticker': '1519', 'name': '華城',
-        'ref_close': 910.0, 'stop': 857.3,
-        'tactic': '短打', 'priority': 2,
-        'source': '6/5 同學討論 重電',
-        'sector': '重電',
-        'note': '⚡ 重電打擊區、距 MA10 +5.0%、結構底 MA20 ~$857、老師未明示、追蹤'
-    },
-    {
-        'ticker': '2371', 'name': '大同',
-        'ref_close': 32.0, 'stop': 29.7,
-        'tactic': '短打', 'priority': 2,
-        'source': '6/5 同學討論 重電',
-        'sector': '重電',
-        'note': '⚡ 重電打擊區、距 MA10 +6.3%、結構底 MA20 ~$29.7、老師未明示、追蹤'
-    },
-    {
-        'ticker': '4967', 'name': '十銓',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 圈起來',
-        'sector': '記憶體模組',
-        'note': '🛡️ 6/4 圈起來'
-    },
-    {
-        'ticker': '3211', 'name': '順達',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 圈起來',
-        'sector': '電池模組',
-        'note': '🛡️ 6/4 圈起來'
-    },
-    {
-        'ticker': '6209', 'name': '今國光',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/4 圈起來',
-        'sector': '光學鏡頭',
-        'note': '🛡️ 6/4 圈起來'
-    },
-    # 老師 6/3 圈起來中長期 補 4 檔 (其餘 4 檔已在上方 WATCH)
-    {
-        'ticker': '3037', 'name': '欣興',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/3 圈起來',
-        'sector': 'ABF載板',
-        'note': '⭐ 老師 6/3 圈起來中長期 (ABF 主推、tier core)'
-    },
-    {
-        'ticker': '2308', 'name': '台達電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/3 圈起來',
-        'sector': 'AI電源/散熱',
-        'note': '⭐ 老師 6/3 圈起來中長期 (AI 電源/散熱龍頭)'
-    },
-    {
-        'ticker': '2368', 'name': '金像電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/3 圈起來',
-        'sector': 'PCB',
-        'note': '⭐ 老師 6/3 圈起來中長期 (PCB)'
-    },
-    {
-        'ticker': '2345', 'name': '智邦',
-        'ref_close': 0, 'stop': None,
-        'tactic': '中長期', 'priority': 2,
-        'source': '老師明示 6/3 圈起來',
-        'sector': '網通',
-        'note': '⭐ 老師 6/3 圈起來中長期 (網通/800G switch)'
-    },
-    # 6/3 scanner 新增 (Tier-B 打擊區、籌碼/型態符合)
-    {
-        'ticker': '1717', 'name': '長興',
-        'ref_close': 78.70, 'stop': 75.50,
-        'tactic': '短打', 'priority': 2,
-        'source': 'scanner (small_structure)',
-        'sector': '封測/特化',
-        'note': '🟡 ⭐管錢哥分點重押、距 MA10 -2.7% 打擊區、首提後 79d (二波期)'
-    },
-    # 4722 國精化 — 6/3 移出
-    # 原因: D+7 跌破 MA5、不符處置課「站均線」條件
-    # 老師「貴買要在所有均線之上、處置期間守住均線」(line 16/36)
-    # D+4-5 切入窗口已過、現結構轉弱、6/4 不進
-    {
-        'ticker': '4526', 'name': '東台',
-        'ref_close': 42.15, 'stop': 40.16,
-        'tactic': '短打', 'priority': 2,
-        'source': 'scanner (w_bottom_launch)',
-        'sector': '電機機械',
-        'note': '🟢 W底 + 量比 2.2x + ⭐站前哥、距 MA10 +5.0%、MA10 停利 ~40.16'
-    },
-    {
-        'ticker': '4540', 'name': '全球傳動',
-        'ref_close': 77.30, 'stop': 70.84,
-        'tactic': '題材', 'priority': 2,
-        'source': 'scanner (w_bottom_launch)',
-        'sector': '機器人',
-        'note': '🟢 機器人主流 + W底 量比 2.0x、距 MA10 +9.1%、MA10 停利 ~70.84'
-    },
-    # 6/3 加 — 過去 5d shakeout 補進候選
-    {
-        'ticker': '6906', 'name': '微邦',
-        'ref_close': 103.5, 'stop': 95.0,
-        'tactic': '短打', 'priority': 2,
-        'source': 'shakeout_strong (5/26 confirmed)',
-        'sector': '電子小型',
-        'note': '🟢 5/26 shakeout 確認、距 MA10 +5%、6/3 紅 K +2.5% 反轉、漲幅初期'
-    },
-    # 6/14 直播課新增 (尼克老師 6/14 6 月直播課)
     {
         'ticker': '3402', 'name': '漢唐',
         'ref_close': 0, 'stop': None,
         'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14',
+        'source': '老師明示 6/14 廠務主推',
         'sector': '廠務設備',
-        'note': '⭐⭐⭐ 6/14 直播主推: 廠務 = 6/9 三選一最強 (工業電腦/光學/廠務)、6/13 已漲停、6/16-6/17 等回踩不追'
+        'note': '⭐⭐⭐ 6/14 廠務 = 6/9 三選一最強 (工業電腦/光學/廠務)、6/13 已漲停、6/16-17 等回踩'
     },
     {
         'ticker': '2375', 'name': '凱美',
         'ref_close': 0, 'stop': None,
         'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14',
+        'source': '老師明示 6/14 題材文',
         'sector': '被動元件',
-        'note': '⭐⭐⭐ 6/14 被動 60% 主流、6/13 黑 K +7% 但融資大增 = 「黑還比黑好」、低點重要'
+        'note': '⭐⭐⭐ 6/14 被動 60% 主流、6/13 黑 K +7% 但融資大增 = 黑得好、低點重要'
     },
     {
         'ticker': '2472', 'name': '立隆電',
         'ref_close': 0, 'stop': None,
         'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14',
+        'source': '老師明示 6/14 題材文',
         'sector': '被動元件',
         'note': '⭐⭐⭐ 6/14 被動 60% 主流 (與 2375 並列)、文章 + 直播雙重背書'
     },
+    {
+        'ticker': '6239', 'name': '力成',
+        'ref_close': 0, 'stop': None,
+        'tactic': '波段', 'priority': 3,
+        'source': '老師明示 6/13 OSAT',
+        'sector': '半導體封測',
+        'note': '⭐⭐⭐ 6/13 OSAT 黃金期 + 一線滿載漲 10%、處置 5/29-6/11 已過'
+    },
+    {
+        'ticker': '3264', 'name': '欣銓',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/14 + 6/13 OSAT 雙重',
+        'sector': '半導體封測',
+        'note': '⭐⭐⭐ 6/3 圈起來中長期 + 6/14 universe + 6/13 OSAT 雙重背書 (強優先級)'
+    },
+    {
+        'ticker': '6257', 'name': '矽格',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 6/14 + 6/13 OSAT 雙重',
+        'sector': '半導體封測',
+        'note': '⭐⭐⭐ 6/3 圈起來 + 6/14 universe + 6/13 OSAT 雙重背書 (強優先級)'
+    },
+    {
+        'ticker': '8096', 'name': '擎亞',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 題材文',
+        'sector': '記憶體通路',
+        'note': '⭐⭐ 6/14 題材文升級'
+    },
+
+    # ─────────────────────────────────────────────────────────────
+    # Tier-B: 6/14 直播 Q&A 提及 + 個案
+    # ─────────────────────────────────────────────────────────────
     {
         'ticker': '2484', 'name': '希華',
         'ref_close': 0, 'stop': None,
@@ -456,12 +214,20 @@ WATCH = [
         'note': '⭐⭐ 6/14 石英 30% 族群 (與 3042 晶技並列、最多 2 檔規則)'
     },
     {
-        'ticker': '4938', 'name': '玉晶光',
+        'ticker': '3042', 'name': '晶技',
         'ref_close': 0, 'stop': None,
         'tactic': '短打', 'priority': 2,
         'source': '老師明示 6/14',
+        'sector': '石英',
+        'note': '⭐⭐ 6/14 石英 30% 族群 (與 2484 希華並列)、6/3 已站全均線'
+    },
+    {
+        'ticker': '4938', 'name': '玉晶光',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 Q8',
         'sector': '光學',
-        'note': '⭐⭐ 6/14 Q8 提問: 6/13 大黑 K + 融資大增 = 黑得好、矽光子 FAU 概念、光學黑 K 觀察'
+        'note': '⭐⭐ 6/14 Q8 提問: 6/13 大黑 K + 融資大增 = 黑得好、矽光子 FAU 概念'
     },
     {
         'ticker': '3008', 'name': '大立光',
@@ -477,7 +243,105 @@ WATCH = [
         'tactic': '短打', 'priority': 2,
         'source': '老師明示 6/14',
         'sector': '電子零組件',
-        'note': '⭐⭐ 6/14 凱基松山 (阿 Ben) 新布局、台達電繼電器供應商、均線上、6/13 黑 K、可慢慢觀察'
+        'note': '⭐⭐ 6/14 凱基松山 (阿 Ben) 新布局、台達電繼電器供應商、均線上'
+    },
+    {
+        'ticker': '6549', 'name': '長科',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 Q2',
+        'sector': '封測',
+        'note': '⭐⭐ 6/14 Q2 提問: 有族群性、中口咬可做不重壓、封測導線架 (與界霖/順德並列)'
+    },
+    {
+        'ticker': '3293', 'name': '鈊象',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 Q9',
+        'sector': '遊戲',
+        'note': '⭐ 6/14 Q9 提問: 個股強但族群弱 (星宇/藍電/錦碩破線) → 老師收手、第 12 觀念'
+    },
+    {
+        'ticker': '2476', 'name': '鉅祥',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 Q12',
+        'sector': '其他',
+        'note': '⭐ 6/14 Q12 Johnson 提問: 不死鳥型態、命懸一線、有融資特徵、可看籌碼'
+    },
+    {
+        'ticker': '6147', 'name': '頎邦',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14 + 6/4 圈起來',
+        'sector': '封測',
+        'note': '⭐⭐ 6/14 凱基松山買到快 30 億的老的代表股、6/4 圈起來 (3 次提及升 frequent)'
+    },
+
+    # ─────────────────────────────────────────────────────────────
+    # Tier-C: 6/14 處置出關複合機會 (戰術級操作點)
+    # ─────────────────────────────────────────────────────────────
+    {
+        'ticker': '6182', 'name': '合晶',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14',
+        'sector': '矽晶圓',
+        'note': '⭐ 6/14 6/15 出處置 + 上週直播提過矽晶圓族群'
+    },
+    {
+        'ticker': '2492', 'name': '華新科',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14',
+        'sector': '被動元件',
+        'note': '⭐ 6/14 6/17 出處置 + 上週直播提過被動族群'
+    },
+    {
+        'ticker': '8358', 'name': '金居',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 2,
+        'source': '老師明示 6/14',
+        'sector': 'CCL',
+        'note': '⭐ 6/14 6/17 + 6/18 雙重出處置'
+    },
+    {
+        'ticker': '8064', 'name': '東捷',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 3,
+        'source': '老師明示 + 6/14 universe',
+        'sector': '玻璃設備',
+        'note': '⭐ 6/14 universe 玻璃設備 (8064 / 8027 準備出關)、frequent tier'
+    },
+
+    # ─────────────────────────────────────────────────────────────
+    # Tier-D: 6/13 OSAT 龍頭 + 新入榜 (戰略級觀察、不重壓)
+    # ─────────────────────────────────────────────────────────────
+    {
+        'ticker': '3711', 'name': '日月光投控',
+        'ref_close': 0, 'stop': None,
+        'tactic': '波段', 'priority': 1,
+        'source': '老師明示 6/13 OSAT',
+        'sector': '半導體封測',
+        'note': '⭐ 6/13 OSAT 龍頭、不在 picks 但需技術+籌碼雙過、波動小不重壓'
+    },
+    {
+        'ticker': '8150', 'name': '南茂',
+        'ref_close': 0, 'stop': None,
+        'tactic': '短打', 'priority': 1,
+        'source': '老師明示 6/13 OSAT',
+        'sector': '半導體封測',
+        'note': '⭐ 6/13 OSAT 首次入榜、觀察 1-2 週'
+    },
+
+    # 6/3 加 — 過去 5d shakeout 補進候選 (保留 1 檔表現好的)
+    {
+        'ticker': '6906', 'name': '微邦',
+        'ref_close': 103.5, 'stop': 95.0,
+        'tactic': '短打', 'priority': 2,
+        'source': 'shakeout_strong (5/26 confirmed)',
+        'sector': '電子小型',
+        'note': '🟢 5/26 shakeout 確認、距 MA10 +5%、6/3 紅 K +2.5% 反轉、漲幅初期'
     },
 ]
 
@@ -2285,11 +2149,21 @@ def r_dist_ref(c: float, ref: float) -> Text:
 
 
 def load_prev_close(ticker: str) -> float | None:
+    """前一交易日 close — 必須排除 today、避免取到今天 partial / backfill 後的 close。
+
+    bug 教訓: 舊版沒過濾 trade_date < today、若 DB 已寫入今天的 bar (盤後 backfill
+    或 evening_fetch 更新)、跳空 % 會用「今天 close」當基準、永遠接近 0% 假象。
+    v2 列表已修 (line 1062-1078)、v1 detail panel 用此函數也要同步。
+    """
     try:
+        from datetime import date as _date
+        _today = _date.today().isoformat()
         con = get_conn(DB, timeout=5)
         r = con.execute(
-            "SELECT close FROM standard_daily_bar WHERE ticker=? ORDER BY trade_date DESC LIMIT 1",
-            (ticker,)
+            "SELECT close FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date < ? "
+            "ORDER BY trade_date DESC LIMIT 1",
+            (ticker, _today)
         ).fetchone()
         con.close()
         return float(r[0]) if r else None
