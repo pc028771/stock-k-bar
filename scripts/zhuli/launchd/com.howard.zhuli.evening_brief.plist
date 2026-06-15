@@ -25,7 +25,7 @@
         <key>PATH</key>
         <string>/Users/howard/.pyenv/shims:/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
         <key>FINMIND_TOKEN</key>
-        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMy0yMyAyMjowODoyOSIsInVzZXJfaWQiOiJwYzAyODc3MSIsImVtYWlsIjoicGMwMjg3NzFAZ21haWwuY29tIiwiaXAiOiIxMTguMTY4LjUyLjEyNiJ9.FDP59dSzQ5zCIAsV5w9dpQ48bWeqJsATYheMFgs_NGk</string>
+        <string>eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoicGMwMjg3NzEiLCJlbWFpbCI6InBjMDI4NzcxQGhvdG1haWwuY29tIiwidG9rZW5fdmVyc2lvbiI6MH0.v-g0kPNYRs3pWQMk_UzjvGYZUcitFnEhRDSZAbpDnHo</string>
     </dict>
 
     <!-- 每週一~五 21:00 -->
