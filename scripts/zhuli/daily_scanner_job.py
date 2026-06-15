@@ -493,6 +493,12 @@ def run_scanners(target_date: str, db_path: Path,
         'institutional_firstbuy': [], 'institutional_swing': [],
         'foreign_buy_on_black_k': [],
         'intraday': [],   # F 當沖前夜篩 (Ch5-1/5-2)
+        # foreign_lead 5 variants (2026-06-15 deploy、regime-conditional)
+        'foreign_lead_v08': [],   # 主訊號
+        'foreign_lead_v06': [],   # 放寬版
+        'foreign_lead_v07': [],   # 拉回承接
+        'foreign_lead_v15': [],   # 重押旗標
+        'foreign_lead_v12_skip': [],  # 反向 skip 警示
     }
 
     # ⚠️ 只放已驗證門檻的 scanner
@@ -765,6 +771,37 @@ def run_scanners(target_date: str, db_path: Path,
         print(f"  [institutional_swing] 找到 {len(results['institutional_swing'])} 檔", flush=True)
     except Exception as _e:
         print(f"  [institutional_swing] 失敗: {_e}", flush=True)
+
+    # ── foreign_lead: 5 variants (2026-06-15 deploy、regime-conditional) ────
+    # ⚠️ Backtest: 2026 H1 WR 70-83%、2024/2025 跨年 fail 36-49%
+    # → 部署為主訊號、但「人工 regime gate」: 老師大盤判讀變強多升才降權
+    print(f"  [foreign_lead] 跑 5 變體...", flush=True)
+    try:
+        from zhuli.entry.foreign_lead import detect as detect_foreign_lead
+        fl_results = detect_foreign_lead(target_date, db_path=db_path)
+        for vid, items in fl_results.items():
+            key = f"foreign_lead_{vid}"
+            for it in items:
+                tk = it['ticker']
+                info = stock_info.get(tk, {"name": "", "industry": ""})
+                results[key].append({
+                    'ticker': tk,
+                    'name': it['name'] or info['name'],
+                    'industry': info['industry'],
+                    'close': it['close'],
+                    'ma10': it['ma10'],
+                    'ma20': it['ma20'],
+                    'foreign_streak_sum': it['foreign_streak_sum'],
+                    'sitc_5d': it['sitc_5d'],
+                    'priority': it['priority'],
+                    'label': it['label'],
+                    'note': it['note'],
+                    'teacher_sectors': TEACHER_SECTOR_MAP.get(tk, []),
+                    'teacher_tier': TEACHER_TIER.get(tk, ''),
+                })
+            print(f"    [foreign_lead_{vid}] {len(items)} 檔", flush=True)
+    except Exception as _e:
+        print(f"  [foreign_lead] 失敗: {_e}", flush=True)
 
     # ── small_structure：改用 run_scan(combined_df, universe='sector_week') ──
     # run_scan 在 watchlist_mode=True 時呼叫 run_watchlist，
