@@ -437,9 +437,15 @@ def _merge_scanner_watchlist() -> tuple[int, int, str]:
             existing_tickers.add(str(item[0]))
 
     added = 0
+    skipped_teacher_skip = 0
     for c in candidates:
         ticker = str(c.get('ticker', ''))
         if not ticker or ticker in existing_tickers:
+            continue
+
+        # 老師明說 skip (e.g. 6/14 拉完/不追/晚了) → 不進 monitor (per user 2026-06-16)
+        if c.get('teacher_skip'):
+            skipped_teacher_skip += 1
             continue
 
         sources = c.get('sources', [])
