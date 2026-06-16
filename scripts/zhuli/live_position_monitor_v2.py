@@ -773,6 +773,9 @@ class MonitorApp(App[None]):
         except Exception:
             pass
 
+        # ── 大盤即時 pct (for plan status check) ────────────────────────────
+        self._taiex_pct: float | None = None
+
         # ── 出貨訊號 tracker + baseline ─────────────────────────────────────
         held_tickers = [str(i.get('ticker', '')) for i in self._held
                         if i.get('ticker')]
@@ -924,7 +927,31 @@ class MonitorApp(App[None]):
             except Exception:
                 pursuit_line = "警示:    —"
 
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}\n{source_line}"
+            # 🗓 Plan 條件 check (只對 PLAN_PRIMARY 內的 ticker)
+            plan_line = ""
+            try:
+                plan_item = None
+                for p in self._plan:
+                    if str(p.get('ticker', '')) == tk:
+                        plan_item = p
+                        break
+                if plan_item:
+                    from datetime import datetime as _dt
+                    _now = _dt.now()
+                    snap = self._live_data.get(tk, {})
+                    status, det = _v1.evaluate_plan_status(
+                        plan_item,
+                        float(snap.get('open') or 0),
+                        float(snap.get('close') or 0),
+                        float(snap.get('prev_close') or 0),
+                        self._taiex_pct,
+                        _now.hour, _now.minute,
+                    )
+                    plan_line = f"\nPlan:    {status} — {det}"
+            except Exception:
+                pass
+
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{plan_line}\n{source_line}"
         except Exception:
             pass
 
@@ -1170,6 +1197,16 @@ class MonitorApp(App[None]):
                     }
             except Exception:
                 pass
+
+        # ── 更新 TAIEX pct (給 plan_status check 用) ────────────────────────
+        try:
+            _taiex_snap = client.get_realtime_snapshot("TAIEX") or {}
+            _t_close = float(_taiex_snap.get('close') or 0)
+            _t_prev  = float(_taiex_snap.get('prev_close') or 0)
+            if _t_close and _t_prev:
+                self._taiex_pct = (_t_close - _t_prev) / _t_prev * 100
+        except Exception:
+            pass
 
     # ── tick (1s 更新 UI) ────────────────────────────────────────────────────
     def _tick(self) -> None:
