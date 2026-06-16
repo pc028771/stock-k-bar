@@ -2641,6 +2641,34 @@ def write_daily_watchlist_json(
                 'boost_reason': ['⭐⭐⭐ 2026 Composite (4 條 stack super signal)'],
             })
 
+    # 🅩 老師明說「拉完 / 不追 / 晚了」標的 — 強制降權 + 標 ⛔
+    # 載入 teacher_skip_20260614.json (or 最新 skip file)
+    teacher_skip: dict[str, dict] = {}
+    skip_file = _REPO / "docs" / "主力大課程" / "teacher_skip_20260614.json"
+    if skip_file.exists():
+        try:
+            _skip_data = _json.loads(skip_file.read_text(encoding='utf-8'))
+            for tk, info in _skip_data.get('skip_explicit', {}).items():
+                if tk.startswith('_'):
+                    continue
+                teacher_skip[tk] = {
+                    'reason': info.get('reason', ''),
+                    'quote': info.get('quote', ''),
+                    'tier': info.get('tier', 'explicit_skip'),
+                }
+        except Exception as _e:
+            print(f"  [teacher_skip] 載入失敗: {_e}", flush=True)
+
+    # 對 candidates 標記、把 skip 命中的降到 priority 0 (排在最後 + 警示)
+    for c in candidates:
+        if c['ticker'] in teacher_skip:
+            info = teacher_skip[c['ticker']]
+            c['priority'] = 0  # 降到最後
+            c['teacher_skip'] = True
+            c['teacher_skip_reason'] = info['reason']
+            c['teacher_skip_quote'] = info['quote']
+            c['note'] = f"⛔ 老師 6/14 明說「{info['reason']}」{('、' + c['note']) if c.get('note') else ''}"
+
     # 依 priority 降冪、composite 優先、ticker 升冪排序
     candidates.sort(key=lambda c: (
         -c['priority'],
@@ -2648,7 +2676,7 @@ def write_daily_watchlist_json(
         c['ticker'],
     ))
 
-    # ⛔ Skip 警示清單 (反向訊號、backtest 達標反向)
+    # ⛔ Skip 警示清單 (反向訊號、backtest 達標反向 + 老師明說)
     skip_warnings = []
     for it in results.get('foreign_lead_v12_skip', []):
         skip_warnings.append({
@@ -2657,6 +2685,23 @@ def write_daily_watchlist_json(
             'reason': 'v12 外資+投信背離',
             'note': it.get('note', ''),
             'evidence': '2024 backtest WR 24.9% (n=197 / 102 ticker / 10 month) = 三維達標反向訊號',
+        })
+    # 老師明說 skip (即使沒命中其他 detector 也列、提醒)
+    for tk, info in teacher_skip.items():
+        nm_row = None
+        try:
+            with get_conn(db_path) as _con_n:
+                nm_row = _con_n.execute(
+                    "SELECT stock_name FROM stock_info WHERE ticker=? LIMIT 1", (tk,)
+                ).fetchone()
+        except Exception:
+            pass
+        skip_warnings.append({
+            'ticker': tk,
+            'name': nm_row[0] if nm_row else '',
+            'reason': f"老師 6/14: {info['reason']}",
+            'note': info.get('quote', ''),
+            'evidence': '老師直播明說、teacher_skip_20260614.json',
         })
 
     payload = {

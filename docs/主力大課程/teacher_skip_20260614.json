@@ -1,0 +1,75 @@
+{
+  "_meta": {
+    "source": "老師 6/14 直播 + 6/14 PressPlay 文章",
+    "extraction_date": "2026-06-16",
+    "valid_until_regime_change": "老師下次直播 / line 明示「可以追」OR 大盤 regime 改變才解除",
+    "reference": "docs/主力大課程/全方位培訓筆記/2026-06-14_伺機而動聚焦選股_直播解讀.md",
+    "memory_ref": ["feedback_course_time_priority", "feedback_warning_sectors_exclusion"]
+  },
+
+  "skip_explicit": {
+    "_note": "老師 6/14 直播明確說「拉完 / 不追 / 晚了 / 不該追」的個股、命中 scanner 應自動 ⛔ 警示",
+    "2317": {
+      "name": "鴻海",
+      "reason": "拉完、不追",
+      "quote": "「盤整啊、這就拉完了。」(Q7 直播 01:11:00)",
+      "tier": "explicit_skip"
+    },
+    "3231": {
+      "name": "緯創",
+      "reason": "晚了",
+      "quote": "「2317 拉完、不追；同族群 3231 緯創若早一根進會更舒服」",
+      "tier": "explicit_skip"
+    },
+    "2382": {
+      "name": "廣達",
+      "reason": "晚了",
+      "quote": "同族群、早一根進會更舒服",
+      "tier": "explicit_skip"
+    },
+    "4956": {
+      "name": "廣達 (註)",
+      "reason": "ticker 可能誤、應為 2382 廣達",
+      "tier": "explicit_skip"
+    },
+    "3706": {
+      "name": "神達",
+      "reason": "拉完了",
+      "quote": "「神達」（拉完了）",
+      "tier": "explicit_skip"
+    }
+  },
+
+  "skip_warning_sector": {
+    "_note": "警示族群 (5/17 起連續 4 週警示)、6/14 文章「警示族群門檻提高」",
+    "PCB": ["8046", "3037", "3189"],
+    "散熱": [],
+    "連接器": []
+  },
+
+  "skip_distribution_pattern": {
+    "_note": "老師 6/14 警告的拉高出貨型態案例 (進場可虧大、非永久 skip 但戒備)",
+    "2492": {
+      "name": "華新科",
+      "warning": "禮拜五氛圍很好一開盤進去、就直接黑K最高點",
+      "valid_until": "2026-06-20"
+    },
+    "2383": {
+      "name": "台光電",
+      "warning": "開超高、買兩張就直接虧 50 萬一天",
+      "valid_until": "2026-06-20"
+    }
+  },
+
+  "conditional_wait_retrace": {
+    "_note": "老師說「主推但週一二要等回踩、不追禮拜五漲停」、命中時需等回踩才能進",
+    "3402": {"name": "漢唐", "reason": "廠務主推、6/13 已漲停、等 6/16-17 回踩"},
+    "8085": {"name": "福鋼", "reason": "廠務、同 3402"}
+  },
+
+  "regime_signal": {
+    "buy_only_green_K": true,
+    "reason": "老師 6/14「現在追紅會很慘、即便對的股票也是買綠」",
+    "valid_until_regime_change": "老師下次明說「可以追紅」"
+  }
+}
