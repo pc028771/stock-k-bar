@@ -203,14 +203,7 @@ WATCH = [
         'sector': '被動元件',
         'note': '⭐⭐⭐ 6/14 被動 60% 主流 (與 2375 並列)、文章 + 直播雙重背書'
     },
-    {
-        'ticker': '6239', 'name': '力成',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/13 OSAT',
-        'sector': '半導體封測',
-        'note': '⭐⭐⭐ 6/13 OSAT 黃金期 + 一線滿載漲 10%、處置 5/29-6/11 已過'
-    },
+    # 6239 力成 已升級為「6/16 本週重點」、移至頂部 (line 137)
     {
         'ticker': '3264', 'name': '欣銓',
         'ref_close': 0, 'stop': None,
@@ -436,8 +429,15 @@ def _merge_scanner_watchlist() -> tuple[int, int, str]:
         elif isinstance(item, (tuple, list)) and len(item) > 0:
             existing_tickers.add(str(item[0]))
 
+    # HELD ticker set (避免 scanner merge 把已持倉的也加進 WATCH、造成 textual DuplicateKey)
+    held_tickers: set[str] = set()
+    for h in HELD:
+        if isinstance(h, dict) and h.get('ticker'):
+            held_tickers.add(str(h['ticker']))
+
     added = 0
     skipped_teacher_skip = 0
+    skipped_held = 0
     for c in candidates:
         ticker = str(c.get('ticker', ''))
         if not ticker or ticker in existing_tickers:
@@ -446,6 +446,11 @@ def _merge_scanner_watchlist() -> tuple[int, int, str]:
         # 老師明說 skip (e.g. 6/14 拉完/不追/晚了) → 不進 monitor (per user 2026-06-16)
         if c.get('teacher_skip'):
             skipped_teacher_skip += 1
+            continue
+
+        # 已持倉 (HELD) 的 ticker 不該再進 WATCH (避免重複顯示 + textual DuplicateKey)
+        if ticker in held_tickers:
+            skipped_held += 1
             continue
 
         sources = c.get('sources', [])
