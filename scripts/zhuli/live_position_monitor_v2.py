@@ -907,7 +907,24 @@ class MonitorApp(App[None]):
             if sector:
                 src_parts.append(sector)
             source_line = f"來源:    {' | '.join(src_parts)}" if src_parts else "來源:    —"
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{source_line}"
+
+            # 🎯 老師族群對齊度 (v1 helper)
+            tier_n, tier_label = _v1.get_teacher_tier(tk)
+            tier_line = f"族群:    {tier_label}"
+
+            # ⛔ 不該追警示 (v1 helper、用 snap + DB prev_close)
+            try:
+                snap = self._live_data.get(tk, {})
+                open_ = float(snap.get('open') or 0)
+                close_ = float(snap.get('close') or 0)
+                prev_close = float(snap.get('prev_close') or 0)
+                ma10 = _v1.load_ma10(tk)
+                warns = _v1.compute_pursuit_warnings(open_, close_, prev_close, ma10)
+                pursuit_line = f"警示:    {' | '.join(warns)}" if warns else "警示:    —"
+            except Exception:
+                pursuit_line = "警示:    —"
+
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}\n{source_line}"
         except Exception:
             pass
 

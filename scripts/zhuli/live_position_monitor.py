@@ -66,6 +66,75 @@ DB = MAIN_DB
 # 編輯區 (每天晚上鎖 plan 時改)
 # ─────────────────────────────────────────────────────────────────────────
 
+# 🎯 老師 6/15-6/16 個人持倉族群順序 (per memory feedback_teacher_personal_holdings_20260616)
+# 1=重壓、6=輕配置；不在表 = 不對齊老師 6 族群
+TEACHER_PERSONAL_TIERS: dict[str, tuple[int, str]] = {
+    # Tier 1: 成熟製程 (聯電系)
+    '2303': (1, '🥇 成熟製程'),
+    '3264': (1, '🥇 成熟製程+封測'),
+    '6257': (1, '🥇 成熟製程+封測'),
+    '3265': (1, '🥇 成熟製程+封測'),
+    # Tier 2: 光學鏡頭
+    '3008': (2, '🥈 光學鏡頭'),
+    '4938': (2, '🥈 光學鏡頭'),
+    '3406': (2, '🥈 光學鏡頭'),
+    '6209': (2, '🥈 光學鏡頭'),
+    # Tier 3: 矽晶圓
+    '6182': (3, '🥉 矽晶圓'),
+    '3532': (3, '🥉 矽晶圓'),
+    '6488': (3, '🥉 矽晶圓'),
+    # Tier 4: 面板
+    '3481': (4, '4️⃣ 面板'),
+    '3149': (4, '4️⃣ 面板'),
+    # Tier 5: ABF
+    '8046': (5, '5️⃣ ABF'),
+    '1303': (5, '5️⃣ ABF/CCL'),
+    '3037': (5, '5️⃣ ABF'),
+    '3189': (5, '5️⃣ ABF'),
+    # Tier 6: 被動
+    '2375': (6, '6️⃣ 被動'),
+    '2472': (6, '6️⃣ 被動'),
+    '2327': (6, '6️⃣ 被動'),
+    '2492': (6, '6️⃣ 被動'),
+    '6173': (6, '6️⃣ 被動'),
+    '3026': (6, '6️⃣ 被動'),
+    '6449': (6, '6️⃣ 被動'),
+}
+
+
+def get_teacher_tier(ticker: str) -> tuple[int | None, str]:
+    """回 (tier 1-6 or None, label) — 不在老師個人族群 = None."""
+    if ticker in TEACHER_PERSONAL_TIERS:
+        return TEACHER_PERSONAL_TIERS[ticker]
+    return (None, '⚠️ 不對齊老師 6 族群')
+
+
+def compute_pursuit_warnings(
+    open_: float | None, close_: float | None,
+    prev_close: float | None, ma10: float | None,
+) -> list[str]:
+    """計算「不該追」警示 — 紅 K 大漲 / 跳空 / 過熱。
+
+    回傳 list[str]、若無警示回 []。
+    """
+    warnings: list[str] = []
+    # 1. 紅 K 收紅 ≥ +3% (老師「追紅會慘」紅線)
+    if open_ and close_ and prev_close:
+        pct = (close_ - prev_close) / prev_close * 100
+        if close_ > open_ and pct >= 3:
+            warnings.append(f"⛔ 紅 K 收 {pct:+.1f}% (買綠不買紅)")
+        # 2. 跳空 +3%+ 紅線 #1
+        gap = (open_ - prev_close) / prev_close * 100 if prev_close else 0
+        if gap >= 3:
+            warnings.append(f"⛔ 跳空 {gap:+.1f}% (紅線 #1)")
+    # 3. 距 MA10 > +10% 紅線 #2
+    if close_ and ma10:
+        dist = (close_ - ma10) / ma10 * 100
+        if dist > 10:
+            warnings.append(f"⛔ 距 MA10 {dist:+.1f}% > +10% (紅線 #2)")
+    return warnings
+
+
 # 已進場部位 (Phase 2 P&L 監控)
 # 格式: dict (必填: ticker, name, cost, shares, stop; 選填: tactic, priority, source, sector, note)
 # 舊 tuple (ticker, name, cost, shares, stop) 自動 convert
