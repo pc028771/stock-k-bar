@@ -109,6 +109,44 @@ def get_teacher_tier(ticker: str) -> tuple[int | None, str]:
     return (None, '⚠️ 不對齊老師 6 族群')
 
 
+def evaluate_plan_status(
+    plan_item: dict,
+    open_: float | None, close_: float | None, prev_close: float | None,
+    taiex_pct: float | None,
+    now_hour: int, now_minute: int,
+) -> tuple[str, str]:
+    """評估 PLAN_PRIMARY 進場條件、回 (status_icon, details)。
+
+    status: 🟢 ready / 🟡 waiting_time / 🟠 waiting_condition / 🔴 skip_triggered
+    """
+    stop = float(plan_item.get('stop') or 0)
+    target = float(plan_item.get('target_price') or 0)
+
+    # 1. 時間 gate (user 鎖 plan 紀律: 13:00-13:25 才進場)
+    if now_hour < 13:
+        return ('🟡 waiting_time', f"等 13:00+ (現 {now_hour:02d}:{now_minute:02d})")
+    if now_hour > 13 or (now_hour == 13 and now_minute >= 25):
+        return ('🟡 waiting_time', "已過 13:25 試撮、隔日再評估")
+
+    # 2. Skip 觸發 (紅線 #1 #2 + stop)
+    if open_ and prev_close:
+        gap = (open_ - prev_close) / prev_close * 100
+        if gap >= 3:
+            return ('🔴 skip', f"開盤跳空 {gap:+.1f}% ≥ +3% (紅線 #1)")
+    if close_ and stop and close_ < stop:
+        return ('🔴 skip', f"現價 ${close_:.2f} < stop ${stop} 跌破")
+    if taiex_pct is not None and taiex_pct < -2:
+        return ('🔴 skip', f"大盤殺 {taiex_pct:+.1f}% < -2%")
+
+    # 3. Ready condition
+    if close_ and target:
+        if close_ >= target * 0.99:
+            return ('🟢 ready', f"close ${close_:.2f} ≈ target ${target}、可執行 1 張")
+        return ('🟠 waiting', f"等 close ≥ ${target} (現 ${close_:.2f})")
+
+    return ('🟡 waiting', "資料不足、純觀察")
+
+
 def compute_pursuit_warnings(
     open_: float | None, close_: float | None,
     prev_close: float | None, ma10: float | None,
