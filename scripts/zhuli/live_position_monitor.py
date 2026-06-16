@@ -82,12 +82,12 @@ HELD = [
     },
     {
         'ticker': '2885', 'name': '元大金',
-        'cost': 58.0, 'shares': 10000, 'stop': 62.2,
+        'cost': 58.0, 'shares': 10000, 'stop': 64.6,
         'strategy_mode': 'core',       # 核心配置、結構底 trailing
         'tactic': '配置', 'priority': 1,
         'source': '配置部位',
         'sector': '金融',
-        'note': '6/15 trailing ↑ $62.2 (6/10 新黑K低、已脫離成本 +7%、原 $55.71)'
+        'note': '6/16 trailing ↑ $64.6 (6/15 新黑K低、已脫離成本 +11%、原 $62.2)'
     },
     {
         'ticker': '3481', 'name': '群創',
