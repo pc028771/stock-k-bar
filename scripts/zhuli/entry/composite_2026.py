@@ -5,13 +5,16 @@
   - 出現時 = 高 conviction signal、可直接進 Top3 P3
   - 老師大盤 call regime 變化時 (殺盤期 / 趨勢改變) 自動降權
 
-4 條 stack 物理意義:
+5 條 stack 物理意義:
   1. **老師 universe** — 老師明示族群 / picks 內、strategic alignment
   2. **籌碼共識** — foreign_lead 任一 (v06/v07/v08/v15) 或 institutional_swing 命中
   3. **大盤 regime gate** — TAIEX 20d return ≥ -10%（排除殺盤期）
   4. **位階不過熱** — 距 MA60 < +30%（避免追飆股末端）
+  5. **last-mile 外資不轉空** — 近 2 天外資累計 ≥ -500 張（per memory
+     feedback_chip_trend_not_aggregate「last-mile 比 aggregate 重要」、
+     避免「籌碼累積但 last-mile 主力撤」假訊號）
 
-物理意義一句話: 「老師明示族群 + 籌碼累積中 + 大盤健康 + 個股仍在合理位階」= 主力共識輪動進場時點。
+物理意義一句話: 「老師明示族群 + 籌碼累積中 + 大盤健康 + 個股仍在合理位階 + 外資 last-mile 沒撤」= 主力共識輪動進場時點。
 
 Backtest 預期: 6/12 整理盤可能 0 hit、強多升段 (4 月) 預期 2-3 檔/週、命中後 hold ~10 天 +5-15%。
 """
@@ -151,7 +154,7 @@ def detect(
             if check_inst_swing_hit(con, tk, target_date):
                 chip_candidates.setdefault(tk, []).append("institutional_swing")
 
-        # 1+4. 老師 universe + 位階不過熱
+        # 1+4+5. 老師 universe + 位階不過熱 + last-mile 外資 check
         hits: list[dict] = []
         for tk, sources in chip_candidates.items():
             if tk not in teacher_universe:
@@ -171,6 +174,18 @@ def detect(
             if dist_ma60 > 30:
                 continue  # 距 MA60 > +30%、過熱
 
+            # ⭐ Condition 5: last-mile 外資不轉空 (近 2 個 trading 日累計 ≥ -500)
+            # per memory feedback_chip_trend_not_aggregate
+            lm_rows = con.execute(
+                """SELECT foreign_net FROM institutional_investors
+                   WHERE ticker=? AND trade_date <= ?
+                   ORDER BY trade_date DESC LIMIT 2""",
+                (tk, target_date),
+            ).fetchall()
+            foreign_last_2d = sum(r[0] or 0 for r in lm_rows)
+            if foreign_last_2d < -500:
+                continue  # last-mile 外資撤、訊號模糊、skip
+
             # name
             nm = con.execute(
                 "SELECT stock_name FROM stock_info WHERE ticker=? LIMIT 1", (tk,)
@@ -184,12 +199,14 @@ def detect(
                 "sources": sources,
                 "n_sources": len(sources),
                 "taiex_20d_ret": round(taiex_20d, 1),
+                "foreign_last_2d": round(foreign_last_2d, 0),
                 "priority": 3,
                 "label": "⭐⭐⭐ 2026 Composite",
                 "tier_tag": "2026_specialized",
                 "note": (
-                    f"4 條 stack 全過: 老師 universe + {len(sources)} 籌碼共識 "
-                    f"+ TAIEX 20d {taiex_20d:+.1f}% + 距 MA60 {dist_ma60:+.1f}%"
+                    f"5 條 stack 全過: 老師 universe + {len(sources)} 籌碼共識 "
+                    f"+ TAIEX 20d {taiex_20d:+.1f}% + 距 MA60 {dist_ma60:+.1f}% "
+                    f"+ 外資 last-2d {foreign_last_2d:+.0f} 張"
                 ),
             })
 
