@@ -37,7 +37,6 @@ _REPO = Path(__file__).parent.parent.parent
 _DB = MAIN_DB
 _CACHE_DIR = Path.home() / ".zhuli_cache" / "broker"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 
 # ── 分點 pattern ───────────────────────────────────────────────────────────────
 DAGE_PATTERN = re.compile(r"凱基.*站前")

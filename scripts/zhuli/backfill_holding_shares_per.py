@@ -16,18 +16,18 @@ from zhuli.db import get_conn
 
 import os
 import sqlite3
-import time
+import sys
 from pathlib import Path
 
-import requests
+_common_parent = Path(__file__).parent.parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 # === 設定 ===
 _DB_PATH = Path(os.environ.get("DB_PATH", "~/.four_seasons/data.sqlite")).expanduser()
-_FINMIND_TOKEN = os.environ.get("FINMIND_TOKEN", "")
-_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 _START_DATE = "2024-01-01"
 _END_DATE = "2026-05-20"
-_SLEEP_PER_CALL = 0.3  # 保守 throttle (sponsor tier ~600 calls/hr)
 
 # Ticker pool：watchlist 5 檔 + _GROUP_TICKERS 所有 ticker + 主力大老師當日焦點
 _WATCHLIST_TICKERS = {"2472", "6139", "3663", "8064", "8027", "3149"}
@@ -92,25 +92,14 @@ def ensure_table(conn: sqlite3.Connection) -> None:
 
 def fetch_one_ticker(ticker: str) -> list[dict]:
     """從 FinMind 拉一檔完整期間持股集中度資料."""
-    if not _FINMIND_TOKEN:
-        raise ValueError("FINMIND_TOKEN 環境變數未設定")
-    r = requests.get(
-        _FINMIND_URL,
-        params={
-            "dataset": "TaiwanStockHoldingSharesPer",
-            "data_id": ticker,
-            "start_date": _START_DATE,
-            "end_date": _END_DATE,
-            "token": _FINMIND_TOKEN,
-        },
-        timeout=60,
+    df = get_client().fetch_dataset(
+        dataset="TaiwanStockHoldingSharesPer",
+        data_id=ticker,
+        start_date=_START_DATE,
+        end_date=_END_DATE,
+        bypass_cache=True,
     )
-    r.raise_for_status()
-    payload = r.json()
-    if payload.get("status") != 200:
-        msg = payload.get("msg", "unknown error")
-        raise RuntimeError(f"FinMind API error: {msg}")
-    return payload.get("data", [])
+    return df.to_dict("records") if not df.empty else []
 
 
 def upsert_ticker_data(conn: sqlite3.Connection, rows: list[dict]) -> int:
@@ -132,14 +121,9 @@ def upsert_ticker_data(conn: sqlite3.Connection, rows: list[dict]) -> int:
 
 
 def main() -> None:
-    if not _FINMIND_TOKEN:
-        print("❌ 請設定環境變數 FINMIND_TOKEN")
-        return
-
     print(f"DB: {_DB_PATH}")
     print(f"Ticker pool: {len(_ALL_TICKERS)} 檔 (watchlist 5 + group tickers)")
     print(f"期間: {_START_DATE} ~ {_END_DATE}")
-    print(f"Throttle: sleep {_SLEEP_PER_CALL}s / call")
     print()
 
     with get_conn(_DB_PATH, readonly=False, timeout=30) as conn:
@@ -164,7 +148,6 @@ def main() -> None:
         except Exception as exc:
             errors.append(f"{ticker}: {exc}")
             print(f"\n  ⚠️  {ticker} 失敗: {exc}")
-        time.sleep(_SLEEP_PER_CALL)
 
     print()
     print(f"完成！共寫入 {total_rows} rows，{len(errors)} 個失敗")

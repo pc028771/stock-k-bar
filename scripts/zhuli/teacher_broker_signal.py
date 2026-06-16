@@ -33,7 +33,6 @@ import requests
 
 _CACHE_DIR = Path.home() / ".zhuli_cache" / "broker"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 
 # 老師分點 patterns（match against securities_trader name）
 # Tier 1 = 特別被老師說「很強」（管錢哥、站前哥）

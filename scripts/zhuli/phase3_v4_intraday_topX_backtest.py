@@ -49,6 +49,7 @@ for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
 
 from zhuli.db import get_conn, MAIN_DB
 from zhuli.intraday_stage_helper import StageTrigger, _get_ma10, _DB as _HELPER_DB  # noqa
+from common.finmind_client import get_client
 
 _DB = MAIN_DB
 _TMP = Path("/tmp")
@@ -121,20 +122,6 @@ def parse_scanner_candidates(md_path: Path) -> list[str]:
 
 # ── FinMind 抓取 (5K) ─────────────────────────────────────────────────────────
 
-_finmind_calls = 0
-_finmind_call_ts = time.time()
-
-
-def _rate_limit():
-    global _finmind_calls, _finmind_call_ts
-    _finmind_calls += 1
-    if _finmind_calls % 100 == 0:
-        print(f"  [RL] {_finmind_calls} FinMind calls, sleep 1s")
-        time.sleep(1.0)
-        _finmind_call_ts = time.time()
-    else:
-        time.sleep(0.12)
-
 
 def fetch_finmind_kbar_5m(ticker: str, target_date: str) -> pd.DataFrame:
     """從 FinMind 抓 5 分 K (含 cache)。"""
@@ -154,41 +141,18 @@ def fetch_finmind_kbar_5m(ticker: str, target_date: str) -> pd.DataFrame:
         except Exception:
             pass
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        print("[WARN] FINMIND_TOKEN 未設定，跳過 FinMind 抓取")
+    try:
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=ticker,
+            start_date=target_date,
+            end_date=target_date,
+            bypass_cache=True,
+        )
+    except Exception as e:
+        print(f"  [ERR] FinMind {ticker} {target_date}: {e}")
         return pd.DataFrame()
 
-    _rate_limit()
-    for attempt in range(3):
-        try:
-            import requests
-            r = requests.get(
-                "https://api.finmindtrade.com/api/v4/data",
-                params={
-                    "dataset": "TaiwanStockKBar",
-                    "data_id": ticker,
-                    "start_date": target_date,
-                    "end_date": target_date,
-                    "token": token,
-                },
-                timeout=30,
-            )
-            r.raise_for_status()
-            data = r.json()
-            if data.get("status") != 200 or not data.get("data"):
-                cache_file.write_text("[]")
-                return pd.DataFrame()
-            break
-        except Exception as e:
-            if attempt == 2:
-                print(f"  [ERR] FinMind {ticker} {target_date}: {e}")
-                return pd.DataFrame()
-            time.sleep(2 ** attempt)
-    else:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(data["data"])
     if df.empty:
         cache_file.write_text("[]")
         return pd.DataFrame()
@@ -247,40 +211,18 @@ def fetch_finmind_kbar_1m(ticker: str, target_date: str) -> pd.DataFrame:
         except Exception:
             pass
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
+    try:
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=ticker,
+            start_date=target_date,
+            end_date=target_date,
+            bypass_cache=True,
+        )
+    except Exception as e:
+        print(f"  [ERR] FinMind 1m {ticker} {target_date}: {e}")
         return pd.DataFrame()
 
-    _rate_limit()
-    for attempt in range(3):
-        try:
-            import requests
-            r = requests.get(
-                "https://api.finmindtrade.com/api/v4/data",
-                params={
-                    "dataset": "TaiwanStockKBar",
-                    "data_id": ticker,
-                    "start_date": target_date,
-                    "end_date": target_date,
-                    "token": token,
-                },
-                timeout=30,
-            )
-            r.raise_for_status()
-            data = r.json()
-            if data.get("status") != 200 or not data.get("data"):
-                cache_file.write_text("[]")
-                return pd.DataFrame()
-            break
-        except Exception as e:
-            if attempt == 2:
-                print(f"  [ERR] FinMind 1m {ticker} {target_date}: {e}")
-                return pd.DataFrame()
-            time.sleep(2 ** attempt)
-    else:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(data["data"])
     if df.empty:
         cache_file.write_text("[]")
         return pd.DataFrame()

@@ -17,8 +17,14 @@ from zhuli.db import get_conn, MAIN_DB
 import argparse
 import json
 import sqlite3
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_common_parent = Path(__file__).parent.parent.parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 DB = MAIN_DB
 _REPO = Path(__file__).parent.parent.parent.parent  # stock-k-bar root
@@ -79,25 +85,14 @@ def _get_taiex_pct(con: sqlite3.Connection, date: str) -> float | None:
 
     # Layer 2: FinMind API (DB 沒有最新資料時)
     try:
-        import os
-        import requests
-        token = os.environ.get("FINMIND_TOKEN", "")
-        if not token:
-            return None
-        # 需要 date 和前一交易日 close
-        r = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={
-                "dataset": "TaiwanStockPrice",
-                "data_id": "TAIEX",
-                "start_date": _prev_month(date),
-                "end_date": date,
-                "token": token,
-            },
-            timeout=15,
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockPrice",
+            data_id="TAIEX",
+            start_date=_prev_month(date),
+            end_date=date,
+            bypass_cache=True,
         )
-        data = r.json()
-        rows = data.get("data", [])
+        rows = df.to_dict("records") if not df.empty else []
         if len(rows) < 2:
             return None
         rows.sort(key=lambda x: x["date"])
@@ -315,24 +310,16 @@ def backtest(
     db_max = max(taiex_map.keys()) if taiex_map else "1970-01-01"
     if db_max < end:
         try:
-            import os
-            import requests
-            token = os.environ.get("FINMIND_TOKEN", "")
-            if token:
-                r = requests.get(
-                    "https://api.finmindtrade.com/api/v4/data",
-                    params={
-                        "dataset": "TaiwanStockPrice",
-                        "data_id": "TAIEX",
-                        "start_date": _prev_month(start) if start > _prev_month(start) else start,
-                        "end_date": end,
-                        "token": token,
-                    },
-                    timeout=20,
-                )
-                api_data = r.json().get("data", [])
-                for row in api_data:
-                    taiex_map[row["date"]] = row["close"]
+            df = get_client().fetch_dataset(
+                dataset="TaiwanStockPrice",
+                data_id="TAIEX",
+                start_date=_prev_month(start) if start > _prev_month(start) else start,
+                end_date=end,
+                bypass_cache=True,
+            )
+            api_data = df.to_dict("records") if not df.empty else []
+            for row in api_data:
+                taiex_map[row["date"]] = row["close"]
         except Exception as e:
             print(f"  [TAIEX API fallback] 失敗: {e}")
 

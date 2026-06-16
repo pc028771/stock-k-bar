@@ -10,18 +10,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
-import time
 from pathlib import Path
-
-import requests
 
 _WORKTREE = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_WORKTREE / "scripts"))
 from kline.bars import DEFAULT_DB_PATH
 
 from zhuli.db import get_conn
+from common.finmind_client import get_client
 
 def main():
     ap = argparse.ArgumentParser()
@@ -29,10 +26,8 @@ def main():
     ap.add_argument("--end", default="2026-05-19")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--tickers", help="comma-separated")
-    ap.add_argument("--sleep-every", type=int, default=10, help="sleep 1s every N tickers")
+    ap.add_argument("--sleep-every", type=int, default=10, help="(deprecated) rate limit now handled by common.finmind_client")
     args = ap.parse_args()
-
-    token = os.environ["FINMIND_TOKEN"]
 
     # 取得 ticker 清單
     with get_conn(DEFAULT_DB_PATH, readonly=False, timeout=30) as conn:
@@ -61,21 +56,14 @@ def main():
         fails = []
         for i, t in enumerate(tickers, 1):
             try:
-                r = requests.get(
-                    "https://api.finmindtrade.com/api/v4/data",
-                    params={
-                        "dataset": "TaiwanStockShareholding",
-                        "data_id": t,
-                        "start_date": args.start,
-                        "end_date": args.end,
-                        "token": token,
-                    },
-                    timeout=20,
+                df = get_client().fetch_dataset(
+                    dataset="TaiwanStockShareholding",
+                    data_id=t,
+                    start_date=args.start,
+                    end_date=args.end,
+                    bypass_cache=True,
                 )
-                if r.status_code != 200:
-                    fails.append((t, r.status_code))
-                    continue
-                d = r.json().get("data", [])
+                d = df.to_dict("records") if not df.empty else []
                 rows = [
                     (t, row["date"], row["NumberOfSharesIssued"])
                     for row in d
@@ -92,8 +80,6 @@ def main():
                     print(f"  [{i}/{len(tickers)}] {t}: {len(rows)} rows (cumulative {total:,})")
             except Exception as exc:
                 fails.append((t, str(exc)[:50]))
-            if i % args.sleep_every == 0:
-                time.sleep(1)
         conn.commit()
 
     print(f"\nDone: {total:,} rows inserted")

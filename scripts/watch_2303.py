@@ -11,17 +11,16 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from datetime import datetime, date
 from pathlib import Path
 
 import pandas as pd
-import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, "/Users/howard/Repository/stock-analysis-system")
+from common.finmind_client import get_client
 
 TICKER = "2303"
 NAME = "聯電"
@@ -67,17 +66,16 @@ def fetch_intraday() -> dict | None:
 
     # 2. FinMind 1 分 K
     try:
-        token = os.environ["FINMIND_TOKEN"]
         today = date.today().isoformat()
-        r = requests.get("https://api.finmindtrade.com/api/v4/data", params={
-            "dataset": "TaiwanStockKBar", "data_id": TICKER,
-            "start_date": today, "end_date": today,
-            "token": token,
-        }, timeout=20)
-        data = r.json().get("data", [])
-        if not data:
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=TICKER,
+            start_date=today,
+            end_date=today,
+            bypass_cache=True,
+        )
+        if df.empty:
             return None
-        df = pd.DataFrame(data)
         return {
             "src": f"FinMind 1m K (×{len(df)} bars, last {df['minute'].iloc[-1]})",
             "open": float(df["open"].iloc[0]),

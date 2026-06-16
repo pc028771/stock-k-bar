@@ -23,24 +23,20 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+from common.finmind_client import get_client
+
 
 def fetch_data(ticker: str, target_date: str) -> tuple[pd.DataFrame, pd.DataFrame, float]:
     """抓 5m K + 1m K + 前日收盤。"""
-    import os, requests
-
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        raise SystemExit("FINMIND_TOKEN 未設定")
-
     # 抓 1m K (target date)
-    r = requests.get(
-        "https://api.finmindtrade.com/api/v4/data",
-        params={"dataset": "TaiwanStockKBar", "data_id": ticker,
-                "start_date": target_date, "end_date": target_date,
-                "token": token},
-        timeout=30,
+    df_raw = get_client().fetch_dataset(
+        dataset="TaiwanStockKBar",
+        data_id=ticker,
+        start_date=target_date,
+        end_date=target_date,
+        bypass_cache=True,
     )
-    d = r.json().get("data", [])
+    d = df_raw.to_dict("records") if not df_raw.empty else []
     if not d:
         raise SystemExit(f"無 1m K 資料：{ticker} {target_date}")
     k1m = pd.DataFrame(d)
@@ -62,14 +58,14 @@ def fetch_data(ticker: str, target_date: str) -> tuple[pd.DataFrame, pd.DataFram
     prev_close = 0.0
     for back in range(1, 10):
         d_prev = (d_dt - timedelta(days=back)).strftime("%Y-%m-%d")
-        r2 = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={"dataset": "TaiwanStockPrice", "data_id": ticker,
-                    "start_date": d_prev, "end_date": d_prev,
-                    "token": token},
-            timeout=30,
+        df_p = get_client().fetch_dataset(
+            dataset="TaiwanStockPrice",
+            data_id=ticker,
+            start_date=d_prev,
+            end_date=d_prev,
+            bypass_cache=True,
         )
-        dd = r2.json().get("data", [])
+        dd = df_p.to_dict("records") if not df_p.empty else []
         if dd:
             prev_close = float(dd[0]["close"])
             break
@@ -125,19 +121,17 @@ def main():
     print()
 
     # 取近 80 天日 K（給 B5-3）
-    import os, requests
-    token = os.environ["FINMIND_TOKEN"]
     from datetime import datetime, timedelta
     d_dt = datetime.strptime(args.date, "%Y-%m-%d")
     start = (d_dt - timedelta(days=140)).strftime("%Y-%m-%d")
-    r = requests.get(
-        "https://api.finmindtrade.com/api/v4/data",
-        params={"dataset": "TaiwanStockPrice", "data_id": args.ticker,
-                "start_date": start, "end_date": args.date,
-                "token": token},
-        timeout=30,
+    df_d = get_client().fetch_dataset(
+        dataset="TaiwanStockPrice",
+        data_id=args.ticker,
+        start_date=start,
+        end_date=args.date,
+        bypass_cache=True,
     )
-    dd = r.json().get("data", [])
+    dd = df_d.to_dict("records") if not df_d.empty else []
     daily_closes = pd.Series(
         [float(x["close"]) for x in dd],
         index=pd.to_datetime([x["date"] for x in dd]),

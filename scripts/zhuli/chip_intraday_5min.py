@@ -7,12 +7,17 @@
 """
 from __future__ import annotations
 
-import os
+import sys
 from datetime import date, datetime
+from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-import requests
+
+_common_parent = Path(__file__).parent.parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 
 def _fetch_1min_kbar(ticker: str, target_date: str) -> pd.DataFrame:
@@ -20,25 +25,16 @@ def _fetch_1min_kbar(ticker: str, target_date: str) -> pd.DataFrame:
 
     Returns DataFrame，欄位：date, minute, open, high, low, close, volume
     """
-    token = os.environ.get("FINMIND_TOKEN", "")
     try:
-        r = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={
-                "dataset": "TaiwanStockKBar",
-                "data_id": ticker,
-                "start_date": target_date,
-                "end_date": target_date,
-                "token": token,
-            },
-            timeout=20,
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=ticker,
+            start_date=target_date,
+            end_date=target_date,
+            bypass_cache=True,
         )
-        r.raise_for_status()
-        payload = r.json()
-        records = payload.get("data", [])
-        if not records:
+        if df.empty:
             return pd.DataFrame()
-        df = pd.DataFrame(records)
         return df
     except Exception as exc:
         raise RuntimeError(f"FinMind API 失敗: {exc}") from exc

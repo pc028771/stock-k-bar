@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -12,6 +13,11 @@ import shutil
 
 from breakout_attack_strategy_check import MIN_AVG_VOLUME_20, MIN_CLOSE, add_trade_fields
 from kline_course_backtest import add_features, load_bars
+
+_common_parent = Path(__file__).parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 
 OUT_DIR = Path("data/analysis/zhuli_suffocation")
@@ -290,8 +296,6 @@ def load_finmind_stock_info(force_refresh: bool = False) -> pd.DataFrame:
 
     若無 token 或下載失敗，回傳空 DataFrame。
     """
-    import requests
-
     STOCK_INFO_CACHE_PATH = OUT_DIR / "finmind_stock_info_cache.csv"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -300,29 +304,11 @@ def load_finmind_stock_info(force_refresh: bool = False) -> pd.DataFrame:
         if age_hours <= 24:
             return pd.read_csv(STOCK_INFO_CACHE_PATH, dtype=str)
 
-    token = os.environ.get("FINMIND_TOKEN")
-    if not token:
-        if STOCK_INFO_CACHE_PATH.exists():
-            return pd.read_csv(STOCK_INFO_CACHE_PATH, dtype=str)
-        return pd.DataFrame(columns=["stock_id", "stock_name", "market_category"])
-
     try:
-        headers = {"Authorization": f"Bearer {token}"}
-        params = {"dataset": "TaiwanStockInfo"}
-        response = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params=params,
-            headers=headers,
-            timeout=30
+        info = get_client().fetch_dataset(
+            dataset="TaiwanStockInfo",
+            bypass_cache=True,
         )
-        response.raise_for_status()
-        payload = response.json()
-        if payload.get("status") != 200:
-            if STOCK_INFO_CACHE_PATH.exists():
-                return pd.read_csv(STOCK_INFO_CACHE_PATH, dtype=str)
-            return pd.DataFrame(columns=["stock_id", "stock_name", "market_category"])
-
-        info = pd.DataFrame(payload.get("data") or [])
         if info.empty:
             if STOCK_INFO_CACHE_PATH.exists():
                 return pd.read_csv(STOCK_INFO_CACHE_PATH, dtype=str)

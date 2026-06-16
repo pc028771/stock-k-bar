@@ -13,18 +13,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sys
 import time
 from pathlib import Path
 
 import pandas as pd
-import aiohttp
-
 
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "data/analysis/xiaoge/broker_trades"
-API_URL = "https://api.finmindtrade.com/api/v4/data"
+sys.path.insert(0, str(REPO / "scripts"))
+from common.finmind_client import get_client
 
 
 def _trading_dates(start: str, end: str) -> list[str]:
@@ -57,63 +55,48 @@ def _candidate_tickers(start: str, end: str) -> list[str]:
 _FAIL_COUNTS: dict[int, int] = {}
 
 
-async def _fetch_one(session: aiohttp.ClientSession, ticker: str, date_str: str,
-                     token: str, sem: asyncio.Semaphore,
+def _fetch_one_sync(ticker: str, date_str: str) -> pd.DataFrame:
+    try:
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockTradingDailyReport",
+            data_id=ticker,
+            start_date=date_str,
+            end_date=date_str,
+            bypass_cache=True,
+        )
+    except Exception:
+        _FAIL_COUNTS[-1] = _FAIL_COUNTS.get(-1, 0) + 1
+        return pd.DataFrame()
+    if df.empty:
+        return pd.DataFrame()
+    df["buy"] = pd.to_numeric(df["buy"], errors="coerce").fillna(0)
+    df["sell"] = pd.to_numeric(df["sell"], errors="coerce").fillna(0)
+    agg = df.groupby(
+        ["date", "stock_id", "securities_trader_id", "securities_trader"],
+        as_index=False
+    ).agg(buy_shares=("buy", "sum"), sell_shares=("sell", "sum"))
+    agg["net_shares"] = agg["buy_shares"] - agg["sell_shares"]
+    agg = agg.rename(columns={
+        "stock_id": "ticker",
+        "securities_trader_id": "broker_id",
+        "securities_trader": "broker_name",
+    })
+    agg["date"] = agg["date"].astype(str).str[:10]
+    return agg[["date", "ticker", "broker_id", "broker_name",
+                "net_shares", "buy_shares", "sell_shares"]]
+
+
+async def _fetch_one(ticker: str, date_str: str,
+                     sem: asyncio.Semaphore,
                      per_call_sleep: float = 0.0) -> pd.DataFrame:
     async with sem:
-        params = {
-            "dataset": "TaiwanStockTradingDailyReport",
-            "data_id": ticker,
-            "start_date": date_str,
-            "end_date": date_str,
-            "token": token,
-        }
-        for attempt in range(3):
-            try:
-                async with session.get(API_URL, params=params, timeout=60) as resp:
-                    status = resp.status
-                    if status == 200:
-                        payload = await resp.json()
-                        rows = payload.get("data", [])
-                        if per_call_sleep > 0:
-                            await asyncio.sleep(per_call_sleep)
-                        if not rows:
-                            return pd.DataFrame()
-                        df = pd.DataFrame(rows)
-                        df["buy"] = pd.to_numeric(df["buy"], errors="coerce").fillna(0)
-                        df["sell"] = pd.to_numeric(df["sell"], errors="coerce").fillna(0)
-                        agg = df.groupby(
-                            ["date", "stock_id", "securities_trader_id", "securities_trader"],
-                            as_index=False
-                        ).agg(buy_shares=("buy", "sum"), sell_shares=("sell", "sum"))
-                        agg["net_shares"] = agg["buy_shares"] - agg["sell_shares"]
-                        agg = agg.rename(columns={
-                            "stock_id": "ticker",
-                            "securities_trader_id": "broker_id",
-                            "securities_trader": "broker_name",
-                        })
-                        agg["date"] = agg["date"].astype(str).str[:10]
-                        return agg[["date", "ticker", "broker_id", "broker_name",
-                                    "net_shares", "buy_shares", "sell_shares"]]
-                    elif status == 429 or status == 402:
-                        _FAIL_COUNTS[status] = _FAIL_COUNTS.get(status, 0) + 1
-                        await asyncio.sleep(30 * (attempt + 1))
-                        continue
-                    elif status == 403:
-                        # IP ban — abort hard
-                        _FAIL_COUNTS[status] = _FAIL_COUNTS.get(status, 0) + 1
-                        return pd.DataFrame()
-                    else:
-                        _FAIL_COUNTS[status] = _FAIL_COUNTS.get(status, 0) + 1
-                        return pd.DataFrame()
-            except Exception:
-                _FAIL_COUNTS[-1] = _FAIL_COUNTS.get(-1, 0) + 1
-                await asyncio.sleep(2 * (attempt + 1))
-                continue
-        return pd.DataFrame()
+        df = await asyncio.to_thread(_fetch_one_sync, ticker, date_str)
+        if per_call_sleep > 0:
+            await asyncio.sleep(per_call_sleep)
+        return df
 
 
-async def _fetch_all(tickers: list[str], dates: list[str], token: str,
+async def _fetch_all(tickers: list[str], dates: list[str],
                      concurrency: int = 3, per_call_sleep: float = 0.5,
                      between_day_sleep: float = 10.0,
                      out_path: Path | None = None) -> pd.DataFrame:
@@ -135,41 +118,39 @@ async def _fetch_all(tickers: list[str], dates: list[str], token: str,
         print(f"  Resume: {len(done_dates)} dates already cached, will skip")
 
     all_chunks: list[pd.DataFrame] = []
-    connector = aiohttp.TCPConnector(limit=concurrency * 2)
-    async with aiohttp.ClientSession(connector=connector) as session:
-        total = len(tickers) * len(dates)
-        done = 0
-        t0 = time.time()
-        for i, date_str in enumerate(dates):
-            if date_str in done_dates:
-                done += len(tickers)
-                continue
-            tasks = [_fetch_one(session, t, date_str, token, sem, per_call_sleep)
-                     for t in tickers]
-            chunks = await asyncio.gather(*tasks)
-            day_rows = sum(len(c) for c in chunks)
-            valid = [c for c in chunks if len(c) > 0]
-            if valid:
-                all_chunks.extend(valid)
-            done += len(tasks)
-            elapsed = time.time() - t0
-            print(f"  {date_str}: {len(valid)}/{len(tickers)} tickers, {day_rows} rows, "
-                  f"cumulative {done}/{total} calls, elapsed={elapsed:.1f}s, "
-                  f"fails={_FAIL_COUNTS}", flush=True)
-            # Abort hard if too many 403s (IP ban) or 402s (quota)
-            if _FAIL_COUNTS.get(403, 0) >= 10:
-                print(f"  ABORT: too many 403 (IP banned). Stopping. "
-                      f"Wait 1h+ before retry.", flush=True)
-                break
-            if _FAIL_COUNTS.get(402, 0) >= 50:
-                print(f"  ABORT: too many 402 (quota exhausted). Stopping.", flush=True)
-                break
-            # Flush after each day for resume safety
-            if out_path and all_chunks:
-                _flush_chunks(all_chunks, out_path)
-                all_chunks = []
-            if i < len(dates) - 1 and between_day_sleep > 0:
-                await asyncio.sleep(between_day_sleep)
+    total = len(tickers) * len(dates)
+    done = 0
+    t0 = time.time()
+    for i, date_str in enumerate(dates):
+        if date_str in done_dates:
+            done += len(tickers)
+            continue
+        tasks = [_fetch_one(t, date_str, sem, per_call_sleep)
+                 for t in tickers]
+        chunks = await asyncio.gather(*tasks)
+        day_rows = sum(len(c) for c in chunks)
+        valid = [c for c in chunks if len(c) > 0]
+        if valid:
+            all_chunks.extend(valid)
+        done += len(tasks)
+        elapsed = time.time() - t0
+        print(f"  {date_str}: {len(valid)}/{len(tickers)} tickers, {day_rows} rows, "
+              f"cumulative {done}/{total} calls, elapsed={elapsed:.1f}s, "
+              f"fails={_FAIL_COUNTS}", flush=True)
+        # Abort hard if too many 403s (IP ban) or 402s (quota)
+        if _FAIL_COUNTS.get(403, 0) >= 10:
+            print(f"  ABORT: too many 403 (IP banned). Stopping. "
+                  f"Wait 1h+ before retry.", flush=True)
+            break
+        if _FAIL_COUNTS.get(402, 0) >= 50:
+            print(f"  ABORT: too many 402 (quota exhausted). Stopping.", flush=True)
+            break
+        # Flush after each day for resume safety
+        if out_path and all_chunks:
+            _flush_chunks(all_chunks, out_path)
+            all_chunks = []
+        if i < len(dates) - 1 and between_day_sleep > 0:
+            await asyncio.sleep(between_day_sleep)
     if not all_chunks:
         if out_path and out_path.exists():
             return pd.read_parquet(out_path)
@@ -206,10 +187,6 @@ def main():
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
-    token = os.getenv("FINMIND_TOKEN")
-    if not token:
-        raise RuntimeError("FINMIND_TOKEN not set")
-
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = Path(args.out) if args.out else OUT_DIR / f"{args.start}_{args.end}.parquet"
 
@@ -219,7 +196,7 @@ def main():
           f"= {len(dates) * len(tickers)} calls (concurrency={args.concurrency})")
     print(f"Output: {out_path}")
 
-    df = asyncio.run(_fetch_all(tickers, dates, token,
+    df = asyncio.run(_fetch_all(tickers, dates,
                                  concurrency=args.concurrency,
                                  per_call_sleep=args.per_call_sleep,
                                  between_day_sleep=args.between_day_sleep,

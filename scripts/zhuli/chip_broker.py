@@ -13,18 +13,19 @@
 from __future__ import annotations
 
 import json
-import os
-import time
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-import requests
+
+_common_parent = Path(__file__).parent.parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 _CACHE_DIR = Path.home() / ".zhuli_cache" / "broker"
 _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 
 # 外資券商辨識關鍵字（含外資自營 / 港陸 / 新加坡商等通常被視為外資籌碼）
 _FOREIGN_KEYWORDS = (
@@ -45,23 +46,20 @@ def _fetch_broker_daily(ticker: str, date_str: str) -> pd.DataFrame:
             data = json.load(f)
         return pd.DataFrame(data)
 
-    token = os.environ.get("FINMIND_TOKEN")
-    if not token:
-        raise RuntimeError("FINMIND_TOKEN missing")
     try:
-        r = requests.get(_FINMIND_URL, params={
-            "dataset": "TaiwanStockTradingDailyReport",
-            "data_id": ticker, "start_date": date_str, "token": token,
-        }, timeout=30)
-        body = r.json()
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockTradingDailyReport",
+            data_id=ticker,
+            start_date=date_str,
+            bypass_cache=True,
+        )
     except Exception as exc:
         raise RuntimeError(f"FinMind fetch failed: {exc}") from exc
 
-    data = body.get("data", [])
+    data = df.to_dict("records")
     with cache.open("w") as f:
         json.dump(data, f)
-    time.sleep(0.3)  # rate limit
-    return pd.DataFrame(data)
+    return df
 
 
 def _aggregate_broker(df_raw: pd.DataFrame) -> pd.DataFrame:

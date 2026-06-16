@@ -24,12 +24,18 @@
 """
 from __future__ import annotations
 
-import os
 import re
+import sys
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 import requests
+
+_common_parent = Path(__file__).parent.parent.parent  # scripts/
+if str(_common_parent) not in sys.path:
+    sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client
 
 # TWSE 公告端點（免登入 JSON）
 _TWSE_URL = "https://www.twse.com.tw/rwd/zh/announcement/punish"
@@ -37,7 +43,6 @@ _TIMEOUT = 10  # seconds
 _MAX_RETRIES = 3
 
 # FinMind fallback (sponsor tier)
-_FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 _FINMIND_DATASET = "TaiwanStockDispositionSecuritiesPeriod"
 
 _CHINESE_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
@@ -60,25 +65,18 @@ def _fetch_finmind_raw(start_date: str, end_date: str) -> list[dict]:
     Returns: list of normalized dicts (same shape as _fetch_twse_raw output).
     Raises RuntimeError on failure.
     """
-    token = os.environ.get("FINMIND_TOKEN", "")
-    params = {
-        "dataset": _FINMIND_DATASET,
-        "start_date": start_date,
-        "end_date":   end_date,
-        "token": token,
-    }
     try:
-        resp = requests.get(_FINMIND_URL, params=params, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
+        df = get_client().fetch_dataset(
+            dataset=_FINMIND_DATASET,
+            start_date=start_date,
+            end_date=end_date,
+            bypass_cache=True,
+        )
     except Exception as exc:
         raise RuntimeError(f"FinMind 處置股 API 失敗: {exc}")
 
-    if data.get("status") != 200:
-        raise RuntimeError(f"FinMind status != 200: {data.get('status')} {data.get('msg')}")
-
     rows = []
-    for row in data.get("data", []):
+    for row in (df.to_dict("records") if not df.empty else []):
         try:
             rows.append({
                 "announce_date": row["date"],

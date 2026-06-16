@@ -7,16 +7,15 @@ Schema: ticker, date, retail_ratio (1-999 持股比例), bigholder_ratio (>1M �
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
 import pandas as pd
-import requests
-
 
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "data/analysis/xiaoge/shareholding"
+sys.path.insert(0, str(REPO / "scripts"))
+from common.finmind_client import get_client
 
 
 def fetch_all(start: str, end: str, token: str | None = None) -> pd.DataFrame:
@@ -25,10 +24,6 @@ def fetch_all(start: str, end: str, token: str | None = None) -> pd.DataFrame:
     Multi-week all-market fetch returns 0 rows (row limit); per-week works
     (~67K rows/week). We loop weekly to stay under limit.
     """
-    token = token or os.getenv("FINMIND_TOKEN")
-    if not token:
-        raise RuntimeError("FINMIND_TOKEN not set")
-
     # Generate weekly snapshot dates (Fridays in the range — shareholding
     # publishes weekly on Friday).
     dates = pd.date_range(start, end, freq="W-FRI").strftime("%Y-%m-%d").tolist()
@@ -39,16 +34,17 @@ def fetch_all(start: str, end: str, token: str | None = None) -> pd.DataFrame:
     all_rows = []
     for d in dates:
         print(f"  fetching {d}…", end=" ", flush=True)
-        r = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={"dataset": "TaiwanStockHoldingSharesPer",
-                    "start_date": d, "end_date": d, "token": token},
-            timeout=60
-        )
-        if r.status_code != 200:
-            print(f"status={r.status_code}, skipping")
+        try:
+            df_day = get_client().fetch_dataset(
+                dataset="TaiwanStockHoldingSharesPer",
+                start_date=d,
+                end_date=d,
+                bypass_cache=True,
+            )
+        except Exception as exc:
+            print(f"err={exc}, skipping")
             continue
-        rows = r.json().get("data", [])
+        rows = df_day.to_dict("records") if not df_day.empty else []
         print(f"{len(rows)} rows")
         all_rows.extend(rows)
     df = pd.DataFrame(all_rows)

@@ -18,14 +18,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import requests
 
 _HERE = Path(__file__).parent
 _REPO = _HERE.parent.parent.parent.parent
@@ -34,6 +32,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
+from common.finmind_client import get_client
 
 _CACHE_DIR = Path("/tmp/backtest_1m_cache")
 _CACHE_DIR.mkdir(exist_ok=True)
@@ -48,17 +47,14 @@ def _fetch_1m(ticker: str, target_date: str) -> pd.DataFrame:
         except Exception:
             cache.unlink(missing_ok=True)
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        raise SystemExit("FINMIND_TOKEN 未設定")
-    r = requests.get(
-        "https://api.finmindtrade.com/api/v4/data",
-        params={"dataset": "TaiwanStockKBar", "data_id": ticker,
-                "start_date": target_date, "end_date": target_date,
-                "token": token},
-        timeout=30,
+    df_raw = get_client().fetch_dataset(
+        dataset="TaiwanStockKBar",
+        data_id=ticker,
+        start_date=target_date,
+        end_date=target_date,
+        bypass_cache=True,
     )
-    d = r.json().get("data", [])
+    d = df_raw.to_dict("records") if not df_raw.empty else []
     if not d:
         # Cache empty result too (parquet with empty rows)
         empty = pd.DataFrame(columns=["open","high","low","close","volume"])
