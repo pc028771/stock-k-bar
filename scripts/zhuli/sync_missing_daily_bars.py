@@ -177,6 +177,8 @@ def main():
     ap.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--tickers", help="Comma-separated list (default: all)")
+    ap.add_argument("--teacher-only", action="store_true",
+                    help="只跑老師 universe (~344 檔、~3-5 分鐘) + HELD/PLAN/WATCH 持倉")
     ap.add_argument("--limit", type=int, help="Process only first N tickers (test)")
     ap.add_argument("--end-date", default=TODAY, help=f"Default {TODAY}")
     ap.add_argument("--skip-bars", action="store_true", help="Skip TaiwanStockPrice sync")
@@ -201,6 +203,33 @@ def main():
     if args.tickers:
         wanted = set(args.tickers.split(","))
         all_tickers = [t for t in all_tickers if t in wanted]
+    elif args.teacher_only:
+        # 老師 universe + 持倉 universe (HELD/PLAN_PRIMARY/WATCH)
+        import json as _json
+        wanted: set[str] = set()
+        try:
+            _picks = _json.loads(
+                (_WORKTREE / "docs" / "主力大課程" / "teacher_picks_2026.json").read_text())
+            wanted.update(k for k in _picks.keys() if not k.startswith("_"))
+            _sectors = _json.loads(
+                (_WORKTREE / "docs" / "主力大課程" / "teacher_sector_tickers.json").read_text())
+            for v in _sectors.values():
+                if isinstance(v, list):
+                    wanted.update(v)
+        except Exception as _e:
+            print(f"⚠️ teacher_picks load failed: {_e}", flush=True)
+        # 加 HELD / PLAN / WATCH 確保自己持倉一定同步
+        try:
+            sys.path.insert(0, str(_WORKTREE / "scripts"))
+            from zhuli.live_position_monitor import HELD, PLAN_PRIMARY, WATCH
+            for src in (HELD, PLAN_PRIMARY, WATCH):
+                for item in src:
+                    if isinstance(item, dict) and item.get("ticker"):
+                        wanted.add(str(item["ticker"]))
+        except Exception as _e:
+            print(f"⚠️ HELD/WATCH load failed: {_e}", flush=True)
+        all_tickers = [t for t in all_tickers if t in wanted]
+        print(f"[teacher-only] universe = {len(wanted)} (老師 + 持倉)、與 DB 交集 = {len(all_tickers)}")
     if args.limit:
         all_tickers = all_tickers[:args.limit]
 
