@@ -118,7 +118,20 @@ REALIZED = 0
 # 鎖定主候選 (Phase 1 開盤 entry screening)
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
 # 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
-PLAN_PRIMARY: list = []  # 6/5 清空: 1605 加碼動作已執行 (HELD 12000 股)、無新進場 plan
+PLAN_PRIMARY: list = [
+    # 6/16 1605 華新加碼 (6/15 老師 Q&A 例外: 整理盤 + 跌破成本 + 漏斗通過)
+    {
+        'ticker': '1605', 'name': '華新',
+        'shares': 1000,                  # +1 張 (12→13 張、集中度 OK)
+        'target_price': 40.0,            # 13:00 後尾盤 ~ $40 區間
+        'stop': 38.75,                   # 維持雙錨停損
+        'condition': '13:00 後 + 收盤 ≥ $40 + 大盤不續崩 + 1605 守 MA10 (~$38.4)',
+        'priority': 'add_position',
+        'rationale': '老師 6/15 Q&A 例外完全成立: 整理盤環境 + 跌破成本 (-0.6%) + 漏斗 (老師 6/14 波段分點+子弟兵 + 籌碼 6/12 +27k 大買 + 6/15 +2.7k 續買 + 結構距 MA10 +4.3% 健康)',
+        'sizing': '$40k (12% of $3.2M cash 動 1.2%)',
+        'skip_if': '開盤跳空 ≥ +3% / 跌破 $38.75 / 大盤殺超過 -2%'
+    },
+]
 
 # 備案 (Phase 1 主候選被 skip 時遞補)
 # 6/3 全 skip、結構壞 + 籌碼弱
