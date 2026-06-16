@@ -1745,34 +1745,26 @@ def run_monitor(
 # ── FinMind 真實資料抓取 ──────────────────────────────────────────────────────
 
 def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
-    """用 FinMind TaiwanStockKBar 拉 1 分 K，聚合成 5 分 K。"""
-    import os
-    import requests
+    """用 FinMind TaiwanStockKBar 拉 1 分 K、聚合成 5 分 K。
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        print("[WARN] FINMIND_TOKEN 未設定，無法抓取真實資料")
-        return pd.DataFrame()
-
+    2026-06-16: 改用 common/finmind_client (quota-aware + drain)。
+    """
+    import sys
+    from pathlib import Path
+    _common_parent = Path(__file__).parent.parent
+    if str(_common_parent) not in sys.path:
+        sys.path.insert(0, str(_common_parent))
     try:
-        r = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={
-                "dataset": "TaiwanStockKBar",
-                "data_id": ticker,
-                "start_date": target_date,
-                "end_date": target_date,
-                "token": token,
-            },
-            timeout=30,
+        from common.finmind_client import get_client  # type: ignore
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=ticker,
+            start_date=target_date,
+            end_date=target_date,
+            bypass_cache=True,   # 含當日資料、client 也會自動跳 cache
         )
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") != 200 or not data.get("data"):
-            print(f"[WARN] FinMind 回傳無資料: {data.get('msg', '')}")
-            return pd.DataFrame()
-        df = pd.DataFrame(data["data"])
         if df.empty:
+            print(f"[WARN] FinMind 回傳無資料: {ticker} {target_date}")
             return pd.DataFrame()
         # FinMind KBar 欄位: date (YYYY-MM-DD), minute (HH:MM:SS), stock_id, open, high, low, close, volume
         if "minute" in df.columns:

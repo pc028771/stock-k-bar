@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import time
 from collections import defaultdict
 from datetime import date, timedelta
@@ -61,28 +62,28 @@ def _match_teacher_broker(name: str) -> str | None:
 
 
 def _fetch_broker_daily(ticker: str, date_str: str) -> list[dict]:
-    """單日 broker raw fetch，含 disk cache。回傳 list of {trader, buy, sell}."""
+    """單日 broker raw fetch、含 disk cache。回傳 list of {trader, buy, sell}.
+
+    2026-06-16: 改用 common/finmind_client (quota-aware + drain)。
+    """
     cache = _CACHE_DIR / f"{ticker}_{date_str}.json"
     if cache.exists():
         with cache.open() as f:
             return json.load(f)
 
-    token = os.environ.get("FINMIND_TOKEN")
-    if not token:
-        raise RuntimeError("FINMIND_TOKEN missing")
-    try:
-        r = requests.get(_FINMIND_URL, params={
-            "dataset": "TaiwanStockTradingDailyReport",
-            "data_id": ticker, "start_date": date_str, "token": token,
-        }, timeout=30)
-        body = r.json()
-    except Exception as exc:
-        raise RuntimeError(f"FinMind fetch failed: {exc}") from exc
-
-    data = body.get("data", [])
+    _common_parent = Path(__file__).parent.parent
+    if str(_common_parent) not in sys.path:
+        sys.path.insert(0, str(_common_parent))
+    from common.finmind_client import get_client  # type: ignore
+    df = get_client().fetch_dataset(
+        dataset="TaiwanStockTradingDailyReport",
+        data_id=ticker,
+        start_date=date_str,
+        bypass_cache=True,
+    )
+    data = df.to_dict(orient="records") if not df.empty else []
     with cache.open("w") as f:
         json.dump(data, f)
-    time.sleep(0.3)  # rate limit
     return data
 
 

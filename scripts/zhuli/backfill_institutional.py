@@ -46,7 +46,25 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from clients.finmind_client import get_institutional  # noqa: E402
+# 2026-06-16: 改用本 repo 的 common/finmind_client (本檔不再 import external clients)
+# 舊: from clients.finmind_client import get_institutional
+import sys as _sys
+_common_parent = Path(__file__).parent.parent
+if str(_common_parent) not in _sys.path:
+    _sys.path.insert(0, str(_common_parent))
+from common.finmind_client import get_client as _get_finmind_client  # noqa: E402
+
+
+def get_institutional(ticker: str, start_date: str, end_date: str,
+                       token: str | None = None):
+    """Compat wrapper for legacy callers (token 參數忽略、client 自抓 env)。"""
+    return _get_finmind_client().fetch_dataset(
+        dataset="TaiwanStockInstitutionalInvestorsBuySell",
+        data_id=ticker,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
 from kline.bars import DEFAULT_DB_PATH               # noqa: E402
 
 # ── 常數 ──────────────────────────────────────────────────────────────────────
@@ -289,13 +307,7 @@ def backfill(
             stats["errors"] += 1
             print(f"  [{i}/{len(to_fetch)}] {ticker}: ERROR — {exc}")
 
-        # Rate limit 保護：每 50 檔 sleep 2s，每 500 檔 sleep 30s
-        if i % 500 == 0:
-            if verbose:
-                print(f"  [batch pause] Processed {i} tickers, sleeping 30s …")
-            time.sleep(30)
-        elif i % 50 == 0:
-            time.sleep(2)
+        # 2026-06-16: rate limit 已由 common/finmind_client (quota-aware drain) 處理
 
     write_conn.close()
 

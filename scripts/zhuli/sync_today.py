@@ -159,15 +159,22 @@ def compute_mas_and_upsert(new_df: pd.DataFrame, db_path: Path, dry_run: bool = 
 
 
 def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set | None = None) -> pd.DataFrame:
-    """FinMind → 全市場當日法人資料（TWSE 收盤後公布，時效性要求低）."""
+    """FinMind → 全市場當日法人資料（TWSE 收盤後公布，時效性要求低）.
+
+    2026-06-16: 改用 common/finmind_client (quota-aware + drain)。token 參數保留兼容。
+    """
+    import sys as _sys
+    _common_parent = Path(__file__).parent.parent
+    if str(_common_parent) not in _sys.path:
+        _sys.path.insert(0, str(_common_parent))
+    from common.finmind_client import get_client  # type: ignore
     print(f"抓全市場法人 {target_date}...")
-    r = requests.get("https://api.finmindtrade.com/api/v4/data", params={
-        "dataset": "TaiwanStockInstitutionalInvestorsBuySell",
-        "start_date": target_date,
-        "end_date": target_date,
-        "token": token,
-    }, timeout=60)
-    data = r.json().get("data", [])
+    df_raw = get_client().fetch_dataset(
+        dataset="TaiwanStockInstitutionalInvestorsBuySell",
+        start_date=target_date,
+        end_date=target_date,
+    )
+    data = df_raw.to_dict(orient="records") if not df_raw.empty else []
     print(f"  → {len(data)} 筆原始")
     if valid_tickers and data:
         data = [d for d in data if d.get("stock_id") in valid_tickers]

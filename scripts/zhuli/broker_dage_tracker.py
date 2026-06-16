@@ -53,39 +53,32 @@ _BRIEF_DIR     = _REPO / "docs" / "主力大課程" / "daily_brief"
 # ── FinMind 工具函式 ───────────────────────────────────────────────────────────
 
 def _fetch_broker_daily(ticker: str, date_str: str) -> list[dict]:
-    """單日 broker raw fetch，含 disk cache。回傳 list of {securities_trader, price, buy, sell, ...}."""
+    """單日 broker raw fetch，含 disk cache。回傳 list of {securities_trader, price, buy, sell, ...}.
+
+    2026-06-16: 改用 common/finmind_client (含 quota-aware rate limit + drain)。
+    """
     cache = _CACHE_DIR / f"{ticker}_{date_str}.json"
     if cache.exists():
         try:
             with cache.open() as f:
                 return json.load(f)
         except Exception:
-            cache.unlink(missing_ok=True)  # 損壞 cache，刪掉重抓
+            cache.unlink(missing_ok=True)
 
-    token = os.environ.get("FINMIND_TOKEN")
-    if not token:
-        raise RuntimeError("FINMIND_TOKEN 環境變數未設定")
-
-    try:
-        r = requests.get(_FINMIND_URL, params={
-            "dataset": "TaiwanStockTradingDailyReport",
-            "data_id": ticker,
-            "start_date": date_str,
-            "token": token,
-        }, timeout=30)
-        body = r.json()
-    except Exception as exc:
-        raise RuntimeError(f"FinMind fetch 失敗 ({ticker} {date_str}): {exc}") from exc
-
-    if body.get("status") not in (200, None):
-        # status 欄位有時不存在（成功時回 200 但字典裡沒有 status key）
-        msg = body.get("msg", "")
-        raise RuntimeError(f"FinMind API 錯誤 ({ticker}): {msg}")
-
-    data = body.get("data", [])
+    # Lazy import 避免 sys.path 順序問題
+    _common = Path(__file__).parent.parent / "common"
+    if str(_common.parent) not in sys.path:
+        sys.path.insert(0, str(_common.parent))
+    from common.finmind_client import get_client  # type: ignore
+    df = get_client().fetch_dataset(
+        dataset="TaiwanStockTradingDailyReport",
+        data_id=ticker,
+        start_date=date_str,
+        bypass_cache=True,  # 用此 script 自家的 zhuli broker cache
+    )
+    data = df.to_dict(orient="records") if not df.empty else []
     with cache.open("w") as f:
         json.dump(data, f)
-    time.sleep(0.35)  # rate limit（sponsor tier 600 req/hr ≒ 0.1s/req，保守加大到 0.35）
     return data
 
 
