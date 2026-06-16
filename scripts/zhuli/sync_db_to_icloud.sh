@@ -32,7 +32,9 @@ else
 fi
 
 # 2. 清掉 destination 殘留 -wal / -shm（不能跟新主檔混搭）
-rm -f "$DST-wal" "$DST-shm"
+# 用 || true 容忍 launchd 環境下 iCloud sandbox 「Operation not permitted」錯誤
+# (set -e 在 launchd 環境會 silent kill script、user shell session 不會)
+rm -f "$DST-wal" "$DST-shm" 2>/dev/null || true
 
 # 3. atomic copy: 寫到 .tmp 再 mv
 TMP="$DST.tmp.$$"
