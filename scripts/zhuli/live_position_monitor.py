@@ -165,11 +165,14 @@ def compute_pursuit_warnings(
         gap = (open_ - prev_close) / prev_close * 100 if prev_close else 0
         if gap >= 3:
             warnings.append(f"⛔ 跳空 {gap:+.1f}% (紅線 #1)")
-    # 3. 距 MA10 > +10% 紅線 #2
+    # 3. 距 MA10 > +10% — conditional warning (per feedback_ma10_distance_conditional)
+    #    不是 absolute filter、強勢股 + 老師明示 + 直接切 stop 可進
     if close_ and ma10:
         dist = (close_ - ma10) / ma10 * 100
-        if dist > 10:
-            warnings.append(f"⛔ 距 MA10 {dist:+.1f}% > +10% (紅線 #2)")
+        if dist > 15:
+            warnings.append(f"🚨 距 MA10 {dist:+.1f}% > +15% (需重壓 confluence)")
+        elif dist > 10:
+            warnings.append(f"⚠️ 距 MA10 {dist:+.1f}% > +10% (需老師明示 + 直接切 stop)")
     return warnings
 
 
