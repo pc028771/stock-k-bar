@@ -1764,7 +1764,11 @@ def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
             bypass_cache=True,   # 含當日資料、client 也會自動跳 cache
         )
         if df.empty:
-            print(f"[WARN] FinMind 回傳無資料: {ticker} {target_date}")
+            # 不再 print — 盤前 / 假日 / 6/17 minute_kbar 未上時、每 ticker 都會 empty。
+            # 105 ticker × 每 3s = 35 prints/s 灌進 stdout 會把 textual TUI 畫面打爛、
+            # 看起來像「TUI 黑屏卡住」(實際是 cursor 被印文亂搬)。
+            # 需要 debug 時走 logging (caller 自行 setup)。
+            log.debug("FinMind 回傳無資料: %s %s", ticker, target_date)
             return pd.DataFrame()
         # FinMind KBar 欄位: date (YYYY-MM-DD), minute (HH:MM:SS), stock_id, open, high, low, close, volume
         if "minute" in df.columns:
@@ -1790,7 +1794,8 @@ def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
         ).dropna(subset=["open", "close"])
         return df5
     except Exception as e:
-        print(f"[ERROR] FinMind 抓取失敗: {e}")
+        # 同上：監控 TUI 跑時禁 print 防螢幕亂、改 log.warning
+        log.warning("FinMind 抓取失敗 %s %s: %s", ticker, target_date, e)
         return pd.DataFrame()
 
 
