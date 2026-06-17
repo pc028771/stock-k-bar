@@ -1414,26 +1414,42 @@ class StageTrigger:
 
         today_first_down_k = (first_red_idx >= 0 and prev_green_idx > first_red_idx)
 
-        # 4. 吞噬判定: 最新紅 K body 包覆前一根綠 K body
+        # 4. 吞噬判定: 最新紅 K body 接近覆蓋前一根綠 K body
+        #    2026-06-17 校正 (老師 6/16 麗正 2302 範例驗證):
+        #      老師「吞噬」非嚴格 candlestick definition、是「紅K body 接近覆蓋綠K body」。
+        #      2302 09:10 紅 K close 39.70 vs 09:05 綠 K open 39.75 (差 $0.05、0.13%)
+        #      若用嚴格 > 會 miss 掉老師親自示範的 R9 進場點。
+        #    新邏輯 (allow 1% tolerance):
+        #      - red_close ≥ green_open × 0.99 (放寬、允許接近)
+        #      - red_open  ≤ green_close × 1.01 (放寬、允許接近)
+        #      - red_body  ≥ green_body × 0.9   (保留「強勢吞噬」核心、允許 10% tolerance)
         red_engulfing = False
         if is_red_last and prev_green_idx >= 0:
             green_open  = opens[prev_green_idx]
             green_close = closes[prev_green_idx]
             red_open    = opens[last_idx]
             red_close   = closes[last_idx]
-            # 紅 K body 必須 ≥ 前綠 K body 且包覆: red_close > green_open AND red_open ≤ green_close
             green_body = green_open - green_close  # 綠 K body (正值)
             red_body   = red_close - red_open      # 紅 K body (正值)
             red_engulfing = (
-                red_close > green_open
-                and red_open <= green_close
-                and red_body >= green_body
+                red_close >= green_open * 0.99
+                and red_open <= green_close * 1.01
+                and red_body >= green_body * 0.9
             )
 
-        # 5. 量配合: 吞噬紅 K 量 ≥ 前綠 K 量 (確認強勢、避免無量假吞噬)
+        # 5. 量配合: 吞噬紅 K 量 ≥ 前 N 根 5K 均量 (rolling 均量、避免單根 outlier)
+        #    2026-06-17 校正:
+        #      舊邏輯「紅 vol ≥ 綠 vol」嚴格 ≥、2302 09:10 紅 884 vs 09:05 綠 1148 fail
+        #      但 09:05 那根綠是「蹦下來」異常放量、不應作為比較 baseline。
+        #    新邏輯: 紅 K vol ≥ rolling MA(prev 3 5K) × 1.0
+        #      用前 3 根 5K 均量作 baseline、避免被單根爆量綠 K 卡掉。
         volume_confirms = False
         if red_engulfing and prev_green_idx >= 0:
-            volume_confirms = vols[last_idx] >= vols[prev_green_idx]
+            prev_window_start = max(0, last_idx - 3)
+            prev_vols = vols[prev_window_start:last_idx]
+            if len(prev_vols) > 0:
+                vol_baseline = float(prev_vols.mean())
+                volume_confirms = vols[last_idx] >= vol_baseline
 
         scores = {
             "prev_setup_qualified":   bool(prev_setup_qualified),
