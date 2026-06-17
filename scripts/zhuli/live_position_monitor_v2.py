@@ -1505,8 +1505,12 @@ class MonitorApp(App[None]):
         except Exception:
             pass
 
-        # ⏰ R1 trigger 超時降級 (2026-06-17 audit、per 老師 6/16 復盤分K「10 分鐘 rule」)
-        # confirmed trigger 10 分鐘內未進場 (沒漲停、沒新訊號重 fire) → 降 watching
+        # ⏰ R1 trigger 超時 + 走弱 dual condition 降級
+        # (2026-06-17 spec: 老師 6/16 復盤分K「10 分鐘 rule」)
+        # (2026-06-18 校正: backtest 18% 命中、改 dual 提高 specificity)
+        #
+        # 規則: confirmed trigger 10 分內未進場 AND 股價距日高 ≤ -2% → 降 watching
+        # 純超時 (但仍接近 H) = 不降、保留訊號
         # 例外: 尾盤_confirmed / Closing_confirmed 本身有 13:05-13:25 時段限制、不適用
         try:
             from datetime import datetime as _dt2
@@ -1517,7 +1521,16 @@ class MonitorApp(App[None]):
                 if fire_t:
                     age_sec = (_dt2.now() - fire_t).total_seconds()
                     if age_sec > 600:  # 10 分鐘
-                        return 'watching'  # R1 超時降級
+                        # dual condition: 必須同時走弱才降級
+                        try:
+                            close_r1 = float(d.get('close') or 0)
+                            high_r1 = float(d.get('high') or 0)
+                            if high_r1 > 0 and close_r1 > 0:
+                                from_high = (close_r1 - high_r1) / high_r1 * 100
+                                if from_high <= -2.0:
+                                    return 'watching'  # R1 dual fired
+                        except (TypeError, ValueError):
+                            pass
         except Exception:
             pass
 
