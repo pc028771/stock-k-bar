@@ -109,7 +109,6 @@ _CONFIRMED_TRIGGERS = {
     '首攻', '續攻', '反彈',
     'Ch5-3', 'T1', 'T2',                   # 舊英文 alias
     '尾盤_confirmed', 'Closing_confirmed',
-    '紅K吞噬_confirmed', 'RedEngulf_confirmed',  # R9 老師 6/16 SOP
 }
 _EXCLUDED_TRIGGERS = {'破底', 'TC'}
 _WATCHING_TRIGGERS = {'T1_watch', 'T2_watch', '續攻_watch', '反彈_watch',
