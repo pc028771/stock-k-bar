@@ -1504,6 +1504,22 @@ class MonitorApp(App[None]):
         except Exception:
             pass
 
+        # ⏰ R1 trigger 超時降級 (2026-06-17 audit、per 老師 6/16 復盤分K「10 分鐘 rule」)
+        # confirmed trigger 10 分鐘內未進場 (沒漲停、沒新訊號重 fire) → 降 watching
+        # 例外: 尾盤_confirmed / Closing_confirmed 本身有 13:05-13:25 時段限制、不適用
+        try:
+            from datetime import datetime as _dt2
+            _is_closing_t = ('尾盤' in str(trig)) or ('Closing' in str(trig))
+            if trig in _CONFIRMED_TRIGGERS and not _is_closing_t:
+                fire_t = _v1._trigger_fired_at.get(
+                    (str(item.get('ticker', '')), trig))
+                if fire_t:
+                    age_sec = (_dt2.now() - fire_t).total_seconds()
+                    if age_sec > 600:  # 10 分鐘
+                        return 'watching'  # R1 超時降級
+        except Exception:
+            pass
+
         # 🚨 紀律降級 layer — 不論 trigger 為何、踩紀律就降 watching
         # (per memory feedback_close_session_only_entry「09-13 純觀察」+
         #  feedback_rather_miss_than_chase「寧錯過」+
@@ -1513,6 +1529,13 @@ class MonitorApp(App[None]):
             close_ = float(d.get('close') or 0)
             prev_close = float(d.get('prev_close') or 0)
             ma10 = d.get('dist_ma10')  # already as percent
+            # R11: 昨漲停 + 今開低 = 紅線 (亞翔案例「非常恐怖直接丟」、老師 6/16 line 692-703)
+            # 昨漲停 ≈ 昨日漲幅 ≥ +9.5%、今 open < prev_close = 開低
+            tk_ = str(item.get('ticker', ''))
+            prev_change_pct = self._yesterday_change_pct(tk_)
+            if (prev_change_pct >= 9.5 and open_ and prev_close
+                    and open_ < prev_close):
+                return 'watching'  # R11 紅線降級
             # 跳空 +3%+ (紅線 #1)
             if open_ and prev_close and (open_ - prev_close) / prev_close * 100 >= 3:
                 return 'watching'
@@ -1536,6 +1559,46 @@ class MonitorApp(App[None]):
         return 'watching' if int(item.get('priority', 1) or 1) >= 2 else 'excluded'
 
     _yesterday_green_cache: dict[str, bool] | None = None
+    _yesterday_change_cache: dict[str, float] | None = None
+
+    def _yesterday_change_pct(self, ticker: str) -> float:
+        """昨日漲幅 % (vs 前一交易日 close)、用於 R11 紅線判讀。"""
+        try:
+            if self._yesterday_change_cache is None:
+                import sqlite3
+                from pathlib import Path
+                db = Path.home() / ".four_seasons" / "data.sqlite"
+                con = sqlite3.connect(str(db))
+                # 抓每檔最新 2 筆、算 close vs prev_close
+                rows = con.execute("""
+                    SELECT ticker, trade_date, close FROM standard_daily_bar
+                    WHERE trade_date >= (
+                        SELECT MIN(d) FROM (
+                            SELECT DISTINCT trade_date AS d FROM standard_daily_bar
+                            ORDER BY trade_date DESC LIMIT 2
+                        )
+                    )
+                    ORDER BY ticker, trade_date DESC
+                """).fetchall()
+                con.close()
+                # group by ticker、計算最新 vs 前一日
+                latest: dict[str, list] = {}
+                for tk, d, c in rows:
+                    latest.setdefault(str(tk), []).append((d, c))
+                cache = {}
+                for tk, lst in latest.items():
+                    if len(lst) >= 2:
+                        try:
+                            today_c = float(lst[0][1])
+                            prev_c = float(lst[1][1])
+                            if prev_c:
+                                cache[tk] = (today_c - prev_c) / prev_c * 100
+                        except (TypeError, ValueError):
+                            pass
+                self._yesterday_change_cache = cache
+            return self._yesterday_change_cache.get(str(ticker), 0.0)
+        except Exception:
+            return 0.0
 
     def _yesterday_green(self, ticker: str) -> str:
         """昨日 K 線是否收綠 (台灣慣例: close < open = 綠/黑 K = 下跌)、回 ✅/❌/—。
