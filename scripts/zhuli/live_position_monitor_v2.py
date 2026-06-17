@@ -1532,11 +1532,15 @@ class MonitorApp(App[None]):
             ma10 = d.get('dist_ma10')  # already as percent
             # R11: 昨漲停 + 今開低 = 紅線 (亞翔案例「非常恐怖直接丟」、老師 6/16 line 692-703)
             # 昨漲停 ≈ 昨日漲幅 ≥ +9.5%、今 open < prev_close = 開低
+            # 🚨 Regime gate (2026-06-18 audit): 6/17 全市場 backtest 20 檔
+            # 60% 反指標 → R11 強市時反指標、僅弱市/整理盤 active。
             tk_ = str(item.get('ticker', ''))
             prev_change_pct = self._yesterday_change_pct(tk_)
             if (prev_change_pct >= 9.5 and open_ and prev_close
                     and open_ < prev_close):
-                return 'watching'  # R11 紅線降級
+                if self._is_weak_regime():
+                    return 'watching'  # R11 紅線降級 (弱市 active)
+                # 強市: R11 不 fire、不降級 (避免誤殺)
             # 跳空 +3%+ (紅線 #1)
             if open_ and prev_close and (open_ - prev_close) / prev_close * 100 >= 3:
                 return 'watching'
@@ -1600,6 +1604,78 @@ class MonitorApp(App[None]):
             return self._yesterday_change_cache.get(str(ticker), 0.0)
         except Exception:
             return 0.0
+
+    _weak_regime_cache: tuple[str, bool] | None = None  # (date_iso, is_weak)
+
+    def _is_weak_regime(self) -> bool:
+        """判斷今日大盤是否「弱市/整理盤」。R11 gate 用。
+
+        弱市 = 三條件 OR (任一成立即 weak):
+          1. TAIEX 5d change ≤ -1%
+          2. TAIEX 距 MA20 < +1%
+          3. 最近一根 TAIEX 收綠 K (close < open)
+
+        Cache 一天、避免每 row 都查 DB。
+        強市 (三條件全否) → R11 disable、不降級。
+        """
+        try:
+            from datetime import date as _date
+            today_iso = _date.today().isoformat()
+            if (self._weak_regime_cache and
+                    self._weak_regime_cache[0] == today_iso):
+                return self._weak_regime_cache[1]
+
+            import sqlite3
+            import logging as _lg
+            from pathlib import Path
+            db = Path.home() / ".four_seasons" / "data.sqlite"
+            con = sqlite3.connect(str(db))
+            # 抓 TAIEX 最新 21 根
+            rows = con.execute(
+                "SELECT trade_date, open, close FROM standard_daily_bar "
+                "WHERE ticker='TAIEX' ORDER BY trade_date DESC LIMIT 21"
+            ).fetchall()
+            con.close()
+
+            is_weak = False
+            reasons: list[str] = []
+            if rows and len(rows) >= 1:
+                latest_open = float(rows[0][1])
+                latest_close = float(rows[0][2])
+                # cond 3: 最近一根綠 K
+                if latest_close < latest_open:
+                    is_weak = True
+                    reasons.append("最新綠K")
+                # cond 1: 5d change
+                if len(rows) >= 6:
+                    c5_ago = float(rows[5][2])
+                    if c5_ago > 0:
+                        ret5 = (latest_close / c5_ago - 1) * 100
+                        if ret5 <= -1.0:
+                            is_weak = True
+                            reasons.append(f"5d={ret5:.2f}%")
+                # cond 2: 距 MA20 < +1%
+                if len(rows) >= 20:
+                    closes20 = [float(r[2]) for r in rows[:20]]
+                    ma20 = sum(closes20) / 20
+                    if ma20 > 0:
+                        dist_ma20 = (latest_close / ma20 - 1) * 100
+                        if dist_ma20 < 1.0:
+                            is_weak = True
+                            reasons.append(f"距MA20={dist_ma20:.2f}%")
+
+            self._weak_regime_cache = (today_iso, is_weak)
+            try:
+                _lg.getLogger('zhuli.monitor').info(
+                    "[R11 regime gate] weak=%s reasons=%s",
+                    is_weak, reasons or ['(強市、R11 disable)']
+                )
+            except Exception:
+                pass
+            return is_weak
+        except Exception:
+            # DB 失敗 → 保守 default weak (R11 active、不放鬆)
+            return True
 
     def _yesterday_green(self, ticker: str) -> str:
         """昨日 K 線是否收綠 (台灣慣例: close < open = 綠/黑 K = 下跌)、回 ✅/❌/—。
