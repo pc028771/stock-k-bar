@@ -1282,6 +1282,210 @@ class StageTrigger:
             "pass_count": pass_count,
         }
 
+    # ── Red Engulfing「買貴的」(老師 6/16 復盤分K SOP、R9) ─────────────────────
+    def check_red_engulfing(
+        self,
+        ticker: str,
+        k5: pd.DataFrame,
+        target_date: Optional[str] = None,
+        db_path: Path = _DB,
+        _now_override: Optional[str] = None,
+    ) -> dict:
+        """老師 6/16 復盤分K「紅 K 吞噬」買貴的 SOP detector (R9)。
+
+        老師原話 (2026-06-16_復盤分K操作策略課_raw.txt line 519-595):
+          - 「碰到漲停或是跳空缺口、隔天看到 K 棒往下、然後一根紅 K 吞噬下來的時候、
+             那就會是你的一個切入點」
+          - 「我不會在這個地方去接綠的、我會在這個地方買貴的、買 39.4」
+          - 「適用於第二根 / 第三根、第二根很常出現、就是昨天漲停、第二根馬上會出現
+             這種形態」
+
+        識別邏輯:
+          1. Setup (前日): 昨日漲停 (close/prev_close ≥ +9%) 或跳空缺口 (今日 open/昨收 ≥ +3%)
+          2. 第一根: 今日有過拉上去的紅 K (early morning high > open *1.005)
+          3. 蹦蹦蹦下來: 之後出現 ≥1 根綠 K body (close < open)、跌到日內回檔區
+          4. 紅 K 吞噬 (核心): 最新一根 5K = 紅 K (close > open) 且 body 包覆前一根
+             綠 K body (今日 close > 前綠 K open AND 今日 open ≤ 前綠 K close)
+          5. 時段窗: 09:10-12:00 (避開前 10 分鐘 + 尾盤 closing panel 區段)
+
+        Returns:
+            {
+                'triggered': bool,           # 5 條件全 pass
+                'level':     'confirmed' / 'watching' / 'not_eligible' / 'not_in_window',
+                'reason':    str,
+                'scores': {
+                    'prev_setup_qualified': bool,  # 昨日漲停 / 跳空缺口
+                    'today_first_down_k':   bool,  # 拉上去後有綠 K 往下
+                    'red_engulfing_detected': bool,# 最新紅 K 吞噬前綠 K body
+                    'in_entry_window':      bool,  # 09:10-12:00
+                    'volume_confirms':      bool,  # 吞噬紅 K 量 ≥ 前綠 K 量
+                },
+                'pass_count': int,           # 0-5
+                'entry_price_hint': float,   # 吞噬紅 K 收盤價 (老師示範「貴一點」)
+            }
+        """
+        base = {
+            "triggered": False,
+            "level": "not_eligible",
+            "reason": "",
+            "scores": {
+                "prev_setup_qualified":   False,
+                "today_first_down_k":     False,
+                "red_engulfing_detected": False,
+                "in_entry_window":        False,
+                "volume_confirms":        False,
+            },
+            "pass_count": 0,
+            "entry_price_hint": 0.0,
+        }
+
+        if k5 is None or k5.empty or len(k5) < 3:
+            base["reason"] = "5K 資料不足 (< 3 根)"
+            return base
+
+        # 1. 時段窗 09:10-12:00
+        if _now_override:
+            now_str = _now_override
+        else:
+            now_str = datetime.now().strftime("%H:%M")
+        in_window = ("09:10" <= now_str <= "12:00")
+
+        # 2. 前日 setup: 昨日漲停 (≥+9%) OR 昨日跳空缺口 (≥+3%)
+        #    老師原話: 「碰到漲停或是跳空缺口、隔天看到 K 棒往下」
+        #    → 昨日這根本身是漲停或跳空、今日才是「隔天」要做 R9
+        prev_close = None
+        prev_open = None
+        prev_prev_close = None
+        if ticker and target_date:
+            try:
+                with sqlite3.connect(str(db_path)) as con:
+                    cur = con.execute(
+                        "SELECT close, open FROM standard_daily_bar "
+                        "WHERE ticker = ? AND trade_date < ? "
+                        "ORDER BY trade_date DESC LIMIT 2",
+                        (ticker, target_date),
+                    )
+                    rows = cur.fetchall()
+                if rows:
+                    prev_close = float(rows[0][0])
+                    prev_open  = float(rows[0][1]) if rows[0][1] is not None else None
+                    prev_prev_close = float(rows[1][0]) if len(rows) > 1 else None
+            except Exception as e:
+                log.debug("check_red_engulfing 查 prev_close 失敗: %s", e)
+
+        # 昨日漲停 = 昨日 close / 前日 close ≥ +9%
+        prev_limit_up = False
+        if prev_close and prev_prev_close and prev_prev_close > 0:
+            prev_chg = (prev_close / prev_prev_close - 1) * 100
+            prev_limit_up = prev_chg >= 9.0
+
+        # 昨日跳空缺口 = 昨日 open / 前日 close ≥ +2% (老師原話「跳空缺口」、視覺可見)
+        prev_gap_up = False
+        if prev_open and prev_prev_close and prev_prev_close > 0:
+            prev_gap_pct = (prev_open / prev_prev_close - 1) * 100
+            prev_gap_up = prev_gap_pct >= 2.0
+
+        prev_setup_qualified = prev_limit_up or prev_gap_up
+
+        # 3. 第一根拉上去 + 蹦蹦蹦下來: 早盤有過紅 K (high > open*1.005) + 之後出現綠 K
+        opens  = k5["open"].to_numpy()
+        highs  = k5["high"].to_numpy()
+        lows   = k5["low"].to_numpy()
+        closes = k5["close"].to_numpy()
+        vols   = k5["volume"].to_numpy()
+
+        first_red_idx = -1
+        for i in range(min(6, len(k5))):  # 前 30 分內找第一根紅 K
+            if closes[i] > opens[i] and (highs[i] / opens[i] - 1) > 0.003:
+                first_red_idx = i
+                break
+
+        # 找最新一根紅 K (吞噬候選)
+        n = len(k5)
+        last_idx = n - 1
+        is_red_last = closes[last_idx] > opens[last_idx]
+
+        # 找最新紅 K 前最近的一根綠 K (吞噬目標)
+        prev_green_idx = -1
+        for i in range(last_idx - 1, max(-1, last_idx - 8), -1):
+            if closes[i] < opens[i]:
+                prev_green_idx = i
+                break
+
+        today_first_down_k = (first_red_idx >= 0 and prev_green_idx > first_red_idx)
+
+        # 4. 吞噬判定: 最新紅 K body 包覆前一根綠 K body
+        red_engulfing = False
+        if is_red_last and prev_green_idx >= 0:
+            green_open  = opens[prev_green_idx]
+            green_close = closes[prev_green_idx]
+            red_open    = opens[last_idx]
+            red_close   = closes[last_idx]
+            # 紅 K body 必須 ≥ 前綠 K body 且包覆: red_close > green_open AND red_open ≤ green_close
+            green_body = green_open - green_close  # 綠 K body (正值)
+            red_body   = red_close - red_open      # 紅 K body (正值)
+            red_engulfing = (
+                red_close > green_open
+                and red_open <= green_close
+                and red_body >= green_body
+            )
+
+        # 5. 量配合: 吞噬紅 K 量 ≥ 前綠 K 量 (確認強勢、避免無量假吞噬)
+        volume_confirms = False
+        if red_engulfing and prev_green_idx >= 0:
+            volume_confirms = vols[last_idx] >= vols[prev_green_idx]
+
+        scores = {
+            "prev_setup_qualified":   bool(prev_setup_qualified),
+            "today_first_down_k":     bool(today_first_down_k),
+            "red_engulfing_detected": bool(red_engulfing),
+            "in_entry_window":        bool(in_window),
+            "volume_confirms":        bool(volume_confirms),
+        }
+        pass_count = sum(1 for v in scores.values() if v)
+
+        # 必要條件: setup + 吞噬 + 時段窗 (三個核心)
+        core_ok = (
+            scores["prev_setup_qualified"]
+            and scores["red_engulfing_detected"]
+            and scores["in_entry_window"]
+        )
+
+        if not in_window:
+            level = "not_in_window"
+            reason = f"不在 09:10-12:00 時段 (now={now_str})"
+        elif core_ok and pass_count >= 4:
+            level = "confirmed"
+        elif core_ok:
+            level = "watching"  # 量未配合或缺第一段下行確認
+        else:
+            level = "not_eligible"
+
+        entry_hint = float(closes[last_idx]) if red_engulfing else 0.0
+
+        # 組 reason
+        labels = {
+            "prev_setup_qualified":   "setup",
+            "today_first_down_k":     "下行",
+            "red_engulfing_detected": "吞噬",
+            "in_entry_window":        "時段",
+            "volume_confirms":        "量配",
+        }
+        pass_parts = [labels[k] for k, v in scores.items() if v]
+        fail_parts = [labels[k] for k, v in scores.items() if not v]
+        reason = f"{pass_count}/5 ({'✓'.join(pass_parts) if pass_parts else '—'})"
+        if fail_parts:
+            reason += f" ✗{','.join(fail_parts)}"
+
+        return {
+            "triggered": level == "confirmed",
+            "level": level,
+            "reason": reason,
+            "scores": scores,
+            "pass_count": pass_count,
+            "entry_price_hint": entry_hint,
+        }
+
     # ── Composite Cascade Detector ─────────────────────────────────────────────
 
     # Per-category action mapping (新中文 trigger 名為 primary；舊英文名 alias 向後相容)
@@ -1429,8 +1633,29 @@ class StageTrigger:
             "market_regime": regime,
         }
 
-        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:05-13:25 (v6 backtest sweet spot)
+        # Layer 6 (附加、不破壞既有邏輯): 紅 K 吞噬「買貴的」(老師 6/16 R9 SOP)
+        # 條件: 09:10-12:00 時段、其他 trigger 沒 fire 時、check
         now_str = datetime.now().strftime("%H:%M")
+        if "09:10" <= now_str <= "12:00":
+            re_r = self.check_red_engulfing(
+                ticker=ticker,
+                k5=k5,
+                target_date=_today_str,
+                db_path=_DB,
+            )
+            if re_r.get("level") == "confirmed":
+                return _with_regime({
+                    **base_result,
+                    "triggered": True,
+                    "detector":  "紅K吞噬_confirmed",
+                    "action":    "🟢 紅 K 吞噬 (老師 6/16 SOP、Stage 1 試水 + 等收斂末端加碼)",
+                    "reason":    re_r.get("reason", ""),
+                    "engulfing_scores":    re_r.get("scores", {}),
+                    "engulfing_pass_count": re_r.get("pass_count", 0),
+                    "entry_price_hint":     re_r.get("entry_price_hint", 0.0),
+                })
+
+        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:05-13:25 (v6 backtest sweet spot)
         if "13:05" <= now_str <= "13:25":
             closing_r = self.check_closing_panel(
                 ticker=ticker,
