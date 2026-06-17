@@ -301,6 +301,8 @@ COLS_WATCH = [
     ("stars",    "⭐",      4),
     ("name",     "股名",    8),
     ("tactic",   "策略",    6),
+    ("stage",    "Stage",   8),
+    ("y_green",  "昨綠",    5),  # ✅ 昨日收綠 K = 老師 6/16「買綠不買紅」universe
     ("gap",      "跳空",    7),
     ("price",    "現價(%)", 16),
     ("vol_ratio",  "量比",   9),
@@ -1480,12 +1482,50 @@ class MonitorApp(App[None]):
     def _classify_watch(self, item: dict, d: dict) -> str:
         """分類 WATCH item: confirmed / watching / excluded。
 
-        ⚠️ 不再 delegate 給 v1 _classify_watch_item (該函式 trigger 識別
-        set 沒跟新的中文命名 + 尾盤_confirmed/Closing_confirmed、會把已觸發
-        進場訊號的 watch 標的誤分到 watching、導致可進場 tab 永遠空)。
-        統一用 v2 _CONFIRMED_TRIGGERS / _EXCLUDED_TRIGGERS / _WATCHING_TRIGGERS set。
+        ⚠️ 紀律 layer (2026-06-16 修): 即使 trigger=confirmed、若踩老師紅線
+        (紅 K 大漲 / 跳空 +3%+ / 距 MA10 > +15%) → 降級 watching、防誤 fire。
         """
         trig = d.get('trigger', 'none')
+
+        # ⏰ 時段 gate (2026-06-16 修): 09:00-12:59 強制 watching
+        # (per memory feedback_close_session_only_entry: User 6/5 痛定思痛紀律
+        #  「09:00-12:59 純觀察、13:00-13:25 才進」)
+        # 例外: 尾盤/Closing trigger 本身就只在 13:00+ 生成、不擋
+        try:
+            from datetime import datetime as _dt
+            _now = _dt.now()
+            _in_market = (_now.weekday() < 5) and (
+                (_now.hour, _now.minute) >= (9, 0) and
+                (_now.hour, _now.minute) < (13, 0)
+            )
+            _is_closing_trig = ('尾盤' in str(trig)) or ('Closing' in str(trig))
+            if _in_market and not _is_closing_trig:
+                return 'watching'
+        except Exception:
+            pass
+
+        # 🚨 紀律降級 layer — 不論 trigger 為何、踩紀律就降 watching
+        # (per memory feedback_close_session_only_entry「09-13 純觀察」+
+        #  feedback_rather_miss_than_chase「寧錯過」+
+        #  老師 6/14「買綠不買紅」)
+        try:
+            open_ = float(d.get('open') or 0)
+            close_ = float(d.get('close') or 0)
+            prev_close = float(d.get('prev_close') or 0)
+            ma10 = d.get('dist_ma10')  # already as percent
+            # 跳空 +3%+ (紅線 #1)
+            if open_ and prev_close and (open_ - prev_close) / prev_close * 100 >= 3:
+                return 'watching'
+            # 大紅 K 漲幅 +5%+ (老師 6/16「尾盤不大紅就可以」、+3% 不算大紅)
+            if close_ and prev_close and \
+               (close_ - prev_close) / prev_close * 100 >= 5:
+                return 'watching'
+            # 距 MA10 > +15% (per feedback_ma10_distance_conditional「嚴重」段)
+            if ma10 is not None and float(ma10) > 15:
+                return 'watching'
+        except Exception:
+            pass
+
         if trig in _CONFIRMED_TRIGGERS:
             return 'confirmed'
         if trig in _EXCLUDED_TRIGGERS:
@@ -1495,12 +1535,100 @@ class MonitorApp(App[None]):
         # 無訊號 / 未識別 trigger → 依 priority 分 (priority>=2 watch、否則 excluded)
         return 'watching' if int(item.get('priority', 1) or 1) >= 2 else 'excluded'
 
+    _yesterday_green_cache: dict[str, bool] | None = None
+
+    def _yesterday_green(self, ticker: str) -> str:
+        """昨日 K 線是否收綠 (台灣慣例: close < open = 綠/黑 K = 下跌)、回 ✅/❌/—。
+
+        ⚠️ 台灣 K 線:
+          - close > open → 紅 K (上漲)
+          - close < open → 綠/黑 K (下跌)
+        老師 6/16「買綠不買紅」universe = 昨日收綠 K (回測 / 守住的)、
+        不買昨日拉噴的紅 K。
+        Cache 一輪、避免每次 row 都查 DB。
+        """
+        try:
+            if self._yesterday_green_cache is None:
+                import sqlite3
+                from pathlib import Path
+                db = Path.home() / ".four_seasons" / "data.sqlite"
+                con = sqlite3.connect(str(db))
+                # 每檔抓最新一筆 (trade_date < today)
+                rows = con.execute("""
+                    SELECT stock_id, open, close FROM standard_daily_bar
+                    WHERE trade_date = (SELECT MAX(trade_date) FROM standard_daily_bar)
+                """).fetchall()
+                con.close()
+                # 台灣慣例: close < open = 綠/黑 K (下跌、老師「買綠」目標)
+                self._yesterday_green_cache = {
+                    str(r[0]): (float(r[2]) < float(r[1])) for r in rows
+                    if r[1] is not None and r[2] is not None
+                }
+            v = self._yesterday_green_cache.get(str(ticker))
+            if v is None:
+                return "—"
+            return "✅" if v else "❌"
+        except Exception:
+            return "—"
+
+    def _suggest_stage(self, ticker: str, close_: float) -> str:
+        """根據是否在 HELD 推薦 Stage。
+
+        新邏輯 (2026-06-16 校正): 老師原意是「不要盲目加碼」、不是「必須 +10%」。
+        漏斗篩選通過 = 任何盤、任何浮虧/浮盈狀態都可加。
+
+        - 未持有 → Stage 1 (1 張試水)
+        - 持有 → Stage 2 (可加、但前提是漏斗過 = trigger confirmed / 老師明示 / 三軸 OK)
+          顯示浮盈% 供 user 拍板、不再用 +10% 卡死
+        """
+        try:
+            import live_position_monitor as _v1
+            held = _v1.HELD if hasattr(_v1, 'HELD') else []
+            held_item = next((h for h in held if str(h.get('ticker')) == ticker), None)
+            if held_item is None:
+                return "1️⃣ 試水"
+            cost = float(held_item.get('cost') or 0)
+            if not cost or not close_:
+                return "2️⃣ 加碼"
+            pnl_pct = (float(close_) - cost) / cost * 100
+            return f"2️⃣ 加碼 ({pnl_pct:+.0f}%)"
+        except Exception:
+            return "—"
+
+    def _watch_sort_key(self, item: dict) -> tuple:
+        """排序 key: 老師明示族群 + 條件符合 → 前面、自選 → 後面。
+
+        老師 6/16 line: 「都是去看昨天綠的」「尾盤判斷不要是大紅就可以」
+        → 優先級依序:
+          1. source 含「老師明示」/「雙重背書」/「三重」/「戰略級」→ 0 (top)
+          2. priority >= 3 ⭐⭐⭐ → 1
+          3. priority == 2 ⭐⭐ → 2
+          4. 其他 (scanner-merged / 自選 / priority < 2) → 3 (bottom)
+        次序: 同 group 內按 ticker
+        """
+        src = str(item.get('source', ''))
+        is_teacher = any(kw in src for kw in (
+            '老師明示', '雙重背書', '三重', '戰略級', '本週錢', '本週融資'
+        ))
+        pri = int(item.get('priority', 1) or 1)
+        if is_teacher:
+            grp = 0
+        elif pri >= 3:
+            grp = 1
+        elif pri == 2:
+            grp = 2
+        else:
+            grp = 3
+        return (grp, str(item.get('ticker', '')))
+
     def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict,
                               tab_id: str | None = None) -> None:
         dt: DataTable = self.query_one(f"#{table_id}", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
+        # 排序: 老師明示族群在前、自選/scanner-merged 在後
+        items = sorted(items, key=self._watch_sort_key)
         if tab_id:
             items = self._paginate(items, tab_id)
         dt.clear()
@@ -1523,7 +1651,9 @@ class MonitorApp(App[None]):
             prev_close = d.get('prev_close', 0)
             gap_str  = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
-            row = (tk, stars, name, tactic, gap_str, price_str, vol,
+            stage_str = self._suggest_stage(tk, close_)
+            y_green = self._yesterday_green(tk)
+            row = (tk, stars, name, tactic, stage_str, y_green, gap_str, price_str, vol,
                    dist_str, sector, source, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
