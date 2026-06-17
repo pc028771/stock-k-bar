@@ -16,10 +16,16 @@ import argparse
 import json
 import sqlite3
 import os
+import sys
 import glob
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+
+# 加 scripts/ 到 sys.path 才能 import zhuli.* (launchd 環境沒設 PYTHONPATH)
+_scripts_dir = Path(__file__).parent.parent
+if str(_scripts_dir) not in sys.path:
+    sys.path.insert(0, str(_scripts_dir))
 
 from zhuli.db import get_conn
 
