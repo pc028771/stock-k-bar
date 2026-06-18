@@ -153,6 +153,7 @@ def detect(
     target_date: str,
     db_path: Path = MAIN_DB,
     variants: Optional[list[str]] = None,
+    regime: Optional[str] = None,
 ) -> dict[str, list[dict]]:
     """掃描指定日期、回傳各變體命中的 ticker list.
 
@@ -160,11 +161,18 @@ def detect(
         target_date: 'YYYY-MM-DD'
         db_path: DB path
         variants: 限制掃哪些變體、None 全掃
+        regime: 大盤 regime (strong_bull / chop / other / stale_unknown)。
+            🔴 2026-06-18 fix: regime != strong_bull/normal → priority 自動降一級
+            (per memory feedback_detector_regime_conditional、2024 WR 36%、避免
+             非強多盤 regime 跟單踩雷)。
 
     Returns:
         {variant_id: [{ticker, name, close, ma10, ma20, foreign_streak_sum,
-                       sitc_5d, vol_ma20_lots, thr, priority, label, note}, ...]}
+                       sitc_5d, vol_ma20_lots, thr, priority, label, note,
+                       regime_adjusted (bool)}, ...]}
     """
+    # regime 不利時自動降一級
+    _regime_downgrade = regime is not None and regime not in ("strong_bull",)
     variants_to_run = variants if variants else list(VARIANTS.keys())
     out: dict[str, list[dict]] = {v: [] for v in variants_to_run}
 
@@ -231,15 +239,24 @@ def detect(
                         "SELECT stock_name FROM stock_info WHERE ticker=? LIMIT 1",
                         (tk,),
                     ).fetchone()
+                    # regime gate: chop / other / stale → priority 降一級 (P3→P2、P2→P1)
+                    # v12_skip (priority=-1) 不受影響
+                    _priority = cfg["priority"]
+                    _label = cfg["label"]
+                    _note = cfg["note"]
+                    if _regime_downgrade and _priority > 0:
+                        _priority = max(1, _priority - 1)
+                        _label = _label + f" ⚠️ regime={regime} 降權"
                     out[vid].append({
                         "ticker": tk,
                         "name": nm[0] if nm else "",
                         "close": bar[1],
                         "ma10": bar[2],
                         "ma20": bar[3],
-                        "priority": cfg["priority"],
-                        "label": cfg["label"],
-                        "note": cfg["note"],
+                        "priority": _priority,
+                        "label": _label,
+                        "note": _note,
+                        "regime_adjusted": _regime_downgrade,
                         **hit,
                     })
 

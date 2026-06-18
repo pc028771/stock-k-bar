@@ -70,10 +70,19 @@ else
     echo "[4/5] precompute_overnight_static FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi
 
-# 5/5 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
-echo "[5/5] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+# 5/6 推 DB snapshot 到 iCloud (給 office 機 monitor 讀)
+echo "[5/6] sync_db_to_icloud..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 if "$REPO/scripts/zhuli/sync_db_to_icloud.sh" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
-    echo "[5/5] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    echo "[5/6] sync_db_to_icloud OK" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 else
-    echo "[5/5] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+    echo "[5/6] sync_db_to_icloud FAILED (exit $?)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+fi
+
+# 6/6 evening_data_validator (確認資料完整、防 stale 污染下游)
+echo "[6/6] evening_data_validator..." | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+if $PYTHON "$REPO/scripts/zhuli/evening_data_validator.py" --date "$DATE" 2>&1 | tee -a "$LOG_DIR/zhuli_evening_fetch.log"; then
+    echo "[6/6] evening_data_validator OK (all data fresh)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
+else
+    VAL_EXIT=$?
+    echo "[6/6] evening_data_validator FAILED (exit $VAL_EXIT、有 critical/warning 資料缺失、下游 scanner 結果可能 stale)" | tee -a "$LOG_DIR/zhuli_evening_fetch.log"
 fi

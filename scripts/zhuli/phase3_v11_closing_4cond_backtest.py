@@ -403,6 +403,9 @@ def scan_v11_all(
             "scores":            v11_r["scores"],
             "rebound_confirmed": v11_r["rebound_confirmed"],
             "market_regime":     regime,
+            # v12 tolerance backtest 用 — close & ma10 raw value
+            "close":             entry_price_1300,
+            "ma10":              ma10,
         }
         results.append(rec)
 

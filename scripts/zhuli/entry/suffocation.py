@@ -77,6 +77,7 @@ def _classify_breakout_bar(df: pd.DataFrame) -> pd.Series:
 def detect(
     df: pd.DataFrame,
     cfg: SuffocationConfig | None = None,
+    disposal_tickers: set[str] | None = None,
 ) -> pd.DataFrame:
     """Detect 窒息量 entry signals.
 
@@ -86,6 +87,9 @@ def detect(
             volume, ma20, ma20_slope, max_vol_20d, prev_volume,
             ideal_ma_align, vol_ratio_20d.
         cfg: SuffocationConfig. Uses defaults if None.
+        disposal_tickers: 處置股 ticker set。若給、會排除這些 ticker (per memory
+            feedback_suffocation_disposal_filter — 處置股量縮是被動的、不是主力
+            鎖籌碼、誤判 false positive)。
 
     Returns:
         DataFrame of signal rows, one row per detected signal.
@@ -94,6 +98,13 @@ def detect(
     """
     if cfg is None:
         cfg = SuffocationConfig()
+
+    # 🔴 2026-06-18 fix: 排除處置股 (per memory feedback_suffocation_disposal_filter)
+    if disposal_tickers:
+        n_before = df['ticker'].nunique() if 'ticker' in df.columns else len(df)
+        df = df[~df['ticker'].isin(disposal_tickers)].copy()
+        n_after = df['ticker'].nunique() if 'ticker' in df.columns else len(df)
+        # 不 print、call site 自行 log
 
     g = df.groupby("ticker", group_keys=False)
 
