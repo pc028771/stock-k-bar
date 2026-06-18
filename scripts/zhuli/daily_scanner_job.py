@@ -459,6 +459,8 @@ def run_scanners(target_date: str, db_path: Path,
     ]
 
     # ── TAIEX regime features (給 Pass C setups detect 用) ────────────────
+    # 注意：DB TAIEX backfill 通常 D+1 才到、scanner 21:45 跑時 DB 最新可能 < target_date。
+    # 若不一致、要把 anchor_date 寫進 regime_info 讓下游 (monitor / JSON 讀者) 知道實際算的是哪天。
     _regime_info = {}
     try:
         _tx_rows = con.execute(
@@ -470,6 +472,12 @@ def run_scanners(target_date: str, db_path: Path,
             _closes = [r[1] for r in _tx]
             _highs = [r[2] for r in _tx]
             _lows = [r[3] for r in _tx]
+            _anchor_date = _tx[-1][0]  # 實際使用的 TAIEX 最新日 (可能 < target_date)
+            _regime_info['anchor_date'] = _anchor_date
+            _regime_info['target_date'] = target_date
+            _regime_info['stale_days'] = max(0, (
+                pd.Timestamp(target_date) - pd.Timestamp(_anchor_date)
+            ).days)
             _regime_info['taiex_ret5'] = round((_closes[-1] / _closes[-6] - 1) * 100, 2)
             _regime_info['taiex_ret20'] = round((_closes[-1] / _closes[-21] - 1) * 100, 2)
             if len(_closes) >= 61:
@@ -477,6 +485,10 @@ def run_scanners(target_date: str, db_path: Path,
                 _h60 = max(_highs[-60:]); _l60 = min(_lows[-60:])
                 _mean60 = sum(_closes[-60:]) / 60
                 _regime_info['taiex_range60_pct'] = round((_h60 - _l60) / _mean60 * 100, 2) if _mean60 > 0 else None
+            if _anchor_date != target_date:
+                print(f"  [regime] ⚠️ TAIEX DB 最新 {_anchor_date} ≠ target {target_date} "
+                      f"(stale {_regime_info['stale_days']}d)、regime 用 {_anchor_date} 算",
+                      flush=True)
         from zhuli.setups_detect import classify_regime
         _regime_info['regime_class'] = classify_regime(
             _regime_info.get('taiex_ret20'),

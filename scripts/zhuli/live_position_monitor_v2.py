@@ -1006,31 +1006,57 @@ class MonitorApp(App[None]):
                 time.sleep(0.1)
 
     def _load_setups_from_json(self) -> None:
-        """從 docs/主力大課程/daily_watchlist/{today}.json 讀 setups + regime_info.
+        """從 daily_watchlist/{today}.json 讀 setups + regime_info。
 
-        主 worktree 直接讀 {date}.json；linked worktree 讀 _experimental/{date}.{wt}.json。
-        找不到當天就找最近 7 天。
+        daily_scanner 一律寫主 worktree（source of truth）、所以無論本 monitor
+        從哪個 worktree 啟動、都優先讀主 worktree 路徑。
+
+        順序：
+        1. 主 worktree（git common dir 推算）的 {date}.json — 最權威
+        2. 本 worktree 的 {date}.json — fallback (測試 / sync 後可能有)
+        3. 本 worktree 的 _experimental/{date}.{wt}.json — 實驗檔
+        Lookback 14 天涵蓋連假後重開機 (端午 / 過年).
         """
         import json
+        import subprocess
         from datetime import date as _dc, timedelta as _td
-        base = _REPO / "docs" / "主力大課程" / "daily_watchlist"
-        candidates = []
+
+        # 找主 worktree 根目錄 (common-dir / .. 倒推)
+        main_repo: Path | None = None
+        try:
+            cd = subprocess.check_output(
+                ["git", "rev-parse", "--git-common-dir"],
+                cwd=str(_REPO), text=True).strip()
+            cd_p = Path(cd).resolve()
+            # common-dir 通常是 <main_repo>/.git
+            main_repo = cd_p.parent if cd_p.name == ".git" else cd_p.parent
+        except Exception:
+            pass
+
+        bases: list[Path] = []
+        if main_repo and main_repo.resolve() != _REPO.resolve():
+            bases.append(main_repo / "docs" / "主力大課程" / "daily_watchlist")
+        bases.append(_REPO / "docs" / "主力大課程" / "daily_watchlist")
+
         today = _dc.today()
-        # 先試主 worktree 標準檔名
-        for offset in range(0, 8):
-            d = (today - _td(days=offset)).isoformat()
-            candidates.append(base / f"{d}.json")
-        # 試 linked worktree experimental
         wt_name = _REPO.resolve().name
-        for offset in range(0, 8):
-            d = (today - _td(days=offset)).isoformat()
-            candidates.append(base / "_experimental" / f"{d}.{wt_name}.json")
+        candidates: list[Path] = []
+        for base in bases:
+            for offset in range(0, 14):
+                d = (today - _td(days=offset)).isoformat()
+                candidates.append(base / f"{d}.json")
+            for offset in range(0, 14):
+                d = (today - _td(days=offset)).isoformat()
+                candidates.append(base / "_experimental" / f"{d}.{wt_name}.json")
+
         for p in candidates:
             if p.exists():
                 try:
                     payload = json.loads(p.read_text(encoding="utf-8"))
                     self._setups = payload.get("setups", []) or []
                     self._setups_regime = payload.get("regime_info", {}) or {}
+                    self._setups_source_path = str(p)
+                    self._setups_source_date = payload.get("date", "")
                     return
                 except Exception:
                     continue
@@ -2028,6 +2054,24 @@ class MonitorApp(App[None]):
             items = [i for i in items if self._match_search(i)]
         self._refresh_watch_table("dt-scanner", items, ld, tab_id=TAB_SCANNER)
 
+    def _setups_empty_reason(self, regime_info: dict) -> str:
+        """解釋為何 setup 0 命中（給 user 看、不只是冷冰冰「無命中」）。"""
+        if not regime_info:
+            return "未找到 daily_watchlist JSON、scanner 還沒跑"
+        regime = regime_info.get("regime_class")
+        ret5 = regime_info.get("taiex_ret5")
+        if ret5 is None:
+            return "regime 資料不完整"
+        if regime == "strong_bull" and ret5 > -2.0:
+            return f"強多盤 + 大盤 5d={ret5}% 強漲、F 系列要 ≤-2% 殺盤、等回檔"
+        if regime == "chop" and ret5 > 0.0:
+            return f"震盪盤 + 5d={ret5}% 偏強、S2/S3 要 -2%<ret5≤0%、等回檔"
+        if regime == "chop" and ret5 <= -2.0:
+            return f"震盪盤 + 5d={ret5}% 殺盤、應有 S1 命中、檢查 leader/KD 資料"
+        if regime not in ("strong_bull", "chop"):
+            return f"regime={regime}、不適用（僅 strong_bull / chop 有 setup）"
+        return f"regime={regime} 5d={ret5}% 在 setup 區間、但無個股通過 (leader/KD 不齊)"
+
     def _refresh_setups_table(self, ld: dict) -> None:
         """Setups tab: 從 daily_watchlist JSON setups 區塊讀取、顯示今日命中。
 
@@ -2044,22 +2088,35 @@ class MonitorApp(App[None]):
         setups = list(getattr(self, "_setups", []) or [])
         regime_info = getattr(self, "_setups_regime", {}) or {}
 
-        # Header (regime + n 命中)
+        # Header (regime + n 命中 + source date + stale warning)
         try:
             header = self.query_one("#setups-header", Static)
             regime = regime_info.get("regime_class", "—")
             ret5 = regime_info.get("taiex_ret5")
             ret20 = regime_info.get("taiex_ret20")
+            src_date = getattr(self, "_setups_source_date", "") or "—"
+            anchor = regime_info.get("anchor_date", "")
+            target = regime_info.get("target_date", "")
+            stale = regime_info.get("stale_days", 0) or 0
+            stale_warn = (
+                f"  ⚠️ TAIEX 落後 {stale}d (anchor {anchor})"
+                if anchor and target and anchor != target else ""
+            )
             header_txt = (
-                f"Regime: {regime}  TAIEX 5d: {ret5}%  20d: {ret20}%  "
-                f"命中: {len(setups)} 個 setup"
+                f"資料日 {src_date}  Regime: {regime}  "
+                f"TAIEX 5d={ret5}%  20d={ret20}%  命中 {len(setups)} 個"
+                f"{stale_warn}"
             )
             header.update(header_txt)
         except Exception:
             pass
 
         if not setups:
-            dt.add_row("—", "(今日無 setup 命中)", "—", "—", "—", "—", "—", "—",
+            # 空命中：說明為什麼。F gate 要 ret5≤-2%；S2/S3 gate 要 -2%<ret5≤0%；
+            # S1 要 ret5≤-2% (chop regime 殺盤)；strong_bull 強漲時 7 個 setup 全部不適用。
+            reason = self._setups_empty_reason(regime_info)
+            dt.add_row("—", "(無命中)", "—", reason[:18], reason[18:36] if len(reason) > 18 else "",
+                       reason[36:60] if len(reason) > 36 else "", "—", "—",
                        key="__no_setup__")
             self._restore_table_state(dt, saved_cursor, saved_scroll)
             return
