@@ -728,7 +728,8 @@ class MonitorApp(App[None]):
     pinned_tickers: reactive[frozenset] = reactive(frozenset())
 
     def __init__(self, client=None, demo_mode: bool = False,
-                 demo_client=None, demo_scenarios=None, **kwargs):
+                 demo_client=None, demo_scenarios=None,
+                 held_only: bool = False, **kwargs):
         super().__init__(**kwargs)
         self._client = client
         self._demo_mode = demo_mode
@@ -739,6 +740,7 @@ class MonitorApp(App[None]):
         self._demo_goto_mode = False
         self._demo_goto_buf = ""
         self._demo_total = len(self._demo_scenarios)
+        self._held_only = held_only
 
         # 資料快取
         self._live_data: dict[str, dict] = {}   # ticker → {close, open, vol_ratio, pnl, trigger…}
@@ -748,15 +750,16 @@ class MonitorApp(App[None]):
 
         # Normalize lists (重用 v1 normalizers)
         self._held   = _normalize_held(HELD[:])
-        self._watch  = _normalize_watch(WATCH[:])
+        self._watch  = _normalize_watch(WATCH[:]) if not held_only else []
         self._plan   = _normalize_plan(PLAN_PRIMARY[:])
 
-        # merge scanner watchlist
-        try:
-            _merge_scanner_watchlist()
-            self._watch = _normalize_watch(_v1.WATCH[:])
-        except Exception:
-            pass
+        # merge scanner watchlist (held_only 模式跳過、減 API 量)
+        if not held_only:
+            try:
+                _merge_scanner_watchlist()
+                self._watch = _normalize_watch(_v1.WATCH[:])
+            except Exception:
+                pass
 
         # ── 真分頁 state ────────────────────────────────────────────────────
         self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
@@ -2464,7 +2467,15 @@ def main():
                    help="Demo 模式 (mock client + 36 scenarios)")
     p.add_argument("--interval", type=float, default=5.0,
                    help="Demo auto-cycle 秒 (預設 5)")
+    p.add_argument("--held-only", action="store_true",
+                   help="只跑 HELD (~6 檔) 不跑 WATCH/scanner (~120 檔)。"
+                        "home 跑此模式減 API 量、讓 office 跑完整 monitor "
+                        "(共用 Fugle key、避免 429)")
     args = p.parse_args()
+    # held-only via env (兼容)
+    if not args.held_only and __import__("os").environ.get(
+            "MONITOR_HELD_ONLY") == "1":
+        args.held_only = True
 
     # spec R-MON 護欄：非 demo 模式必須有今日 DB（防 6/12 office 6/8 殭屍）
     if not args.demo:
@@ -2506,7 +2517,7 @@ def main():
         app.run()
     else:
         client = _build_real_client()
-        app = MonitorApp(client=client)
+        app = MonitorApp(client=client, held_only=args.held_only)
         app.run()
 
 
