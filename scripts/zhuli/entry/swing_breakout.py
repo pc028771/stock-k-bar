@@ -77,6 +77,23 @@ from zhuli.config import SwingBreakoutConfig
 
 # ── 資料讀取 ───────────────────────────────────────────────────────────────────
 
+def _snapshot_connect(db_path: Path, prefix: str):
+    """copy DB 到 tempfile 再 plain connect、避開 macOS `/private/var/...`
+    在 sqlite3 URI mode 下「unable to open database file」的 bug。
+    """
+    import sqlite3
+    snapshot_path: Path | None = None
+    try:
+        snapshot_path = Path(tempfile.gettempdir()) / f"{prefix}_{os.getpid()}.sqlite"
+        shutil.copy2(db_path, snapshot_path)
+        return sqlite3.connect(str(snapshot_path), timeout=15), snapshot_path
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(
+            "%s snapshot failed: %s — fallback to direct read", prefix, exc)
+        return sqlite3.connect(str(db_path), timeout=15), None
+
+
 def load_institutional_full(db_path: Path) -> pd.DataFrame:
     """從 DB 讀取 institutional_investors 表（含外資 + 投信欄位）。
 
@@ -86,50 +103,45 @@ def load_institutional_full(db_path: Path) -> pd.DataFrame:
         foreign_buy, foreign_sell, foreign_net.
     若表格不存在或缺少 foreign_* 欄位，回傳空 DataFrame。
     """
+    conn, snapshot_path = _snapshot_connect(db_path, "inst_swing")
     try:
-        tmp = Path(tempfile.gettempdir()) / f"inst_swing_{os.getpid()}.sqlite"
-        shutil.copy2(db_path, tmp)
-        conn_path = str(tmp)
-    except Exception:
-        conn_path = str(db_path)
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"
+        )
+        if cur.fetchone() is None:
+            return pd.DataFrame()
 
-    try:
-        with get_conn(conn_path, timeout=15) as conn:
-            cur = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"
+        existing_cols = {c[1] for c in conn.execute("PRAGMA table_info(institutional_investors)").fetchall()}
+        has_foreign = "foreign_net" in existing_cols
+
+        if has_foreign:
+            df = pd.read_sql_query(
+                """SELECT ticker, trade_date,
+                          sitc_buy, sitc_sell, sitc_net,
+                          foreign_buy, foreign_sell, foreign_net
+                     FROM institutional_investors""",
+                conn,
+                parse_dates=["trade_date"],
             )
-            if cur.fetchone() is None:
-                return pd.DataFrame()
+        else:
+            df = pd.read_sql_query(
+                "SELECT ticker, trade_date, sitc_buy, sitc_sell, sitc_net FROM institutional_investors",
+                conn,
+                parse_dates=["trade_date"],
+            )
+            df["foreign_buy"] = 0.0
+            df["foreign_sell"] = 0.0
+            df["foreign_net"] = 0.0
+    finally:
+        conn.close()
+        if snapshot_path is not None:
+            try:
+                snapshot_path.unlink()
+            except Exception:
+                pass
 
-            # 確認 foreign_* 欄位存在
-            existing_cols = {c[1] for c in conn.execute("PRAGMA table_info(institutional_investors)").fetchall()}
-            has_foreign = "foreign_net" in existing_cols
-
-            if has_foreign:
-                df = pd.read_sql_query(
-                    """SELECT ticker, trade_date,
-                              sitc_buy, sitc_sell, sitc_net,
-                              foreign_buy, foreign_sell, foreign_net
-                         FROM institutional_investors""",
-                    conn,
-                    parse_dates=["trade_date"],
-                )
-            else:
-                df = pd.read_sql_query(
-                    "SELECT ticker, trade_date, sitc_buy, sitc_sell, sitc_net FROM institutional_investors",
-                    conn,
-                    parse_dates=["trade_date"],
-                )
-                df["foreign_buy"] = 0.0
-                df["foreign_sell"] = 0.0
-                df["foreign_net"] = 0.0
-
-        df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
-        return df.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("load_institutional_full failed: %s", exc)
-        return pd.DataFrame()
+    df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
+    return df.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
 
 
 def load_stock_info(db_path: Path) -> pd.DataFrame:
@@ -137,28 +149,24 @@ def load_stock_info(db_path: Path) -> pd.DataFrame:
 
     若表不存在，回傳空 DataFrame。
     """
+    conn, snapshot_path = _snapshot_connect(db_path, "stock_info")
     try:
-        tmp = Path(tempfile.gettempdir()) / f"stock_info_{os.getpid()}.sqlite"
-        shutil.copy2(db_path, tmp)
-        conn_path = str(tmp)
-    except Exception:
-        conn_path = str(db_path)
-
-    try:
-        with get_conn(conn_path, timeout=15) as conn:
-            cur = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_info'"
-            )
-            if cur.fetchone() is None:
-                return pd.DataFrame(columns=["ticker", "stock_name", "industry_category"])
-            return pd.read_sql_query(
-                "SELECT ticker, stock_name, industry_category FROM stock_info",
-                conn,
-            )
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("load_stock_info failed: %s", exc)
-        return pd.DataFrame(columns=["ticker", "stock_name", "industry_category"])
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='stock_info'"
+        )
+        if cur.fetchone() is None:
+            return pd.DataFrame(columns=["ticker", "stock_name", "industry_category"])
+        return pd.read_sql_query(
+            "SELECT ticker, stock_name, industry_category FROM stock_info",
+            conn,
+        )
+    finally:
+        conn.close()
+        if snapshot_path is not None:
+            try:
+                snapshot_path.unlink()
+            except Exception:
+                pass
 
 
 # ── 主偵測函式 ────────────────────────────────────────────────────────────────
