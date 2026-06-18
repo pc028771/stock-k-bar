@@ -460,7 +460,9 @@ def run_scanners(target_date: str, db_path: Path,
 
     # ── TAIEX regime features (給 Pass C setups detect 用) ────────────────
     # 注意：DB TAIEX backfill 通常 D+1 才到、scanner 21:45 跑時 DB 最新可能 < target_date。
-    # 若不一致、要把 anchor_date 寫進 regime_info 讓下游 (monitor / JSON 讀者) 知道實際算的是哪天。
+    # 🔴 2026-06-18 fix: stale > 0 時不能用 anchor 資料偽裝為 target_date 的 regime、
+    #    否則殺盤期 (e.g. 6/8 -4%, 6/10 -7%) F1-F4 setup 全部漏抓。
+    #    Fix: stale > 0 → 強制 regime_class = "stale_unknown" + 標 stale_warning、setups 整批跳過。
     _regime_info = {}
     try:
         _tx_rows = con.execute(
@@ -485,18 +487,31 @@ def run_scanners(target_date: str, db_path: Path,
                 _h60 = max(_highs[-60:]); _l60 = min(_lows[-60:])
                 _mean60 = sum(_closes[-60:]) / 60
                 _regime_info['taiex_range60_pct'] = round((_h60 - _l60) / _mean60 * 100, 2) if _mean60 > 0 else None
-            if _anchor_date != target_date:
-                print(f"  [regime] ⚠️ TAIEX DB 最新 {_anchor_date} ≠ target {target_date} "
-                      f"(stale {_regime_info['stale_days']}d)、regime 用 {_anchor_date} 算",
+
+            _is_stale = (_anchor_date != target_date)
+            _regime_info['stale_warning'] = _is_stale
+            if _is_stale:
+                print(f"  [regime] 🔴 TAIEX DB 最新 {_anchor_date} ≠ target {target_date} "
+                      f"(stale {_regime_info['stale_days']}d)、"
+                      f"regime_class 強制 stale_unknown、setups 跳過、"
+                      f"請跑 evening_data_validator 後 backfill TAIEX",
                       flush=True)
-        from zhuli.setups_detect import classify_regime
-        _regime_info['regime_class'] = classify_regime(
-            _regime_info.get('taiex_ret20'),
-            _regime_info.get('taiex_ret60'),
-            _regime_info.get('taiex_range60_pct'),
-        )
+                _regime_info['regime_class'] = "stale_unknown"
+            else:
+                from zhuli.setups_detect import classify_regime
+                _regime_info['regime_class'] = classify_regime(
+                    _regime_info.get('taiex_ret20'),
+                    _regime_info.get('taiex_ret60'),
+                    _regime_info.get('taiex_range60_pct'),
+                )
+        else:
+            _regime_info['regime_class'] = "stale_unknown"
+            _regime_info['stale_warning'] = True
+            print(f"  [regime] 🔴 TAIEX DB 資料不足 (need ≥21 days)、regime_class = stale_unknown", flush=True)
     except Exception as _e:
         print(f"  [regime] 計算失敗: {_e}", flush=True)
+        _regime_info['regime_class'] = "stale_unknown"
+        _regime_info['stale_warning'] = True
 
     results = {
         '_regime_info': _regime_info,
@@ -788,11 +803,14 @@ def run_scanners(target_date: str, db_path: Path,
 
     # ── foreign_lead: 5 variants (2026-06-15 deploy、regime-conditional) ────
     # ⚠️ Backtest: 2026 H1 WR 70-83%、2024/2025 跨年 fail 36-49%
-    # → 部署為主訊號、但「人工 regime gate」: 老師大盤判讀變強多升才降權
-    print(f"  [foreign_lead] 跑 5 變體...", flush=True)
+    # 🔴 2026-06-18 fix: 接 regime_class 自動降權、非 strong_bull 降一級 (P3→P2)、避免 2024 WR 36% 風險
+    print(f"  [foreign_lead] 跑 5 變體 (regime={_regime_info.get('regime_class')})...", flush=True)
     try:
         from zhuli.entry.foreign_lead import detect as detect_foreign_lead
-        fl_results = detect_foreign_lead(target_date, db_path=db_path)
+        fl_results = detect_foreign_lead(
+            target_date, db_path=db_path,
+            regime=_regime_info.get('regime_class'),
+        )
         for vid, items in fl_results.items():
             key = f"foreign_lead_{vid}"
             for it in items:
@@ -2484,13 +2502,20 @@ def write_daily_watchlist_json(
         by_ticker[ticker]['sources'].add(source)
         by_ticker[ticker]['hits'].append(hit)
 
-    # 標準 list[dict] scanner
-    list_scanners = [
-        'shakeout_strong', 'small_structure', 'w_bottom_launch',
-        'ma5_pivot', 'glued_ma5',
-        'institutional_firstbuy', 'institutional_swing',
-        'foreign_buy_on_black_k',
-    ]
+    # 標準 list[dict] scanner — 🔴 2026-06-18 fix: 從 results.keys() 自動 enumerate
+    # 避免新 detector (composite_2026 / foreign_lead_v06/v07/v08/v15 / suffocation etc.)
+    # 漏列導致 JSON output 看不到。排除 _ 前綴 meta key + 已單獨處理的 DataFrame key。
+    _excluded_keys = {
+        'post_attack_watchlist',     # DataFrame、單獨處理
+        'uniform_ma_above',          # DataFrame、單獨處理
+        'leaders',                   # 不算 detector hit
+        'setups',                    # F1-F4/S1-S3 setup、由 Pass C 已寫 results['setups']、可選擇是否合進 candidates
+        'skip_warnings',             # 反向訊號、單獨處理
+    }
+    list_scanners = sorted([
+        k for k, v in results.items()
+        if not k.startswith('_') and k not in _excluded_keys and isinstance(v, list)
+    ])
     for s in list_scanners:
         for h in results.get(s, []):
             if isinstance(h, dict) and h.get('ticker'):

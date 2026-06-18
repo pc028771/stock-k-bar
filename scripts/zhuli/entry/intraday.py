@@ -2,6 +2,10 @@
 
 Course source: strategy-indicators.md §F 當沖策略
 
+🔴 DEPRECATED (2026-06-18): 不推薦、僅 T+0 限制時用。
+   Per memory project_strategy_intraday: strategy_mode=intraday backtest 全負 (-0.80%)。
+   主推 strategy_mode=overnight (+1.85%/筆、Win 65%、per project_strategy_overnight_swing)。
+
 ⚠️ Scanner 只做「前夜選股」(日 K 級)；盤中執行（5 分 K + VWAP + 突破第一根 K 高點）
    不在 scanner 範圍，由 user 手動執行。
 
