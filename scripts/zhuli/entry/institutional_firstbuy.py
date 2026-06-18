@@ -61,37 +61,47 @@ def load_institutional(db_path: Path) -> pd.DataFrame:
     """從 DB 讀取 institutional_investors 表。
 
     Returns DataFrame with columns: ticker, trade_date (datetime64[ns]), sitc_buy, sitc_sell, sitc_net.
-    若表格不存在，回傳空 DataFrame。
+    若表格不存在，回傳空 DataFrame；若表存在但載入失敗，raise（不再吞掉錯誤）。
 
-    ⚠️ 若回傳空 DataFrame，偵測函式會 raise 提醒 user 需先執行 backfill。
+    用 sqlite3 plain connect (不走 get_conn 的 URI mode)、原因:
+      macOS `/var/folders/.../T/` 是 `/private/var/folders/...` 的 symlink、
+      `Path.resolve()` 會 follow 到 `/private/...`、sqlite3 URI mode (`file:/path`)
+      對 `/private/` prefix 路徑會 silent fail (`unable to open database file`)。
+      Plain path connect 無此問題。
     """
+    import sqlite3
+    snapshot_path: Path | None = None
     try:
-        tmp = Path(tempfile.gettempdir()) / f"inst_snapshot_{os.getpid()}.sqlite"
-        shutil.copy2(db_path, tmp)
-        conn_path = str(tmp)
-    except Exception:
-        conn_path = str(db_path)
-
-    try:
-        with get_conn(conn_path, timeout=15) as conn:
-            # 先確認表存在
-            cur = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"
-            )
-            if cur.fetchone() is None:
-                return pd.DataFrame(columns=["ticker", "trade_date", "sitc_buy", "sitc_sell", "sitc_net"])
-
-            df = pd.read_sql_query(
-                "SELECT ticker, trade_date, sitc_buy, sitc_sell, sitc_net FROM institutional_investors",
-                conn,
-                parse_dates=["trade_date"],
-            )
-        df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
-        return df.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
+        snapshot_path = Path(tempfile.gettempdir()) / f"inst_snapshot_{os.getpid()}.sqlite"
+        shutil.copy2(db_path, snapshot_path)
+        conn = sqlite3.connect(str(snapshot_path), timeout=15)
     except Exception as exc:
         import logging
-        logging.getLogger(__name__).warning("load_institutional failed: %s", exc)
-        return pd.DataFrame(columns=["ticker", "trade_date", "sitc_buy", "sitc_sell", "sitc_net"])
+        logging.getLogger(__name__).warning(
+            "load_institutional snapshot failed: %s — fallback to direct read", exc)
+        conn = sqlite3.connect(str(db_path), timeout=15)
+        snapshot_path = None
+    try:
+        cur = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='institutional_investors'"
+        )
+        if cur.fetchone() is None:
+            return pd.DataFrame(columns=["ticker", "trade_date", "sitc_buy", "sitc_sell", "sitc_net"])
+
+        df = pd.read_sql_query(
+            "SELECT ticker, trade_date, sitc_buy, sitc_sell, sitc_net FROM institutional_investors",
+            conn,
+            parse_dates=["trade_date"],
+        )
+    finally:
+        conn.close()
+        if snapshot_path is not None:
+            try:
+                snapshot_path.unlink()
+            except Exception:
+                pass
+    df["trade_date"] = df["trade_date"].astype("datetime64[ns]")
+    return df.sort_values(["ticker", "trade_date"]).reset_index(drop=True)
 
 
 # ── 主偵測函式 ────────────────────────────────────────────────────────────────
