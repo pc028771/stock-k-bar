@@ -96,12 +96,21 @@ HELD = [
     },
     {
         'ticker': '2303', 'name': '聯電',
-        'cost': 139.0, 'shares': 1000, 'stop': 137.0,
+        'cost': 141.5, 'shares': 2000, 'stop': 138.0,
         'strategy_mode': 'swing',
         'tactic': '戰略級', 'priority': 3,
-        'source': '老師明示 6/14 戰略級 + 6/16「黑K+籌碼漂亮」模式',
+        'source': '老師明示 6/14 戰略級 + 6/16「黑K+籌碼漂亮」+ 6/18 突破加碼',
         'sector': '成熟製程',
-        'note': '6/17 10:30 限價 $139 成交 (盤中 stop $137 被測 2 次 $137.5→$136.5→$137 反彈)、target $145、按課程鐵則收盤為準、6/18 開盤大殺則紀律砍、戰略級 ⭐⭐⭐ 4 大論述、CB 7/中觀察'
+        'note': '6/17 Stage 1 $139 × 1 張 + 6/18 13:00 Stage 2 $144 × 1 張 = 2 張 avg $141.5、stop trail $137→$138、target $148-$152、漏斗 6/6 過 (戰略級 ⭐⭐⭐ + 籌碼 6/16 +28,998 史詩 + 早盤紅K吞噬突破 + 11:20 量爆 8,587 + 11:47 上緣 1.00 + 6/18 早盤量 1.49x 6/17)'
+    },
+    {
+        'ticker': '3711', 'name': '日月光投控',
+        'cost': 617.0, 'shares': 200, 'stop': 595.0,
+        'strategy_mode': 'swing',
+        'tactic': '戰略級', 'priority': 3,
+        'source': '老師親口買 ⭐⭐⭐ + 老師 6/16 外資買超權值區 + OSAT 龍頭跟 6/13 OSAT 三重背書',
+        'sector': '半導體封測 OSAT',
+        'note': '6/18 13:14 Stage 1 限價 $617 零股 200 股 = $123.4k、stop $595 (6/17 close)、target $640 短期 / 長線觀察、漏斗條件: ✅ 老師親口買 ✅ 6/16 權值 ✅ OSAT 龍頭 ✅ 突破 $612 ✅ 13:05+13:10 連 2 紅 K ✅ 收盤位置 0.50 健康 ✅ 漲幅 +3.70% 不大紅'
     },
 ]
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
