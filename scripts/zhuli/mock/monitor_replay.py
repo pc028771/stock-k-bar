@@ -266,9 +266,12 @@ def selftest():
     import numpy as _np
     from zhuli.intraday_indicators.ch5_complement import (
         check_b5_1_stop_profit, check_ma_divergence, check_b5_3_quarterly_ma_short_filter)
-    _b1 = pd.DataFrame({'open': [100, 100], 'high': [100, 106], 'low': [99, 100],
-                        'close': [100, 106], 'volume': [50, 80]})
-    assert check_b5_1_stop_profit(_b1).get('triggered'), "B5-1 大紅棒停利 regression"
+    # B5-1: 真實歷史檔 3296 勝德 6/18 09:00 單根 5K +7.2% (window 到 09:04 隔離 spike bar)
+    _dp1 = DataProvider()
+    _b1day = _dp1.get_day('3296', '2026-06-18')
+    _dp1.close()
+    _b1 = build_5k_so_far(_b1day.bars, time(9, 4)) if _b1day else pd.DataFrame()
+    assert check_b5_1_stop_profit(_b1).get('triggered'), "B5-1 大紅棒停利 regression (3296 6/18)"
     _p = list(_np.linspace(100, 140, 20))
     _b2 = pd.DataFrame({'open': _p, 'high': _p, 'low': _p, 'close': _p, 'volume': [50] * 20})
     assert check_ma_divergence(_b2).get('triggered'), "ma_divergence regression"
