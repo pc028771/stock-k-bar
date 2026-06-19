@@ -21,7 +21,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 _REPO = Path(__file__).parent.parent.parent
-for _p in [str(_REPO), str(_REPO / "scripts"), "/Users/howard/Repository/stock-analysis-system"]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

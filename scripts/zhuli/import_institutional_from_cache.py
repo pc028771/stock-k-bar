@@ -1,4 +1,15 @@
-"""從 stock-analysis-system 的 FinMind ndjson cache 匯入法人資料至 SQLite DB。
+"""[DEPRECATED 2026-06-19] 一次性遷移工具、外部資料源已不存在。
+
+⚠️ 此 script 已停用 (2026-06-19 stock-analysis-system 脫鉤決策):
+   - 外部 data 路徑 `/Users/howard/Repository/stock-analysis-system/data/raw/` 已不存在
+   - git log 顯示為 2026-06-14 一次性 import (commit 271d511) 已完成
+   - 不在任何 launchd / crontab / production 流程
+   - 留檔僅供歷史參考、未來不再執行
+
+如要再次匯入法人資料、用 `backfill_institutional.py` 直接打 FinMind API。
+
+---
+從 stock-analysis-system 的 FinMind ndjson cache 匯入法人資料至 SQLite DB。
 
 ⚠️ 不呼叫 FinMind API — 完全走本機 cache。
 
@@ -338,6 +349,15 @@ def import_all(
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def main():
+    # [DEPRECATED 2026-06-19] 防誤用：外部 cache 已不存在
+    print(
+        "[DEPRECATED] 此 script 已停用 (2026-06-19)。\n"
+        "  原資料源 /Users/howard/Repository/stock-analysis-system/data/raw/ 已不存在。\n"
+        "  改用 scripts/zhuli/backfill_institutional.py 直接打 FinMind API。\n"
+        "  若仍要強跑、移除此 sys.exit。"
+    )
+    sys.exit(2)
+
     parser = argparse.ArgumentParser(
         prog="import_institutional_from_cache",
         description="從 FinMind ndjson cache 匯入法人資料至 institutional_investors 表（不呼叫 API）",

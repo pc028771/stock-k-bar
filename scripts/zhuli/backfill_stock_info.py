@@ -11,7 +11,7 @@ Table schema（自動建立）：
     updated_at        TIMESTAMP         — 最後更新時間
 
 資料來源: FinMind TaiwanStockInfo（免費 tier 支援）
-         透過 stock-analysis-system 的 fetch_stock_info()（含 TTL 快取）。
+         透過 common.clients.finmind_compat.fetch_stock_info()（含 TTL 快取）。
          ⚠️ 禁止直接 curl FinMind API。
 
 Usage:
@@ -36,13 +36,12 @@ import pandas as pd
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _WORKTREE = Path(__file__).parent.parent.parent   # phase1-scanner/
 _SCRIPTS_DIR = _WORKTREE / "scripts"
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from clients.finmind_client import fetch_stock_info   # noqa: E402
+from common.clients.finmind_compat import fetch_stock_info   # noqa: E402
 from kline.bars import DEFAULT_DB_PATH               # noqa: E402
 
 # ── Table DDL ─────────────────────────────────────────────────────────────────

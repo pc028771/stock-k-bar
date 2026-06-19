@@ -20,15 +20,14 @@ from pathlib import Path
 
 # Path setup
 _WORKTREE = Path(__file__).parent.parent.parent
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_WORKTREE / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
 import pandas as pd
 
-from clients.fubon_client import FubonClient  # noqa: E402
+from common.clients.fubon_client import FubonClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
 # 族群定義 (供法人籌碼過濾器用)

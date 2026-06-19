@@ -53,13 +53,12 @@ from rich.text import Text
 from rich import box
 
 _REPO = Path(__file__).parent.parent.parent
-_SYS  = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn, MAIN_DB
-from clients.fubon_client import FubonClient  # noqa
+from common.clients.fubon_client import FubonClient  # noqa
 
 DB = MAIN_DB
 # ─────────────────────────────────────────────────────────────────────────

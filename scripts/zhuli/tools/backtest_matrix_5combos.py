@@ -22,8 +22,7 @@ from datetime import date
 
 # ── Path setup ───────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent.parent
-_SYS = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
