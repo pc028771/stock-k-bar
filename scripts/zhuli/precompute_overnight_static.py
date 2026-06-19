@@ -98,18 +98,20 @@ def load_universe() -> list[str]:
 
 # ── 單檔 feature 計算 ───────────────────────────────────────────────────────
 def compute_features_for_ticker(
-    ticker: str, con: sqlite3.Connection,
+    ticker: str, con: sqlite3.Connection, asof_date: str | None = None,
 ) -> dict:
     """讀近 60 日 bar、算靜態 feature dict。
 
+    asof_date: 給定時 (exclusive) 只取 trade_date < asof_date、用於歷史重播。
     失敗時回傳 {"error": "..."}，不 raise。
     """
     try:
+        _where = "WHERE ticker=?" + (" AND trade_date < ?" if asof_date else "")
         df = pd.read_sql_query(
-            "SELECT trade_date, open, close, low, high, volume "
-            "FROM standard_daily_bar WHERE ticker=? "
-            "ORDER BY trade_date DESC LIMIT 60",
-            con, params=(ticker,),
+            f"SELECT trade_date, open, close, low, high, volume "
+            f"FROM standard_daily_bar {_where} "
+            f"ORDER BY trade_date DESC LIMIT 60",
+            con, params=((ticker, asof_date) if asof_date else (ticker,)),
         )
     except Exception as e:
         return {"error": f"db_read_fail:{e!s}[:40]"}
@@ -177,15 +179,16 @@ def compute_features_for_ticker(
 
 
 # ── 大盤 features (TAIEX) — 給 monitor 當大盤條件 fallback ──────────────────
-def compute_market_features(con: sqlite3.Connection) -> dict:
+def compute_market_features(con: sqlite3.Connection, asof_date: str | None = None) -> dict:
     out = {}
     for sym in ("TAIEX", "TPEX"):
         try:
+            _where = "WHERE ticker=?" + (" AND trade_date < ?" if asof_date else "")
             df = pd.read_sql_query(
-                "SELECT trade_date, open, close, volume "
-                "FROM standard_daily_bar WHERE ticker=? "
-                "ORDER BY trade_date DESC LIMIT 30",
-                con, params=(sym,),
+                f"SELECT trade_date, open, close, volume "
+                f"FROM standard_daily_bar {_where} "
+                f"ORDER BY trade_date DESC LIMIT 30",
+                con, params=((sym, asof_date) if asof_date else (sym,)),
             )
         except Exception:
             continue
