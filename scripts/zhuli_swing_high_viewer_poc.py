@@ -35,7 +35,7 @@ if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
 try:
-    from common.clients import finmind_compat as fm
+    from common import finmind_client as fm
 except ImportError as exc:
     print(f"[ERROR] 無法 import common.clients.finmind_compat：{exc}")
     sys.exit(1)

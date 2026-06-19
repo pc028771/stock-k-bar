@@ -425,7 +425,97 @@ def get_client(**kwargs) -> FinMindClient:
     return _default_client
 
 
+# ── legacy compat shims (取代 common/clients/finmind_compat.py、2026-06) ──────
+# ponytail: 薄包 get_client().fetch_dataset()、只保留 downstream 依賴的欄位整形。
+# token 參數一律忽略 (新 client 自抓 env)。caching/quota 由 fetch_dataset 處理。
+
+def get_data(dataset, stock_id=None, start_date=None, end_date=None, token=None):
+    return get_client().fetch_dataset(dataset=dataset, data_id=stock_id,
+                                      start_date=start_date, end_date=end_date)
+
+
+def get_price(stock_id, start_date, end_date, token=None):
+    """TaiwanStockPrice OHLCV、max→high / min→low。"""
+    df = get_data("TaiwanStockPrice", stock_id, start_date, end_date)
+    return df.rename(columns={k: v for k, v in (("max", "high"), ("min", "low"))
+                              if k in df.columns})
+
+
+def get_institutional(stock_id, start_date, end_date=None, token=None):
+    """三大法人買賣超、name 英→中、buy/sell 數值化。"""
+    cols = ["date", "name", "buy", "sell"]
+    df = get_data("TaiwanStockInstitutionalInvestorsBuySell", stock_id,
+                  start_date, end_date or _today_str())
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+    for c in ("buy", "sell"):
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+    name_map = {"Foreign_Investor": "外資", "Foreign_Dealer_Self": "外資",
+                "Investment_Trust": "投信", "Dealer_self": "自營商",
+                "Dealer_Hedging": "自營商"}
+    df["name"] = df["name"].map(name_map).fillna(df["name"])
+    return df
+
+
+def fetch_kbar(stock_id, date, token=None):
+    """Sponsor tier 1分K、cols=[minute,open,high,low,close,volume]。"""
+    cols = ["minute", "open", "high", "low", "close", "volume"]
+    df = get_client().fetch_dataset(dataset="TaiwanStockKBar", data_id=stock_id,
+                                    start_date=date, end_date=date)
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    for c in ("open", "high", "low", "close", "volume"):
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    if "date" in df.columns:
+        df = df[df["date"].astype(str).str.startswith(date)].copy()
+        if "minute" not in df.columns:
+            df["minute"] = df["date"].astype(str).str[11:16]
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+    return df[cols].reset_index(drop=True)
+
+
+def fetch_stock_info(token=None):
+    """TaiwanStockInfo、cols=[stock_id,stock_name,industry_category,type]。"""
+    cols = ["stock_id", "stock_name", "industry_category", "type"]
+    df = get_client().fetch_dataset(dataset="TaiwanStockInfo")
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+    return df[cols].dropna(subset=["stock_id"]).reset_index(drop=True)
+
+
+# FinMindClient.get_price / get_institutional — 給 backfill_historical / sync_missing 當 drop-in
+FinMindClient.get_price = lambda self, sid, s, e: get_price(sid, s, e)
+FinMindClient.get_institutional = lambda self, sid, s, e=None: get_institutional(sid, s, e)
+
+
+def _demo():
+    """smoke: 欄位整形不靠網路、用假 DataFrame 驗 rename / name_map。"""
+    import pandas as _pd
+    g = globals()
+    # get_price rename
+    g["get_data"] = lambda *a, **k: _pd.DataFrame({"max": [10], "min": [9], "close": [9.5]})
+    assert list(get_price("x", "a", "b").columns) == ["high", "low", "close"]
+    # institutional name map
+    g["get_data"] = lambda *a, **k: _pd.DataFrame(
+        {"date": ["d"], "name": ["Foreign_Investor"], "buy": ["100"], "sell": [None]})
+    out = get_institutional("x", "a")
+    assert out["name"][0] == "外資" and out["sell"][0] == 0
+    print("ok")
+
+
 if __name__ == "__main__":
+    import sys as _s
+    if "--demo" in _s.argv:
+        _demo(); _s.exit(0)
     import argparse
     import json as _j
     p = argparse.ArgumentParser()

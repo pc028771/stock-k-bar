@@ -44,7 +44,7 @@ if not TOKEN:
 print(f"Token: {'set (' + TOKEN[:20] + '...)' if TOKEN else 'MISSING'}")
 print(f"Tier: {os.environ.get('FINMIND_TIER', 'free')}")
 
-from common.clients.finmind_compat import get_data  # noqa: E402
+from common.finmind_client import get_data  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # DB setup

@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from zhuli.db import get_conn
 import pandas as pd
 
-from common.clients import finmind_compat
+from common import finmind_client as finmind_client
 
 DB_PATH = Path("/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power/data/analysis/kline_patterns/attack_cost_minute_data.sqlite")
 REPORT_PATH = Path("/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power/data/analysis/kline_patterns/attack_cost_minute_analysis.md")

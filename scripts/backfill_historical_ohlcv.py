@@ -45,7 +45,7 @@ if not TOKEN:
 print(f"Token: {'set (' + TOKEN[:20] + '...)' if TOKEN else 'MISSING'}")
 print(f"Tier: {os.environ.get('FINMIND_TIER', 'free')}")
 
-from common.clients.finmind_compat import get_price  # noqa: E402 — must be after env setup
+from common.finmind_client import get_price  # noqa: E402 — must be after env setup
 
 
 # --- Step 1: Extract ticker ranges from NO_OHLCV cases ---
