@@ -277,6 +277,9 @@ def selftest():
     assert check_ma_divergence(_b2).get('triggered'), "ma_divergence regression"
     assert check_b5_3_quarterly_ma_short_filter(
         pd.Series(_np.linspace(50, 100, 70))).get('triggered'), "B5-3 季線濾空 regression"
+    # 日線均線發散 當沖提醒 (純資訊): 格式 + 台積電應算得出 (tight)
+    _div = mon.daily_ma_divergence('2330')
+    assert '發散' in _div and '%' in _div, f"daily_ma_divergence format regression: {_div}"
     print("selftest ok: entry", {k: len(v) for k, v in tl.items()},
           "| exit", {k: len(v) for k, v in ex.items()}, "| watch", wt, "| overnight", {k:(v.get("error") or v.get("pass_count")) for k,v in ov.items()})
 

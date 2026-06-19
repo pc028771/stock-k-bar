@@ -857,6 +857,13 @@ class MonitorApp(App[None]):
             except Exception:
                 pursuit_line = "警示:    —"
 
+            # 🛡 日線均線發散 (純資訊、當沖提醒「均線太亂不做」、無門檻不過濾)
+            try:
+                _div = _v1.daily_ma_divergence(tk)
+                diverge_line = f"均線:    🛡 {_div}" if _div else ""
+            except Exception:
+                diverge_line = ""
+
             # 🗓 Plan 條件 check (只對 PLAN_PRIMARY 內的 ticker)
             plan_line = ""
             try:
@@ -881,7 +888,8 @@ class MonitorApp(App[None]):
             except Exception:
                 pass
 
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{plan_line}\n{source_line}"
+            _div_block = f"\n{diverge_line}" if diverge_line else ""
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{_div_block}{plan_line}\n{source_line}"
         except Exception:
             pass
 

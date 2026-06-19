@@ -1865,6 +1865,28 @@ def load_ma10(ticker: str) -> float | None:
         return None
 
 
+def daily_ma_divergence(ticker: str) -> str:
+    """日線 MA5/10/20 發散% — 純資訊、無門檻 (老師: 均線太亂不做、當沖判斷靠肉眼)。
+
+    回傳顯示字串、例「日線均線 MA5/10/20 發散 15.1%」、算不出回 ""。
+    不設門檻、不過濾——只給數字 + 老師原則、亂不亂使用者自己判。
+    """
+    try:
+        con = get_conn(DB, timeout=5)
+        r = con.execute(
+            "SELECT ma5, ma10, ma20 FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date < date('now', 'localtime') "
+            "ORDER BY trade_date DESC LIMIT 1", (ticker,)).fetchone()
+        con.close()
+    except Exception:
+        return ""
+    if not r or None in r or not r[2]:
+        return ""
+    mas = [float(r[0]), float(r[1]), float(r[2])]
+    spread = (max(mas) - min(mas)) / min(mas) * 100
+    return f"日線 MA5/10/20 發散 {spread:.1f}%（老師：太亂不做）"
+
+
 def r_dist_ma10(c: float, ticker: str) -> Text:
     """距 MA10 % + 上色 (打擊區判斷):
        -3% ~ +5%: 綠 (打擊區)
