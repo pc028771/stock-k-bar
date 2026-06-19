@@ -1,0 +1,13 @@
+#!/bin/bash
+# 只在 monitor / detector / mock 相關檔被 staged 時跑 mock selftest 回歸。
+# 安裝: git config core.hooksPath scripts/git-hooks
+set -e
+staged=$(git diff --cached --name-only)
+if echo "$staged" | grep -qE 'scripts/zhuli/(live_position_monitor|intraday_stage_helper|exit/|mock/|precompute_overnight)'; then
+    echo "[pre-commit] monitor 邏輯異動 → 跑 mock selftest…"
+    if ! PYTHONPATH=scripts python3 -m zhuli.mock.monitor_replay --selftest; then
+        echo "[pre-commit] ❌ mock selftest 失敗、commit 中止。要跳過: git commit --no-verify"
+        exit 1
+    fi
+    echo "[pre-commit] ✅ mock selftest 通過"
+fi
