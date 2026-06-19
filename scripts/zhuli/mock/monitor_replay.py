@@ -21,6 +21,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import zhuli.live_position_monitor as mon
 import zhuli.intraday_stage_helper as helper
+from zhuli.exit.detectors import (check_umbrella_exit, check_high_long_black,
+                                  check_profit_milestone, check_gap_down_emergency)
 from zhuli.mock import DataProvider
 from zhuli.mock.test_runner import SCENARIOS, build_5k_so_far
 
@@ -40,6 +42,27 @@ def _fake_clock(target_date: str, clk: list):
             return d
 
     return FakeDT, FakeDate
+
+
+def _run_exits(tk, day, clk_t, milestones, out):
+    """跑 4 個出場 detector、entry 基準=昨收、只記轉變/新觸發。"""
+    k5 = build_5k_so_far(day.bars, clk_t)
+    if k5 is None or k5.empty:
+        return
+    entry = day.prev_close
+    cur = float(k5["close"].iloc[-1])
+    checks = [
+        ("掀傘", check_umbrella_exit(k5, entry)),
+        ("高檔長黑", check_high_long_black(k5)),
+        ("分批停利", check_profit_milestone(cur, entry, milestones)),
+    ]
+    if clk_t <= time(9, 10):                  # gap_down 只在開盤評估
+        checks.append(("跳空急殺",
+                       check_gap_down_emergency(float(k5["open"].iloc[0]), entry)))
+    seen = {e[1] for e in out}
+    for kind, r in checks:
+        if r.get("triggered") and kind not in seen:   # 每種出場一天記一次
+            out.append((clk_t.strftime("%H:%M"), kind, str(r.get("reason", ""))[:70]))
 
 
 def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
@@ -79,7 +102,9 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
     helper.date = FakeDate
     helper._get_fubon = lambda: None    # → regime uses DB TAIEX fallback
 
-    timeline = {t: [] for t in days}         # ticker -> [(time, trig_key, reason)]
+    timeline = {t: [] for t in days}         # ticker -> [(time, trig_key, reason)] 進場燈號
+    exits = {t: [] for t in days}            # ticker -> [(time, exit_kind, reason)] 出場訊號
+    milestones = {t: set() for t in days}    # profit_milestone 累積 state
     try:
         t = time(9, 5)
         while t <= time(13, 30):
@@ -89,6 +114,8 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
                 last = timeline[tk][-1][1] if timeline[tk] else None
                 if trig != last:               # record only transitions
                     timeline[tk].append((t.strftime("%H:%M"), trig, reason[:70]))
+                # exit detectors (HELD 視角、entry 基準 = 昨收)
+                _run_exits(tk, days[tk], clk[0], milestones[tk], exits[tk])
             # advance 5 min
             t = (datetime.combine(_Date(2000, 1, 1), t).replace(
                 minute=(t.minute + 5) % 60,
@@ -97,21 +124,30 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
         (mon._fetch_5min, mon._get_prev, mon.datetime,
          helper.datetime, helper.date, helper._get_fubon) = orig
 
-    return timeline
+    return timeline, exits
 
 
-def render(name: str, cfg: dict, timeline: dict) -> str:
+def render(name: str, cfg: dict, timeline: dict, exits: dict) -> str:
     out = [f"# Monitor Replay — {name}", "",
            f"- date: {cfg['date']}  |  tickers: {', '.join(cfg['tickers'])}",
            f"- desc: {cfg['description']}",
-           f"- path: check_trigger_inline (composite_check + 紅線、真實 monitor cycle)", ""]
+           f"- path: check_trigger_inline (進場) + exit detectors (出場)、真實 monitor 邏輯", ""]
     for tk, changes in timeline.items():
         fired = [c for c in changes if c[1] != 'none']
-        out.append(f"## {tk} — {len(fired)} 個非 none 燈號")
+        out.append(f"## {tk} 進場燈號 — {len(fired)} 個非 none")
         out.append("| time | trigger | reason |")
         out.append("|---|---|---|")
         for tm, trig, reason in changes:
             out.append(f"| {tm} | {trig} | {reason} |")
+        ex = exits.get(tk, [])
+        out.append(f"\n### {tk} 出場訊號 — {len(ex)} 個")
+        if ex:
+            out.append("| time | exit | reason |")
+            out.append("|---|---|---|")
+            for tm, kind, reason in ex:
+                out.append(f"| {tm} | {kind} | {reason} |")
+        else:
+            out.append("（無）")
         out.append("")
     # expected vs actual
     exp = cfg.get('expected_triggers', {})
@@ -131,21 +167,24 @@ def run(names: list[str], outdir: Path):
     outdir.mkdir(parents=True, exist_ok=True)
     for name in names:
         cfg = SCENARIOS[name]
-        tl = replay_scenario(name, cfg, dp)
-        total = sum(len([c for c in v if c[1] != 'none']) for v in tl.values())
-        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl))
-        print(f"  {name}: {total} 燈號 fire → monitor_{name}.md")
+        tl, ex = replay_scenario(name, cfg, dp)
+        n_in = sum(len([c for c in v if c[1] != 'none']) for v in tl.values())
+        n_out = sum(len(v) for v in ex.values())
+        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl, ex))
+        print(f"  {name}: 進場 {n_in} / 出場 {n_out} → monitor_{name}.md")
     dp.close()
 
 
 def selftest():
     """Frozen-clock + mock-feed sanity: a known漲停-隔日 ticker yields a non-none燈號 timeline without crashing."""
     dp = DataProvider()
-    tl = replay_scenario('6_15_red_engulfing', SCENARIOS['6_15_red_engulfing'], dp)
+    tl, ex = replay_scenario('6_5_sell_off_2454', SCENARIOS['6_5_sell_off_2454'], dp)
     dp.close()
-    assert '1303' in tl, "ticker missing from timeline"
-    assert all(len(c) == 3 for v in tl.values() for c in v), "malformed timeline row"
-    print("selftest ok:", {k: len(v) for k, v in tl.items()})
+    assert '2454' in tl and '2454' in ex, "ticker missing"
+    assert all(len(c) == 3 for v in tl.values() for c in v), "malformed entry row"
+    assert all(len(c) == 3 for v in ex.values() for c in v), "malformed exit row"
+    print("selftest ok: entry", {k: len(v) for k, v in tl.items()},
+          "| exit", {k: len(v) for k, v in ex.items()})
 
 
 def main():
