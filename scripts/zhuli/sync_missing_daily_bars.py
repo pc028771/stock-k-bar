@@ -13,7 +13,7 @@ Usage:
                                                     [--tickers 2330,2454] [--limit N]
                                                     [--skip-bars] [--skip-institutional]
 
-⚠️ 必須走 stock-analysis-system FinMindClient（含 throttle）— 禁止 curl API
+⚠️ 必須走 common.clients.finmind_compat.FinMindClient（含 throttle）— 禁止 curl API
 """
 from __future__ import annotations
 
@@ -29,13 +29,12 @@ import pandas as pd
 
 # Path setup
 _WORKTREE = Path(__file__).parent.parent.parent
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_WORKTREE / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from clients.finmind_client import FinMindClient  # noqa: E402
+from common.clients.finmind_compat import FinMindClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
 DATA_SOURCE_ID = 1

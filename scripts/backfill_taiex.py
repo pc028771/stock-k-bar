@@ -1,6 +1,6 @@
 """Backfill TAIEX (加權指數) historical OHLCV from FinMind.
 
-Uses the throttled stock-analysis-system FinMind client.
+Uses the vendored common.clients.finmind_compat client.
 Ticker = "TAIEX" on TaiwanStockPrice dataset.
 
 Output: data/analysis/kline_patterns/taiex_history.sqlite
@@ -20,10 +20,9 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 WORKTREE = Path("/Users/howard/Repository/stock-k-bar/.claude/worktrees/k-bar-power")
 OUT_DB = WORKTREE / "data/analysis/kline_patterns/taiex_history.sqlite"
-
-SAS_PATH = Path("/Users/howard/Repository/stock-analysis-system")
-if str(SAS_PATH) not in sys.path:
-    sys.path.insert(0, str(SAS_PATH))
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 
 from zhuli.db import get_conn
 # ---------------------------------------------------------------------------
@@ -31,7 +30,7 @@ from zhuli.db import get_conn
 # ---------------------------------------------------------------------------
 TOKEN = os.environ.get("FINMIND_API_TOKEN", "")
 if not TOKEN:
-    for env_file in [WORKTREE / ".env", SAS_PATH / ".env"]:
+    for env_file in [WORKTREE / ".env"]:
         if env_file.exists():
             for line in env_file.read_text().splitlines():
                 if line.startswith("FINMIND_API_TOKEN="):
@@ -45,7 +44,7 @@ if not TOKEN:
 print(f"Token: {'set (' + TOKEN[:20] + '...)' if TOKEN else 'MISSING'}")
 print(f"Tier: {os.environ.get('FINMIND_TIER', 'free')}")
 
-from clients.finmind_client import get_data  # noqa: E402
+from common.clients.finmind_compat import get_data  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # DB setup

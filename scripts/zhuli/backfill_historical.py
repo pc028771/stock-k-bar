@@ -22,13 +22,12 @@ import pandas as pd
 # ── path setup ─────────────────────────────────────────────────────────────────
 _WORKTREE = Path(__file__).parent.parent.parent  # phase1-scanner/
 _SCRIPTS_DIR = _WORKTREE / "scripts"             # phase1-scanner/scripts/
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from clients.finmind_client import FinMindClient  # noqa: E402
+from common.clients.finmind_compat import FinMindClient  # noqa: E402
 from kline.bars import DEFAULT_DB_PATH  # noqa: E402
 
 # ── constants ──────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@
     python scripts/zhuli_swing_high_viewer_poc.py --ticker 6237 --end-date 2024-12-31 --window 60
     python scripts/zhuli_swing_high_viewer_poc.py --ticker 6237 --end-date 2024-12-31 --window 90 --vision
 
-注意：禁止直接呼叫 FinMind API，必須透過 stock-analysis-system 的 clients/finmind_client.py。
+注意：禁止直接呼叫 FinMind API，必須透過 common.clients.finmind_compat。
 """
 from __future__ import annotations
 
@@ -27,29 +27,17 @@ import numpy as np
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Path setup：import stock-analysis-system 的 finmind_client
+# Path setup：import common.clients.finmind_compat
 # ---------------------------------------------------------------------------
 _REPO_ROOT = Path(__file__).resolve().parent.parent  # worktree root
-# stock-analysis-system 兄弟目錄：從 worktree 逐層向上找
-def _find_sas(start: Path) -> Path:
-    """往上找 stock-analysis-system 目錄，最多找 8 層。"""
-    for _ in range(8):
-        candidate = start / "stock-analysis-system"
-        if candidate.exists():
-            return candidate
-        start = start.parent
-    # 最後兜底：hardcode 常見路徑
-    return Path("/Users/howard/Repository/stock-analysis-system")
-
-SAS_PATH = _find_sas(_REPO_ROOT.parent)
-sys.path.insert(0, str(SAS_PATH.resolve()))
+_SCRIPTS = _REPO_ROOT / "scripts"
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 
 try:
-    from clients import finmind_client as fm
+    from common.clients import finmind_compat as fm
 except ImportError as exc:
-    print(f"[ERROR] 無法 import clients.finmind_client：{exc}")
-    print(f"        嘗試路徑：{SAS_PATH}")
-    print("        請確認 stock-analysis-system 路徑正確，且 clients/ 目錄存在。")
+    print(f"[ERROR] 無法 import common.clients.finmind_compat：{exc}")
     sys.exit(1)
 
 
@@ -65,17 +53,11 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # ---------------------------------------------------------------------------
 
 def _load_token() -> str:
-    """從 .env 或環境變數讀取 FINMIND_API_TOKEN。"""
-    token = os.environ.get("FINMIND_API_TOKEN", "")
-    if not token:
-        # 嘗試讀 stock-analysis-system/.env
-        env_path = SAS_PATH / ".env"
-        if env_path.exists():
-            for line in env_path.read_text().splitlines():
-                if line.startswith("FINMIND_API_TOKEN="):
-                    token = line.split("=", 1)[1].strip()
-                    break
-    return token
+    """從環境變數讀取 FINMIND_API_TOKEN 或 FINMIND_TOKEN。"""
+    return (
+        os.environ.get("FINMIND_API_TOKEN", "")
+        or os.environ.get("FINMIND_TOKEN", "")
+    )
 
 
 def fetch_daily_kbar(ticker: str, end_date: str, window: int) -> pd.DataFrame:
@@ -86,7 +68,7 @@ def fetch_daily_kbar(ticker: str, end_date: str, window: int) -> pd.DataFrame:
     """
     token = _load_token()
     if not token:
-        raise RuntimeError("找不到 FINMIND_API_TOKEN，請設定環境變數或 stock-analysis-system/.env")
+        raise RuntimeError("找不到 FINMIND_API_TOKEN/FINMIND_TOKEN，請 export 環境變數")
 
     end_dt = date.fromisoformat(end_date)
     # window 根交易日 ≈ window * 1.5 個日曆日（含假日緩衝）

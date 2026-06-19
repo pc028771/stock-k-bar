@@ -20,16 +20,15 @@ from pathlib import Path
 
 # 系統路徑
 _REPO = Path(__file__).resolve().parent.parent.parent
-_SAS = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [_REPO, _REPO / "scripts", _SAS]:
+for _p in [_REPO, _REPO / "scripts"]:
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
 from zhuli.db import get_conn, MAIN_DB
 logging.basicConfig(level=logging.ERROR)
-logging.getLogger("clients.fubon_client").setLevel(logging.ERROR)
+logging.getLogger("common.clients.fubon_client").setLevel(logging.ERROR)
 
-from clients.fubon_client import FubonClient  # noqa: E402
+from common.clients.fubon_client import FubonClient  # noqa: E402
 
 DB = MAIN_DB
 def check_one(c: FubonClient, ticker: str, cost: float | None = None,

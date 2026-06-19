@@ -47,8 +47,7 @@ import pandas as pd
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_SYS  = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -143,7 +142,7 @@ _fubon_client = None
 def _get_fubon():
     global _fubon_client
     if _fubon_client is None:
-        from clients.fubon_client import FubonClient
+        from common.clients.fubon_client import FubonClient
         _fubon_client = FubonClient()
     return _fubon_client
 

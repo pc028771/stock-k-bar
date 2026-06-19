@@ -26,8 +26,7 @@ from textwrap import dedent
 
 # Path setup
 _WORKTREE = Path(__file__).parent.parent.parent
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_WORKTREE / "scripts"), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_WORKTREE / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

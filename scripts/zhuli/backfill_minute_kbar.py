@@ -1,7 +1,7 @@
 """Backfill 1 分 K 資料至 SQLite DB stock_minute_kbar 表。
 
 資料來源: FinMind TaiwanStockKBar (Sponsor tier)
-         透過 stock-analysis-system 的 fetch_kbar() 函式 (含快取)
+         透過 common.clients.finmind_compat.fetch_kbar() 函式 (含快取)
          ⚠️ 禁止直接 curl FinMind API。
 
 Table schema:
@@ -46,13 +46,12 @@ import pandas as pd
 
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS_DIR)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn, MAIN_DB
-from clients.finmind_client import fetch_kbar  # noqa: E402
+from common.clients.finmind_compat import fetch_kbar  # noqa: E402
 
 # ── 常數 ──────────────────────────────────────────────────────────────────────
 _DB = MAIN_DB

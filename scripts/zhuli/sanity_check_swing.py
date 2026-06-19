@@ -22,7 +22,6 @@ import pandas as pd
 # Path setup
 _WORKTREE = Path(__file__).parent.parent.parent
 _SCRIPTS_DIR = Path(__file__).parent.parent
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
 for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)

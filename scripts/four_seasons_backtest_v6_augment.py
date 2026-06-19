@@ -38,7 +38,7 @@ import pandas as pd
 
 _REPO = Path(__file__).parent.parent
 _SCRIPTS = _REPO / "scripts"
-for _p in [str(_REPO), str(_SCRIPTS), "/Users/howard/Repository/stock-analysis-system"]:
+for _p in [str(_REPO), str(_SCRIPTS)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

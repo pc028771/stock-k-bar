@@ -33,8 +33,7 @@ import pandas as pd
 
 # ── Path setup ────────────────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_SYS  = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -292,7 +291,7 @@ def main() -> None:
     fubon_ok = False
 
     try:
-        from clients.fubon_client import FubonClient
+        from common.clients.fubon_client import FubonClient
         client   = FubonClient()
         snap_map = fetch_all_snapshots(client)
         fubon_ok = True

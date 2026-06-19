@@ -38,8 +38,7 @@ from typing import Any
 
 # ── path setup (同 v1) ──────────────────────────────────────────────────────
 _REPO = Path(__file__).parent.parent.parent
-_SYS  = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_REPO), str(_REPO / "scripts"), str(_SYS)]:
+for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -2427,7 +2426,7 @@ def _build_real_client():
 
     print("[1/4] import FubonClient…", flush=True)
     try:
-        from clients.fubon_client import FubonClient
+        from common.clients.fubon_client import FubonClient
     except Exception as e:
         print(f"  ❌ import 失敗: {e}", file=sys.stderr, flush=True)
         return None

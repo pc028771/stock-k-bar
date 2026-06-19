@@ -24,18 +24,16 @@ _CASE_V1 = WORKTREE / "docs/kline_course/long_short_turning_point/CASE_INDEX.csv
 CASE_CSV = _CASE_V4 if _CASE_V4.exists() else (_CASE_V2 if _CASE_V2.exists() else _CASE_V1)
 OUT_DB = WORKTREE / "data/analysis/kline_patterns/historical_backfill.sqlite"
 
-# Add stock-analysis-system to path so we can import the throttled client
-SAS_PATH = Path("/Users/howard/Repository/stock-analysis-system")
-if str(SAS_PATH) not in sys.path:
-    sys.path.insert(0, str(SAS_PATH))
+# Vendored client at scripts/common/clients/finmind_compat.py
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 
 # Load env token
 TOKEN = os.environ.get("FINMIND_API_TOKEN", "")
 if not TOKEN:
     # Try loading from .env
     env_file = WORKTREE / ".env"
-    if not env_file.exists():
-        env_file = SAS_PATH / ".env"
     if env_file.exists():
         for line in env_file.read_text().splitlines():
             if line.startswith("FINMIND_API_TOKEN="):
@@ -47,7 +45,7 @@ if not TOKEN:
 print(f"Token: {'set (' + TOKEN[:20] + '...)' if TOKEN else 'MISSING'}")
 print(f"Tier: {os.environ.get('FINMIND_TIER', 'free')}")
 
-from clients.finmind_client import get_price  # noqa: E402 — must be after env setup
+from common.clients.finmind_compat import get_price  # noqa: E402 — must be after env setup
 
 
 # --- Step 1: Extract ticker ranges from NO_OHLCV cases ---

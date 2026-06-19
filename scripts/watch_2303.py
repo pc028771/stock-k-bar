@@ -19,7 +19,6 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, "/Users/howard/Repository/stock-analysis-system")
 from common.finmind_client import get_client
 
 TICKER = "2303"
@@ -48,7 +47,7 @@ def fetch_intraday() -> dict | None:
     """
     # 1. Fubon snapshot
     try:
-        from clients.fubon_client import FubonClient
+        from common.clients.fubon_client import FubonClient
         c = FubonClient()
         snap = c.get_realtime_snapshot(TICKER)
         if snap and snap.get("close"):

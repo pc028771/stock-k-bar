@@ -16,9 +16,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "zhuli"))
-sys.path.insert(0, "/Users/howard/Repository/stock-analysis-system")
 
-from clients.fubon_client import FubonClient
+from common.clients.fubon_client import FubonClient
 import pandas as pd
 
 

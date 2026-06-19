@@ -5,7 +5,7 @@ investment-trust and foreign-investor net-buy data from FinMind,
 covering 2024-01-01 ~ today.
 
 資料來源: FinMind dataset `TaiwanStockInstitutionalInvestorsBuySell`
-           透過 stock-analysis-system 的 FinMindClient（含 throttle）。
+           透過 common.clients.finmind_compat.FinMindClient（含 throttle）。
            ⚠️ 禁止直接 curl FinMind API。
 
 Table schema:
@@ -40,8 +40,7 @@ import pandas as pd
 # ── 路徑設定 ──────────────────────────────────────────────────────────────────
 _WORKTREE = Path(__file__).parent.parent.parent   # phase1-scanner/
 _SCRIPTS_DIR = _WORKTREE / "scripts"
-_SYS_DIR = Path("/Users/howard/Repository/stock-analysis-system")
-for _p in [str(_WORKTREE), str(_SCRIPTS_DIR), str(_SYS_DIR)]:
+for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
@@ -291,7 +290,7 @@ def backfill(
     _finmind_token = _os.environ.get("FINMIND_TOKEN", "")
     for i, ticker in enumerate(to_fetch, start=1):
         try:
-            # 使用 stock-analysis-system 的 get_institutional（含 throttle）
+            # 使用 common.clients.finmind_compat.get_institutional（含 throttle）
             # ⚠️ 禁止直接 curl FinMind API
             raw = get_institutional(ticker, start_date, end_date, token=_finmind_token)
             stats["fetched"] += 1
