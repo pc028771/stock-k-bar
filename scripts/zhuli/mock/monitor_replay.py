@@ -20,6 +20,7 @@ REPO = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
 import zhuli.live_position_monitor as mon
+import zhuli.live_position_monitor_v2 as monv2
 import zhuli.intraday_stage_helper as helper
 from zhuli.exit.detectors import (check_umbrella_exit, check_high_long_black,
                                   check_profit_milestone, check_gap_down_emergency)
@@ -63,6 +64,37 @@ def _run_exits(tk, day, clk_t, milestones, out):
     for kind, r in checks:
         if r.get("triggered") and kind not in seen:   # 每種出場一天記一次
             out.append((clk_t.strftime("%H:%M"), kind, str(r.get("reason", ""))[:70]))
+
+
+class _FakeApp:
+    """最小 self、餵 _classify_watch 用 (只實作它呼叫的 2 個 method)。"""
+    def __init__(self, dp, date):
+        self._dp, self._date = dp, date
+
+    def _yesterday_change_pct(self, tk):
+        r = self._dp._conn().execute(
+            "SELECT close FROM standard_daily_bar WHERE ticker=? AND trade_date<? "
+            "ORDER BY trade_date DESC LIMIT 2", (tk, self._date)).fetchall()
+        return (r[0][0] / r[1][0] - 1) * 100 if len(r) == 2 and r[1][0] else 0.0
+
+    def _is_weak_regime(self):
+        r = self._dp._conn().execute(
+            "SELECT close FROM standard_daily_bar WHERE ticker='TAIEX' AND trade_date<? "
+            "ORDER BY trade_date DESC LIMIT 6", (self._date,)).fetchall()
+        return len(r) == 6 and r[5][0] and (r[0][0] / r[5][0] - 1) * 100 <= -1.0
+
+
+def classify_watch_at_close(tk, day, trig, dp, date):
+    """13:25 決策點的 WATCH 分類 (confirmed/watching/excluded)。"""
+    k5 = build_5k_so_far(day.bars, time(13, 25))
+    if k5 is None or k5.empty:
+        return "?"
+    m10 = helper._get_ma10(tk, date) or 0
+    cl = float(k5["close"].iloc[-1])
+    d = {'trigger': trig, 'open': float(k5["open"].iloc[0]), 'close': cl,
+         'prev_close': day.prev_close,
+         'dist_ma10': (cl - m10) / m10 * 100 if m10 else None, 'ticker': tk}
+    return monv2.MonitorApp._classify_watch(_FakeApp(dp, date), {'ticker': tk, 'priority': 3}, d)
 
 
 def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
@@ -124,14 +156,20 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
         (mon._fetch_5min, mon._get_prev, mon.datetime,
          helper.datetime, helper.date, helper._get_fubon) = orig
 
-    return timeline, exits
+    # WATCH 分類 @ 13:25 決策點 (patch 已還原、用真實 now()、gate 自然滿足)
+    watch = {}
+    for tk in days:
+        last_trig = next((c[1] for c in reversed(timeline[tk])
+                          if c[0] <= "13:25"), "none")
+        watch[tk] = classify_watch_at_close(tk, days[tk], last_trig, dp, cfg['date'])
+    return timeline, exits, watch
 
 
-def render(name: str, cfg: dict, timeline: dict, exits: dict) -> str:
+def render(name: str, cfg: dict, timeline: dict, exits: dict, watch: dict) -> str:
     out = [f"# Monitor Replay — {name}", "",
            f"- date: {cfg['date']}  |  tickers: {', '.join(cfg['tickers'])}",
            f"- desc: {cfg['description']}",
-           f"- path: check_trigger_inline (進場) + exit detectors (出場)、真實 monitor 邏輯", ""]
+           f"- path: check_trigger_inline (進場) + exit detectors (出場) + _classify_watch (WATCH 分類@13:25)", ""]
     for tk, changes in timeline.items():
         fired = [c for c in changes if c[1] != 'none']
         out.append(f"## {tk} 進場燈號 — {len(fired)} 個非 none")
@@ -148,7 +186,7 @@ def render(name: str, cfg: dict, timeline: dict, exits: dict) -> str:
                 out.append(f"| {tm} | {kind} | {reason} |")
         else:
             out.append("（無）")
-        out.append("")
+        out.append(f"\n### {tk} WATCH 分類@13:25 → **{watch.get(tk,'?')}**\n")
     # expected vs actual
     exp = cfg.get('expected_triggers', {})
     if exp:
@@ -167,24 +205,26 @@ def run(names: list[str], outdir: Path):
     outdir.mkdir(parents=True, exist_ok=True)
     for name in names:
         cfg = SCENARIOS[name]
-        tl, ex = replay_scenario(name, cfg, dp)
+        tl, ex, wt = replay_scenario(name, cfg, dp)
         n_in = sum(len([c for c in v if c[1] != 'none']) for v in tl.values())
         n_out = sum(len(v) for v in ex.values())
-        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl, ex))
-        print(f"  {name}: 進場 {n_in} / 出場 {n_out} → monitor_{name}.md")
+        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl, ex, wt))
+        buckets = '/'.join(f'{k}:{v}' for k,v in wt.items())
+        print(f"  {name}: 進場 {n_in} / 出場 {n_out} / WATCH {buckets} → monitor_{name}.md")
     dp.close()
 
 
 def selftest():
     """Frozen-clock + mock-feed sanity: a known漲停-隔日 ticker yields a non-none燈號 timeline without crashing."""
     dp = DataProvider()
-    tl, ex = replay_scenario('6_5_sell_off_2454', SCENARIOS['6_5_sell_off_2454'], dp)
+    tl, ex, wt = replay_scenario('6_5_sell_off_2454', SCENARIOS['6_5_sell_off_2454'], dp)
     dp.close()
-    assert '2454' in tl and '2454' in ex, "ticker missing"
+    assert '2454' in tl and '2454' in ex and '2454' in wt, "ticker missing"
+    assert wt['2454'] in ('confirmed','watching','excluded','?'), "bad bucket"
     assert all(len(c) == 3 for v in tl.values() for c in v), "malformed entry row"
     assert all(len(c) == 3 for v in ex.values() for c in v), "malformed exit row"
     print("selftest ok: entry", {k: len(v) for k, v in tl.items()},
-          "| exit", {k: len(v) for k, v in ex.items()})
+          "| exit", {k: len(v) for k, v in ex.items()}, "| watch", wt)
 
 
 def main():
