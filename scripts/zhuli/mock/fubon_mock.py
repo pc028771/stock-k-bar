@@ -114,10 +114,3 @@ class MockFubonClient:
 
     def stats(self) -> tuple[int, int, int]:
         return (len(self._subscribed), self._ws_recv, self._ws_sent)
-
-    # 其他可能 surface (返回 None / no-op 即可)
-    def get_price(self, *a, **kw):
-        return None
-
-    def get_institutional(self, *a, **kw):
-        return None

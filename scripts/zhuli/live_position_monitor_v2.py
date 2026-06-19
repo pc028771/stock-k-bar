@@ -336,33 +336,6 @@ COLS_SETUPS = [
     ("price",       "現價",   10),
 ]
 
-# ── overnight universe loader (保留備用) ─────────────────────────────────────
-def _load_overnight_universe_unused() -> list[str]:
-    """讀取老師 332 檔 universe (sector_tickers + picks_2026 dedup union)。
-    注意: 已改用 _load_overnight_candidates()，此函式保留供未來參考。
-    """
-    tickers: set[str] = set()
-    base = _REPO / "docs" / "主力大課程"
-    try:
-        import json
-        with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
-            s1 = json.load(fh)
-        for v in s1.values():
-            if isinstance(v, list):
-                tickers.update(str(t) for t in v)
-    except Exception:
-        pass
-    try:
-        import json
-        with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
-            s2 = json.load(fh)
-        for k in s2:
-            if k.isdigit() and len(k) == 4:
-                tickers.add(k)
-    except Exception:
-        pass
-    return sorted(tickers)
-
 
 # ── overnight universe + static features ─────────────────────────────────────
 # 新架構: 不再讀 candidates CSV、而是 332 檔 universe live eval (Fubon snap + static cache)
@@ -412,59 +385,6 @@ def _load_overnight_universe() -> list[str]:
         pass
     return sorted(tickers)
 
-
-# ── legacy: 舊 candidate-based loader (已停用、僅保留供將來參考) ──────────
-def _load_overnight_candidates_legacy() -> tuple[list[dict], str]:
-    """讀兩個 CSV 並合併，回傳 (candidate_list, signal_date_str)。
-
-    每個 candidate dict 包含 {"ticker": str, "source": "✅ 確認" | "⚡ 預估"}.
-    dedup by (signal_date, ticker)，確認版優先（相同 ticker 確認版覆蓋預估版）。
-    signal_date 以確認版最新日期為準（若無，用預估版）。
-
-    Returns:
-        (candidate_list, signal_date_str) — 若兩個 CSV 皆不存在或空，回傳 ([], "")
-    """
-    try:
-        import pandas as pd
-
-        rows: list[dict] = []   # {"ticker", "source", "signal_date"}
-
-        # ── 確認版 ────────────────────────────────────────────────────────────
-        confirmed_date = ""
-        if _OVERNIGHT_CSV.exists():
-            df_c = pd.read_csv(_OVERNIGHT_CSV, dtype={"ticker": str})
-            if not df_c.empty and "signal_date" in df_c.columns and "ticker" in df_c.columns:
-                confirmed_date = str(df_c["signal_date"].max())
-                latest_c = df_c[df_c["signal_date"] == confirmed_date]
-                for tk in latest_c["ticker"].dropna().astype(str).unique():
-                    rows.append({"ticker": tk, "source": "✅ 確認", "signal_date": confirmed_date})
-
-        # ── 預估版 ────────────────────────────────────────────────────────────
-        intraday_date = ""
-        if _OVERNIGHT_INTRADAY_CSV.exists():
-            df_i = pd.read_csv(_OVERNIGHT_INTRADAY_CSV, dtype={"ticker": str})
-            if not df_i.empty and "signal_date" in df_i.columns and "ticker" in df_i.columns:
-                intraday_date = str(df_i["signal_date"].max())
-                latest_i = df_i[df_i["signal_date"] == intraday_date]
-                for tk in latest_i["ticker"].dropna().astype(str).unique():
-                    rows.append({"ticker": tk, "source": "⚡ 預估", "signal_date": intraday_date})
-
-        if not rows:
-            return [], ""
-
-        # dedup: 同 ticker 確認版優先
-        seen: dict[str, dict] = {}
-        for r in rows:
-            tk = r["ticker"]
-            if tk not in seen or r["source"] == "✅ 確認":
-                seen[tk] = r
-
-        candidates = sorted(seen.values(), key=lambda r: r["ticker"])
-        signal_date = confirmed_date or intraday_date
-        return candidates, signal_date
-
-    except Exception:
-        return [], ""
 
 
 # ── overnight condition evaluator (live: static cache + Fubon snap) ─────────
