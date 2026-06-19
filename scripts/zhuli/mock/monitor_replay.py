@@ -19,9 +19,11 @@ from pathlib import Path
 REPO = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
+import pandas as pd
 import zhuli.live_position_monitor as mon
 import zhuli.live_position_monitor_v2 as monv2
 import zhuli.intraday_stage_helper as helper
+import zhuli.intraday_indicators.data_provider as idp
 from zhuli.exit.detectors import (check_umbrella_exit, check_high_long_black,
                                   check_profit_milestone, check_gap_down_emergency)
 from zhuli.mock import DataProvider
@@ -127,7 +129,7 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
     # Patch the monitor's injected globals to read mock data + frozen clock.
     # _get_fubon→None forces _detect_market_regime to its DB-TAIEX fallback (no live API).
     orig = (mon._fetch_5min, mon._get_prev, mon.datetime,
-            helper.datetime, helper.date, helper._get_fubon)
+            helper.datetime, helper.date, helper._get_fubon, idp.get_k1m_today)
 
     def mock_fetch_5min(ticker, _date):
         d = days.get(ticker)
@@ -153,6 +155,9 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
     helper.datetime = FakeDT
     helper.date = FakeDate
     helper._get_fubon = lambda: None    # → regime uses DB TAIEX fallback
+    # (b) Ch5 當沖 indicator 的 1分K 也走 clk-windowed mock (compose_trigger 用)
+    idp.get_k1m_today = lambda ticker, target_date=None: (
+        build_5k_so_far(days[ticker].bars, clk[0]) if ticker in days else pd.DataFrame())
 
     timeline = {t: [] for t in days}         # ticker -> [(time, trig_key, reason)] 進場燈號
     exits = {t: [] for t in days}            # ticker -> [(time, exit_kind, reason)] 出場訊號
@@ -174,7 +179,7 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
                 hour=t.hour + (t.minute + 5) // 60)).time()
     finally:
         (mon._fetch_5min, mon._get_prev, mon.datetime,
-         helper.datetime, helper.date, helper._get_fubon) = orig
+         helper.datetime, helper.date, helper._get_fubon, idp.get_k1m_today) = orig
 
     # WATCH 分類 + 隔日沖 overnight 評估 @ EOD (patch 已還原)
     watch, overnight = {}, {}
@@ -257,6 +262,18 @@ def selftest():
                                         'prev_volume': 100, 'ma5': 17800},
                                        {'close': 18200, 'open': 18000, 'total_volume': 200})
     assert r['kbar'] and r['pass_count'] == 4, f"overnight 量單位 regression: {r}"
+    # 當沖 Ch5 indicator 邏輯守門 (合成 canonical shape、daily replay 結構性難觸發、故合成驗證):
+    import numpy as _np
+    from zhuli.intraday_indicators.ch5_complement import (
+        check_b5_1_stop_profit, check_ma_divergence, check_b5_3_quarterly_ma_short_filter)
+    _b1 = pd.DataFrame({'open': [100, 100], 'high': [100, 106], 'low': [99, 100],
+                        'close': [100, 106], 'volume': [50, 80]})
+    assert check_b5_1_stop_profit(_b1).get('triggered'), "B5-1 大紅棒停利 regression"
+    _p = list(_np.linspace(100, 140, 20))
+    _b2 = pd.DataFrame({'open': _p, 'high': _p, 'low': _p, 'close': _p, 'volume': [50] * 20})
+    assert check_ma_divergence(_b2).get('triggered'), "ma_divergence regression"
+    assert check_b5_3_quarterly_ma_short_filter(
+        pd.Series(_np.linspace(50, 100, 70))).get('triggered'), "B5-3 季線濾空 regression"
     print("selftest ok: entry", {k: len(v) for k, v in tl.items()},
           "| exit", {k: len(v) for k, v in ex.items()}, "| watch", wt, "| overnight", {k:(v.get("error") or v.get("pass_count")) for k,v in ov.items()})
 
