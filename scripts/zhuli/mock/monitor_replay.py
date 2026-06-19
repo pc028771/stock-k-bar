@@ -48,6 +48,27 @@ def _fake_clock(target_date: str, clk: list):
     return FakeDT, FakeDate
 
 
+def _run_dump(tk, day, clk_t, date, tracker, out):
+    """拉高出貨 dump signals — 每步餵 price+cum_volume、評估警示 (HELD 視角)。"""
+    from zhuli.dump_signals import evaluate_dump_signals
+    k5 = build_5k_so_far(day.bars, clk_t)
+    if k5 is None or k5.empty:
+        return
+    now = datetime.combine(_Date.fromisoformat(date), clk_t)
+    price = float(k5["close"].iloc[-1])
+    cum_vol = int(k5["volume"].sum())
+    tracker.update_tick(tk, price=price, cum_volume=cum_vol, now=now)
+    item = {"stop": day.prev_close * 0.93, "shares": 1000, "cost": day.prev_close}
+    warns = evaluate_dump_signals(
+        tk, tracker.get_state(tk), item, {}, current_close=price,
+        volume_spike=tracker.get_volume_spike(tk), now=now,
+        yesterday_close_override=day.prev_close)
+    seen = {w[1] for w in out}
+    for w in warns:
+        if w not in seen:
+            out.append((clk_t.strftime("%H:%M"), w[:80]))
+
+
 def _run_exits(tk, day, clk_t, milestones, out):
     """跑 4 個出場 detector、entry 基準=昨收、只記轉變/新觸發。"""
     k5 = build_5k_so_far(day.bars, clk_t)
@@ -161,7 +182,10 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
 
     timeline = {t: [] for t in days}         # ticker -> [(time, trig_key, reason)] 進場燈號
     exits = {t: [] for t in days}            # ticker -> [(time, exit_kind, reason)] 出場訊號
+    dumps = {t: [] for t in days}            # ticker -> [(time, warn)] 拉高出貨警示
     milestones = {t: set() for t in days}    # profit_milestone 累積 state
+    from zhuli.dump_signals import DumpStateTracker
+    dump_tracker = DumpStateTracker(tickers=list(days))
     try:
         t = time(9, 5)
         while t <= time(13, 30):
@@ -173,6 +197,8 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
                     timeline[tk].append((t.strftime("%H:%M"), trig, reason[:70]))
                 # exit detectors (HELD 視角、entry 基準 = 昨收)
                 _run_exits(tk, days[tk], clk[0], milestones[tk], exits[tk])
+                # 拉高出貨 dump signals (tick-volume 警示)
+                _run_dump(tk, days[tk], clk[0], cfg['date'], dump_tracker, dumps[tk])
             # advance 5 min
             t = (datetime.combine(_Date(2000, 1, 1), t).replace(
                 minute=(t.minute + 5) % 60,
@@ -181,21 +207,26 @@ def replay_scenario(name: str, cfg: dict, dp: DataProvider) -> dict:
         (mon._fetch_5min, mon._get_prev, mon.datetime,
          helper.datetime, helper.date, helper._get_fubon, idp.get_k1m_today) = orig
 
-    # WATCH 分類 + 隔日沖 overnight 評估 @ EOD (patch 已還原)
-    watch, overnight = {}, {}
+    # WATCH 分類 + 隔日沖 overnight + 出場時點預警 @ EOD (patch 已還原)
+    from zhuli.live_position_monitor import check_strategy_exit_alert
+    watch, overnight, exit_alert = {}, {}, {}
     for tk in days:
         last_trig = next((c[1] for c in reversed(timeline[tk])
                           if c[0] <= "13:25"), "none")
         watch[tk] = classify_watch_at_close(tk, days[tk], last_trig, dp, cfg['date'])
         overnight[tk] = evaluate_overnight(tk, days[tk], dp, cfg['date'])
-    return timeline, exits, watch, overnight
+        # 出場時點預警: 13:25 (當沖預警)、用 intraday mode item
+        _now = datetime.combine(_Date.fromisoformat(cfg['date']), time(13, 25))
+        exit_alert[tk] = check_strategy_exit_alert(
+            {'ticker': tk, 'strategy_mode': 'intraday'}, now=_now) or "—"
+    return timeline, exits, dumps, watch, overnight, exit_alert
 
 
-def render(name: str, cfg: dict, timeline: dict, exits: dict, watch: dict, overnight: dict) -> str:
+def render(name: str, cfg: dict, timeline: dict, exits: dict, dumps: dict, watch: dict, overnight: dict, exit_alert: dict) -> str:
     out = [f"# Monitor Replay — {name}", "",
            f"- date: {cfg['date']}  |  tickers: {', '.join(cfg['tickers'])}",
            f"- desc: {cfg['description']}",
-           f"- path: 進場(check_trigger_inline) + 出場(exit detectors) + WATCH(_classify_watch@13:25) + 隔日沖(overnight_live@EOD)", ""]
+           f"- path: 進場 + 出場 + 拉高出貨(dump) + WATCH + 隔日沖 + 出場預警(strategy_exit_alert)", ""]
     for tk, changes in timeline.items():
         fired = [c for c in changes if c[1] != 'none']
         out.append(f"## {tk} 進場燈號 — {len(fired)} 個非 none")
@@ -215,7 +246,15 @@ def render(name: str, cfg: dict, timeline: dict, exits: dict, watch: dict, overn
         out.append(f"\n### {tk} WATCH 分類@13:25 → **{watch.get(tk,'?')}**")
         ov = overnight.get(tk, {})
         ov_txt = ov.get('error') or f"{_overnight_status_text(ov)} (pass {ov.get('pass_count','?')}/4)"
-        out.append(f"\n### {tk} 隔日沖@EOD → **{ov_txt}**\n")
+        out.append(f"\n### {tk} 隔日沖@EOD → **{ov_txt}**")
+        dl = dumps.get(tk, [])
+        out.append(f"\n### {tk} 拉高出貨 — {len(dl)} 個警示")
+        if dl:
+            out.append("| time | warn |"); out.append("|---|---|")
+            for tm, w in dl: out.append(f"| {tm} | {w} |")
+        else:
+            out.append("（無）")
+        out.append(f"\n### {tk} 出場時點預警@13:25 → **{exit_alert.get(tk,'—')}**\n")
     # expected vs actual
     exp = cfg.get('expected_triggers', {})
     if exp:
@@ -234,22 +273,25 @@ def run(names: list[str], outdir: Path):
     outdir.mkdir(parents=True, exist_ok=True)
     for name in names:
         cfg = SCENARIOS[name]
-        tl, ex, wt, ov = replay_scenario(name, cfg, dp)
+        tl, ex, dm, wt, ov, ea = replay_scenario(name, cfg, dp)
         n_in = sum(len([c for c in v if c[1] != 'none']) for v in tl.values())
         n_out = sum(len(v) for v in ex.values())
-        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl, ex, wt, ov))
+        (outdir / f"monitor_{name}.md").write_text(render(name, cfg, tl, ex, dm, wt, ov, ea))
         buckets = '/'.join(f'{k}:{v}' for k,v in wt.items())
+        n_dump = sum(len(v) for v in dm.values())
         ovs = "/".join(f"{k}:{(v.get('error') or str(v.get('pass_count','?'))+'/4')}" for k,v in ov.items())
-        print(f"  {name}: 進場 {n_in} / 出場 {n_out} / WATCH {buckets} / 隔日沖 {ovs} → monitor_{name}.md")
+        print(f"  {name}: 進場 {n_in} / 出場 {n_out} / 出貨 {n_dump} / WATCH {buckets} / 隔日沖 {ovs} → monitor_{name}.md")
     dp.close()
 
 
 def selftest():
     """Frozen-clock + mock-feed sanity: a known漲停-隔日 ticker yields a non-none燈號 timeline without crashing."""
     dp = DataProvider()
-    tl, ex, wt, ov = replay_scenario('6_5_sell_off_2454', SCENARIOS['6_5_sell_off_2454'], dp)
+    tl, ex, dm, wt, ov, ea = replay_scenario('6_5_sell_off_2454', SCENARIOS['6_5_sell_off_2454'], dp)
     dp.close()
-    assert '2454' in tl and '2454' in ex and '2454' in wt and '2454' in ov, "ticker missing"
+    assert all('2454' in x for x in (tl,ex,dm,wt,ov,ea)), "ticker missing"
+    assert isinstance(dm['2454'], list) and len(dm['2454']) >= 1, "dump 應在殺盤日 fire"
+    assert ea['2454'] and ea['2454'] != '—', "出場時點預警應產出"
     assert wt['2454'] in ('confirmed','watching','excluded','?'), "bad bucket"
     assert all(len(c) == 3 for v in tl.values() for c in v), "malformed entry row"
     assert all(len(c) == 3 for v in ex.values() for c in v), "malformed exit row"
