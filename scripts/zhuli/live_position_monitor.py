@@ -847,6 +847,10 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
             base = ('none', disc_reason)  # 紅線一律擋、不論 triggered
         elif triggered:
             base = (det, reason)
+        elif det == '尾盤_過熱':
+            # 警示級 (5/5 Win 40% 別追)：triggered=False 但要顯示、不能吞成 none。
+            # TRIGGER_DISPLAY / maybe_notify_trigger 都已支援此 key。
+            base = (det, reason)
         else:
             base = ('none', reason)
 
