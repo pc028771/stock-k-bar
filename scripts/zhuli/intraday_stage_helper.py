@@ -1995,7 +1995,7 @@ def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
     if str(_common_parent) not in sys.path:
         sys.path.insert(0, str(_common_parent))
     try:
-        from common.finmind_client import get_client  # type: ignore
+        from common.clients.finmind_client import get_client  # type: ignore
         df = get_client().fetch_dataset(
             dataset="TaiwanStockKBar",
             data_id=ticker,

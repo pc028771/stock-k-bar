@@ -17,7 +17,7 @@ from kline_course_backtest import add_features, load_bars
 _common_parent = Path(__file__).parent  # scripts/
 if str(_common_parent) not in sys.path:
     sys.path.insert(0, str(_common_parent))
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 
 OUT_DIR = Path("data/analysis/zhuli_suffocation")

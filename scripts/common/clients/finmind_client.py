@@ -22,7 +22,7 @@
 - FINMIND_VERBOSE: '1' (印 debug)
 
 使用範例:
-    from common.finmind_client import get_client
+    from common.clients.finmind_client import get_client
     df = get_client().fetch_dataset(
         dataset="TaiwanStockPrice", data_id="2330",
         start_date="2026-06-01", end_date="2026-06-15",

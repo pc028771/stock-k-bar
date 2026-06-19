@@ -32,7 +32,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 _CACHE_DIR = Path("/tmp/backtest_1m_cache")
 _CACHE_DIR.mkdir(exist_ok=True)

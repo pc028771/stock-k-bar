@@ -51,7 +51,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn, MAIN_DB
-from common.finmind_client import fetch_kbar  # noqa: E402
+from common.clients.finmind_client import fetch_kbar  # noqa: E402
 
 # ── 常數 ──────────────────────────────────────────────────────────────────────
 _DB = MAIN_DB

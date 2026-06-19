@@ -48,7 +48,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
 
 from zhuli.db import get_conn, MAIN_DB
 from zhuli.intraday_stage_helper import StageTrigger, _get_ma10, _DB as _HELPER_DB  # noqa
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 _DB = MAIN_DB
 _TMP = Path("/tmp")

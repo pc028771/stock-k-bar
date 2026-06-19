@@ -68,7 +68,7 @@ def _fetch_broker_daily(ticker: str, date_str: str) -> list[dict]:
     _common = Path(__file__).parent.parent / "common"
     if str(_common.parent) not in sys.path:
         sys.path.insert(0, str(_common.parent))
-    from common.finmind_client import get_client  # type: ignore
+    from common.clients.finmind_client import get_client  # type: ignore
     df = get_client().fetch_dataset(
         dataset="TaiwanStockTradingDailyReport",
         data_id=ticker,

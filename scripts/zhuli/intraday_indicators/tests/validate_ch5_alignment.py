@@ -23,7 +23,7 @@ for _p in [str(_REPO), str(_REPO / "scripts")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 
 def fetch_data(ticker: str, target_date: str) -> tuple[pd.DataFrame, pd.DataFrame, float]:

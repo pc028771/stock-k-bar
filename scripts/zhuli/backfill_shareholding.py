@@ -18,7 +18,7 @@ sys.path.insert(0, str(_WORKTREE / "scripts"))
 from kline.bars import DEFAULT_DB_PATH
 
 from zhuli.db import get_conn
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 def main():
     ap = argparse.ArgumentParser()

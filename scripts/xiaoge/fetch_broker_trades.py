@@ -22,7 +22,7 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO / "data/analysis/xiaoge/broker_trades"
 sys.path.insert(0, str(REPO / "scripts"))
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 
 def _trading_dates(start: str, end: str) -> list[str]:

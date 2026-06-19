@@ -10,7 +10,7 @@ from typing import Optional
 _common_parent = Path(__file__).parent.parent  # scripts/
 if str(_common_parent) not in sys.path:
     sys.path.insert(0, str(_common_parent))
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 
 @lru_cache(maxsize=4)

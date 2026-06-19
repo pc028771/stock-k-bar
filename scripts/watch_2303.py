@@ -19,7 +19,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 TICKER = "2303"
 NAME = "聯電"

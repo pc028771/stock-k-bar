@@ -35,7 +35,7 @@ import requests
 _common_parent = Path(__file__).parent.parent.parent  # scripts/
 if str(_common_parent) not in sys.path:
     sys.path.insert(0, str(_common_parent))
-from common.finmind_client import get_client
+from common.clients.finmind_client import get_client
 
 # TWSE 公告端點（免登入 JSON）
 _TWSE_URL = "https://www.twse.com.tw/rwd/zh/announcement/punish"

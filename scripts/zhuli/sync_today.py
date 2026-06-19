@@ -166,7 +166,7 @@ def fetch_institutional_whole(target_date: str, token: str, valid_tickers: set |
     _common_parent = Path(__file__).parent.parent
     if str(_common_parent) not in _sys.path:
         _sys.path.insert(0, str(_common_parent))
-    from common.finmind_client import get_client  # type: ignore
+    from common.clients.finmind_client import get_client  # type: ignore
     print(f"抓全市場法人 {target_date}...")
     df_raw = get_client().fetch_dataset(
         dataset="TaiwanStockInstitutionalInvestorsBuySell",

@@ -41,7 +41,7 @@ for _p in [str(_WORKTREE), str(_SCRIPTS_DIR)]:
         sys.path.insert(0, _p)
 
 from zhuli.db import get_conn
-from common.finmind_client import fetch_stock_info   # noqa: E402
+from common.clients.finmind_client import fetch_stock_info   # noqa: E402
 from kline.bars import DEFAULT_DB_PATH               # noqa: E402
 
 # ── Table DDL ─────────────────────────────────────────────────────────────────

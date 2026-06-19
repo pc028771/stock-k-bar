@@ -51,7 +51,7 @@ import sys as _sys
 _common_parent = Path(__file__).parent.parent
 if str(_common_parent) not in _sys.path:
     _sys.path.insert(0, str(_common_parent))
-from common.finmind_client import get_client as _get_finmind_client  # noqa: E402
+from common.clients.finmind_client import get_client as _get_finmind_client  # noqa: E402
 
 
 def get_institutional(ticker: str, start_date: str, end_date: str,
