@@ -460,13 +460,18 @@ def _evaluate_overnight_live(
         result["bb"] = bb_pass
 
         # ── 條件 2: K棒 (body / 量 / 量增) ───────────────────────────────
+        # 🔴 2026-06-19 修單位 bug: snap.total_volume 是「張」(SnapshotDict 契約)、
+        # 但 precompute prev_volume 是「股」(daily bar 原生)。原本 vol_/1000 假設股、
+        # 且 vol_(張) vs prev_vol(股) → kbar 量 gate 結構性 always-false (mock 抓到)。
+        # 統一到「張」: vol_ 直接是張、prev_vol 轉張。
         body_pct = ((close_ - prev_close_v) / prev_close_v
                     if prev_close_v and close_ else 0.0)
-        vol_lots = vol_ / 1000.0 if vol_ else 0.0
+        vol_lots = vol_ if vol_ else 0.0                      # snap 已是張
+        prev_vol_lots = prev_vol / 1000.0 if prev_vol else 0.0  # 股 → 張
         kbar_pass = (
             body_pct >= cfg.body_min
             and vol_lots >= cfg.min_volume_lots
-            and vol_ > prev_vol * cfg.prev_volume_multiplier
+            and vol_lots > prev_vol_lots * cfg.prev_volume_multiplier
         )
         result["kbar"] = kbar_pass
 
@@ -509,7 +514,7 @@ def _evaluate_overnight_live(
             ma20_val = float(ma20) if ma20 else 0.0
             dist_ma20 = (max(0.0, (close_ - ma20_val) / ma20_val)
                          if ma20_val and close_ else 0.0)
-            vol_ratio_prev = (vol_ / prev_vol) if prev_vol else 1.0
+            vol_ratio_prev = (vol_lots / prev_vol_lots) if prev_vol_lots else 1.0
             result["strength_score"] = (
                 dist_ma20
                 + min(vol_ratio_prev, 5.0)

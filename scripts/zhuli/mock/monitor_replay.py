@@ -248,6 +248,15 @@ def selftest():
     assert wt['2454'] in ('confirmed','watching','excluded','?'), "bad bucket"
     assert all(len(c) == 3 for v in tl.values() for c in v), "malformed entry row"
     assert all(len(c) == 3 for v in ex.values() for c in v), "malformed exit row"
+    # 隔日沖量單位 fix 回歸守門: 教科書突破日 (張單位) 必 4/4 + kbar True
+    static = {'bb_upper': 100.0, 'bandwidth_prev': 0.05, 'prev_close': 100.0,
+              'prev_volume': 5_000_000, 'ma20': 95.0, 'ma20_slope_5d': 0.01}
+    snap = {'close': 105.0, 'open': 101.0, 'total_volume': 8000, 'ts': '2026-06-19 13:30:00'}
+    r = monv2._evaluate_overnight_live('TEST', static, snap,
+                                       {'prev_close': 18000, 'prev_open': 17900,
+                                        'prev_volume': 100, 'ma5': 17800},
+                                       {'close': 18200, 'open': 18000, 'total_volume': 200})
+    assert r['kbar'] and r['pass_count'] == 4, f"overnight 量單位 regression: {r}"
     print("selftest ok: entry", {k: len(v) for k, v in tl.items()},
           "| exit", {k: len(v) for k, v in ex.items()}, "| watch", wt, "| overnight", {k:(v.get("error") or v.get("pass_count")) for k,v in ov.items()})
 
