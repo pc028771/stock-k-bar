@@ -10,4 +10,11 @@ if echo "$staged" | grep -qE 'scripts/zhuli/(live_position_monitor|intraday_stag
         exit 1
     fi
     echo "[pre-commit] ✅ mock selftest 通過"
+    # TUI L1+L2 (L3 結構快照也夠快、一起跑；snapshot SVG 才不進 pre-commit)
+    echo "[pre-commit] TUI 異動 → 跑 tui_tests (L1+L2+L3)…"
+    if ! PYTHONPATH=scripts python3 -m zhuli.mock.tui_tests; then
+        echo "[pre-commit] ❌ tui_tests 失敗、commit 中止。要跳過: git commit --no-verify"
+        exit 1
+    fi
+    echo "[pre-commit] ✅ tui_tests 通過"
 fi
