@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from datetime import date, timedelta
 from typing import Any
 
@@ -43,6 +44,18 @@ import pandas as pd
 from common.clients.base import SnapshotDict
 
 logger = logging.getLogger(__name__)
+
+# ── Rate-limit circuit breaker ────────────────────────────────────────────────
+# 被打到 rate limit 時、繼續每 ticker 每輪硬打 = (1) log 洪水 (2) 限額一直不恢復。
+# 命中 429/Fugle rate exceeded → 進入 cooldown：cooldown 內直接回 None、不打 API、
+# 不重複 log (只在進入時 log 一次)、讓限額自己恢復。
+_RATE_COOLDOWN_SEC = 60.0
+_rate_blocked_until: float = 0.0
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    s = str(exc).lower()
+    return "rate limit" in s or "429" in s or "too many" in s
 
 
 # ---------------------------------------------------------------------------
@@ -239,8 +252,11 @@ class FubonClient:
             total.tradeVolume      → total_volume (股 → 張、÷1000)
             total.tradeValue       → total_amount
 
-        Returns None 當不可得 (盤後 / API error)。
+        Returns None 當不可得 (盤後 / API error / rate-limit cooldown 中)。
         """
+        global _rate_blocked_until
+        if time.monotonic() < _rate_blocked_until:
+            return None                      # cooldown 中：不打 API、不 log
         try:
             self._ensure_connected()
             resp = self._reststock.intraday.quote(symbol=stock_id)
@@ -272,7 +288,12 @@ class FubonClient:
             return result
 
         except Exception as exc:
-            logger.warning("FubonClient.get_realtime_snapshot(%s) failed: %s", stock_id, exc)
+            if _is_rate_limit(exc):
+                _rate_blocked_until = time.monotonic() + _RATE_COOLDOWN_SEC
+                logger.warning("FubonClient rate-limited、暫停 snapshot %.0fs (期間回 None、不重打)",
+                               _RATE_COOLDOWN_SEC)
+            else:
+                logger.warning("FubonClient.get_realtime_snapshot(%s) failed: %s", stock_id, exc)
             return None
 
     def load_kbar(self, stock_id: str, days: int = 14) -> pd.DataFrame | None:
