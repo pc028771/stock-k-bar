@@ -22,10 +22,26 @@ DB schema `standard_daily_bar` 有：
 
 ## 主力數字門檻換算
 
-老師說「20 張」是真正的分點主力。但 DB 的 `main_force_1d` 是機構合計、
+老師說「20 張」是真正的分點主力 (ch11 02:35)。但 DB 的 `main_force_1d` 是機構合計、
 單位股、規模差很多。本 detector 用「相對量比」門檻：
     main_force_5d > 0 AND main_force_5d / volume_5d_total ≥ 5%
 換算合理性：5% 持續 5 天 → 機構淨買壓占成交量 5%、屬於明顯買超。
+
+**比例化門檻的課程依據**：ch12 02:00-02:45「最大主力狂進貨…最大買超分點買超量 ≥ 成交量 20%
+/ 當日成交量 ≥ 1000 張」給了流動性中立的比例式門檻；對應實作見
+`scripts/xiaoge/scoring/screener.py::detect_m2_max_broker_loading`。本 detector 的 5%
+是 v1 fallback、適合 main_force 機構代理粒度；ch12 M2 直接走分點比例。
+
+## 月線方向判定（扣抵值法、course-defined）
+
+ch02 02:48-03:13「扣抵就是 20 日前價格…扣抵在左上 月線就往下 / 扣抵值比較高 月線往下」
+→ `ma20.diff() > 0` 是該方法的**數學等價**（today-look-forward vs today-look-backward）、
+   **不是 conservative proxy**。
+
+## 散戶定義
+
+ch14 03:03「散戶 100 張以下」明示、對應 FinMind `TaiwanStockShareholding` 「100 張以下」桶。
+**不是 50 / 200 張**。
 """
 from __future__ import annotations
 

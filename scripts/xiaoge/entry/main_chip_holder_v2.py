@@ -20,6 +20,22 @@ v2 改 vs v1：補上集保戶 dataset (`TaiwanStockHoldingSharesPer`)、把三�
 
 - shareholding 是週粒度、daily detector 用「as-of join」拿最新可得 snapshot
 - 環比指上週 vs 這週、所以 detector 至少要 2 週資料才開始觸發
+
+## 月線方向判定（扣抵值法、course-defined）
+
+ch02 02:48-03:13「扣抵就是 20 日前價格…扣抵在左上 月線就往下 / 扣抵值比較高 月線往下」
+→ `ma20.diff() > 0` 是該方法的**數學等價**（today-look-forward vs today-look-backward）、
+   **不是 conservative proxy**。
+
+## 「持續性 N 週」
+
+ch14 02:55「大戶持續性的上升 / 散戶持股比率持續性的下降」課程未給具體 N 週。
+v2 採 conservative N=1（這週 vs 上週上升）。詳見
+`docs/權證小哥/籌碼技術分析/_concept_only.md` §3。
+
+## 散戶定義 = 100 張以下
+
+ch14 03:03 老師明示、對應 FinMind `TaiwanStockShareholding` 「100 張以下」桶。
 """
 from __future__ import annotations
 
