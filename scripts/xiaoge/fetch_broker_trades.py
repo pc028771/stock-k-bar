@@ -204,6 +204,8 @@ def main():
     ap.add_argument("--between-day-sleep", type=float, default=10.0,
                     help="日與日之間 sleep N 秒")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--ticker-file", default=None,
+                    help="若指定、改讀 file 內每行一個 ticker、不跑 _candidate_tickers")
     args = ap.parse_args()
 
     token = os.getenv("FINMIND_TOKEN")
@@ -214,7 +216,10 @@ def main():
     out_path = Path(args.out) if args.out else OUT_DIR / f"{args.start}_{args.end}.parquet"
 
     dates = _trading_dates(args.start, args.end)
-    tickers = _candidate_tickers(args.universe_start, args.universe_end)
+    if args.ticker_file:
+        tickers = [t.strip() for t in Path(args.ticker_file).read_text().splitlines() if t.strip()]
+    else:
+        tickers = _candidate_tickers(args.universe_start, args.universe_end)
     print(f"Will fetch {len(dates)} trading days × {len(tickers)} candidate tickers "
           f"= {len(dates) * len(tickers)} calls (concurrency={args.concurrency})")
     print(f"Output: {out_path}")
