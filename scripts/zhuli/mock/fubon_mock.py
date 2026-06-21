@@ -102,11 +102,17 @@ class MockFubonClient:
         return object()   # 非 None = ws_ok=True (給 WSPriceCache 判 ws_ok)
 
     def emit_ws_trade(self, symbol: str, price: float, volume_shares: int,
-                      bid: float | None = None, ask: float | None = None) -> None:
-        """模擬 Fubon trades channel 推一筆 → 餵 WSPriceCache._on_message 格式。"""
+                      bid: float | None = None, ask: float | None = None,
+                      is_trial: bool = False, limit_up: bool = False,
+                      limit_down: bool = False, is_open: bool = False,
+                      is_close: bool = False) -> None:
+        """模擬 Fubon trades channel 推一筆 → 餵 WSPriceCache._on_message 格式。
+        支援富邦 doc 旗標 isTrial/isLimitUp/Down/isOpen/isClose。"""
         msg = {"event": "data", "data": {
             "symbol": str(symbol), "price": price, "volume": volume_shares,
-            "bid": bid, "ask": ask, "session": "Regular"}}
+            "bid": bid, "ask": ask, "session": "Regular",
+            "isTrial": is_trial, "isLimitUpPrice": limit_up,
+            "isLimitDownPrice": limit_down, "isOpen": is_open, "isClose": is_close}}
         self._ws_sent += 1
         for cb in self._callbacks:
             try:

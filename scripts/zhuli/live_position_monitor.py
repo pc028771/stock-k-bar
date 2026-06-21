@@ -799,23 +799,38 @@ class WSPriceCache:
             volume_shares = payload.get('volume')  # 累積成交股數
             bid = payload.get('bid')
             ask = payload.get('ask')
+            # 富邦 doc 旗標 (細節提升): 試撮 / 漲跌停 / 開收盤信號
+            is_trial = bool(payload.get('isTrial'))
+            limit_up = bool(payload.get('isLimitUpPrice'))
+            limit_down = bool(payload.get('isLimitDownPrice'))
+            is_open = bool(payload.get('isOpen'))
+            is_close = bool(payload.get('isClose'))
             with self.lock:
                 existing = self.cache.get(symbol) or {}
                 # close = 最新成交價
                 existing['close'] = price
-                # high/low 本地維護 (trades stream 沒有 OHLC)
-                cur_high = existing.get('high') or 0
-                cur_low = existing.get('low') or 0
-                if not cur_high or price > cur_high:
-                    existing['high'] = price
-                if not cur_low or price < cur_low:
-                    existing['low'] = price
-                # volume: cumulative shares → 張 (÷1000)
-                if volume_shares is not None:
-                    try:
-                        existing['total_volume'] = int(volume_shares) // 1000
-                    except Exception:
-                        pass
+                # 旗標寫進 snapshot 供 monitor 顯示判斷
+                existing['is_trial'] = is_trial
+                existing['limit_up'] = limit_up
+                existing['limit_down'] = limit_down
+                if is_open:
+                    existing['open'] = price          # 開盤信號 = 權威開盤價
+                if is_close:
+                    existing['is_close'] = True
+                # ⚠️ 試撮 (isTrial) 不算真實成交 → 不更新 high/low/volume
+                # (per feedback_premarket_match_fomo_trap: 試撮 ≠ 真實、嘉晶教訓)
+                if not is_trial:
+                    cur_high = existing.get('high') or 0
+                    cur_low = existing.get('low') or 0
+                    if not cur_high or price > cur_high:
+                        existing['high'] = price
+                    if not cur_low or price < cur_low:
+                        existing['low'] = price
+                    if volume_shares is not None:
+                        try:
+                            existing['total_volume'] = int(volume_shares) // 1000
+                        except Exception:
+                            pass
                 # bid/ask 補充欄位
                 if bid is not None:
                     try:

@@ -866,6 +866,22 @@ class MonitorApp(App[None]):
             except Exception:
                 diverge_line = ""
 
+            # 🔼🔽 WS 旗標 (富邦 doc): 漲停/跌停/試撮 — 即時警示
+            flag_line = ""
+            try:
+                ld_tk = self._live_data.get(tk, {})
+                flags = []
+                if ld_tk.get('limit_up'):
+                    flags.append("🔼 漲停")
+                if ld_tk.get('limit_down'):
+                    flags.append("🔽 跌停")
+                if ld_tk.get('is_trial'):
+                    flags.append("⚠️ 試撮(非真實、勿追)")
+                if flags:
+                    flag_line = "狀態:    " + " | ".join(flags)
+            except Exception:
+                flag_line = ""
+
             # ⚡ WS-4: 當沖 2分/3分 K 最新棒 (WS 推播累積、無 WS 則略)
             dosox_line = ""
             try:
@@ -907,7 +923,8 @@ class MonitorApp(App[None]):
 
             _div_block = f"\n{diverge_line}" if diverge_line else ""
             _dosox_block = f"\n{dosox_line}" if dosox_line else ""
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{_div_block}{_dosox_block}{plan_line}\n{source_line}"
+            _flag_block = f"\n{flag_line}" if flag_line else ""
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}{_flag_block}\n{pursuit_line}{_div_block}{_dosox_block}{plan_line}\n{source_line}"
         except Exception:
             pass
 
@@ -1190,6 +1207,10 @@ class MonitorApp(App[None]):
                         'dump_warn':  dump_warn,
                         'dump_warn_full': dump_warn_full,
                         'prev_close': prev_close,
+                        # WS 旗標 (富邦 doc): 漲停/跌停/試撮
+                        'limit_up':   bool(snap.get('limit_up')),
+                        'limit_down': bool(snap.get('limit_down')),
+                        'is_trial':   bool(snap.get('is_trial')),
                     }
             except Exception:
                 pass

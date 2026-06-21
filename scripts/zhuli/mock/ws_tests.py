@@ -130,12 +130,43 @@ def test_ws_trades_doc_envelope():
         dp.close()
 
 
+def test_ws_flags():
+    """富邦 doc 旗標: 試撮不污染 high/low、漲跌停/開收盤旗標進 snapshot。"""
+    dp, client, ws = _ws()
+    try:
+        # 清掉 warm 預填的 high/low/量 (模擬全新)
+        with ws.lock:
+            ws.cache["2330"] = {}
+            ws.cache["1303"] = {}
+        # 先一筆真實成交建 high/low 基準
+        client.emit_ws_trade("2330", price=600.0, volume_shares=3_000_000)
+        # 試撮一筆超高價 → 不該動 high (per 試撮陷阱)
+        client.emit_ws_trade("2330", price=999.0, volume_shares=9_000_000, is_trial=True)
+        snap = ws.get_realtime_snapshot("2330")
+        assert snap["high"] == 600.0, f"試撮污染了 high: {snap['high']}"
+        assert snap["total_volume"] == 3000, f"試撮污染了量: {snap['total_volume']}"
+        assert snap["is_trial"] is True, "試撮旗標未設"
+        # 漲停旗標
+        client.emit_ws_trade("2330", price=660.0, volume_shares=3_100_000, limit_up=True)
+        snap2 = ws.get_realtime_snapshot("2330")
+        assert snap2["limit_up"] is True and snap2["is_trial"] is False, snap2
+        assert snap2["high"] == 660.0, "真實成交應更新 high"
+        # 開盤信號 = 權威開盤價
+        client.emit_ws_trade("1303", price=88.0, volume_shares=100_000, is_open=True)
+        s3 = ws.get_realtime_snapshot("1303")
+        assert s3["open"] == 88.0, f"開盤信號未設 open: {s3}"
+        print("WS 旗標: ✅ (試撮不污染high/low/量 + 漲跌停 + 開盤信號)")
+    finally:
+        dp.close()
+
+
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
     test_multitf_bars()
     test_snap_parse_both_schemas()
     test_ws_trades_doc_envelope()
+    test_ws_flags()
     print("WS tests: 全通過")
 
 
