@@ -108,11 +108,34 @@ def test_snap_parse_both_schemas():
     print("snap 雙 schema: ✅ (巢狀 total + 批次平 tradeVolume 都正確、富邦 doc 驗證)")
 
 
+def test_ws_trades_doc_envelope():
+    """富邦官方 trades doc example 原樣餵 _on_message、確認 envelope+欄位解析無 drift。"""
+    dp, client, ws = _ws()
+    try:
+        # 富邦 doc Receive data 範例 (symbol/price/volume/bid/ask)
+        doc_msg = {"event": "data", "data": {
+            "symbol": "2330", "type": "EQUITY", "exchange": "TWSE", "market": "TSE",
+            "bid": 567, "ask": 568, "price": 568, "size": 4778, "volume": 54538,
+            "isClose": True, "time": 1685338200000000, "serial": 6652422},
+            "id": "X", "channel": "trades"}
+        ws._on_message(doc_msg)
+        snap = ws.get_realtime_snapshot("2330")
+        assert snap["close"] == 568, f"price→close 解析錯: {snap}"
+        assert snap["total_volume"] == 54, f"volume 54538股//1000=54張、得 {snap['total_volume']}"
+        assert snap.get("bid") == 567 and snap.get("ask") == 568, snap
+        # 非 data event 應略過
+        ws._on_message({"event": "pong"})
+        print("WS trades doc envelope: ✅ (官方 example 原樣解析正確、無 drift)")
+    finally:
+        dp.close()
+
+
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
     test_multitf_bars()
     test_snap_parse_both_schemas()
+    test_ws_trades_doc_envelope()
     print("WS tests: 全通過")
 
 
