@@ -228,20 +228,22 @@ def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
         return None
 
 
-def load_daily_closes(ticker: str, db: Path, n: int = 20) -> pd.Series:
+def load_daily_closes(ticker: str, db: Path, n: int = 20,
+                      as_of: "date | None" = None) -> pd.Series:
     """取最近 n 日收盤，回傳 Series(index=date str, values=float)。
 
-    只取 trade_date < today 的資料、避免盤後部分寫入的今日日K
+    只取 trade_date < as_of 的資料、避免盤後部分寫入的今日日K
     污染 prev_close 計算（6/15 1605 +13.8% stale bug 教訓）。
+    as_of 預設 today（live）；回測歷史 intraday 時傳當日日期、取「該日的前日」。
     """
     try:
         from datetime import date as _date
-        today_str = _date.today().isoformat()
+        cutoff_str = (as_of or _date.today()).isoformat()
         with _db_con(db) as con:
             rows = con.execute(
                 "SELECT trade_date, close FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date < ? ORDER BY trade_date DESC LIMIT ?",
-                (ticker, today_str, n),
+                (ticker, cutoff_str, n),
             ).fetchall()
         if not rows:
             return pd.Series(dtype=float)
@@ -1631,14 +1633,16 @@ class StageTrigger:
 
 # ── 主監控邏輯 ────────────────────────────────────────────────────────────────
 
-def _get_prev_levels(ticker: str, db: Path) -> dict:
+def _get_prev_levels(ticker: str, db: Path,
+                     as_of: "date | None" = None) -> dict:
     """從 DB 取前日收盤、前波高/低。
 
-    load_daily_closes 已過濾 trade_date < today，
-    所以 iloc[-1] 就是最新交易日收盤（= prev_close）。
+    load_daily_closes 已過濾 trade_date < as_of（預設 today），
+    所以 iloc[-1] 就是 as_of 的前一個交易日收盤（= prev_close）。
     舊版用 iloc[-2] 是 bug：會取到前兩個交易日（stale）。
+    as_of：回測歷史 intraday 時傳當日日期、取「該日的前日」基準（8046 6/4 復盤教訓）。
     """
-    closes = load_daily_closes(ticker, db, n=10)
+    closes = load_daily_closes(ticker, db, n=10, as_of=as_of)
     if len(closes) < 1:
         return {}
     prev_close = float(closes.iloc[-1])
