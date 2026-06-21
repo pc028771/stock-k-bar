@@ -32,6 +32,10 @@
 
 ## 🔴 交易紀律強制執行
 
+> ## 🚨🚨 必讀復盤（評估老師標的前一定要看）：[`docs/主力大課程/stop_review/2026-06_skip對帳.md`](docs/主力大課程/stop_review/2026-06_skip對帳.md)
+> **6 月被我 reflex skip 擋掉的老師明示標的、後來幾乎全噴**（上上週 10 檔被動+封測+光學中位數 +20%、四檔 +45~54%；聯電 120→145.5）。
+> **鐵則:老師明示「可參與」的族群名單 = 預設參與。reflex skip 前必先自證「為什麼這檔是例外」、舉證責任在「不參與」那一方。** 選對了才敢大口咬（老師 6/21「大口吃肉 = 對股票+對買點+對部位、少賺要人命」）。詳見 memory `feedback_reflex_skip_pattern` Pattern 4。
+
 **推薦個股 / 評估進場 / 加碼 / 出場前必跑：** memory `feedback_trading_discipline_checklist`（master checklist）
 
 ### 紅線（不准踩）
