@@ -93,10 +93,26 @@ def test_multitf_bars():
     print("WS-4 2分/3分K: ✅ (分桶錨定09:00 / OHLC / 量delta 正確)")
 
 
+def test_snap_parse_both_schemas():
+    """富邦官方 schema: 單檔 total.tradeVolume(巢狀) vs 批次 tradeVolume(平的)、都要吃。"""
+    from common.clients.fubon_client import _snap_from_quote
+    nested = {"closePrice": 100.0, "openPrice": 99.0, "highPrice": 101.0,
+              "lowPrice": 98.0, "total": {"tradeVolume": 5_000_000, "tradeValue": 5e8}}
+    flat = {"symbol": "2330", "closePrice": 100.0, "openPrice": 99.0,
+            "highPrice": 101.0, "lowPrice": 98.0,
+            "tradeVolume": 5_000_000, "tradeValue": 5e8}     # snapshot/quotes 形狀
+    sn, sf = _snap_from_quote(nested), _snap_from_quote(flat)
+    assert sn["total_volume"] == 5000, f"巢狀量錯: {sn}"
+    assert sf["total_volume"] == 5000, f"平的量錯 (批次 bug): {sf}"
+    assert sf["close"] == 100.0 and sf["open"] == 99.0, sf
+    print("snap 雙 schema: ✅ (巢狀 total + 批次平 tradeVolume 都正確、富邦 doc 驗證)")
+
+
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
     test_multitf_bars()
+    test_snap_parse_both_schemas()
     print("WS tests: 全通過")
 
 

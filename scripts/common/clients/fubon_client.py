@@ -63,9 +63,17 @@ def _snap_from_quote(q) -> "SnapshotDict | None":
     批次 get_snapshot_quotes_map 共用、欄位對應一致 (避免兩處 drift)。"""
     if not q:
         return None
+    # 富邦官方 schema (2026-06 doc 驗證):
+    #   單檔 intraday.quote → 巢狀 total.tradeVolume
+    #   批次 snapshot/quotes → 平的 tradeVolume (無 total 物件)
+    # 兩種形狀都吃: 先平的、再巢狀。
     total = _get(q, "total") or {}
-    trade_volume_shares = _safe_int(_get(total, "tradeVolume", "trade_volume")) or 0
-    trade_value = _safe_float(_get(total, "tradeValue", "trade_value")) or 0.0
+    trade_volume_shares = _safe_int(
+        _get(q, "tradeVolume", "trade_volume")
+        or _get(total, "tradeVolume", "trade_volume")) or 0
+    trade_value = _safe_float(
+        _get(q, "tradeValue", "trade_value")
+        or _get(total, "tradeValue", "trade_value")) or 0.0
     close = _safe_float(
         _get(q, "closePrice", "close_price") or _get(q, "lastPrice", "last_price"))
     if close is None:
