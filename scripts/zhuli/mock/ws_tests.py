@@ -59,6 +59,11 @@ def test_ws_fallback_batch():
         snap = ws.get_realtime_snapshot("2330")
         assert client._batch_calls == 1, f"應走批次 1 次、實際 {client._batch_calls}"
         assert snap is not None, "批次 fallback 應補到值"
+        # C1 守門: fallback 的量單位要跟 direct get_realtime_snapshot 一致 (張)、
+        # 不能被 _normalize_rest_snap ×1000 放大。
+        direct = client.get_realtime_snapshot("2330")
+        assert snap["total_volume"] == direct["total_volume"], \
+            f"fallback 量單位不一致 (C1 ×1000 bug): fallback={snap['total_volume']} vs direct={direct['total_volume']}"
         # 節流: 8s 內第二次 stale 不該再 batch (防打爆)
         with ws.lock:
             ws.last_update["1303"] = 0.0
@@ -160,6 +165,42 @@ def test_ws_flags():
         dp.close()
 
 
+def test_dynamic_subscribe():
+    """C3: 盤中新增 ticker (不在初始訂閱) → 自動納入 self.tickers + batch 覆蓋。"""
+    dp, client, ws = _ws(tickers=("2330",))
+    try:
+        assert "1303" not in ws._tk_set, "前提: 1303 初始未訂閱"
+        # 查一個沒訂閱的 ticker → 應自動加入 + batch 補到
+        snap = ws.get_realtime_snapshot("1303")
+        assert "1303" in ws._tk_set, "C3: 新 ticker 未自動納入訂閱清單"
+        assert "1303" in ws.tickers, "C3: 新 ticker 未進 batch 覆蓋清單"
+        print("C3 動態訂閱: ✅ (盤中新 ticker 自動納入 + batch 覆蓋)")
+    finally:
+        dp.close()
+
+
+def test_reconnect_on_stale():
+    """C2: WS 全 stale → _maybe_reconnect 嘗試重連 (節流)。"""
+    dp, client, ws = _ws()
+    try:
+        # 模擬 WS 掛掉: ws_ok=False + cache 全 stale
+        ws.ws_ok = False
+        ws._last_reconnect_ts = 0.0
+        with ws.lock:
+            for tk in ws.tickers:
+                ws.last_update[tk] = 0.0
+        before = ws._last_reconnect_ts
+        ws.get_realtime_snapshot("2330")        # stale → 觸發 _maybe_reconnect
+        assert ws._last_reconnect_ts > before, "C2: stale 未觸發重連嘗試"
+        # 節流: 立即第二次不該再重連
+        t = ws._last_reconnect_ts
+        ws.get_realtime_snapshot("1303")
+        assert ws._last_reconnect_ts == t, "C2: 重連未節流 (會狂連)"
+        print("C2 斷線重連: ✅ (stale 觸發重連 + 節流)")
+    finally:
+        dp.close()
+
+
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
@@ -167,6 +208,8 @@ def main():
     test_snap_parse_both_schemas()
     test_ws_trades_doc_envelope()
     test_ws_flags()
+    test_dynamic_subscribe()
+    test_reconnect_on_stale()
     print("WS tests: 全通過")
 
 

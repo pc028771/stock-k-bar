@@ -630,17 +630,23 @@ class MultiTFBarBuilder:
 
     def add_tick(self, symbol: str, price: float, cum_volume, now) -> None:
         symbol = str(symbol)
-        # 量 delta (cum_volume 是累積、可能 None)
-        vol_delta = 0
-        if cum_volume is not None:
-            try:
-                cv = int(cum_volume)
-                prev = self._last_cumvol.get(symbol)
-                vol_delta = max(0, cv - prev) if prev is not None else 0
-                self._last_cumvol[symbol] = cv
-            except Exception:
-                pass
         with self.lock:
+            # 跨日 reset (bucket key 不含日期、避免昨日棒污染 + cumvol delta 變負)
+            d = now.date()
+            if getattr(self, '_day', None) != d:
+                self._day = d
+                self.bars.clear()
+                self._last_cumvol.clear()
+            # 量 delta (cum_volume 是累積、可能 None) — 移進 lock 防 race
+            vol_delta = 0
+            if cum_volume is not None:
+                try:
+                    cv = int(cum_volume)
+                    prev = self._last_cumvol.get(symbol)
+                    vol_delta = max(0, cv - prev) if prev is not None else 0
+                    self._last_cumvol[symbol] = cv
+                except Exception:
+                    pass
             for tf in self.timeframes:
                 bk = self._bucket(now, tf)
                 key = (symbol, tf)
@@ -685,9 +691,42 @@ class WSPriceCache:
         self.ws_ok = False
         self.errors = 0
         self._last_batch_ts = 0.0           # WS-2: 上次批次 fallback 時間
+        self._tk_set = set(self.tickers)    # C3: 快查 + 動態新增
+        self._last_reconnect_ts = 0.0       # C2: 上次重連時間
+        self._pending_resub: list = []      # C3: 待訂閱的新 ticker
         self.bars = MultiTFBarBuilder()     # WS-4: 2分/3分 K builder
         self._warm()
         self._connect()
+
+    RECONNECT_INTERVAL = 30.0  # C2: WS 重連最短間隔 (秒)
+
+    def _maybe_reconnect(self) -> None:
+        """C2: WS 斷線重連 (節流)。ws_ok=False 或全 cache stale 太久 → 重 _connect。"""
+        now = time.time()
+        if now - self._last_reconnect_ts < self.RECONNECT_INTERVAL:
+            return
+        # 判斷是否該重連: ws 從沒成功、或最近完全沒 WS 更新
+        last_any = max(self.last_update.values()) if self.last_update else 0
+        ws_dead = (not self.ws_ok) or (now - last_any > self.STALE_SEC)
+        if not ws_dead:
+            return
+        self._last_reconnect_ts = now
+        try:
+            self._connect()                 # 重新訂閱全部 + pending
+        except Exception:
+            self.ws_ok = False
+
+    def _ensure_subscribed(self, ticker: str) -> None:
+        """C3: 動態 watchlist — 新 ticker 加入訂閱清單 (batch 立即覆蓋、WS 下次重連帶上)。"""
+        if ticker in self._tk_set:
+            return
+        self._tk_set.add(ticker)
+        self.tickers.append(ticker)
+        # 嘗試即時增訂 (WS subscribe 是 additive); 失敗就靠 batch + 下次重連
+        try:
+            self.client.subscribe_quotes([ticker], self._on_message, channel='trades')
+        except Exception:
+            pass
 
     def _batch_refresh(self) -> None:
         """WS-2: WS stale 時用批次 snapshot 補 (1-2 req 拿整盤)、節流。
@@ -710,7 +749,7 @@ class WSPriceCache:
         if not m:
             return
         with self.lock:
-            for tk in self.tickers:
+            for tk in list(self.tickers):
                 snap = m.get(tk)
                 if snap:
                     entry = self._normalize_rest_snap(snap)
@@ -721,22 +760,18 @@ class WSPriceCache:
 
     @staticmethod
     def _normalize_rest_snap(snap: dict) -> dict:
-        """REST snapshot 單位修正：FubonClient.get_realtime_snapshot 回傳的
-        total_volume 是 tradeVolume(千股) // 1000 = 千張，而非張。
-        乘以 1000 統一成張 (lots)，與 WS trades stream int(shares)//1000 一致。
+        """REST / batch snapshot pass-through。
+
+        🔴 2026-06-20 C1 fix: 原本對 total_volume ×1000、但 fubon_client._snap_from_quote
+        已 //1000 (股→張)、契約 get_realtime_snapshot.total_volume = 張 (commit 21226e9)。
+        再 ×1000 → 比真實張數大 1000 倍、量比恆 ~1000x 失真 (只影響 warm/batch fallback
+        路徑、WS 直推 _on_message 另做 //1000 是對的)。移除 ×1000、單位統一為張。
         """
-        entry = dict(snap)
-        tv = entry.get('total_volume')
-        if tv is not None:
-            try:
-                entry['total_volume'] = int(tv) * 1000  # 千張 → 張
-            except Exception:
-                pass
-        return entry
+        return dict(snap)
 
     def _warm(self):
         """REST 初始抓一輪、確保 cache 有資料 + 記錄 _warm_close 供反推 prev_close."""
-        for tk in self.tickers:
+        for tk in list(self.tickers):
             try:
                 snap = self.client.get_realtime_snapshot(tk)
                 if snap:
@@ -752,6 +787,15 @@ class WSPriceCache:
 
     def _connect(self):
         """Connect WebSocket、subscribe 全部 tickers (trades channel — Speed mode 支援)."""
+        # 富邦限制: 200 symbols / connection。超過先警告 (多連線分流 = 後續 TODO)。
+        if len(self.tickers) > 200:
+            try:
+                import logging as _lg
+                _lg.getLogger('zhuli.monitor').warning(
+                    "WSPriceCache 訂閱 %d 檔 > 200/連線上限、可能漏訂閱 (TODO 多連線分流)",
+                    len(self.tickers))
+            except Exception:
+                pass
         try:
             # 注意: Fubon Speed mode 不支援 aggregates/candles、只能用 trades/books
             self.ws = self.client.subscribe_quotes(
@@ -883,11 +927,13 @@ class WSPriceCache:
         若 cache stale > STALE_SEC、用 REST 補一筆。
         """
         ticker = str(ticker)
+        self._ensure_subscribed(ticker)     # C3: 動態 watchlist 新 ticker 自動納入
         with self.lock:
             snap = self.cache.get(ticker)
             ts   = self.last_update.get(ticker, 0)
         if snap and (time.time() - ts) < self.STALE_SEC:
             return dict(snap)
+        self._maybe_reconnect()             # C2: stale → 嘗試 WS 重連 (節流)
         # WS-2: Stale or missing → 指數類 (TAIEX/IX0001/非數字 symbol) 用逐檔 REST
         # (不在批次股票快照裡、量少)；一般股票走批次 (1-2 req、不打爆)。
         is_index = (not ticker.isdigit())
@@ -1887,7 +1933,7 @@ class DataCache:
 
     def refresh_all(self, real_check, real_vol):
         """單輪刷新所有 ticker (real_check / real_vol = 未 patch 的原函式)。"""
-        for tk in self.tickers:
+        for tk in list(self.tickers):
             try:
                 tactic = self.tactic_map.get(tk, '核心')
                 trig = real_check(tk, tactic)
