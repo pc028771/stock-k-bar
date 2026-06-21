@@ -58,6 +58,30 @@ def _is_rate_limit(exc: Exception) -> bool:
     return "rate limit" in s or "429" in s or "too many" in s
 
 
+def _snap_from_quote(q) -> "SnapshotDict | None":
+    """單筆 quote dict → normalized SnapshotDict。get_realtime_snapshot +
+    批次 get_snapshot_quotes_map 共用、欄位對應一致 (避免兩處 drift)。"""
+    if not q:
+        return None
+    total = _get(q, "total") or {}
+    trade_volume_shares = _safe_int(_get(total, "tradeVolume", "trade_volume")) or 0
+    trade_value = _safe_float(_get(total, "tradeValue", "trade_value")) or 0.0
+    close = _safe_float(
+        _get(q, "closePrice", "close_price") or _get(q, "lastPrice", "last_price"))
+    if close is None:
+        return None
+    return {
+        "close":        close,
+        "open":         _safe_float(_get(q, "openPrice", "open_price")) or 0.0,
+        "high":         _safe_float(_get(q, "highPrice", "high_price")) or 0.0,
+        "low":          _safe_float(_get(q, "lowPrice", "low_price")) or 0.0,
+        "change_price": _safe_float(_get(q, "change")) or 0.0,
+        "change_rate":  _safe_float(_get(q, "changePercent", "change_percent")) or 0.0,
+        "total_volume": trade_volume_shares // 1000,   # 股 → 張
+        "total_amount": trade_value,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Response-parsing helpers
 # ---------------------------------------------------------------------------
@@ -261,31 +285,7 @@ class FubonClient:
             self._ensure_connected()
             resp = self._reststock.intraday.quote(symbol=stock_id)
             q = _extract_single(resp)
-            if not q:
-                return None
-
-            total = _get(q, "total") or {}
-            trade_volume_shares = _safe_int(_get(total, "tradeVolume", "trade_volume")) or 0
-            trade_value = _safe_float(_get(total, "tradeValue", "trade_value")) or 0.0
-
-            close = _safe_float(
-                _get(q, "closePrice", "close_price")
-                or _get(q, "lastPrice", "last_price")
-            )
-            if close is None:
-                return None
-
-            result: SnapshotDict = {
-                "close":        close,
-                "open":         _safe_float(_get(q, "openPrice",  "open_price"))  or 0.0,
-                "high":         _safe_float(_get(q, "highPrice",  "high_price"))  or 0.0,
-                "low":          _safe_float(_get(q, "lowPrice",   "low_price"))   or 0.0,
-                "change_price": _safe_float(_get(q, "change"))                    or 0.0,
-                "change_rate":  _safe_float(_get(q, "changePercent", "change_percent")) or 0.0,
-                "total_volume": trade_volume_shares // 1000,  # 股 → 張
-                "total_amount": trade_value,
-            }
-            return result
+            return _snap_from_quote(q)
 
         except Exception as exc:
             if _is_rate_limit(exc):
@@ -459,6 +459,35 @@ class FubonClient:
         except Exception as exc:
             logger.warning("FubonClient.get_snapshot_quotes(%s) failed: %s", market, exc)
             return []
+
+    def get_snapshot_quotes_map(self, markets=("TSE", "OTC")) -> dict:
+        """批次拿整盤快照 → {symbol: SnapshotDict}。
+
+        ⚡ 1-2 個 request 拿全市場 (vs 逐檔 get_realtime_snapshot 數百 req)。
+        WS fallback / 大量 ticker 用、避免打爆 snapshot 300/min。rate-limit cooldown
+        中直接回 {}。symbol 欄位嘗試 symbol / stock_id / code。
+        """
+        global _rate_blocked_until
+        if time.monotonic() < _rate_blocked_until:
+            return {}
+        out: dict = {}
+        for mkt in markets:
+            try:
+                self._ensure_connected()
+                rows = _extract_data(self._reststock.snapshot.quotes(market=mkt))
+            except Exception as exc:
+                if _is_rate_limit(exc):
+                    _rate_blocked_until = time.monotonic() + _RATE_COOLDOWN_SEC
+                    logger.warning("FubonClient rate-limited (batch)、暫停 %.0fs", _RATE_COOLDOWN_SEC)
+                    break
+                logger.warning("get_snapshot_quotes_map(%s) failed: %s", mkt, exc)
+                continue
+            for q in rows or []:
+                sym = _get(q, "symbol", "stock_id", "code")
+                snap = _snap_from_quote(q)
+                if sym and snap:
+                    out[str(sym)] = snap
+        return out
 
     def subscribe_quotes(
         self,

@@ -93,15 +93,41 @@ class MockFubonClient:
             'total_volume': 0, 'total_amount': 0,
         }
 
-    def subscribe_quotes(self, stock_ids: list[str], callback: Optional[Callable] = None) -> None:
-        """Register subscribed tickers。ReplayEngine 驅動推送。"""
+    def subscribe_quotes(self, stock_ids, callback: Optional[Callable] = None, channel=None):
+        """Register subscribed tickers + WS callback (channel='trades' 相容)。"""
         for tk in stock_ids:
             self._subscribed.add(str(tk))
         if callback:
             self._callbacks.append(callback)
+        return object()   # 非 None = ws_ok=True (給 WSPriceCache 判 ws_ok)
+
+    def emit_ws_trade(self, symbol: str, price: float, volume_shares: int,
+                      bid: float | None = None, ask: float | None = None) -> None:
+        """模擬 Fubon trades channel 推一筆 → 餵 WSPriceCache._on_message 格式。"""
+        msg = {"event": "data", "data": {
+            "symbol": str(symbol), "price": price, "volume": volume_shares,
+            "bid": bid, "ask": ask, "session": "Regular"}}
+        self._ws_sent += 1
+        for cb in self._callbacks:
+            try:
+                cb(msg)
+            except Exception:
+                pass
+
+    def get_snapshot_quotes_map(self, markets=("TSE", "OTC")) -> dict:
+        """批次快照 {symbol: SnapshotDict} — WS-2 fallback 用。mock 從 DataProvider
+        當日 EOD 取值。記 call 次數 (測 fallback 不打爆用)。"""
+        self._batch_calls = getattr(self, '_batch_calls', 0) + 1
+        out = {}
+        for tk in list(self._subscribed):
+            snap = self.get_realtime_snapshot(tk)
+            if snap:
+                # batch 回的 total_volume 單位同 REST (千張)、_normalize_rest_snap 會 ×1000
+                out[str(tk)] = snap
+        return out
 
     def _emit_tick(self, ticker: str) -> None:
-        """ReplayEngine 呼叫: 推送一個 tick 給 callbacks。"""
+        """ReplayEngine 舊接口 (legacy)。"""
         snap = self.get_realtime_snapshot(ticker)
         if not snap:
             return

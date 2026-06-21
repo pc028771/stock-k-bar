@@ -915,6 +915,20 @@ class MonitorApp(App[None]):
     # ── data refresh ─────────────────────────────────────────────────────────
     def _start_data_refresh(self) -> None:
         """啟動背景 thread 定期抓報價 + 計算 trigger / vol_ratio。"""
+        # WS-1: 即時行情走 WebSocket 推播 (包成 WSPriceCache、drop-in
+        # get_realtime_snapshot 介面)。WS 不吃 snapshot 300/min REST 額度、
+        # refresh loop 變 O(1) cache 讀。demo / 已包過 / 無 client 則跳過。
+        if (not self._demo_mode and self._client is not None
+                and not isinstance(self._client, _v1.WSPriceCache)):
+            all_tk = {str(i.get('ticker', ''))
+                      for src in (self._held, self._watch, self._plan)
+                      for i in src if i.get('ticker')}
+            try:
+                self._client = _v1.WSPriceCache(self._client, list(all_tk))
+                _logging.getLogger("zhuli.monitor").info("WS-1: WSPriceCache 啟用、訂閱 %d 檔 (ws_ok=%s)",
+                         len(all_tk), getattr(self._client, 'ws_ok', '?'))
+            except Exception as e:
+                _logging.getLogger("zhuli.monitor").warning("WSPriceCache 建立失敗、退回 REST 輪詢: %s", e)
         self._refresh_thread = threading.Thread(
             target=self._refresh_loop, daemon=True
         )

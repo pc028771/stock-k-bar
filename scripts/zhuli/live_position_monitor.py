@@ -612,7 +612,8 @@ class WSPriceCache:
     monitor 每次 refresh 從 cache 拿、O(1)、不再 sequential REST。
     REST 用於初始 warm-up + WS 失敗時 fallback。
     """
-    STALE_SEC = 30  # cache 超過 30 秒沒 update → REST fallback
+    STALE_SEC = 30  # cache 超過 30 秒沒 update → fallback
+    BATCH_MIN_INTERVAL = 8.0  # WS-2: 批次 fallback 最短間隔 (秒)、防打爆 rate limit
 
     def __init__(self, client, tickers: list[str]):
         self.client = client
@@ -623,8 +624,39 @@ class WSPriceCache:
         self.ws = None
         self.ws_ok = False
         self.errors = 0
+        self._last_batch_ts = 0.0           # WS-2: 上次批次 fallback 時間
         self._warm()
         self._connect()
+
+    def _batch_refresh(self) -> None:
+        """WS-2: WS stale 時用批次 snapshot 補 (1-2 req 拿整盤)、節流。
+
+        取代原本「逐檔 REST」fallback——WS 全掛時逐檔 = 數百 req/cycle 打爆
+        300/min。批次只 1-2 req、不管幾百檔。client 無批次能力則 no-op。
+        """
+        now = time.time()
+        if now - self._last_batch_ts < self.BATCH_MIN_INTERVAL:
+            return
+        self._last_batch_ts = now
+        fn = getattr(self.client, 'get_snapshot_quotes_map', None)
+        if fn is None:
+            return
+        try:
+            m = fn()
+        except Exception:
+            self.errors += 1
+            return
+        if not m:
+            return
+        with self.lock:
+            for tk in self.tickers:
+                snap = m.get(tk)
+                if snap:
+                    entry = self._normalize_rest_snap(snap)
+                    if 'close' in entry:
+                        entry.setdefault('_warm_close', entry['close'])
+                    self.cache[tk] = entry
+                    self.last_update[tk] = now
 
     @staticmethod
     def _normalize_rest_snap(snap: dict) -> dict:
@@ -775,15 +807,25 @@ class WSPriceCache:
             ts   = self.last_update.get(ticker, 0)
         if snap and (time.time() - ts) < self.STALE_SEC:
             return dict(snap)
-        # Stale or missing → REST fallback
+        # WS-2: Stale or missing → 指數類 (TAIEX/IX0001/非數字 symbol) 用逐檔 REST
+        # (不在批次股票快照裡、量少)；一般股票走批次 (1-2 req、不打爆)。
+        is_index = (not ticker.isdigit())
         try:
-            fresh = self.client.get_realtime_snapshot(ticker)
-            if fresh:
-                normalized = self._normalize_rest_snap(fresh)
+            if is_index:
+                fresh = self.client.get_realtime_snapshot(ticker)
+                if fresh:
+                    normalized = self._normalize_rest_snap(fresh)
+                    with self.lock:
+                        self.cache[ticker] = normalized
+                        self.last_update[ticker] = time.time()
+                    return normalized
+            else:
+                self._batch_refresh()         # 節流批次、補進 cache
                 with self.lock:
-                    self.cache[ticker] = normalized
-                    self.last_update[ticker] = time.time()
-                return normalized
+                    fresh2 = self.cache.get(ticker)
+                    ts2 = self.last_update.get(ticker, 0)
+                if fresh2 and (time.time() - ts2) < self.STALE_SEC:
+                    return dict(fresh2)
         except Exception:
             pass
         return snap  # 回傳舊資料總比 None 好
