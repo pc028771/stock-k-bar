@@ -69,9 +69,34 @@ def test_ws_fallback_batch():
         dp.close()
 
 
+def test_multitf_bars():
+    """WS-4: tick → 2分/3分 K 聚合正確 + 分桶錨定 09:00。"""
+    from datetime import datetime, date as _D
+    from zhuli.live_position_monitor import MultiTFBarBuilder
+    b = MultiTFBarBuilder(timeframes=(2, 3))
+    d = _D(2026, 6, 18)
+    # 09:00, 09:01 → 同 2分桶(09:00) 同 3分桶(09:00)；09:02 → 新 2分桶、仍同 3分桶
+    b.add_tick("2330", 100.0, 1000, datetime.combine(d, time(9, 0)))
+    b.add_tick("2330", 105.0, 1500, datetime.combine(d, time(9, 1)))   # 同桶、high=105
+    b.add_tick("2330", 102.0, 2000, datetime.combine(d, time(9, 2)))   # 2分新桶 / 3分同桶
+    bars2 = b.get_bars("2330", 2)
+    bars3 = b.get_bars("2330", 3)
+    # 2分K: 09:00 桶 (O100 H105 L100 C105 量 500=1500-1000)、09:02 桶
+    assert len(bars2) == 2, f"2分K 應 2 桶: {bars2}"
+    assert bars2[0]["ts"] == "09:00" and bars2[0]["high"] == 105.0, bars2[0]
+    assert bars2[0]["volume"] == 500, f"量 delta 錯: {bars2[0]['volume']}"
+    assert bars2[1]["ts"] == "09:02", bars2[1]
+    # 3分K: 三筆全在 09:00 桶 (H105 C102 量 1000)
+    assert len(bars3) == 1 and bars3[0]["ts"] == "09:00", bars3
+    assert bars3[0]["high"] == 105.0 and bars3[0]["close"] == 102.0, bars3[0]
+    assert bars3[0]["volume"] == 1000, f"3分量 delta 錯: {bars3[0]['volume']}"
+    print("WS-4 2分/3分K: ✅ (分桶錨定09:00 / OHLC / 量delta 正確)")
+
+
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
+    test_multitf_bars()
     print("WS tests: 全通過")
 
 

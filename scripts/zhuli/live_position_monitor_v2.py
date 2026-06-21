@@ -628,6 +628,7 @@ class MonitorApp(App[None]):
     BINDINGS = [
         Binding("t",       "toggle_teacher",  "老師only"),
         Binding("f",       "toggle_failed",   "顯失敗"),
+        Binding("k",       "toggle_dosox_tf", "2分/3分K"),
         Binding("a",       "pin_add",         "Pin"),
         Binding("u",       "pin_remove",       "Unpin"),
         Binding("slash",   "search_open",     "搜尋"),
@@ -647,6 +648,7 @@ class MonitorApp(App[None]):
     # ── reactive state ───────────────────────────────────────────────────────
     teacher_only: reactive[bool] = reactive(True)
     show_failed:  reactive[bool] = reactive(False)
+    dosox_tf:     reactive[int]  = reactive(3)   # WS-4: 當沖 K 顆粒 2分/3分
     search_active: reactive[bool] = reactive(False)
     search_term:   reactive[str]  = reactive("")
     pinned_tickers: reactive[frozenset] = reactive(frozenset())
@@ -864,6 +866,21 @@ class MonitorApp(App[None]):
             except Exception:
                 diverge_line = ""
 
+            # ⚡ WS-4: 當沖 2分/3分 K 最新棒 (WS 推播累積、無 WS 則略)
+            dosox_line = ""
+            try:
+                bars = getattr(self._client, 'bars', None)
+                if bars is not None:
+                    arr = bars.get_bars(tk, self.dosox_tf)
+                    if arr:
+                        b = arr[-1]
+                        body = (b['close'] - b['open']) / b['open'] * 100 if b['open'] else 0
+                        dosox_line = (f"當沖:    ⚡{self.dosox_tf}分K {b['ts']} "
+                                      f"O{b['open']:.1f} H{b['high']:.1f} L{b['low']:.1f} "
+                                      f"C{b['close']:.1f} ({body:+.1f}%) 量{b['volume']//1000}張 [k切換]")
+            except Exception:
+                dosox_line = ""
+
             # 🗓 Plan 條件 check (只對 PLAN_PRIMARY 內的 ticker)
             plan_line = ""
             try:
@@ -889,7 +906,8 @@ class MonitorApp(App[None]):
                 pass
 
             _div_block = f"\n{diverge_line}" if diverge_line else ""
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{_div_block}{plan_line}\n{source_line}"
+            _dosox_block = f"\n{dosox_line}" if dosox_line else ""
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{_div_block}{_dosox_block}{plan_line}\n{source_line}"
         except Exception:
             pass
 
@@ -2144,6 +2162,12 @@ class MonitorApp(App[None]):
         self._refresh_all_tables()
         state = "ON" if self.show_failed else "OFF"
         self.notify(f"[f:{state}] 顯示失敗 {'開啟' if self.show_failed else '關閉'}")
+
+    def action_toggle_dosox_tf(self) -> None:
+        """WS-4: 當沖 K 顆粒 2分 ↔ 3分 切換 (細看盤中)。"""
+        self.dosox_tf = 2 if self.dosox_tf == 3 else 3
+        self._update_detail_panel()
+        self.notify(f"[k] 當沖 K 顆粒 → {self.dosox_tf} 分 K")
 
     def action_pin_add(self) -> None:
         self.push_screen(PinDialog("Pin 標的 (加入)"),

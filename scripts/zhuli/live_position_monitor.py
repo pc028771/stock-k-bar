@@ -606,6 +606,66 @@ _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
 # WebSocket 即時報價快取 (取代 sequential REST snapshot)
 # ─────────────────────────────────────────────────────────────────────────
 
+class MultiTFBarBuilder:
+    """WS-4: 從 WS tick 累積 rolling 2分/3分 OHLC 棒 (當沖更細顆粒判斷)。
+
+    trades stream 給逐筆 price + 當日累積量 → 本地分桶成 N 分 K。
+    bucket 錨定 09:00、每檔每 tf 各一串。volume = 累積量 delta。
+    """
+    def __init__(self, timeframes=(2, 3), max_bars: int = 80):
+        self.timeframes = tuple(timeframes)
+        self.max_bars = max_bars
+        self.bars: dict = {}            # (symbol, tf) -> list[bar dict]
+        self._last_cumvol: dict = {}    # symbol -> 上次累積量 (算 delta)
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def _bucket(now, tf_min: int) -> str:
+        """now → 錨定 09:00 的 tf 分桶 key 'HH:MM'。"""
+        mins = now.hour * 60 + now.minute - (9 * 60)
+        if mins < 0:
+            mins = 0
+        b = (mins // tf_min) * tf_min + 9 * 60
+        return f"{b // 60:02d}:{b % 60:02d}"
+
+    def add_tick(self, symbol: str, price: float, cum_volume, now) -> None:
+        symbol = str(symbol)
+        # 量 delta (cum_volume 是累積、可能 None)
+        vol_delta = 0
+        if cum_volume is not None:
+            try:
+                cv = int(cum_volume)
+                prev = self._last_cumvol.get(symbol)
+                vol_delta = max(0, cv - prev) if prev is not None else 0
+                self._last_cumvol[symbol] = cv
+            except Exception:
+                pass
+        with self.lock:
+            for tf in self.timeframes:
+                bk = self._bucket(now, tf)
+                key = (symbol, tf)
+                arr = self.bars.setdefault(key, [])
+                if not arr or arr[-1]["ts"] != bk:
+                    arr.append({"ts": bk, "open": price, "high": price,
+                                "low": price, "close": price, "volume": vol_delta})
+                    if len(arr) > self.max_bars:
+                        arr.pop(0)
+                else:
+                    b = arr[-1]
+                    b["high"] = max(b["high"], price)
+                    b["low"] = min(b["low"], price)
+                    b["close"] = price
+                    b["volume"] += vol_delta
+
+    def get_bars(self, symbol: str, tf: int) -> list:
+        with self.lock:
+            return [dict(b) for b in self.bars.get((str(symbol), tf), [])]
+
+    def get_df(self, symbol: str, tf: int):
+        rows = self.get_bars(symbol, tf)
+        return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
 class WSPriceCache:
     """訂閱 Fubon WebSocket aggregates channel、cache 最新報價。
 
@@ -625,6 +685,7 @@ class WSPriceCache:
         self.ws_ok = False
         self.errors = 0
         self._last_batch_ts = 0.0           # WS-2: 上次批次 fallback 時間
+        self.bars = MultiTFBarBuilder()     # WS-4: 2分/3分 K builder
         self._warm()
         self._connect()
 
@@ -788,6 +849,11 @@ class WSPriceCache:
                         pass
                 self.cache[symbol] = existing
                 self.last_update[symbol] = time.time()
+            # WS-4: 同一筆 tick 餵 2分/3分 K builder
+            try:
+                self.bars.add_tick(symbol, price, volume_shares, datetime.now())
+            except Exception:
+                pass
             # WS push 觸發 redraw、限速 100ms 避免太頻繁
             _now = time.time()
             if _now - _last_ws_render_signal[0] > 0.1:
