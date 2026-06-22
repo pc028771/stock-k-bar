@@ -51,6 +51,7 @@ def test_ws_fallback_batch():
     dp, client, ws = _ws()
     try:
         client._batch_calls = 0
+        ws._last_batch_ts = 0.0    # _warm 建構時已 batch 過、重置節流模擬「過了 8s」
         # 強制全 cache stale (WS 全掛模擬)
         with ws.lock:
             for tk in ws.tickers:
@@ -70,6 +71,30 @@ def test_ws_fallback_batch():
         ws.get_realtime_snapshot("1303")
         assert client._batch_calls == 1, f"節流失效、batch 被多打 {client._batch_calls} 次"
         print("WS fallback: ✅ (批次 1 req 補全 / 節流防打爆、非逐檔)")
+    finally:
+        dp.close()
+
+
+def test_warm_uses_batch():
+    """🔴 _warm 走 batch、個股不逐檔 REST (2026-06-22 黑屏元兇 regression 守門)。
+
+    舊 _warm 對 N 檔逐檔 get_realtime_snapshot → 開盤前卡死 event loop + rate-limit 洪水。
+    修正後: 個股走 1 個 batch、只有 index (TAIEX) 才逐檔。
+    """
+    dp = DataProvider()
+    client = MockFubonClient(dp, "2026-06-18")
+    client.set_clock(time(13, 30))
+    client._batch_calls = 0
+    client._rest_calls = 0
+    # 2330/1303 = mock 對 2026-06-18 有資料的個股 → 應全走 batch、零逐檔
+    ws = WSPriceCache(client, ["2330", "1303"])
+    try:
+        assert client._batch_calls >= 1, f"warm 應走 batch、實際 batch={client._batch_calls}"
+        # 🔴 核心守門: 個股 0 逐檔 REST (舊 bug 會 = 2)。batch 內部呼叫已存/還原不計。
+        assert client._rest_calls == 0, \
+            f"warm 個股仍逐檔 REST (黑屏 bug 復發): rest_calls={client._rest_calls} (應 0)"
+        assert ws.cache.get("2330") and ws.cache.get("1303"), "batch 應已填滿 cache"
+        print("warm batch 守門: ✅ (個股走 batch 1 req、零逐檔、不卡 event loop)")
     finally:
         dp.close()
 
@@ -204,6 +229,7 @@ def test_reconnect_on_stale():
 def main():
     test_ws_receive()
     test_ws_fallback_batch()
+    test_warm_uses_batch()
     test_multitf_bars()
     test_snap_parse_both_schemas()
     test_ws_trades_doc_envelope()

@@ -41,6 +41,7 @@ class MockFubonClient:
 
     def get_realtime_snapshot(self, stock_id: str) -> Optional[dict]:
         """Return SnapshotDict cumulative up to current time."""
+        self._rest_calls = getattr(self, '_rest_calls', 0) + 1
         stock_id = str(stock_id)
         # TAIEX 特殊處理 (用 daily K + simulated intraday curve)
         if stock_id == 'TAIEX':
@@ -124,12 +125,16 @@ class MockFubonClient:
         """批次快照 {symbol: SnapshotDict} — WS-2 fallback 用。mock 從 DataProvider
         當日 EOD 取值。記 call 次數 (測 fallback 不打爆用)。"""
         self._batch_calls = getattr(self, '_batch_calls', 0) + 1
+        # batch = 真實 client 的「單一 API call」。mock 內部雖逐檔組 dict、
+        # 但不該污染 _rest_calls (那計數代表真正的逐檔 REST)。存/還原。
+        _saved_rest = getattr(self, '_rest_calls', 0)
         out = {}
         for tk in list(self._subscribed):
             snap = self.get_realtime_snapshot(tk)
             if snap:
                 # batch 回的 total_volume 單位同 REST (千張)、_normalize_rest_snap 會 ×1000
                 out[str(tk)] = snap
+        self._rest_calls = _saved_rest
         return out
 
     def _emit_tick(self, ticker: str) -> None:

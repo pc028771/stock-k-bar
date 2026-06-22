@@ -949,10 +949,20 @@ class MonitorApp(App[None]):
 
     # ── data refresh ─────────────────────────────────────────────────────────
     def _start_data_refresh(self) -> None:
-        """啟動背景 thread 定期抓報價 + 計算 trigger / vol_ratio。"""
-        # WS-1: 即時行情走 WebSocket 推播 (包成 WSPriceCache、drop-in
-        # get_realtime_snapshot 介面)。WS 不吃 snapshot 300/min REST 額度、
-        # refresh loop 變 O(1) cache 讀。demo / 已包過 / 無 client 則跳過。
+        """啟動背景 thread 定期抓報價 + 計算 trigger / vol_ratio。
+
+        🔴 on_mount 呼叫此函式。**絕對不可在此同步做 blocking I/O**
+        (WSPriceCache.__init__ → _warm 會逐檔打 ~120 REST、開盤前卡幾分鐘),
+        否則 event loop 被卡 → 黑屏 + Ctrl-C 失效。WS 建構移進 thread 內。
+        """
+        self._refresh_thread = threading.Thread(
+            target=self._refresh_loop, daemon=True
+        )
+        self._refresh_thread.start()
+
+    def _ensure_ws_cache(self) -> None:
+        """WS-1: 在背景 thread 內把 client 包成 WSPriceCache (含 _warm 120 檔、
+        慢)。放 thread 不放 on_mount → UI 立刻可渲染 + 可 Ctrl-C。"""
         if (not self._demo_mode and self._client is not None
                 and not isinstance(self._client, _v1.WSPriceCache)):
             all_tk = {str(i.get('ticker', ''))
@@ -964,12 +974,13 @@ class MonitorApp(App[None]):
                          len(all_tk), getattr(self._client, 'ws_ok', '?'))
             except Exception as e:
                 _logging.getLogger("zhuli.monitor").warning("WSPriceCache 建立失敗、退回 REST 輪詢: %s", e)
-        self._refresh_thread = threading.Thread(
-            target=self._refresh_loop, daemon=True
-        )
-        self._refresh_thread.start()
 
     def _refresh_loop(self) -> None:
+        # WS 建構放這裡 (thread 內、不卡 event loop)。只跑一次。
+        try:
+            self._ensure_ws_cache()
+        except Exception:
+            pass
         while not self._quit:
             try:
                 self._check_data_version()

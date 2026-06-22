@@ -695,8 +695,8 @@ class WSPriceCache:
         self._last_reconnect_ts = 0.0       # C2: 上次重連時間
         self._pending_resub: list = []      # C3: 待訂閱的新 ticker
         self.bars = MultiTFBarBuilder()     # WS-4: 2分/3分 K builder
-        self._warm()
-        self._connect()
+        self._connect()                     # 先開 WS (subscribe)、
+        self._warm()                         # 再 batch seed cache (whole-market、1-2 req)
 
     RECONNECT_INTERVAL = 30.0  # C2: WS 重連最短間隔 (秒)
 
@@ -770,14 +770,25 @@ class WSPriceCache:
         return dict(snap)
 
     def _warm(self):
-        """REST 初始抓一輪、確保 cache 有資料 + 記錄 _warm_close 供反推 prev_close."""
-        for tk in list(self.tickers):
+        """冷啟動填 cache (記 _warm_close 供反推 prev_close)。
+
+        🔴 2026-06-22 fix: 原本逐檔 120 個 get_realtime_snapshot = 開盤前卡幾分鐘
+        + 違反「搬 WS 就是為了不打 REST」初衷。改走 batch (_batch_refresh、1-2 req
+        拿整盤股票)。只有 index (非數字 ticker、batch map 不含) 才逐檔補 (數量極少)。
+        穩態行情全靠 WS 推播、REST 只剩此冷啟動 + WS stale fallback (都 batch)。
+        """
+        try:
+            self._batch_refresh()          # 1-2 req 填所有股票 ticker
+        except Exception:
+            pass
+        with self.lock:
+            missing = [tk for tk in self.tickers if tk not in self.cache]
+        for tk in missing:                  # 只剩 index/非數字、逐檔補
             try:
                 snap = self.client.get_realtime_snapshot(tk)
                 if snap:
                     with self.lock:
                         entry = self._normalize_rest_snap(snap)
-                        # 留底用於反推 prev_close (close - change_price)
                         if 'close' in entry:
                             entry['_warm_close'] = entry['close']
                         self.cache[tk] = entry
