@@ -57,26 +57,26 @@ HELD = [
     },
     {
         'ticker': '2885', 'name': '元大金',
-        'cost': 58.0, 'shares': 10000, 'stop': 64.6,
+        'cost': 58.0, 'shares': 10000, 'stop': 66.5,
         'strategy_mode': 'core',       # 核心配置、結構底 trailing
         'tactic': '配置', 'priority': 1,
         'source': '配置部位',
         'sector': '金融',
-        'note': '6/16 trailing ↑ $64.6 (6/15 新黑K低、已脫離成本 +11%、原 $62.2)'
+        'note': '6/22 trail ↑ $66.5 (6/18 結構低、低點墊高 6/15→6/18 64.6→66.5、鎖 +$85k/+11%) 收盤跌破才出'
     },
     {
         'ticker': '3481', 'name': '群創',
-        'cost': 63.7, 'shares': 4000, 'stop': 53.0,
+        'cost': 63.7, 'shares': 4000, 'stop': 58.5,
         'strategy_mode': 'disposal_swing',  # 處置股紀律: stop = 今日 L (trailing up)
         'tactic': '題材', 'priority': 3,
         'source': '老師明示 6/3 + 6/22 加碼 (黃大外部消息)',
         'sector': '面板/族群補漲',
-        'note': '🔒 6/4 進處置→6/18 出關。6/17 漲停 +9.94%。6/22 加碼 +2張 @$68.7 (黃大、均 $58.7→$63.7、共 4張)。⚠️ 加碼在噴出末端 (距MA10 +32%、紅線#1 跳空+7.76%)、轉 exit 側: 盯拉高出貨、收盤跌破結構走、stop $53'
+        'note': '🔒 6/4 進處置→6/18 出關。6/17 漲停 +9.94%。6/22 加碼 +2張 @$68.7 (黃大、均 $58.7→$63.7、共 4張)。⚠️ 加碼在噴出末端 (距MA10 +32%、紅線#1)、轉 exit 側盯拉高出貨。stop $58.5 (6/18 結構低、收盤跌破才出)、墊高成本後打到鎖 -$20.8k'
     },
     # 8046 南電 6/5 全清 (1000 @ $851 + 200 @ $838、共鎖 ~$57.7k 損)
     {
         'ticker': '1303', 'name': '南亞',
-        'cost': 104.5, 'shares': 1000, 'stop': 115.0,
+        'cost': 104.5, 'shares': 1000, 'stop': 135.0,
         'strategy_mode': 'swing',
         'tactic': '題材', 'priority': 3,
         'source': '老師明示 6/5 Stage 1 1/3 + 6/16 拉高出貨 vs 籌碼狂買最終籌碼贏',
@@ -96,7 +96,7 @@ HELD = [
     },
     {
         'ticker': '2303', 'name': '聯電',
-        'cost': 141.5, 'shares': 2000, 'stop': 138.0,
+        'cost': 141.5, 'shares': 2000, 'stop': 138.5,
         'strategy_mode': 'swing',
         'tactic': '戰略級', 'priority': 3,
         'source': '老師明示 6/14 戰略級 + 6/16「黑K+籌碼漂亮」+ 6/18 突破加碼',
@@ -105,12 +105,12 @@ HELD = [
     },
     {
         'ticker': '3711', 'name': '日月光投控',
-        'cost': 617.0, 'shares': 200, 'stop': 595.0,
+        'cost': 659.5, 'shares': 1200, 'stop': 591.0,
         'strategy_mode': 'swing',
         'tactic': '戰略級', 'priority': 3,
-        'source': '老師親口買 ⭐⭐⭐ + 老師 6/16 外資買超權值區 + OSAT 龍頭跟 6/13 OSAT 三重背書',
+        'source': '老師親口買 ⭐⭐⭐ + OSAT 三重背書 + 6/22 加碼 (黃大外部消息)',
         'sector': '半導體封測 OSAT',
-        'note': '6/18 13:14 Stage 1 限價 $617 零股 200 股 = $123.4k、stop $595 (6/17 close)、target $640 短期 / 長線觀察、漏斗條件: ✅ 老師親口買 ✅ 6/16 權值 ✅ OSAT 龍頭 ✅ 突破 $612 ✅ 13:05+13:10 連 2 紅 K ✅ 收盤位置 0.50 健康 ✅ 漲幅 +3.70% 不大紅'
+        'note': '6/18 200股@617 + 6/22 加碼 1張@668 (黃大) = 1,200股 均$659.5。stop $591 (6/18 結構低、收盤跌破才出)。⚠️ 加碼墊高成本 → stop 在成本下、打到鎖 -$82k (加碼在高點的代價)、若要保本需更緊但 premature'
     },
 ]
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
