@@ -695,8 +695,11 @@ class WSPriceCache:
         self._last_reconnect_ts = 0.0       # C2: 上次重連時間
         self._pending_resub: list = []      # C3: 待訂閱的新 ticker
         self.bars = MultiTFBarBuilder()     # WS-4: 2分/3分 K builder
+        self._index_fetch_ts: dict[str, float] = {}  # 指數 FinMind 節流時間戳
         self._connect()                     # 先開 WS (subscribe)、
         self._warm()                         # 再 batch seed cache (whole-market、1-2 req)
+
+    INDEX_REFRESH_SEC = 60.0  # 指數走 FinMind (延遲資料)、60s 快取、不每輪打
 
     RECONNECT_INTERVAL = 30.0  # C2: WS 重連最短間隔 (秒)
 
@@ -783,8 +786,14 @@ class WSPriceCache:
             pass
         with self.lock:
             missing = [tk for tk in self.tickers if tk not in self.cache]
-        for tk in missing:                  # 只剩 index/非數字、逐檔補
-            try:
+        for tk in missing:                  # 只剩 index/非數字
+            if not tk.isdigit():            # 指數 (TAIEX 等) → FinMind、不打富邦股票端點
+                try:
+                    self._index_snapshot(tk)
+                except Exception:
+                    pass
+                continue
+            try:                             # 萬一有非指數的漏網股票、逐檔補
                 snap = self.client.get_realtime_snapshot(tk)
                 if snap:
                     with self.lock:
@@ -795,6 +804,53 @@ class WSPriceCache:
                         self.last_update[tk] = time.time()
             except Exception:
                 pass
+
+    def _index_snapshot(self, ticker: str) -> dict | None:
+        """指數類 (TAIEX) 盤中報價走 FinMind — 富邦/Fugle 無指數端點 (官方文件確認)。
+
+        🔴 FinMind 指數資料非即時: 盤中當日常 0 筆、EOD 才補。0 筆 → fallback
+        standard_daily_bar 最新 TAIEX 收盤。一律標 is_delayed (不假裝即時)。
+        節流 INDEX_REFRESH_SEC(60s)、不每輪打 FinMind。禁直接 curl、走既有 client。
+        """
+        now = time.time()
+        if now - self._index_fetch_ts.get(ticker, 0) < self.INDEX_REFRESH_SEC:
+            with self.lock:
+                cached = self.cache.get(ticker)
+            return dict(cached) if cached else None
+        self._index_fetch_ts[ticker] = now
+        close = None
+        src = None
+        try:
+            from common.clients import finmind_client as fm
+            from datetime import date as _d
+            df = fm.get_data(dataset="TaiwanVariousIndicators5Seconds",
+                             start_date=_d.today().isoformat())
+            if df is not None and len(df):
+                close = float(df.iloc[-1]["TAIEX"]); src = "finmind_5s"
+        except Exception:
+            pass
+        if close is None:                    # 盤中 0 筆 → 前一交易日日線收盤
+            try:
+                import sqlite3
+                from zhuli.db import MAIN_DB
+                con = sqlite3.connect(str(MAIN_DB))
+                r = con.execute("SELECT close FROM standard_daily_bar WHERE ticker=? "
+                                "ORDER BY trade_date DESC LIMIT 1", (ticker,)).fetchone()
+                con.close()
+                if r and r[0]:
+                    close = float(r[0]); src = "daily_bar_prev"
+            except Exception:
+                pass
+        if close is None:
+            return None
+        # OHLC 填 close (指數只拿得到 index 值)、避免下游 formatter KeyError
+        entry = {"close": close, "open": close, "high": close, "low": close,
+                 "change_price": 0.0, "change_rate": 0.0, "total_volume": 0,
+                 "is_delayed": True, "source": src}
+        with self.lock:
+            self.cache[ticker] = entry
+            self.last_update[ticker] = now
+        return dict(entry)
 
     def _connect(self):
         """Connect WebSocket、subscribe 全部 tickers (trades channel — Speed mode 支援)."""
@@ -950,13 +1006,10 @@ class WSPriceCache:
         is_index = (not ticker.isdigit())
         try:
             if is_index:
-                fresh = self.client.get_realtime_snapshot(ticker)
+                # 指數 (TAIEX) 走 FinMind (節流 60s)、不打富邦股票端點 (404)
+                fresh = self._index_snapshot(ticker)
                 if fresh:
-                    normalized = self._normalize_rest_snap(fresh)
-                    with self.lock:
-                        self.cache[ticker] = normalized
-                        self.last_update[ticker] = time.time()
-                    return normalized
+                    return fresh
             else:
                 self._batch_refresh()         # 節流批次、補進 cache
                 with self.lock:

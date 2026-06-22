@@ -99,6 +99,33 @@ def test_warm_uses_batch():
         dp.close()
 
 
+def test_index_via_finmind():
+    """指數 (TAIEX) 走 FinMind、不打富邦股票端點 (404 修正) + 節流 60s。"""
+    import common.clients.finmind_client as _fm
+    _orig = _fm.get_data
+    _fm.get_data = lambda *a, **k: None     # stub: FinMind 回空 → 逼 fallback 日線
+    dp = DataProvider()
+    client = MockFubonClient(dp, "2026-06-18")
+    client.set_clock(time(13, 30))
+    client._rest_calls = 0
+    try:
+        ws = WSPriceCache(client, ["TAIEX"])
+        client._rest_calls = 0              # 清掉建構期計數
+        snap = ws.get_realtime_snapshot("TAIEX")
+        assert snap is not None, "TAIEX 應有 fallback 值 (日線)"
+        assert snap.get("is_delayed") is True, "指數應標 is_delayed"
+        assert client._rest_calls == 0, \
+            f"TAIEX 不該打富邦股票端點 (404 源): rest_calls={client._rest_calls}"
+        # 節流: 60s 內第二次不重抓 (時間戳不變)
+        t1 = ws._index_fetch_ts.get("TAIEX")
+        ws.get_realtime_snapshot("TAIEX")
+        assert ws._index_fetch_ts.get("TAIEX") == t1, "指數 60s 節流失效"
+        print("指數走 FinMind: ✅ (TAIEX 不打富邦股票端點 + 標 delayed + 60s 節流)")
+    finally:
+        _fm.get_data = _orig
+        dp.close()
+
+
 def test_multitf_bars():
     """WS-4: tick → 2分/3分 K 聚合正確 + 分桶錨定 09:00。"""
     from datetime import datetime, date as _D
@@ -230,6 +257,7 @@ def main():
     test_ws_receive()
     test_ws_fallback_batch()
     test_warm_uses_batch()
+    test_index_via_finmind()
     test_multitf_bars()
     test_snap_parse_both_schemas()
     test_ws_trades_doc_envelope()

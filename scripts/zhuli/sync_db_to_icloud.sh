@@ -23,6 +23,13 @@ log() { echo "[$(ts)] $*" | tee -a "$LOG"; }
 log "=== sync_db_to_icloud start ==="
 log "src=$SRC ($(du -h "$SRC" | cut -f1))"
 
+# 0. 清掉上次 mv 失敗殘留的孤兒 .tmp（cron/背景無 iCloud 寫權限時會累積、每個 ~2.7G）
+_orphans=$(ls "$DST_DIR"/data.sqlite.tmp.* 2>/dev/null | wc -l | tr -d ' ')
+if [ "$_orphans" != "0" ]; then
+    rm -f "$DST_DIR"/data.sqlite.tmp.* 2>/dev/null || true
+    log "清掉 $_orphans 個孤兒 .tmp（上次 mv 失敗殘留）"
+fi
+
 # 1. WAL checkpoint TRUNCATE — 強制把所有 pending writes 合併回主檔
 if /usr/bin/sqlite3 "$SRC" "PRAGMA wal_checkpoint(TRUNCATE);" >> "$LOG" 2>&1; then
     log "wal_checkpoint OK"
@@ -39,8 +46,15 @@ rm -f "$DST-wal" "$DST-shm" 2>/dev/null || true
 # 3. atomic copy: 寫到 .tmp 再 mv
 TMP="$DST.tmp.$$"
 if cp "$SRC" "$TMP"; then
-    mv -f "$TMP" "$DST"
-    log "copy OK → $DST ($(du -h "$DST" | cut -f1))"
+    # mv 失敗 = iCloud 寫入被擋（cron/背景無 GUI session iCloud 權限）。
+    # 明確 log + 清掉自己的 .tmp（不靜默 set -e 死、不留孤兒）。
+    if mv -f "$TMP" "$DST"; then
+        log "copy OK → $DST ($(du -h "$DST" | cut -f1))"
+    else
+        rm -f "$TMP" 2>/dev/null || true
+        log "mv FAILED — iCloud 寫入被擋（需 GUI session 權限、cron 背景拿不到）。.tmp 已清、未更新主檔。"
+        exit 1
+    fi
 else
     rm -f "$TMP"
     log "copy FAILED"
