@@ -287,6 +287,11 @@ class FubonClient:
         Returns None 當不可得 (盤後 / API error / rate-limit cooldown 中)。
         """
         global _rate_blocked_until
+        # 指數類 symbol (TAIEX/TPEX 等純字母、無數字) 富邦/Fugle 無 stock intraday 端點
+        # (官方文件確認 404)。直接回 None、不打 API、不洗 warning。指數報價走 FinMind
+        # (見 WSPriceCache._index_snapshot)。股票/ETF/債券 ETF (00679B 等含數字) 不受影響。
+        if not any(c.isdigit() for c in str(stock_id)):
+            return None
         if time.monotonic() < _rate_blocked_until:
             return None                      # cooldown 中：不打 API、不 log
         try:
