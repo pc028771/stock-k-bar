@@ -129,6 +129,20 @@ _logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
 
+# 一次性 debug log: 哪個 UI 區塊在丟例外 (寫檔、不汙染 TUI 畫面、同 tag 只記一次)
+import traceback as _tb
+_DEBUG_LOG = Path("/tmp/zhuli_monitor_debug.log")
+_logged_tags: set[str] = set()
+def _log_once(tag: str) -> None:
+    if tag in _logged_tags:
+        return
+    _logged_tags.add(tag)
+    try:
+        with _DEBUG_LOG.open("a") as fh:
+            fh.write(f"\n=== {tag} @ {datetime.now():%H:%M:%S} ===\n{_tb.format_exc()}")
+    except Exception:
+        pass
+
 # ── dump signals (持倉拉高出貨即時警示) ────────────────────────────────────
 from scripts.zhuli.dump_signals import (
     DumpStateTracker,
@@ -926,7 +940,7 @@ class MonitorApp(App[None]):
             _flag_block = f"\n{flag_line}" if flag_line else ""
             panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}{_flag_block}\n{pursuit_line}{_div_block}{_dosox_block}{plan_line}\n{source_line}"
         except Exception:
-            pass
+            _log_once("detail_panel")
 
     def _setup_tables(self) -> None:
         """初始化所有 DataTable 的 columns。"""
@@ -1238,9 +1252,21 @@ class MonitorApp(App[None]):
 
     # ── tick (1s 更新 UI) ────────────────────────────────────────────────────
     def _tick(self) -> None:
-        self._update_status_bar()
-        self._update_all_tables()
-        self._update_detail_panel()
+        # 三段各自 try/except — 任一 table refresh 丟例外不可拖垮 detail panel
+        # (之前線性呼叫: _update_all_tables 中途爆 → _update_detail_panel 永不執行
+        #  → detail 卡在佔位字「(↑↓ 選 row 看詳情)」)
+        try:
+            self._update_status_bar()
+        except Exception:
+            pass
+        try:
+            self._update_all_tables()
+        except Exception:
+            pass
+        try:
+            self._update_detail_panel()
+        except Exception:
+            pass
 
     def _update_status_bar(self) -> None:
         now = datetime.now()
@@ -1388,13 +1414,20 @@ class MonitorApp(App[None]):
         with self._data_lock:
             ld = dict(self._live_data)
 
-        self._refresh_held_table(ld)
-        self._refresh_confirmed_table(ld)
-        self._refresh_watching_table(ld)
-        self._refresh_pinned_table(ld)
-        self._refresh_overnight_table()
-        self._refresh_scanner_table(ld)
-        self._refresh_setups_table(ld)  # bug fix: 之前漏呼叫、Setups tab 永遠停在「載入中」
+        # 各 table 獨立 try/except — 單一 table refresh 爆不可拖垮其他 table + detail
+        for _name, _fn in (
+            ("held", lambda: self._refresh_held_table(ld)),
+            ("confirmed", lambda: self._refresh_confirmed_table(ld)),
+            ("watching", lambda: self._refresh_watching_table(ld)),
+            ("pinned", lambda: self._refresh_pinned_table(ld)),
+            ("overnight", lambda: self._refresh_overnight_table()),
+            ("scanner", lambda: self._refresh_scanner_table(ld)),
+            ("setups", lambda: self._refresh_setups_table(ld)),
+        ):
+            try:
+                _fn()
+            except Exception:
+                _log_once(f"table:{_name}")
 
     def _fmt_otn(self, otn_pct: float | None) -> str:
         if otn_pct is None:
