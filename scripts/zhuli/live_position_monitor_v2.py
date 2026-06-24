@@ -376,6 +376,46 @@ def _load_overnight_static() -> dict:
         return {}
 
 
+_TEACHER_TIER_CACHE: dict | None = None
+def _teacher_tier_label(tk: str) -> str:
+    """老師族群對齊度 label (取代已不存在的 _v1.get_teacher_tier)。
+    picks tier_signal (core/frequent/once) > 族群內 > —。cache 一次載入。"""
+    global _TEACHER_TIER_CACHE
+    if _TEACHER_TIER_CACHE is None:
+        import json as _json
+        base = _REPO / "docs" / "主力大課程"
+        picks, sect = {}, set()
+        try:
+            with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
+                d = _json.load(fh)
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    picks[str(k)] = v.get("tier_signal")
+        except Exception:
+            pass
+        try:
+            with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
+                d = _json.load(fh)
+            for v in d.values():
+                if isinstance(v, list):
+                    sect.update(str(t) for t in v)
+                elif isinstance(v, dict):
+                    sect.update(str(t) for t in (v.get("tickers") or []))
+        except Exception:
+            pass
+        _TEACHER_TIER_CACHE = {"picks": picks, "sect": sect}
+    tk = str(tk)
+    sig = _TEACHER_TIER_CACHE["picks"].get(tk)
+    lbl = {"core": "core ⭐⭐⭐", "frequent": "frequent ⭐⭐", "once": "once ⭐"}.get(sig)
+    if lbl:
+        return lbl
+    if tk in _TEACHER_TIER_CACHE["picks"]:
+        return "老師明示"
+    if tk in _TEACHER_TIER_CACHE["sect"]:
+        return "族群內"
+    return "—"
+
+
 def _load_overnight_universe() -> list[str]:
     """讀老師 universe (sector_tickers ∪ picks_2026 ≈ 332 檔)。"""
     import json as _json
@@ -857,8 +897,8 @@ class MonitorApp(App[None]):
                 src_parts.append(sector)
             source_line = f"來源:    {' | '.join(src_parts)}" if src_parts else "來源:    —"
 
-            # 🎯 老師族群對齊度 (v1 helper)
-            tier_n, tier_label = _v1.get_teacher_tier(tk)
+            # 🎯 老師族群對齊度 (本地 helper、取代已不存在的 _v1.get_teacher_tier)
+            tier_label = _teacher_tier_label(tk)
             tier_line = f"族群:    {tier_label}"
 
             # ⛔ 不該追警示 (v1 helper、用 snap + DB prev_close)
