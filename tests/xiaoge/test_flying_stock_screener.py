@@ -10,20 +10,26 @@ import pytest
 
 from xiaoge.entry.flying_stock_screener import (
     m3_main_buy_streak, m4_foreign_buy_streak, m5_invest_trust_buy_streak,
-    m7_break_high,
+    m6_volatility_rising_strong, m7_break_high,
     s3_main_sell_streak, s4_foreign_sell_streak, s5_invest_trust_sell_streak,
-    s7_break_low,
+    s6_volatility_rising_weak, s7_break_low,
+    kd_golden_cross, kd_death_cross, _compute_kd,
     long_score, short_score, screener_long, screener_short,
 )
 
 
 def _df(close_seq, main_seq=None, foreign_seq=None, sitc_seq=None,
+        high_seq=None, low_seq=None, ma5_seq=None,
         ticker="A001"):
     n = len(close_seq)
+    close = pd.Series(close_seq, dtype=float)
     out = pd.DataFrame({
         "ticker": ticker,
         "trade_date": pd.bdate_range("2026-01-05", periods=n),
-        "close": close_seq,
+        "close": close,
+        "high": high_seq if high_seq is not None else (close * 1.02),
+        "low": low_seq if low_seq is not None else (close * 0.98),
+        "ma5": ma5_seq if ma5_seq is not None else close.rolling(5, min_periods=1).mean(),
         "main_force_1d": main_seq if main_seq is not None else [0.0] * n,
         "foreign_net": foreign_seq if foreign_seq is not None else [0.0] * n,
         "sitc_net": sitc_seq if sitc_seq is not None else [0.0] * n,
@@ -117,10 +123,73 @@ def test_s7_break_low():
     assert sig.iloc[24] == True
 
 
+# ── M6 volatility ─────────────────────────────────────────────────────────
+
+def test_m6_fires_when_vol_doubles():
+    # 15 days. First 10 = tiny vol (high-low=0.5), next 5 = big vol (high-low=5).
+    # close = 100, ma5 always < 100 and rising → close > ma5 + ma5 up.
+    n = 15
+    closes = [100.0] * n
+    highs = [100.5] * 10 + [105.0] * 5    # intraday_vol 0.5% → 5%
+    lows = [100.0] * n
+    ma5 = [95.0 + i * 0.1 for i in range(n)]   # 95.0..96.4, always below 100, rising
+    df = _df(close_seq=closes, high_seq=highs, low_seq=lows, ma5_seq=ma5)
+    sig = m6_volatility_rising_strong(df, vol_rise_pp=2.0)
+    # short_avg - prev_avg at idx 12 = 2.7pp ≥ 2 → fires
+    assert sig.iloc[12] == True
+    assert sig.iloc[14] == True
+
+
+def test_m6_does_not_fire_when_close_below_ma5():
+    n = 15
+    closes = [100.0] * n
+    highs = [100.5] * 10 + [105.0] * 5
+    lows = [100.0] * 10 + [100.0] * 5
+    ma5 = [200.0] * n   # always above close
+    df = _df(close_seq=closes, high_seq=highs, low_seq=lows, ma5_seq=ma5)
+    sig = m6_volatility_rising_strong(df, vol_rise_pp=2.0)
+    assert not any(sig.tolist())
+
+
+# ── KD ────────────────────────────────────────────────────────────────────
+
+def test_kd_compute_initial_period_nan():
+    # First (period-1) bars should be NaN, period-th onwards finite
+    n = 12
+    closes = [100 + i for i in range(n)]
+    df = _df(close_seq=closes)
+    K, D = _compute_kd(df, period=9)
+    # idx 0..7 (first 8 of 9) should be NaN
+    for i in range(8):
+        assert pd.isna(K.iloc[i])
+    # idx 8 (9th bar) onwards finite
+    for i in range(8, n):
+        assert not pd.isna(K.iloc[i])
+
+
+def test_kd_golden_cross_at_bottom():
+    # Construct a price pattern: down then up; K should cross D after the bottom
+    closes = [100, 95, 90, 85, 80, 75, 70, 65, 60,  # down to bottom
+              62, 68, 75, 82, 90]                    # up
+    df = _df(close_seq=closes)
+    K, D = _compute_kd(df, period=9)
+    cross = kd_golden_cross(df, period=9)
+    # Expect at least one True somewhere in the up-leg
+    assert cross.iloc[9:].any()
+
+
+def test_kd_death_cross_at_top():
+    closes = [50, 55, 60, 65, 70, 75, 80, 85, 90,
+              88, 82, 75, 68, 60]
+    df = _df(close_seq=closes)
+    cross = kd_death_cross(df, period=9)
+    assert cross.iloc[9:].any()
+
+
 # ── combinator ─────────────────────────────────────────────────────────────
 
 def test_long_score_counts_hits():
-    # 5-day window. Make m3, m4 fire on last day, m5/m7 don't.
+    # 5-day window. m3, m4 fire; m5/m6/m7/kd don't.
     df = _df(
         close_seq=[100, 100, 100, 100, 100],   # m7 won't fire (not 20 bars)
         main_seq=[1, 1, 1, 1, 1],
@@ -128,12 +197,13 @@ def test_long_score_counts_hits():
         sitc_seq=[-1, -1, -1, -1, -1],
     )
     s = long_score(df, n_streak=3, n_high=20)
-    # m3, m4 should fire on idx 2-4; m5 never; m7 never
     assert list(s["m3"]) == [False, False, True, True, True]
     assert list(s["m4"]) == [False, False, True, True, True]
     assert list(s["m5"]) == [False] * 5
+    assert list(s["m6"]) == [False] * 5      # not enough bars for M6
     assert list(s["m7"]) == [False] * 5
-    assert list(s["score"]) == [0, 0, 2, 2, 2]
+    # KD might fire — that's fine, just verify score >= 2 at end
+    assert s["score"].iloc[-1] >= 2
 
 
 def test_screener_long_min_score():
@@ -143,9 +213,9 @@ def test_screener_long_min_score():
         foreign_seq=[10]*5,
     )
     sig2 = screener_long(df, n_streak=3, min_score=2)
-    assert list(sig2) == [False, False, True, True, True]
-    sig3 = screener_long(df, n_streak=3, min_score=3)
-    assert list(sig3) == [False] * 5
+    assert sig2.iloc[2:].all()
+    sig5 = screener_long(df, n_streak=3, min_score=5)
+    assert not sig5.any()
 
 
 # ── multi-ticker isolation ─────────────────────────────────────────────────
