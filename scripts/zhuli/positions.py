@@ -107,6 +107,15 @@ HELD = [
         'sector': 'IC設計/CPO',
         'note': '6/24 零股 50@$4310 + 50@$4325 = 100股 均$4317.5 (~$430k/單檔13%、回測真部位非小錢)。老師明示第二檔「開差在線上$4300附近、外資買方」→ 殺到 L$4225 站回 $4300 支撐、量縮、買綠 = 回測老師支撐 Stage1 進場。stop $4200 (殺破老師支撐+今日低就出)。⚠️🔴第三筆免談、停損快不准凹成波段。6/24 外資 EOD 確認續買否'
     },
+    {
+        'ticker': '2308', 'name': '台達電',
+        'cost': 2030.0, 'shares': 50, 'stop': 1970.0,
+        'strategy_mode': 'swing',
+        'tactic': '短線(最弱)', 'priority': 3,
+        'source': '自選(無thesis)',
+        'sector': '電源/重電',
+        'note': '6/24 零股 50股 @$2030。⚠️今天買進最弱一筆: 空頭排列(MA5<MA10<MA20)、距MA10 -8.9%、外資6/23賣-1,809、老師6/24晚課沒提 = 接刀無thesis。stop $1970(今日低、收盤跌破才出 / 殺盤日跳空+族群整跌則開盤5分內出)。50股小錢、停損快、別對它有感情、不加碼'
+    },
 ]
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
 # 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
