@@ -1,8 +1,8 @@
 {
   "date": "2026-06-15",
-  "generated_at": "2026-06-16T08:44:05",
-  "taiex_pct": -1.68,
-  "market_5d_ret": 4.68,
+  "generated_at": "2026-06-18T23:52:09",
+  "taiex_pct": 2.78,
+  "market_5d_ret": 4.35,
   "regime": "bull",
   "candidates": [
     {
@@ -61,6 +61,19 @@
       "note": "⭐ Tier-B + 小結構 + MA5 Pivot"
     },
     {
+      "ticker": "3042",
+      "name": "晶技",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 3,
+      "sector": "被動元件/石英",
+      "tactic": "短打",
+      "ref_close": 243.5,
+      "dist_ma10_pct": 10.5,
+      "note": "🔥 Tier-A"
+    },
+    {
       "ticker": "3105",
       "name": "穩懋",
       "sources": [
@@ -85,6 +98,23 @@
       "ref_close": 169.0,
       "dist_ma10_pct": -0.1,
       "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "6173",
+      "name": "信昌電",
+      "sources": [
+        "institutional_firstbuy",
+        "post_attack_watchlist"
+      ],
+      "priority": 3,
+      "sector": "被動元件",
+      "tactic": "觀察",
+      "ref_close": 304.0,
+      "dist_ma10_pct": 26.6,
+      "note": "⭐ Tier-B + 投信首買(J) + 攻擊後盤整",
+      "boost_reason": [
+        "🅰️ 老師 universe + 籌碼共識 boost"
+      ]
     },
     {
       "ticker": "6207",
@@ -153,6 +183,19 @@
       "ref_close": 624.0,
       "dist_ma10_pct": 5.9,
       "note": "⭐ Tier-B + 小結構 + MA5 Pivot"
+    },
+    {
+      "ticker": "1722",
+      "name": "台肥",
+      "sources": [
+        "foreign_lead_v12_skip"
+      ],
+      "priority": 2,
+      "sector": "化學生技醫療",
+      "tactic": "短打",
+      "ref_close": 48.85,
+      "dist_ma10_pct": null,
+      "note": ""
     },
     {
       "ticker": "2035",
@@ -249,6 +292,20 @@
       "note": "小結構"
     },
     {
+      "ticker": "2377",
+      "name": "微星",
+      "sources": [
+        "foreign_lead_v06",
+        "foreign_lead_v08"
+      ],
+      "priority": 2,
+      "sector": "電腦及週邊設備業",
+      "tactic": "短打",
+      "ref_close": 140.0,
+      "dist_ma10_pct": null,
+      "note": ""
+    },
+    {
       "ticker": "2383",
       "name": "台光電",
       "sources": [
@@ -302,6 +359,20 @@
       "note": "W底"
     },
     {
+      "ticker": "2618",
+      "name": "長榮航",
+      "sources": [
+        "foreign_lead_v06",
+        "foreign_lead_v08"
+      ],
+      "priority": 2,
+      "sector": "航運業",
+      "tactic": "短打",
+      "ref_close": 39.95,
+      "dist_ma10_pct": null,
+      "note": ""
+    },
+    {
       "ticker": "2645",
       "name": "長榮航太",
       "sources": [
@@ -313,6 +384,20 @@
       "ref_close": 170.5,
       "dist_ma10_pct": null,
       "note": "均線全順向"
+    },
+    {
+      "ticker": "2801",
+      "name": "彰銀",
+      "sources": [
+        "foreign_lead_v06",
+        "foreign_lead_v08"
+      ],
+      "priority": 2,
+      "sector": "金融保險",
+      "tactic": "短打",
+      "ref_close": 22.65,
+      "dist_ma10_pct": null,
+      "note": ""
     },
     {
       "ticker": "2867",
@@ -357,7 +442,8 @@
       "ticker": "2891",
       "name": "中信金",
       "sources": [
-        "foreign_buy_on_black_k"
+        "foreign_buy_on_black_k",
+        "foreign_lead_v12_skip"
       ],
       "priority": 2,
       "sector": "金融保險",
@@ -365,6 +451,21 @@
       "ref_close": 70.1,
       "dist_ma10_pct": 3.5,
       "note": "外資黑K連2"
+    },
+    {
+      "ticker": "2892",
+      "name": "第一金",
+      "sources": [
+        "foreign_lead_v06",
+        "foreign_lead_v08",
+        "foreign_lead_v15"
+      ],
+      "priority": 2,
+      "sector": "金融保險",
+      "tactic": "短打",
+      "ref_close": 31.3,
+      "dist_ma10_pct": null,
+      "note": ""
     },
     {
       "ticker": "3014",
@@ -501,6 +602,19 @@
       "note": "小結構"
     },
     {
+      "ticker": "3624",
+      "name": "光頡",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "被動元件",
+      "tactic": "短打",
+      "ref_close": 129.5,
+      "dist_ma10_pct": 14.1,
+      "note": ""
+    },
+    {
       "ticker": "3646",
       "name": "艾恩特",
       "sources": [
@@ -538,6 +652,19 @@
       "ref_close": 590.0,
       "dist_ma10_pct": 2.6,
       "note": "小結構"
+    },
+    {
+      "ticker": "4532",
+      "name": "瑞智",
+      "sources": [
+        "foreign_lead_v12_skip"
+      ],
+      "priority": 2,
+      "sector": "電機機械",
+      "tactic": "短打",
+      "ref_close": 24.55,
+      "dist_ma10_pct": null,
+      "note": ""
     },
     {
       "ticker": "4535",
@@ -631,6 +758,32 @@
       "note": "W底"
     },
     {
+      "ticker": "5328",
+      "name": "華容",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 46.55,
+      "dist_ma10_pct": 12.2,
+      "note": ""
+    },
+    {
+      "ticker": "5351",
+      "name": "鈺創",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "半導體業",
+      "tactic": "短打",
+      "ref_close": 90.6,
+      "dist_ma10_pct": 3.1,
+      "note": ""
+    },
+    {
       "ticker": "5471",
       "name": "松翰",
       "sources": [
@@ -644,9 +797,24 @@
       "note": "W底"
     },
     {
+      "ticker": "5880",
+      "name": "合庫金",
+      "sources": [
+        "foreign_lead_v06",
+        "foreign_lead_v08"
+      ],
+      "priority": 2,
+      "sector": "金融保險",
+      "tactic": "短打",
+      "ref_close": 24.15,
+      "dist_ma10_pct": null,
+      "note": ""
+    },
+    {
       "ticker": "6121",
       "name": "新普",
       "sources": [
+        "foreign_lead_v12_skip",
         "uniform_ma_above"
       ],
       "priority": 2,
@@ -695,6 +863,19 @@
       "ref_close": 327.0,
       "dist_ma10_pct": -1.6,
       "note": "小結構"
+    },
+    {
+      "ticker": "6244",
+      "name": "茂迪",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "光電業",
+      "tactic": "短打",
+      "ref_close": 31.9,
+      "dist_ma10_pct": 6.5,
+      "note": ""
     },
     {
       "ticker": "6261",
@@ -871,6 +1052,32 @@
       "note": "小結構 + MA5 Pivot"
     },
     {
+      "ticker": "8105",
+      "name": "凌巨",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子工業",
+      "tactic": "短打",
+      "ref_close": 21.4,
+      "dist_ma10_pct": 2.6,
+      "note": ""
+    },
+    {
+      "ticker": "8112",
+      "name": "至上",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子工業",
+      "tactic": "短打",
+      "ref_close": 97.3,
+      "dist_ma10_pct": 3.8,
+      "note": ""
+    },
+    {
       "ticker": "8488",
       "name": "吉源-KY",
       "sources": [
@@ -895,6 +1102,19 @@
       "ref_close": 1255.0,
       "dist_ma10_pct": null,
       "note": "均線全順向"
+    },
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "sources": [
+        "foreign_lead_v12_skip"
+      ],
+      "priority": 2,
+      "sector": "運動休閒",
+      "tactic": "短打",
+      "ref_close": 76.2,
+      "dist_ma10_pct": null,
+      "note": ""
     },
     {
       "ticker": "2327",
@@ -985,19 +1205,6 @@
       "tactic": "觀察",
       "ref_close": 79.0,
       "dist_ma10_pct": 1.5815867301015683,
-      "note": "攻擊後盤整"
-    },
-    {
-      "ticker": "6173",
-      "name": "信昌電",
-      "sources": [
-        "post_attack_watchlist"
-      ],
-      "priority": 1,
-      "sector": "被動元件",
-      "tactic": "觀察",
-      "ref_close": 304.0,
-      "dist_ma10_pct": 26.5875494482615,
       "note": "攻擊後盤整"
     },
     {
@@ -10333,10 +10540,14 @@
   ],
   "setups": [],
   "regime_info": {
-    "taiex_ret5": 4.68,
-    "taiex_ret20": 8.93,
-    "taiex_ret60": 42.25,
-    "taiex_range60_pct": 38.95,
+    "anchor_date": "2026-06-15",
+    "target_date": "2026-06-15",
+    "stale_days": 0,
+    "taiex_ret5": 4.35,
+    "taiex_ret20": 11.02,
+    "taiex_ret60": 32.17,
+    "taiex_range60_pct": 37.74,
+    "stale_warning": false,
     "regime_class": "strong_bull"
   },
   "skip_warnings": [
