@@ -41,10 +41,20 @@
   },
 
   "skip_warning_sector": {
-    "_note": "警示族群 (5/17 起連續 4 週警示)、6/14 文章「警示族群門檻提高」",
-    "PCB": ["8046", "3037", "3189"],
+    "_note": "警示族群 (5/17 起連續 4 週警示)、6/14 文章「警示族群門檻提高」、6/16 ABF 子族群升戰略 watchlist (4958/3037/8046/3189 移除)",
+    "PCB": [],
     "散熱": [],
     "連接器": []
+  },
+
+  "strategic_watchlist_20260616": {
+    "_note": "6/16 老師升級的戰略觀察族群 — ABF 載板 (per project_zhuli_market_info_20260616)、不是進場訊號、等回測 + 老師明示時點",
+    "ABF": {
+      "lead": "4958",
+      "second": "3037",
+      "followers": ["8046", "3189"],
+      "valid_until": "2026-06-30"
+    }
   },
 
   "skip_distribution_pattern": {

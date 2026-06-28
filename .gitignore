@@ -81,3 +81,6 @@ data/analysis/zhuli/*.csv
 # Sibling git worktrees (not source)
 .claude/worktrees/
 scripts/data/
+
+# mock monitor replay reports (regenerated each run)
+docs/主力大課程/mock_test_results/monitor_*.md

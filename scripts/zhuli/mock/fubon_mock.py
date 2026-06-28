@@ -41,6 +41,7 @@ class MockFubonClient:
 
     def get_realtime_snapshot(self, stock_id: str) -> Optional[dict]:
         """Return SnapshotDict cumulative up to current time."""
+        self._rest_calls = getattr(self, '_rest_calls', 0) + 1
         stock_id = str(stock_id)
         # TAIEX 特殊處理 (用 daily K + simulated intraday curve)
         if stock_id == 'TAIEX':
@@ -93,15 +94,51 @@ class MockFubonClient:
             'total_volume': 0, 'total_amount': 0,
         }
 
-    def subscribe_quotes(self, stock_ids: list[str], callback: Optional[Callable] = None) -> None:
-        """Register subscribed tickers。ReplayEngine 驅動推送。"""
+    def subscribe_quotes(self, stock_ids, callback: Optional[Callable] = None, channel=None):
+        """Register subscribed tickers + WS callback (channel='trades' 相容)。"""
         for tk in stock_ids:
             self._subscribed.add(str(tk))
         if callback:
             self._callbacks.append(callback)
+        return object()   # 非 None = ws_ok=True (給 WSPriceCache 判 ws_ok)
+
+    def emit_ws_trade(self, symbol: str, price: float, volume_shares: int,
+                      bid: float | None = None, ask: float | None = None,
+                      is_trial: bool = False, limit_up: bool = False,
+                      limit_down: bool = False, is_open: bool = False,
+                      is_close: bool = False) -> None:
+        """模擬 Fubon trades channel 推一筆 → 餵 WSPriceCache._on_message 格式。
+        支援富邦 doc 旗標 isTrial/isLimitUp/Down/isOpen/isClose。"""
+        msg = {"event": "data", "data": {
+            "symbol": str(symbol), "price": price, "volume": volume_shares,
+            "bid": bid, "ask": ask, "session": "Regular",
+            "isTrial": is_trial, "isLimitUpPrice": limit_up,
+            "isLimitDownPrice": limit_down, "isOpen": is_open, "isClose": is_close}}
+        self._ws_sent += 1
+        for cb in self._callbacks:
+            try:
+                cb(msg)
+            except Exception:
+                pass
+
+    def get_snapshot_quotes_map(self, markets=("TSE", "OTC")) -> dict:
+        """批次快照 {symbol: SnapshotDict} — WS-2 fallback 用。mock 從 DataProvider
+        當日 EOD 取值。記 call 次數 (測 fallback 不打爆用)。"""
+        self._batch_calls = getattr(self, '_batch_calls', 0) + 1
+        # batch = 真實 client 的「單一 API call」。mock 內部雖逐檔組 dict、
+        # 但不該污染 _rest_calls (那計數代表真正的逐檔 REST)。存/還原。
+        _saved_rest = getattr(self, '_rest_calls', 0)
+        out = {}
+        for tk in list(self._subscribed):
+            snap = self.get_realtime_snapshot(tk)
+            if snap:
+                # batch 回的 total_volume 單位同 REST (千張)、_normalize_rest_snap 會 ×1000
+                out[str(tk)] = snap
+        self._rest_calls = _saved_rest
+        return out
 
     def _emit_tick(self, ticker: str) -> None:
-        """ReplayEngine 呼叫: 推送一個 tick 給 callbacks。"""
+        """ReplayEngine 舊接口 (legacy)。"""
         snap = self.get_realtime_snapshot(ticker)
         if not snap:
             return
@@ -114,10 +151,3 @@ class MockFubonClient:
 
     def stats(self) -> tuple[int, int, int]:
         return (len(self._subscribed), self._ws_recv, self._ws_sent)
-
-    # 其他可能 surface (返回 None / no-op 即可)
-    def get_price(self, *a, **kw):
-        return None
-
-    def get_institutional(self, *a, **kw):
-        return None

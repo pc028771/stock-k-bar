@@ -73,10 +73,13 @@ def check_ma_divergence(
     k5: pd.DataFrame,
     divergence_threshold_pct: float = 3.0,
 ) -> dict:
-    """5/10/20 MA 已發散（拉開太遠）→ 硬性過濾。
+    """盤中 5 分 K 的 5/10/20 MA 已發散 → 當沖硬性過濾 (Ch5-3「5 分 K 理想條件」)。
 
-    來源：5/19 line 306「軍心發散了…不符合我們喜歡的長相」
-    course_map Ch5-3「5 分 K 理想條件」: 發散 = 硬性過濾
+    ⚠️ 這是「當沖」用的盤中 5 分 K 均線發散。與老師「選股」用的「日線軍線發散」
+    (景德 / 立隆電 2472 5/19 日線 spread 15.1%「均線太亂不做」) 是兩個不同 filter、
+    不同時間尺度——當沖看盤中 5K MA (單日內通常 < 1%、發散罕見)、選股看日線 MA
+    (尚未實作為通用 filter、只在 reversal_breakout 有 opt-in)。勿用日線 2472 範例
+    驗本函式 (timescale 不符)。
 
     判定：max(MA5, MA10, MA20) 與 min(三者) 距離 > threshold_pct → 發散
 

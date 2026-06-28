@@ -228,20 +228,22 @@ def _get_ma10_versioned(ticker: str, target_date: str, db: Path,
         return None
 
 
-def load_daily_closes(ticker: str, db: Path, n: int = 20) -> pd.Series:
+def load_daily_closes(ticker: str, db: Path, n: int = 20,
+                      as_of: "date | None" = None) -> pd.Series:
     """取最近 n 日收盤，回傳 Series(index=date str, values=float)。
 
-    只取 trade_date < today 的資料、避免盤後部分寫入的今日日K
+    只取 trade_date < as_of 的資料、避免盤後部分寫入的今日日K
     污染 prev_close 計算（6/15 1605 +13.8% stale bug 教訓）。
+    as_of 預設 today（live）；回測歷史 intraday 時傳當日日期、取「該日的前日」。
     """
     try:
         from datetime import date as _date
-        today_str = _date.today().isoformat()
+        cutoff_str = (as_of or _date.today()).isoformat()
         with _db_con(db) as con:
             rows = con.execute(
                 "SELECT trade_date, close FROM standard_daily_bar "
                 "WHERE ticker=? AND trade_date < ? ORDER BY trade_date DESC LIMIT ?",
-                (ticker, today_str, n),
+                (ticker, cutoff_str, n),
             ).fetchall()
         if not rows:
             return pd.Series(dtype=float)
@@ -828,86 +830,6 @@ class StageTrigger:
                     "reason": "5K 資料不足", "price": 0.0, "suggested_size": 0}
         opens, highs, lows, closes, vols, times = _df_to_arrays(k5)
         return _check_trigger_2_np(opens, highs, lows, closes, vols, times)
-
-    def check_trigger_2_legacy(
-        self,
-        ticker: str,
-        k5: pd.DataFrame,
-        now_time: datetime,
-    ) -> dict:
-        """舊版 check_trigger_2 (時段 11:00-12:30、二次探底、3 根確認)。保留供回溯比較。"""
-        result = {"triggered": False, "level": "watch", "reason": "", "price": 0.0, "suggested_size": 0}
-
-        if len(k5) < 8:
-            result["reason"] = "5K 資料不足"
-            return result
-
-        current_close = float(k5["close"].iloc[-1])
-        result["price"] = current_close
-
-        t = now_time.time()
-        in_window = (t.hour == 11 or (t.hour == 12 and t.minute <= 30))
-        confirm_window = (t.hour == 12 and t.minute > 30) or (t.hour == 13 and t.minute <= 10)
-        if not (in_window or confirm_window):
-            result["reason"] = f"不在中盤反彈時段 ({t.strftime('%H:%M')})"
-            return result
-
-        morning_bars = k5.between_time("09:10", "11:00") if hasattr(k5.index, "time") else k5
-        if morning_bars.empty:
-            result["reason"] = "早盤資料不足、無法找前波低"
-            return result
-        first_low = float(morning_bars["low"].min())
-
-        recent = k5.tail(6)
-        recent_low = float(recent["low"].min())
-        low_diff_pct = abs(recent_low - first_low) / first_low * 100
-        if low_diff_pct > 1.5:
-            result["reason"] = f"二次低點 {recent_low:.2f} 與前波低 {first_low:.2f} 相差 {low_diff_pct:.1f}% > 1.5%"
-            return result
-
-        vol_avg = k5["volume"].rolling(min(len(k5), 20), min_periods=1).mean()
-        recent_with_avg = recent.copy()
-        recent_with_avg["vol_avg"] = vol_avg.reindex(recent.index)
-        breakout_bars = recent_with_avg[recent_with_avg["close"] > recent_with_avg["open"]]
-        volume_burst = any(
-            float(row["volume"]) >= float(row["vol_avg"]) * 2
-            for _, row in breakout_bars.iterrows()
-            if float(row["vol_avg"]) > 0
-        )
-
-        last3 = k5.tail(3)
-        if len(last3) < 3:
-            result["level"] = "signal"
-            result["reason"] = f"二次探底確認中、等 3 根 (現 {len(last3)} 根)"
-            return result
-
-        confirmed = True
-        for i in range(1, len(last3)):
-            if float(last3["close"].iloc[i]) < float(last3["low"].iloc[i - 1]):
-                confirmed = False
-                break
-
-        first_bar_red = float(last3["close"].iloc[0]) > float(last3["open"].iloc[0])
-        if not confirmed or not first_bar_red:
-            if recent_low <= first_low * 1.015:
-                result["level"] = "signal"
-                result["reason"] = f"二次探底 {recent_low:.2f}、等 3 根確認"
-            else:
-                result["reason"] = "3 根確認條件未成立"
-            return result
-
-        vol_x = float(k5["volume"].iloc[-3]) / float(vol_avg.iloc[-3]) if float(vol_avg.iloc[-3]) > 0 else 0
-        rebound_pct = (current_close / recent_low - 1) * 100
-
-        result["triggered"] = True
-        result["level"] = "confirmed"
-        result["reason"] = (
-            f"二次探底 {recent_low:.2f} 反彈 +{rebound_pct:.1f}%、3 根確認"
-            + (f"、量×{vol_x:.1f}" if volume_burst else "")
-        )
-        result["suggested_size"] = 1
-        return result
-
     def check_trigger_c(
         self,
         ticker: str,
@@ -1281,6 +1203,226 @@ class StageTrigger:
             "pass_count": pass_count,
         }
 
+    # ── Red Engulfing「買貴的」(老師 6/16 復盤分K SOP、R9) ─────────────────────
+    def check_red_engulfing(
+        self,
+        ticker: str,
+        k5: pd.DataFrame,
+        target_date: Optional[str] = None,
+        db_path: Path = _DB,
+        _now_override: Optional[str] = None,
+    ) -> dict:
+        """老師 6/16 復盤分K「紅 K 吞噬」買貴的 SOP detector (R9)。
+
+        老師原話 (2026-06-16_復盤分K操作策略課_raw.txt line 519-595):
+          - 「碰到漲停或是跳空缺口、隔天看到 K 棒往下、然後一根紅 K 吞噬下來的時候、
+             那就會是你的一個切入點」
+          - 「我不會在這個地方去接綠的、我會在這個地方買貴的、買 39.4」
+          - 「適用於第二根 / 第三根、第二根很常出現、就是昨天漲停、第二根馬上會出現
+             這種形態」
+
+        識別邏輯:
+          1. Setup (前日): 昨日漲停 (close/prev_close ≥ +9%) 或跳空缺口 (今日 open/昨收 ≥ +3%)
+          2. 第一根: 今日有過拉上去的紅 K (early morning high > open *1.005)
+          3. 蹦蹦蹦下來: 之後出現 ≥1 根綠 K body (close < open)、跌到日內回檔區
+          4. 紅 K 吞噬 (核心): 最新一根 5K = 紅 K (close > open) 且 body 包覆前一根
+             綠 K body (今日 close > 前綠 K open AND 今日 open ≤ 前綠 K close)
+          5. 時段窗: 09:10-12:00 (避開前 10 分鐘 + 尾盤 closing panel 區段)
+
+        Returns:
+            {
+                'triggered': bool,           # 5 條件全 pass
+                'level':     'confirmed' / 'watching' / 'not_eligible' / 'not_in_window',
+                'reason':    str,
+                'scores': {
+                    'prev_setup_qualified': bool,  # 昨日漲停 / 跳空缺口
+                    'today_first_down_k':   bool,  # 拉上去後有綠 K 往下
+                    'red_engulfing_detected': bool,# 最新紅 K 吞噬前綠 K body
+                    'in_entry_window':      bool,  # 09:10-12:00
+                    'volume_confirms':      bool,  # 吞噬紅 K 量 ≥ 前綠 K 量
+                },
+                'pass_count': int,           # 0-5
+                'entry_price_hint': float,   # 吞噬紅 K 收盤價 (老師示範「貴一點」)
+            }
+        """
+        base = {
+            "triggered": False,
+            "level": "not_eligible",
+            "reason": "",
+            "scores": {
+                "prev_setup_qualified":   False,
+                "today_first_down_k":     False,
+                "red_engulfing_detected": False,
+                "in_entry_window":        False,
+                "volume_confirms":        False,
+            },
+            "pass_count": 0,
+            "entry_price_hint": 0.0,
+        }
+
+        if k5 is None or k5.empty or len(k5) < 3:
+            base["reason"] = "5K 資料不足 (< 3 根)"
+            return base
+
+        # 1. 時段窗 09:10-12:00
+        if _now_override:
+            now_str = _now_override
+        else:
+            now_str = datetime.now().strftime("%H:%M")
+        in_window = ("09:10" <= now_str <= "12:00")
+
+        # 2. 前日 setup: 昨日漲停 (≥+9%) OR 昨日跳空缺口 (≥+3%)
+        #    老師原話: 「碰到漲停或是跳空缺口、隔天看到 K 棒往下」
+        #    → 昨日這根本身是漲停或跳空、今日才是「隔天」要做 R9
+        prev_close = None
+        prev_open = None
+        prev_prev_close = None
+        if ticker and target_date:
+            try:
+                with sqlite3.connect(str(db_path)) as con:
+                    cur = con.execute(
+                        "SELECT close, open FROM standard_daily_bar "
+                        "WHERE ticker = ? AND trade_date < ? "
+                        "ORDER BY trade_date DESC LIMIT 2",
+                        (ticker, target_date),
+                    )
+                    rows = cur.fetchall()
+                if rows:
+                    prev_close = float(rows[0][0])
+                    prev_open  = float(rows[0][1]) if rows[0][1] is not None else None
+                    prev_prev_close = float(rows[1][0]) if len(rows) > 1 else None
+            except Exception as e:
+                log.debug("check_red_engulfing 查 prev_close 失敗: %s", e)
+
+        # 昨日漲停 = 昨日 close / 前日 close ≥ +9%
+        prev_limit_up = False
+        if prev_close and prev_prev_close and prev_prev_close > 0:
+            prev_chg = (prev_close / prev_prev_close - 1) * 100
+            prev_limit_up = prev_chg >= 9.0
+
+        # 昨日跳空缺口 = 昨日 open / 前日 close ≥ +2% (老師原話「跳空缺口」、視覺可見)
+        prev_gap_up = False
+        if prev_open and prev_prev_close and prev_prev_close > 0:
+            prev_gap_pct = (prev_open / prev_prev_close - 1) * 100
+            prev_gap_up = prev_gap_pct >= 2.0
+
+        prev_setup_qualified = prev_limit_up or prev_gap_up
+
+        # 3. 第一根拉上去 + 蹦蹦蹦下來: 早盤有過紅 K (high > open*1.005) + 之後出現綠 K
+        opens  = k5["open"].to_numpy()
+        highs  = k5["high"].to_numpy()
+        lows   = k5["low"].to_numpy()
+        closes = k5["close"].to_numpy()
+        vols   = k5["volume"].to_numpy()
+
+        first_red_idx = -1
+        for i in range(min(6, len(k5))):  # 前 30 分內找第一根紅 K
+            if closes[i] > opens[i] and (highs[i] / opens[i] - 1) > 0.003:
+                first_red_idx = i
+                break
+
+        # 找最新一根紅 K (吞噬候選)
+        n = len(k5)
+        last_idx = n - 1
+        is_red_last = closes[last_idx] > opens[last_idx]
+
+        # 找最新紅 K 前最近的一根綠 K (吞噬目標)
+        prev_green_idx = -1
+        for i in range(last_idx - 1, max(-1, last_idx - 8), -1):
+            if closes[i] < opens[i]:
+                prev_green_idx = i
+                break
+
+        today_first_down_k = (first_red_idx >= 0 and prev_green_idx > first_red_idx)
+
+        # 4. 吞噬判定: 最新紅 K body 接近覆蓋前一根綠 K body
+        #    2026-06-17 校正 (老師 6/16 麗正 2302 範例驗證):
+        #      老師「吞噬」非嚴格 candlestick definition、是「紅K body 接近覆蓋綠K body」。
+        #      2302 09:10 紅 K close 39.70 vs 09:05 綠 K open 39.75 (差 $0.05、0.13%)
+        #      若用嚴格 > 會 miss 掉老師親自示範的 R9 進場點。
+        #    新邏輯 (allow 1% tolerance):
+        #      - red_close ≥ green_open × 0.99 (放寬、允許接近)
+        #      - red_open  ≤ green_close × 1.01 (放寬、允許接近)
+        #      - red_body  ≥ green_body × 0.9   (保留「強勢吞噬」核心、允許 10% tolerance)
+        red_engulfing = False
+        if is_red_last and prev_green_idx >= 0:
+            green_open  = opens[prev_green_idx]
+            green_close = closes[prev_green_idx]
+            red_open    = opens[last_idx]
+            red_close   = closes[last_idx]
+            green_body = green_open - green_close  # 綠 K body (正值)
+            red_body   = red_close - red_open      # 紅 K body (正值)
+            red_engulfing = (
+                red_close >= green_open * 0.99
+                and red_open <= green_close * 1.01
+                and red_body >= green_body * 0.9
+            )
+
+        # 5. 量配合: 吞噬紅 K 量 ≥ 前 N 根 5K 均量 (rolling 均量、避免單根 outlier)
+        #    2026-06-17 校正:
+        #      舊邏輯「紅 vol ≥ 綠 vol」嚴格 ≥、2302 09:10 紅 884 vs 09:05 綠 1148 fail
+        #      但 09:05 那根綠是「蹦下來」異常放量、不應作為比較 baseline。
+        #    新邏輯: 紅 K vol ≥ rolling MA(prev 3 5K) × 1.0
+        #      用前 3 根 5K 均量作 baseline、避免被單根爆量綠 K 卡掉。
+        volume_confirms = False
+        if red_engulfing and prev_green_idx >= 0:
+            prev_window_start = max(0, last_idx - 3)
+            prev_vols = vols[prev_window_start:last_idx]
+            if len(prev_vols) > 0:
+                vol_baseline = float(prev_vols.mean())
+                volume_confirms = vols[last_idx] >= vol_baseline
+
+        scores = {
+            "prev_setup_qualified":   bool(prev_setup_qualified),
+            "today_first_down_k":     bool(today_first_down_k),
+            "red_engulfing_detected": bool(red_engulfing),
+            "in_entry_window":        bool(in_window),
+            "volume_confirms":        bool(volume_confirms),
+        }
+        pass_count = sum(1 for v in scores.values() if v)
+
+        # 必要條件: setup + 吞噬 + 時段窗 (三個核心)
+        core_ok = (
+            scores["prev_setup_qualified"]
+            and scores["red_engulfing_detected"]
+            and scores["in_entry_window"]
+        )
+
+        if not in_window:
+            level = "not_in_window"
+            reason = f"不在 09:10-12:00 時段 (now={now_str})"
+        elif core_ok and pass_count >= 4:
+            level = "confirmed"
+        elif core_ok:
+            level = "watching"  # 量未配合或缺第一段下行確認
+        else:
+            level = "not_eligible"
+
+        entry_hint = float(closes[last_idx]) if red_engulfing else 0.0
+
+        # 組 reason
+        labels = {
+            "prev_setup_qualified":   "setup",
+            "today_first_down_k":     "下行",
+            "red_engulfing_detected": "吞噬",
+            "in_entry_window":        "時段",
+            "volume_confirms":        "量配",
+        }
+        pass_parts = [labels[k] for k, v in scores.items() if v]
+        fail_parts = [labels[k] for k, v in scores.items() if not v]
+        reason = f"{pass_count}/5 ({'✓'.join(pass_parts) if pass_parts else '—'})"
+        if fail_parts:
+            reason += f" ✗{','.join(fail_parts)}"
+
+        return {
+            "triggered": level == "confirmed",
+            "level": level,
+            "reason": reason,
+            "scores": scores,
+            "pass_count": pass_count,
+            "entry_price_hint": entry_hint,
+        }
+
     # ── Composite Cascade Detector ─────────────────────────────────────────────
 
     # Per-category action mapping (新中文 trigger 名為 primary；舊英文名 alias 向後相容)
@@ -1428,8 +1570,29 @@ class StageTrigger:
             "market_regime": regime,
         }
 
-        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:05-13:25 (v6 backtest sweet spot)
+        # Layer 6 (附加、不破壞既有邏輯): 紅 K 吞噬「買貴的」(老師 6/16 R9 SOP)
+        # 條件: 09:10-12:00 時段、其他 trigger 沒 fire 時、check
         now_str = datetime.now().strftime("%H:%M")
+        if "09:10" <= now_str <= "12:00":
+            re_r = self.check_red_engulfing(
+                ticker=ticker,
+                k5=k5,
+                target_date=_today_str,
+                db_path=_DB,
+            )
+            if re_r.get("level") == "confirmed":
+                return _with_regime({
+                    **base_result,
+                    "triggered": True,
+                    "detector":  "紅K吞噬_confirmed",
+                    "action":    "🟢 紅 K 吞噬 (老師 6/16 SOP、Stage 1 試水 + 等收斂末端加碼)",
+                    "reason":    re_r.get("reason", ""),
+                    "engulfing_scores":    re_r.get("scores", {}),
+                    "engulfing_pass_count": re_r.get("pass_count", 0),
+                    "entry_price_hint":     re_r.get("entry_price_hint", 0.0),
+                })
+
+        # Layer 5 (附加、不破壞既有邏輯): 尾盤 check 13:05-13:25 (v6 backtest sweet spot)
         if "13:05" <= now_str <= "13:25":
             closing_r = self.check_closing_panel(
                 ticker=ticker,
@@ -1470,14 +1633,16 @@ class StageTrigger:
 
 # ── 主監控邏輯 ────────────────────────────────────────────────────────────────
 
-def _get_prev_levels(ticker: str, db: Path) -> dict:
+def _get_prev_levels(ticker: str, db: Path,
+                     as_of: "date | None" = None) -> dict:
     """從 DB 取前日收盤、前波高/低。
 
-    load_daily_closes 已過濾 trade_date < today，
-    所以 iloc[-1] 就是最新交易日收盤（= prev_close）。
+    load_daily_closes 已過濾 trade_date < as_of（預設 today），
+    所以 iloc[-1] 就是 as_of 的前一個交易日收盤（= prev_close）。
     舊版用 iloc[-2] 是 bug：會取到前兩個交易日（stale）。
+    as_of：回測歷史 intraday 時傳當日日期、取「該日的前日」基準（8046 6/4 復盤教訓）。
     """
-    closes = load_daily_closes(ticker, db, n=10)
+    closes = load_daily_closes(ticker, db, n=10, as_of=as_of)
     if len(closes) < 1:
         return {}
     prev_close = float(closes.iloc[-1])
@@ -1744,34 +1909,30 @@ def run_monitor(
 # ── FinMind 真實資料抓取 ──────────────────────────────────────────────────────
 
 def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
-    """用 FinMind TaiwanStockKBar 拉 1 分 K，聚合成 5 分 K。"""
-    import os
-    import requests
+    """用 FinMind TaiwanStockKBar 拉 1 分 K、聚合成 5 分 K。
 
-    token = os.environ.get("FINMIND_TOKEN", "")
-    if not token:
-        print("[WARN] FINMIND_TOKEN 未設定，無法抓取真實資料")
-        return pd.DataFrame()
-
+    2026-06-16: 改用 common/finmind_client (quota-aware + drain)。
+    """
+    import sys
+    from pathlib import Path
+    _common_parent = Path(__file__).parent.parent
+    if str(_common_parent) not in sys.path:
+        sys.path.insert(0, str(_common_parent))
     try:
-        r = requests.get(
-            "https://api.finmindtrade.com/api/v4/data",
-            params={
-                "dataset": "TaiwanStockKBar",
-                "data_id": ticker,
-                "start_date": target_date,
-                "end_date": target_date,
-                "token": token,
-            },
-            timeout=30,
+        from common.clients.finmind_client import get_client  # type: ignore
+        df = get_client().fetch_dataset(
+            dataset="TaiwanStockKBar",
+            data_id=ticker,
+            start_date=target_date,
+            end_date=target_date,
+            bypass_cache=True,   # 含當日資料、client 也會自動跳 cache
         )
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") != 200 or not data.get("data"):
-            print(f"[WARN] FinMind 回傳無資料: {data.get('msg', '')}")
-            return pd.DataFrame()
-        df = pd.DataFrame(data["data"])
         if df.empty:
+            # 不再 print — 盤前 / 假日 / 6/17 minute_kbar 未上時、每 ticker 都會 empty。
+            # 105 ticker × 每 3s = 35 prints/s 灌進 stdout 會把 textual TUI 畫面打爛、
+            # 看起來像「TUI 黑屏卡住」(實際是 cursor 被印文亂搬)。
+            # 需要 debug 時走 logging (caller 自行 setup)。
+            log.debug("FinMind 回傳無資料: %s %s", ticker, target_date)
             return pd.DataFrame()
         # FinMind KBar 欄位: date (YYYY-MM-DD), minute (HH:MM:SS), stock_id, open, high, low, close, volume
         if "minute" in df.columns:
@@ -1797,7 +1958,8 @@ def _fetch_finmind_1m(ticker: str, target_date: str) -> pd.DataFrame:
         ).dropna(subset=["open", "close"])
         return df5
     except Exception as e:
-        print(f"[ERROR] FinMind 抓取失敗: {e}")
+        # 同上：監控 TUI 跑時禁 print 防螢幕亂、改 log.warning
+        log.warning("FinMind 抓取失敗 %s %s: %s", ticker, target_date, e)
         return pd.DataFrame()
 
 

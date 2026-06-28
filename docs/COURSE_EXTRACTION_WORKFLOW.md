@@ -149,6 +149,35 @@ Bash 端 `unzip ~/Downloads/vtts.zip` → Python `/tmp/parse_vtt.py`（已寫好
 
 stock-analysis-system/docs/scripts/ 下既有的 .txt 講稿是這個格式（user 提供）。
 
+### 3.5 Audio Fallback（字幕未生成 / 無字幕軌）
+
+🔴 **強制 SOP**: `feedback_pressplay_audio_extraction.md` (m3u8 + ffmpeg + mlx_whisper)、5/31 cookie 簡化版、< 5 分完成、禁 QuickTime、必加 `--condition-on-previous-text False`、必 spot-check 股名。
+
+**踩雷紀錄 (2026-06-16)**：
+
+1. **ffmpeg 卡 `Protocol 'http' not on whitelist`** → 必加 protocol whitelist:
+   ```bash
+   ffmpeg -protocol_whitelist file,http,https,tcp,tls,crypto \
+          -i playlist.m3u8 -c copy -vn audio.aac
+   ```
+   ⚠️ 沒加會 silently fail、卡在 protocol check。
+
+2. **Chrome blob download 同 session multi-file silently fail** — 第 1 篇 blob download OK、第 2、3 篇沒 prompt 也沒檔案。解法:
+   - **第 1 篇**正常 blob download 取 meta.json + cookie
+   - **第 2、3 篇** 改用 `evaluate_script` return m3u8 URL（不能含 `cookie=` 字串、會被 Chrome MCP guard 攔住）
+   - **Cookie 復用** — 30 分內 session cookie 同步、第 1 篇拿到的 cookie 用在後續 m3u8 fetch 仍 valid
+
+3. **Cookie/qs return guard** — Chrome MCP `evaluate_script` 回傳含 `cookie=` 字串會被 `[BLOCKED: Cookie/query string data]` 攔。
+   - 解法 A: 用 blob download 拿
+   - 解法 B: 拆分 return（分多次 return 不含 cookie 字串、JS 端組合）
+
+4. **Whisper 誤譯股名 (常見集)** — 解讀時必查 `feedback_transcript_stock_verification.md`、典型如:
+   - 鈊象 → 臻鼎 4958 (6/14 Q9 教訓)
+   - 星星 → 欣興 3037
+   - 真鼎 → 臻鼎 4958
+   - 錦碩 → 景碩 3189
+   - 藍電 → 南電 8046
+
 ---
 
 ## 4. 講義（PDF 簡報）

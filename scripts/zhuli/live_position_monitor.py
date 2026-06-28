@@ -62,436 +62,15 @@ from common.clients.fubon_client import FubonClient  # noqa
 
 DB = MAIN_DB
 # ─────────────────────────────────────────────────────────────────────────
-# 編輯區 (每天晚上鎖 plan 時改)
+# 編輯區 → 已搬到 scripts/zhuli/positions.py (v1/v2 共用 source of truth)
 # ─────────────────────────────────────────────────────────────────────────
+from zhuli.positions import (
+    TEACHER_PERSONAL_TIERS,
+    HELD,
+    PLAN_PRIMARY,
+    WATCH,
+)
 
-# 🎯 老師 6/15-6/16 個人持倉族群順序 (per memory feedback_teacher_personal_holdings_20260616)
-# 1=重壓、6=輕配置；不在表 = 不對齊老師 6 族群
-TEACHER_PERSONAL_TIERS: dict[str, tuple[int, str]] = {
-    # Tier 1: 成熟製程 (聯電系)
-    '2303': (1, '🥇 成熟製程'),
-    '3264': (1, '🥇 成熟製程+封測'),
-    '6257': (1, '🥇 成熟製程+封測'),
-    '3265': (1, '🥇 成熟製程+封測'),
-    # Tier 2: 光學鏡頭
-    '3008': (2, '🥈 光學鏡頭'),
-    '4938': (2, '🥈 光學鏡頭'),
-    '3406': (2, '🥈 光學鏡頭'),
-    '6209': (2, '🥈 光學鏡頭'),
-    # Tier 3: 矽晶圓
-    '6182': (3, '🥉 矽晶圓'),
-    '3532': (3, '🥉 矽晶圓'),
-    '6488': (3, '🥉 矽晶圓'),
-    # Tier 4: 面板
-    '3481': (4, '4️⃣ 面板'),
-    '3149': (4, '4️⃣ 面板'),
-    # Tier 5: ABF
-    '8046': (5, '5️⃣ ABF'),
-    '1303': (5, '5️⃣ ABF/CCL'),
-    '3037': (5, '5️⃣ ABF'),
-    '3189': (5, '5️⃣ ABF'),
-    # Tier 6: 被動
-    '2375': (6, '6️⃣ 被動'),
-    '2472': (6, '6️⃣ 被動'),
-    '2327': (6, '6️⃣ 被動'),
-    '2492': (6, '6️⃣ 被動'),
-    '6173': (6, '6️⃣ 被動'),
-    '3026': (6, '6️⃣ 被動'),
-    '6449': (6, '6️⃣ 被動'),
-}
-
-
-def get_teacher_tier(ticker: str) -> tuple[int | None, str]:
-    """回 (tier 1-6 or None, label) — 不在老師個人族群 = None."""
-    if ticker in TEACHER_PERSONAL_TIERS:
-        return TEACHER_PERSONAL_TIERS[ticker]
-    return (None, '⚠️ 不對齊老師 6 族群')
-
-
-def evaluate_plan_status(
-    plan_item: dict,
-    open_: float | None, close_: float | None, prev_close: float | None,
-    taiex_pct: float | None,
-    now_hour: int, now_minute: int,
-) -> tuple[str, str]:
-    """評估 PLAN_PRIMARY 進場條件、回 (status_icon, details)。
-
-    status: 🟢 ready / 🟡 waiting_time / 🟠 waiting_condition / 🔴 skip_triggered
-    """
-    stop = float(plan_item.get('stop') or 0)
-    target = float(plan_item.get('target_price') or 0)
-
-    # 1. 時間 gate (user 鎖 plan 紀律: 13:00-13:25 才進場)
-    if now_hour < 13:
-        return ('🟡 waiting_time', f"等 13:00+ (現 {now_hour:02d}:{now_minute:02d})")
-    if now_hour > 13 or (now_hour == 13 and now_minute >= 25):
-        return ('🟡 waiting_time', "已過 13:25 試撮、隔日再評估")
-
-    # 2. Skip 觸發 (紅線 #1 #2 + stop)
-    if open_ and prev_close:
-        gap = (open_ - prev_close) / prev_close * 100
-        if gap >= 3:
-            return ('🔴 skip', f"開盤跳空 {gap:+.1f}% ≥ +3% (紅線 #1)")
-    if close_ and stop and close_ < stop:
-        return ('🔴 skip', f"現價 ${close_:.2f} < stop ${stop} 跌破")
-    if taiex_pct is not None and taiex_pct < -2:
-        return ('🔴 skip', f"大盤殺 {taiex_pct:+.1f}% < -2%")
-
-    # 3. Ready condition
-    if close_ and target:
-        if close_ >= target * 0.99:
-            return ('🟢 ready', f"close ${close_:.2f} ≈ target ${target}、可執行 1 張")
-        return ('🟠 waiting', f"等 close ≥ ${target} (現 ${close_:.2f})")
-
-    return ('🟡 waiting', "資料不足、純觀察")
-
-
-def compute_pursuit_warnings(
-    open_: float | None, close_: float | None,
-    prev_close: float | None, ma10: float | None,
-) -> list[str]:
-    """計算「不該追」警示 — 紅 K 大漲 / 跳空 / 過熱。
-
-    回傳 list[str]、若無警示回 []。
-    """
-    warnings: list[str] = []
-    # 1. 紅 K 收紅 ≥ +3% (老師「追紅會慘」紅線)
-    if open_ and close_ and prev_close:
-        pct = (close_ - prev_close) / prev_close * 100
-        if close_ > open_ and pct >= 3:
-            warnings.append(f"⛔ 紅 K 收 {pct:+.1f}% (買綠不買紅)")
-        # 2. 跳空 +3%+ 紅線 #1
-        gap = (open_ - prev_close) / prev_close * 100 if prev_close else 0
-        if gap >= 3:
-            warnings.append(f"⛔ 跳空 {gap:+.1f}% (紅線 #1)")
-    # 3. 距 MA10 > +10% — conditional warning (per feedback_ma10_distance_conditional)
-    #    不是 absolute filter、強勢股 + 老師明示 + 直接切 stop 可進
-    if close_ and ma10:
-        dist = (close_ - ma10) / ma10 * 100
-        if dist > 15:
-            warnings.append(f"🚨 距 MA10 {dist:+.1f}% > +15% (需重壓 confluence)")
-        elif dist > 10:
-            warnings.append(f"⚠️ 距 MA10 {dist:+.1f}% > +10% (需老師明示 + 直接切 stop)")
-    return warnings
-
-
-# 已進場部位 (Phase 2 P&L 監控)
-# 格式: dict (必填: ticker, name, cost, shares, stop; 選填: tactic, priority, source, sector, note)
-# 舊 tuple (ticker, name, cost, shares, stop) 自動 convert
-HELD = [
-    # 6285 啟碁 6/15 全清 @ $273 (-$43,053 / -13.66%)、按紀律出場 (晚 5 天、6/8 已破停損)
-    {
-        'ticker': '1605', 'name': '華新',
-        'cost': 40.23, 'shares': 12000, 'stop': 38.75,
-        'strategy_mode': 'core',       # 核心持倉、結構底停損
-        'tactic': '核心', 'priority': 3,
-        'source': '老師重壓',
-        'sector': '紅海第二棒',
-        'note': '6/2 8 張 @ $40.1 + 6/3 加 4 張 @ $40.5、均 $40.23'
-    },
-    {
-        'ticker': '2885', 'name': '元大金',
-        'cost': 58.0, 'shares': 10000, 'stop': 64.6,
-        'strategy_mode': 'core',       # 核心配置、結構底 trailing
-        'tactic': '配置', 'priority': 1,
-        'source': '配置部位',
-        'sector': '金融',
-        'note': '6/16 trailing ↑ $64.6 (6/15 新黑K低、已脫離成本 +11%、原 $62.2)'
-    },
-    {
-        'ticker': '3481', 'name': '群創',
-        'cost': 58.7, 'shares': 2000, 'stop': 56.2,
-        'strategy_mode': 'swing',  # 處置中、不能隔日沖、等 D+4-5 看站均線
-        'tactic': '題材', 'priority': 3,
-        'source': '老師明示 6/3 + 處置中',
-        'sector': '面板/族群補漲',
-        'note': '🔒 6/4 D+1 進處置、老師持有、等 D+4-5 看站均線 (6/9-6/10)、停 $56.2'
-    },
-    # 8046 南電 6/5 全清 (1000 @ $851 + 200 @ $838、共鎖 ~$57.7k 損)
-    {
-        'ticker': '1303', 'name': '南亞',
-        'cost': 104.5, 'shares': 1000, 'stop': 96.9,
-        'strategy_mode': 'swing',
-        'tactic': '題材', 'priority': 3,
-        'source': '老師明示 6/5 Stage 1 1/3',
-        'sector': 'ABF/塑化',
-        'note': '6/5 Stage 1 進 1 張 @ $104.5、6/15 trailing ↑ $96.9 (6/9 新黑K低、原 MA20 $92.7)'
-    },
-    # 3264 欣銓 6/10 全清 @ $222 (-$7,345 / -3.21%)、按尼克老師「沒收復 6/5 低」規則出場
-    # 6257 矽格 6/10 全清 @ $212 (-$11,808 / -5.30%)、同 3264 一起減倉
-]
-
-# 已實現 (今日累計、每日歸零)
-REALIZED = 0
-
-# 鎖定主候選 (Phase 1 開盤 entry screening)
-# 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
-# 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
-PLAN_PRIMARY: list = [
-    # 6/16 1605 華新加碼 (6/15 老師 Q&A 例外: 整理盤 + 跌破成本 + 漏斗通過)
-    {
-        'ticker': '1605', 'name': '華新',
-        'shares': 1000,                  # +1 張 (12→13 張、集中度 OK)
-        'target_price': 40.0,            # 13:00 後尾盤 ~ $40 區間
-        'stop': 38.75,                   # 維持雙錨停損
-        'condition': '13:00 後 + 收盤 ≥ $40 + 大盤不續崩 + 1605 守 MA10 (~$38.4)',
-        'priority': 'add_position',
-        'rationale': '老師 6/15 Q&A 例外完全成立: 整理盤環境 + 跌破成本 (-0.6%) + 漏斗 (老師 6/14 波段分點+子弟兵 + 籌碼 6/12 +27k 大買 + 6/15 +2.7k 續買 + 結構距 MA10 +4.3% 健康)',
-        'sizing': '$40k (12% of $3.2M cash 動 1.2%)',
-        'skip_if': '開盤跳空 ≥ +3% / 跌破 $38.75 / 大盤殺超過 -2%'
-    },
-    # 6/16 2472 立隆電 新進場 1 張 (老師 10:36 line「被動錢出來」+ 6/14 題材文升級)
-    {
-        'ticker': '2472', 'name': '立隆電',
-        'shares': 1000,                  # 1 張試水 (老師「出手頻率降低」)
-        'target_price': 386.0,           # 6/15 close
-        'stop': 361.0,                   # MA10 雙錨
-        'condition': '13:00 後 + 收盤 ≥ $386 + 守 MA10 ~$361 + 被動族群整體強勢',
-        'priority': 'new_entry',
-        'rationale': '三重對齊: (1) 老師 6/14 題材文升級被動 60% 主流 (2) 老師 6/16 10:36 line「被動錢出來」即時 catalyst (3) 6/15 -1.9% 唯一綠 K 被動族群 + 距 MA10 +7% 健康',
-        'sizing': '$39k (1.2% of cash)',
-        'skip_if': '開盤跳空 ≥ +3% / 跌破 $361 / 大盤殺 / 被動族群早盤拉完'
-    },
-]
-
-# 備案 (Phase 1 主候選被 skip 時遞補)
-# 6/3 全 skip、結構壞 + 籌碼弱
-PLAN_BACKUP: list = []
-
-# 觀察清單 (dict 格式、兼容舊 tuple)
-WATCH = [
-    # ─────────────────────────────────────────────────────────────
-    # 🎯 6/16 本週重點 (this-week、6/14 文章 + 直播多重背書、最高優先)
-    # ⚠️ 暫時策略、下次老師直播 / line 更新就要換
-    # ─────────────────────────────────────────────────────────────
-    {
-        'ticker': '6239', 'name': '力成',
-        'ref_close': 327.0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師 6/13 OSAT + 6/14 融資股 + 6/11 直播明確 (三重 mention)',
-        'sector': '封測 OSAT',
-        'note': '⭐⭐⭐ 6/13 OSAT 黃金期 (AMD 加碼 + 一線滿載漲 10%)、6/14 本週融資股、6/15 -6.6% 大綠 K + 距 MA10 -1.6% = 完美「買綠」'
-    },
-    {
-        'ticker': '3211', 'name': '順達',
-        'ref_close': 428.5, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14 本週錢 BBU',
-        'sector': 'BBU',
-        'note': '⭐⭐ 6/14 本週錢 BBU 族群 (與 4931 並列、4931 標分點)、AI server 必需、6/15 平盤 距 MA10 +1.3% 安全打擊區'
-    },
-    {
-        'ticker': '3708', 'name': '上緯投控',
-        'ref_close': 119.0, 'stop': None,
-        'tactic': '波段', 'priority': 2,
-        'source': '老師明示 6/14 波段分點 (新補)',
-        'sector': 'CB 公式觀察 / 機器人 / 航太',
-        'note': '⭐⭐ 6/14 波段分點: 庫藏股 2/25 開新一期 + 三引擎轉型 (航太+機器人+循環經濟)、老師等 CB 發行確認主力意圖 (CB 公式: 訂低=無限可能)、距 MA10 -0.5% 完美'
-    },
-
-    # ─────────────────────────────────────────────────────────────
-    # Tier-A: 6/14 直播戰術主推 (戰略 + 戰術雙重背書)
-    # ─────────────────────────────────────────────────────────────
-    {
-        'ticker': '2303', 'name': '聯電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14 戰略級',
-        'sector': '成熟製程',
-        'note': '⭐⭐⭐ 6/14 戰略級 4 大論述 (8 吋復甦/22nm Intel/DTC 先進封裝/邊緣 AI)、CB 7/中觀察、6/15 處置出關'
-    },
-    {
-        'ticker': '3402', 'name': '漢唐',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14 廠務主推',
-        'sector': '廠務設備',
-        'note': '⭐⭐⭐ 6/14 廠務 = 6/9 三選一最強 (工業電腦/光學/廠務)、6/13 已漲停、6/16-17 等回踩'
-    },
-    {
-        'ticker': '2375', 'name': '凱美',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14 題材文',
-        'sector': '被動元件',
-        'note': '⭐⭐⭐ 6/14 被動 60% 主流、6/13 黑 K +7% 但融資大增 = 黑得好、低點重要'
-    },
-    {
-        'ticker': '2472', 'name': '立隆電',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 3,
-        'source': '老師明示 6/14 題材文',
-        'sector': '被動元件',
-        'note': '⭐⭐⭐ 6/14 被動 60% 主流 (與 2375 並列)、文章 + 直播雙重背書'
-    },
-    # 6239 力成 已升級為「6/16 本週重點」、移至頂部 (line 137)
-    {
-        'ticker': '3264', 'name': '欣銓',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/14 + 6/13 OSAT 雙重',
-        'sector': '半導體封測',
-        'note': '⭐⭐⭐ 6/3 圈起來中長期 + 6/14 universe + 6/13 OSAT 雙重背書 (強優先級)'
-    },
-    {
-        'ticker': '6257', 'name': '矽格',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 6/14 + 6/13 OSAT 雙重',
-        'sector': '半導體封測',
-        'note': '⭐⭐⭐ 6/3 圈起來 + 6/14 universe + 6/13 OSAT 雙重背書 (強優先級)'
-    },
-    {
-        'ticker': '8096', 'name': '擎亞',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 題材文',
-        'sector': '記憶體通路',
-        'note': '⭐⭐ 6/14 題材文升級'
-    },
-
-    # ─────────────────────────────────────────────────────────────
-    # Tier-B: 6/14 直播 Q&A 提及 + 個案
-    # ─────────────────────────────────────────────────────────────
-    {
-        'ticker': '2484', 'name': '希華',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '石英',
-        'note': '⭐⭐ 6/14 石英 30% 族群 (與 3042 晶技並列、最多 2 檔規則)'
-    },
-    {
-        'ticker': '3042', 'name': '晶技',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '石英',
-        'note': '⭐⭐ 6/14 石英 30% 族群 (與 2484 希華並列)、6/3 已站全均線'
-    },
-    {
-        'ticker': '4938', 'name': '玉晶光',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 Q8',
-        'sector': '光學',
-        'note': '⭐⭐ 6/14 Q8 提問: 6/13 大黑 K + 融資大增 = 黑得好、矽光子 FAU 概念'
-    },
-    {
-        'ticker': '3008', 'name': '大立光',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '光學',
-        'note': '⭐⭐ 6/14 凱基三多重新布局、6/13 黑 K 灌下但態度仍做多、處置中買'
-    },
-    {
-        'ticker': '8086', 'name': '松川精密',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '電子零組件',
-        'note': '⭐⭐ 6/14 凱基松山 (阿 Ben) 新布局、台達電繼電器供應商、均線上'
-    },
-    {
-        'ticker': '6549', 'name': '長科',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 Q2',
-        'sector': '封測',
-        'note': '⭐⭐ 6/14 Q2 提問: 有族群性、中口咬可做不重壓、封測導線架 (與界霖/順德並列)'
-    },
-    {
-        'ticker': '3293', 'name': '鈊象',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 Q9',
-        'sector': '遊戲',
-        'note': '⭐ 6/14 Q9 提問: 個股強但族群弱 (星宇/藍電/錦碩破線) → 老師收手、第 12 觀念'
-    },
-    {
-        'ticker': '2476', 'name': '鉅祥',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 Q12',
-        'sector': '其他',
-        'note': '⭐ 6/14 Q12 Johnson 提問: 不死鳥型態、命懸一線、有融資特徵、可看籌碼'
-    },
-    {
-        'ticker': '6147', 'name': '頎邦',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14 + 6/4 圈起來',
-        'sector': '封測',
-        'note': '⭐⭐ 6/14 凱基松山買到快 30 億的老的代表股、6/4 圈起來 (3 次提及升 frequent)'
-    },
-
-    # ─────────────────────────────────────────────────────────────
-    # Tier-C: 6/14 處置出關複合機會 (戰術級操作點)
-    # ─────────────────────────────────────────────────────────────
-    {
-        'ticker': '6182', 'name': '合晶',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '矽晶圓',
-        'note': '⭐ 6/14 6/15 出處置 + 上週直播提過矽晶圓族群'
-    },
-    {
-        'ticker': '2492', 'name': '華新科',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': '被動元件',
-        'note': '⭐ 6/14 6/17 出處置 + 上週直播提過被動族群'
-    },
-    {
-        'ticker': '8358', 'name': '金居',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 2,
-        'source': '老師明示 6/14',
-        'sector': 'CCL',
-        'note': '⭐ 6/14 6/17 + 6/18 雙重出處置'
-    },
-    {
-        'ticker': '8064', 'name': '東捷',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 3,
-        'source': '老師明示 + 6/14 universe',
-        'sector': '玻璃設備',
-        'note': '⭐ 6/14 universe 玻璃設備 (8064 / 8027 準備出關)、frequent tier'
-    },
-
-    # ─────────────────────────────────────────────────────────────
-    # Tier-D: 6/13 OSAT 龍頭 + 新入榜 (戰略級觀察、不重壓)
-    # ─────────────────────────────────────────────────────────────
-    {
-        'ticker': '3711', 'name': '日月光投控',
-        'ref_close': 0, 'stop': None,
-        'tactic': '波段', 'priority': 1,
-        'source': '老師明示 6/13 OSAT',
-        'sector': '半導體封測',
-        'note': '⭐ 6/13 OSAT 龍頭、不在 picks 但需技術+籌碼雙過、波動小不重壓'
-    },
-    {
-        'ticker': '8150', 'name': '南茂',
-        'ref_close': 0, 'stop': None,
-        'tactic': '短打', 'priority': 1,
-        'source': '老師明示 6/13 OSAT',
-        'sector': '半導體封測',
-        'note': '⭐ 6/13 OSAT 首次入榜、觀察 1-2 週'
-    },
-
-    # 6/3 加 — 過去 5d shakeout 補進候選 (保留 1 檔表現好的)
-    {
-        'ticker': '6906', 'name': '微邦',
-        'ref_close': 103.5, 'stop': 95.0,
-        'tactic': '短打', 'priority': 2,
-        'source': 'shakeout_strong (5/26 confirmed)',
-        'sector': '電子小型',
-        'note': '🟢 5/26 shakeout 確認、距 MA10 +5%、6/3 紅 K +2.5% 反轉、漲幅初期'
-    },
-]
 
 # ─────────────────────────────────────────────────────────────────────────
 # daily_watchlist JSON 自動 merge (scanner → WATCH)
@@ -1027,13 +606,80 @@ _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
 # WebSocket 即時報價快取 (取代 sequential REST snapshot)
 # ─────────────────────────────────────────────────────────────────────────
 
+class MultiTFBarBuilder:
+    """WS-4: 從 WS tick 累積 rolling 2分/3分 OHLC 棒 (當沖更細顆粒判斷)。
+
+    trades stream 給逐筆 price + 當日累積量 → 本地分桶成 N 分 K。
+    bucket 錨定 09:00、每檔每 tf 各一串。volume = 累積量 delta。
+    """
+    def __init__(self, timeframes=(2, 3), max_bars: int = 80):
+        self.timeframes = tuple(timeframes)
+        self.max_bars = max_bars
+        self.bars: dict = {}            # (symbol, tf) -> list[bar dict]
+        self._last_cumvol: dict = {}    # symbol -> 上次累積量 (算 delta)
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def _bucket(now, tf_min: int) -> str:
+        """now → 錨定 09:00 的 tf 分桶 key 'HH:MM'。"""
+        mins = now.hour * 60 + now.minute - (9 * 60)
+        if mins < 0:
+            mins = 0
+        b = (mins // tf_min) * tf_min + 9 * 60
+        return f"{b // 60:02d}:{b % 60:02d}"
+
+    def add_tick(self, symbol: str, price: float, cum_volume, now) -> None:
+        symbol = str(symbol)
+        with self.lock:
+            # 跨日 reset (bucket key 不含日期、避免昨日棒污染 + cumvol delta 變負)
+            d = now.date()
+            if getattr(self, '_day', None) != d:
+                self._day = d
+                self.bars.clear()
+                self._last_cumvol.clear()
+            # 量 delta (cum_volume 是累積、可能 None) — 移進 lock 防 race
+            vol_delta = 0
+            if cum_volume is not None:
+                try:
+                    cv = int(cum_volume)
+                    prev = self._last_cumvol.get(symbol)
+                    vol_delta = max(0, cv - prev) if prev is not None else 0
+                    self._last_cumvol[symbol] = cv
+                except Exception:
+                    pass
+            for tf in self.timeframes:
+                bk = self._bucket(now, tf)
+                key = (symbol, tf)
+                arr = self.bars.setdefault(key, [])
+                if not arr or arr[-1]["ts"] != bk:
+                    arr.append({"ts": bk, "open": price, "high": price,
+                                "low": price, "close": price, "volume": vol_delta})
+                    if len(arr) > self.max_bars:
+                        arr.pop(0)
+                else:
+                    b = arr[-1]
+                    b["high"] = max(b["high"], price)
+                    b["low"] = min(b["low"], price)
+                    b["close"] = price
+                    b["volume"] += vol_delta
+
+    def get_bars(self, symbol: str, tf: int) -> list:
+        with self.lock:
+            return [dict(b) for b in self.bars.get((str(symbol), tf), [])]
+
+    def get_df(self, symbol: str, tf: int):
+        rows = self.get_bars(symbol, tf)
+        return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
 class WSPriceCache:
     """訂閱 Fubon WebSocket aggregates channel、cache 最新報價。
 
     monitor 每次 refresh 從 cache 拿、O(1)、不再 sequential REST。
     REST 用於初始 warm-up + WS 失敗時 fallback。
     """
-    STALE_SEC = 30  # cache 超過 30 秒沒 update → REST fallback
+    STALE_SEC = 30  # cache 超過 30 秒沒 update → fallback
+    BATCH_MIN_INTERVAL = 8.0  # WS-2: 批次 fallback 最短間隔 (秒)、防打爆 rate limit
 
     def __init__(self, client, tickers: list[str]):
         self.client = client
@@ -1044,33 +690,114 @@ class WSPriceCache:
         self.ws = None
         self.ws_ok = False
         self.errors = 0
-        self._warm()
-        self._connect()
+        self._last_batch_ts = 0.0           # WS-2: 上次批次 fallback 時間
+        self._tk_set = set(self.tickers)    # C3: 快查 + 動態新增
+        self._last_reconnect_ts = 0.0       # C2: 上次重連時間
+        self._pending_resub: list = []      # C3: 待訂閱的新 ticker
+        self.bars = MultiTFBarBuilder()     # WS-4: 2分/3分 K builder
+        self._index_fetch_ts: dict[str, float] = {}  # 指數 FinMind 節流時間戳
+        self._connect()                     # 先開 WS (subscribe)、
+        self._warm()                         # 再 batch seed cache (whole-market、1-2 req)
+
+    INDEX_REFRESH_SEC = 60.0  # 指數走 FinMind (延遲資料)、60s 快取、不每輪打
+
+    RECONNECT_INTERVAL = 30.0  # C2: WS 重連最短間隔 (秒)
+
+    def _maybe_reconnect(self) -> None:
+        """C2: WS 斷線重連 (節流)。ws_ok=False 或全 cache stale 太久 → 重 _connect。"""
+        now = time.time()
+        if now - self._last_reconnect_ts < self.RECONNECT_INTERVAL:
+            return
+        # 判斷是否該重連: ws 從沒成功、或最近完全沒 WS 更新
+        last_any = max(self.last_update.values()) if self.last_update else 0
+        ws_dead = (not self.ws_ok) or (now - last_any > self.STALE_SEC)
+        if not ws_dead:
+            return
+        self._last_reconnect_ts = now
+        try:
+            self._connect()                 # 重新訂閱全部 + pending
+        except Exception:
+            self.ws_ok = False
+
+    def _ensure_subscribed(self, ticker: str) -> None:
+        """C3: 動態 watchlist — 新 ticker 加入訂閱清單 (batch 立即覆蓋、WS 下次重連帶上)。"""
+        if ticker in self._tk_set:
+            return
+        self._tk_set.add(ticker)
+        self.tickers.append(ticker)
+        # 嘗試即時增訂 (WS subscribe 是 additive); 失敗就靠 batch + 下次重連
+        try:
+            self.client.subscribe_quotes([ticker], self._on_message, channel='trades')
+        except Exception:
+            pass
+
+    def _batch_refresh(self) -> None:
+        """WS-2: WS stale 時用批次 snapshot 補 (1-2 req 拿整盤)、節流。
+
+        取代原本「逐檔 REST」fallback——WS 全掛時逐檔 = 數百 req/cycle 打爆
+        300/min。批次只 1-2 req、不管幾百檔。client 無批次能力則 no-op。
+        """
+        now = time.time()
+        if now - self._last_batch_ts < self.BATCH_MIN_INTERVAL:
+            return
+        self._last_batch_ts = now
+        fn = getattr(self.client, 'get_snapshot_quotes_map', None)
+        if fn is None:
+            return
+        try:
+            m = fn()
+        except Exception:
+            self.errors += 1
+            return
+        if not m:
+            return
+        with self.lock:
+            for tk in list(self.tickers):
+                snap = m.get(tk)
+                if snap:
+                    entry = self._normalize_rest_snap(snap)
+                    if 'close' in entry:
+                        entry.setdefault('_warm_close', entry['close'])
+                    self.cache[tk] = entry
+                    self.last_update[tk] = now
 
     @staticmethod
     def _normalize_rest_snap(snap: dict) -> dict:
-        """REST snapshot 單位修正：FubonClient.get_realtime_snapshot 回傳的
-        total_volume 是 tradeVolume(千股) // 1000 = 千張，而非張。
-        乘以 1000 統一成張 (lots)，與 WS trades stream int(shares)//1000 一致。
+        """REST / batch snapshot pass-through。
+
+        🔴 2026-06-20 C1 fix: 原本對 total_volume ×1000、但 fubon_client._snap_from_quote
+        已 //1000 (股→張)、契約 get_realtime_snapshot.total_volume = 張 (commit 21226e9)。
+        再 ×1000 → 比真實張數大 1000 倍、量比恆 ~1000x 失真 (只影響 warm/batch fallback
+        路徑、WS 直推 _on_message 另做 //1000 是對的)。移除 ×1000、單位統一為張。
         """
-        entry = dict(snap)
-        tv = entry.get('total_volume')
-        if tv is not None:
-            try:
-                entry['total_volume'] = int(tv) * 1000  # 千張 → 張
-            except Exception:
-                pass
-        return entry
+        return dict(snap)
 
     def _warm(self):
-        """REST 初始抓一輪、確保 cache 有資料 + 記錄 _warm_close 供反推 prev_close."""
-        for tk in self.tickers:
-            try:
+        """冷啟動填 cache (記 _warm_close 供反推 prev_close)。
+
+        🔴 2026-06-22 fix: 原本逐檔 120 個 get_realtime_snapshot = 開盤前卡幾分鐘
+        + 違反「搬 WS 就是為了不打 REST」初衷。改走 batch (_batch_refresh、1-2 req
+        拿整盤股票)。只有 index (非數字 ticker、batch map 不含) 才逐檔補 (數量極少)。
+        穩態行情全靠 WS 推播、REST 只剩此冷啟動 + WS stale fallback (都 batch)。
+        """
+        try:
+            self._batch_refresh()          # 1-2 req 填所有股票 ticker
+        except Exception:
+            pass
+        with self.lock:
+            missing = [tk for tk in self.tickers if tk not in self.cache]
+        for tk in missing:                  # 只剩 index/非數字
+            if not tk.isdigit():            # 指數 (TAIEX 等) → FinMind、不打富邦股票端點
+                try:
+                    self._index_snapshot(tk)
+                except Exception:
+                    pass
+                continue
+            try:                             # 萬一有非指數的漏網股票、逐檔補
                 snap = self.client.get_realtime_snapshot(tk)
                 if snap:
                     with self.lock:
                         entry = self._normalize_rest_snap(snap)
-                        # 留底用於反推 prev_close (close - change_price)
                         if 'close' in entry:
                             entry['_warm_close'] = entry['close']
                         self.cache[tk] = entry
@@ -1078,8 +805,64 @@ class WSPriceCache:
             except Exception:
                 pass
 
+    def _index_snapshot(self, ticker: str) -> dict | None:
+        """指數類 (TAIEX) 盤中報價走 FinMind — 富邦/Fugle 無指數端點 (官方文件確認)。
+
+        🔴 FinMind 指數資料非即時: 盤中當日常 0 筆、EOD 才補。0 筆 → fallback
+        standard_daily_bar 最新 TAIEX 收盤。一律標 is_delayed (不假裝即時)。
+        節流 INDEX_REFRESH_SEC(60s)、不每輪打 FinMind。禁直接 curl、走既有 client。
+        """
+        now = time.time()
+        if now - self._index_fetch_ts.get(ticker, 0) < self.INDEX_REFRESH_SEC:
+            with self.lock:
+                cached = self.cache.get(ticker)
+            return dict(cached) if cached else None
+        self._index_fetch_ts[ticker] = now
+        close = None
+        src = None
+        try:
+            from common.clients import finmind_client as fm
+            from datetime import date as _d
+            df = fm.get_data(dataset="TaiwanVariousIndicators5Seconds",
+                             start_date=_d.today().isoformat())
+            if df is not None and len(df):
+                close = float(df.iloc[-1]["TAIEX"]); src = "finmind_5s"
+        except Exception:
+            pass
+        if close is None:                    # 盤中 0 筆 → 前一交易日日線收盤
+            try:
+                import sqlite3
+                from zhuli.db import MAIN_DB
+                con = sqlite3.connect(str(MAIN_DB))
+                r = con.execute("SELECT close FROM standard_daily_bar WHERE ticker=? "
+                                "ORDER BY trade_date DESC LIMIT 1", (ticker,)).fetchone()
+                con.close()
+                if r and r[0]:
+                    close = float(r[0]); src = "daily_bar_prev"
+            except Exception:
+                pass
+        if close is None:
+            return None
+        # OHLC 填 close (指數只拿得到 index 值)、避免下游 formatter KeyError
+        entry = {"close": close, "open": close, "high": close, "low": close,
+                 "change_price": 0.0, "change_rate": 0.0, "total_volume": 0,
+                 "is_delayed": True, "source": src}
+        with self.lock:
+            self.cache[ticker] = entry
+            self.last_update[ticker] = now
+        return dict(entry)
+
     def _connect(self):
         """Connect WebSocket、subscribe 全部 tickers (trades channel — Speed mode 支援)."""
+        # 富邦限制: 200 symbols / connection。超過先警告 (多連線分流 = 後續 TODO)。
+        if len(self.tickers) > 200:
+            try:
+                import logging as _lg
+                _lg.getLogger('zhuli.monitor').warning(
+                    "WSPriceCache 訂閱 %d 檔 > 200/連線上限、可能漏訂閱 (TODO 多連線分流)",
+                    len(self.tickers))
+            except Exception:
+                pass
         try:
             # 注意: Fubon Speed mode 不支援 aggregates/candles、只能用 trades/books
             self.ws = self.client.subscribe_quotes(
@@ -1127,23 +910,38 @@ class WSPriceCache:
             volume_shares = payload.get('volume')  # 累積成交股數
             bid = payload.get('bid')
             ask = payload.get('ask')
+            # 富邦 doc 旗標 (細節提升): 試撮 / 漲跌停 / 開收盤信號
+            is_trial = bool(payload.get('isTrial'))
+            limit_up = bool(payload.get('isLimitUpPrice'))
+            limit_down = bool(payload.get('isLimitDownPrice'))
+            is_open = bool(payload.get('isOpen'))
+            is_close = bool(payload.get('isClose'))
             with self.lock:
                 existing = self.cache.get(symbol) or {}
                 # close = 最新成交價
                 existing['close'] = price
-                # high/low 本地維護 (trades stream 沒有 OHLC)
-                cur_high = existing.get('high') or 0
-                cur_low = existing.get('low') or 0
-                if not cur_high or price > cur_high:
-                    existing['high'] = price
-                if not cur_low or price < cur_low:
-                    existing['low'] = price
-                # volume: cumulative shares → 張 (÷1000)
-                if volume_shares is not None:
-                    try:
-                        existing['total_volume'] = int(volume_shares) // 1000
-                    except Exception:
-                        pass
+                # 旗標寫進 snapshot 供 monitor 顯示判斷
+                existing['is_trial'] = is_trial
+                existing['limit_up'] = limit_up
+                existing['limit_down'] = limit_down
+                if is_open:
+                    existing['open'] = price          # 開盤信號 = 權威開盤價
+                if is_close:
+                    existing['is_close'] = True
+                # ⚠️ 試撮 (isTrial) 不算真實成交 → 不更新 high/low/volume
+                # (per feedback_premarket_match_fomo_trap: 試撮 ≠ 真實、嘉晶教訓)
+                if not is_trial:
+                    cur_high = existing.get('high') or 0
+                    cur_low = existing.get('low') or 0
+                    if not cur_high or price > cur_high:
+                        existing['high'] = price
+                    if not cur_low or price < cur_low:
+                        existing['low'] = price
+                    if volume_shares is not None:
+                        try:
+                            existing['total_volume'] = int(volume_shares) // 1000
+                        except Exception:
+                            pass
                 # bid/ask 補充欄位
                 if bid is not None:
                     try:
@@ -1177,6 +975,11 @@ class WSPriceCache:
                         pass
                 self.cache[symbol] = existing
                 self.last_update[symbol] = time.time()
+            # WS-4: 同一筆 tick 餵 2分/3分 K builder
+            try:
+                self.bars.add_tick(symbol, price, volume_shares, datetime.now())
+            except Exception:
+                pass
             # WS push 觸發 redraw、限速 100ms 避免太頻繁
             _now = time.time()
             if _now - _last_ws_render_signal[0] > 0.1:
@@ -1191,20 +994,29 @@ class WSPriceCache:
         若 cache stale > STALE_SEC、用 REST 補一筆。
         """
         ticker = str(ticker)
+        self._ensure_subscribed(ticker)     # C3: 動態 watchlist 新 ticker 自動納入
         with self.lock:
             snap = self.cache.get(ticker)
             ts   = self.last_update.get(ticker, 0)
         if snap and (time.time() - ts) < self.STALE_SEC:
             return dict(snap)
-        # Stale or missing → REST fallback
+        self._maybe_reconnect()             # C2: stale → 嘗試 WS 重連 (節流)
+        # WS-2: Stale or missing → 指數類 (TAIEX/IX0001/非數字 symbol) 用逐檔 REST
+        # (不在批次股票快照裡、量少)；一般股票走批次 (1-2 req、不打爆)。
+        is_index = (not ticker.isdigit())
         try:
-            fresh = self.client.get_realtime_snapshot(ticker)
-            if fresh:
-                normalized = self._normalize_rest_snap(fresh)
+            if is_index:
+                # 指數 (TAIEX) 走 FinMind (節流 60s)、不打富邦股票端點 (404)
+                fresh = self._index_snapshot(ticker)
+                if fresh:
+                    return fresh
+            else:
+                self._batch_refresh()         # 節流批次、補進 cache
                 with self.lock:
-                    self.cache[ticker] = normalized
-                    self.last_update[ticker] = time.time()
-                return normalized
+                    fresh2 = self.cache.get(ticker)
+                    ts2 = self.last_update.get(ticker, 0)
+                if fresh2 and (time.time() - ts2) < self.STALE_SEC:
+                    return dict(fresh2)
         except Exception:
             pass
         return snap  # 回傳舊資料總比 None 好
@@ -1267,6 +1079,10 @@ def check_trigger_inline(ticker: str, tactic: str = '核心') -> tuple[str, str]
         if not pass_disc:
             base = ('none', disc_reason)  # 紅線一律擋、不論 triggered
         elif triggered:
+            base = (det, reason)
+        elif det == '尾盤_過熱':
+            # 警示級 (5/5 Win 40% 別追)：triggered=False 但要顯示、不能吞成 none。
+            # TRIGGER_DISPLAY / maybe_notify_trigger 都已支援此 key。
             base = (det, reason)
         else:
             base = ('none', reason)
@@ -2181,7 +1997,7 @@ class DataCache:
 
     def refresh_all(self, real_check, real_vol):
         """單輪刷新所有 ticker (real_check / real_vol = 未 patch 的原函式)。"""
-        for tk in self.tickers:
+        for tk in list(self.tickers):
             try:
                 tactic = self.tactic_map.get(tk, '核心')
                 trig = real_check(tk, tactic)
@@ -2280,6 +2096,28 @@ def load_ma10(ticker: str) -> float | None:
     except Exception:
         _ma10_cache[ticker] = None
         return None
+
+
+def daily_ma_divergence(ticker: str) -> str:
+    """日線 MA5/10/20 發散% — 純資訊、無門檻 (老師: 均線太亂不做、當沖判斷靠肉眼)。
+
+    回傳顯示字串、例「日線均線 MA5/10/20 發散 15.1%」、算不出回 ""。
+    不設門檻、不過濾——只給數字 + 老師原則、亂不亂使用者自己判。
+    """
+    try:
+        con = get_conn(DB, timeout=5)
+        r = con.execute(
+            "SELECT ma5, ma10, ma20 FROM standard_daily_bar "
+            "WHERE ticker=? AND trade_date < date('now', 'localtime') "
+            "ORDER BY trade_date DESC LIMIT 1", (ticker,)).fetchone()
+        con.close()
+    except Exception:
+        return ""
+    if not r or None in r or not r[2]:
+        return ""
+    mas = [float(r[0]), float(r[1]), float(r[2])]
+    spread = (max(mas) - min(mas)) / min(mas) * 100
+    return f"日線 MA5/10/20 發散 {spread:.1f}%（老師：太亂不做）"
 
 
 def r_dist_ma10(c: float, ticker: str) -> Text:

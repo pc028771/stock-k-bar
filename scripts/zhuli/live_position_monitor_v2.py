@@ -108,6 +108,7 @@ _CONFIRMED_TRIGGERS = {
     '首攻', '續攻', '反彈',
     'Ch5-3', 'T1', 'T2',                   # 舊英文 alias
     '尾盤_confirmed', 'Closing_confirmed',
+    '紅K吞噬_confirmed', 'RedEngulf_confirmed',  # R9 老師 6/16 SOP
 }
 _EXCLUDED_TRIGGERS = {'破底', 'TC'}
 _WATCHING_TRIGGERS = {'T1_watch', 'T2_watch', '續攻_watch', '反彈_watch',
@@ -127,6 +128,20 @@ import logging as _logging
 _logging.getLogger('zhuli.intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('intraday_stage_helper').setLevel(_logging.ERROR)
 _logging.getLogger('clients.fubon_client').setLevel(_logging.ERROR)
+
+# 一次性 debug log: 哪個 UI 區塊在丟例外 (寫檔、不汙染 TUI 畫面、同 tag 只記一次)
+import traceback as _tb
+_DEBUG_LOG = Path("/tmp/zhuli_monitor_debug.log")
+_logged_tags: set[str] = set()
+def _log_once(tag: str) -> None:
+    if tag in _logged_tags:
+        return
+    _logged_tags.add(tag)
+    try:
+        with _DEBUG_LOG.open("a") as fh:
+            fh.write(f"\n=== {tag} @ {datetime.now():%H:%M:%S} ===\n{_tb.format_exc()}")
+    except Exception:
+        pass
 
 # ── dump signals (持倉拉高出貨即時警示) ────────────────────────────────────
 from scripts.zhuli.dump_signals import (
@@ -300,6 +315,8 @@ COLS_WATCH = [
     ("stars",    "⭐",      4),
     ("name",     "股名",    8),
     ("tactic",   "策略",    6),
+    ("stage",    "Stage",   8),
+    ("y_green",  "昨綠",    5),  # ✅ 昨日收綠 K = 老師 6/16「買綠不買紅」universe
     ("gap",      "跳空",    7),
     ("price",    "現價(%)", 16),
     ("vol_ratio",  "量比",   9),
@@ -333,33 +350,6 @@ COLS_SETUPS = [
     ("price",       "現價",   10),
 ]
 
-# ── overnight universe loader (保留備用) ─────────────────────────────────────
-def _load_overnight_universe_unused() -> list[str]:
-    """讀取老師 332 檔 universe (sector_tickers + picks_2026 dedup union)。
-    注意: 已改用 _load_overnight_candidates()，此函式保留供未來參考。
-    """
-    tickers: set[str] = set()
-    base = _REPO / "docs" / "主力大課程"
-    try:
-        import json
-        with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
-            s1 = json.load(fh)
-        for v in s1.values():
-            if isinstance(v, list):
-                tickers.update(str(t) for t in v)
-    except Exception:
-        pass
-    try:
-        import json
-        with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
-            s2 = json.load(fh)
-        for k in s2:
-            if k.isdigit() and len(k) == 4:
-                tickers.add(k)
-    except Exception:
-        pass
-    return sorted(tickers)
-
 
 # ── overnight universe + static features ─────────────────────────────────────
 # 新架構: 不再讀 candidates CSV、而是 332 檔 universe live eval (Fubon snap + static cache)
@@ -386,6 +376,46 @@ def _load_overnight_static() -> dict:
         return {}
 
 
+_TEACHER_TIER_CACHE: dict | None = None
+def _teacher_tier_label(tk: str) -> str:
+    """老師族群對齊度 label (取代已不存在的 _v1.get_teacher_tier)。
+    picks tier_signal (core/frequent/once) > 族群內 > —。cache 一次載入。"""
+    global _TEACHER_TIER_CACHE
+    if _TEACHER_TIER_CACHE is None:
+        import json as _json
+        base = _REPO / "docs" / "主力大課程"
+        picks, sect = {}, set()
+        try:
+            with open(base / "teacher_picks_2026.json", encoding="utf-8") as fh:
+                d = _json.load(fh)
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    picks[str(k)] = v.get("tier_signal")
+        except Exception:
+            pass
+        try:
+            with open(base / "teacher_sector_tickers.json", encoding="utf-8") as fh:
+                d = _json.load(fh)
+            for v in d.values():
+                if isinstance(v, list):
+                    sect.update(str(t) for t in v)
+                elif isinstance(v, dict):
+                    sect.update(str(t) for t in (v.get("tickers") or []))
+        except Exception:
+            pass
+        _TEACHER_TIER_CACHE = {"picks": picks, "sect": sect}
+    tk = str(tk)
+    sig = _TEACHER_TIER_CACHE["picks"].get(tk)
+    lbl = {"core": "core ⭐⭐⭐", "frequent": "frequent ⭐⭐", "once": "once ⭐"}.get(sig)
+    if lbl:
+        return lbl
+    if tk in _TEACHER_TIER_CACHE["picks"]:
+        return "老師明示"
+    if tk in _TEACHER_TIER_CACHE["sect"]:
+        return "族群內"
+    return "—"
+
+
 def _load_overnight_universe() -> list[str]:
     """讀老師 universe (sector_tickers ∪ picks_2026 ≈ 332 檔)。"""
     import json as _json
@@ -409,59 +439,6 @@ def _load_overnight_universe() -> list[str]:
         pass
     return sorted(tickers)
 
-
-# ── legacy: 舊 candidate-based loader (已停用、僅保留供將來參考) ──────────
-def _load_overnight_candidates_legacy() -> tuple[list[dict], str]:
-    """讀兩個 CSV 並合併，回傳 (candidate_list, signal_date_str)。
-
-    每個 candidate dict 包含 {"ticker": str, "source": "✅ 確認" | "⚡ 預估"}.
-    dedup by (signal_date, ticker)，確認版優先（相同 ticker 確認版覆蓋預估版）。
-    signal_date 以確認版最新日期為準（若無，用預估版）。
-
-    Returns:
-        (candidate_list, signal_date_str) — 若兩個 CSV 皆不存在或空，回傳 ([], "")
-    """
-    try:
-        import pandas as pd
-
-        rows: list[dict] = []   # {"ticker", "source", "signal_date"}
-
-        # ── 確認版 ────────────────────────────────────────────────────────────
-        confirmed_date = ""
-        if _OVERNIGHT_CSV.exists():
-            df_c = pd.read_csv(_OVERNIGHT_CSV, dtype={"ticker": str})
-            if not df_c.empty and "signal_date" in df_c.columns and "ticker" in df_c.columns:
-                confirmed_date = str(df_c["signal_date"].max())
-                latest_c = df_c[df_c["signal_date"] == confirmed_date]
-                for tk in latest_c["ticker"].dropna().astype(str).unique():
-                    rows.append({"ticker": tk, "source": "✅ 確認", "signal_date": confirmed_date})
-
-        # ── 預估版 ────────────────────────────────────────────────────────────
-        intraday_date = ""
-        if _OVERNIGHT_INTRADAY_CSV.exists():
-            df_i = pd.read_csv(_OVERNIGHT_INTRADAY_CSV, dtype={"ticker": str})
-            if not df_i.empty and "signal_date" in df_i.columns and "ticker" in df_i.columns:
-                intraday_date = str(df_i["signal_date"].max())
-                latest_i = df_i[df_i["signal_date"] == intraday_date]
-                for tk in latest_i["ticker"].dropna().astype(str).unique():
-                    rows.append({"ticker": tk, "source": "⚡ 預估", "signal_date": intraday_date})
-
-        if not rows:
-            return [], ""
-
-        # dedup: 同 ticker 確認版優先
-        seen: dict[str, dict] = {}
-        for r in rows:
-            tk = r["ticker"]
-            if tk not in seen or r["source"] == "✅ 確認":
-                seen[tk] = r
-
-        candidates = sorted(seen.values(), key=lambda r: r["ticker"])
-        signal_date = confirmed_date or intraday_date
-        return candidates, signal_date
-
-    except Exception:
-        return [], ""
 
 
 # ── overnight condition evaluator (live: static cache + Fubon snap) ─────────
@@ -537,13 +514,18 @@ def _evaluate_overnight_live(
         result["bb"] = bb_pass
 
         # ── 條件 2: K棒 (body / 量 / 量增) ───────────────────────────────
+        # 🔴 2026-06-19 修單位 bug: snap.total_volume 是「張」(SnapshotDict 契約)、
+        # 但 precompute prev_volume 是「股」(daily bar 原生)。原本 vol_/1000 假設股、
+        # 且 vol_(張) vs prev_vol(股) → kbar 量 gate 結構性 always-false (mock 抓到)。
+        # 統一到「張」: vol_ 直接是張、prev_vol 轉張。
         body_pct = ((close_ - prev_close_v) / prev_close_v
                     if prev_close_v and close_ else 0.0)
-        vol_lots = vol_ / 1000.0 if vol_ else 0.0
+        vol_lots = vol_ if vol_ else 0.0                      # snap 已是張
+        prev_vol_lots = prev_vol / 1000.0 if prev_vol else 0.0  # 股 → 張
         kbar_pass = (
             body_pct >= cfg.body_min
             and vol_lots >= cfg.min_volume_lots
-            and vol_ > prev_vol * cfg.prev_volume_multiplier
+            and vol_lots > prev_vol_lots * cfg.prev_volume_multiplier
         )
         result["kbar"] = kbar_pass
 
@@ -586,7 +568,7 @@ def _evaluate_overnight_live(
             ma20_val = float(ma20) if ma20 else 0.0
             dist_ma20 = (max(0.0, (close_ - ma20_val) / ma20_val)
                          if ma20_val and close_ else 0.0)
-            vol_ratio_prev = (vol_ / prev_vol) if prev_vol else 1.0
+            vol_ratio_prev = (vol_lots / prev_vol_lots) if prev_vol_lots else 1.0
             result["strength_score"] = (
                 dist_ma20
                 + min(vol_ratio_prev, 5.0)
@@ -700,6 +682,7 @@ class MonitorApp(App[None]):
     BINDINGS = [
         Binding("t",       "toggle_teacher",  "老師only"),
         Binding("f",       "toggle_failed",   "顯失敗"),
+        Binding("k",       "toggle_dosox_tf", "2分/3分K"),
         Binding("a",       "pin_add",         "Pin"),
         Binding("u",       "pin_remove",       "Unpin"),
         Binding("slash",   "search_open",     "搜尋"),
@@ -719,12 +702,14 @@ class MonitorApp(App[None]):
     # ── reactive state ───────────────────────────────────────────────────────
     teacher_only: reactive[bool] = reactive(True)
     show_failed:  reactive[bool] = reactive(False)
+    dosox_tf:     reactive[int]  = reactive(3)   # WS-4: 當沖 K 顆粒 2分/3分
     search_active: reactive[bool] = reactive(False)
     search_term:   reactive[str]  = reactive("")
     pinned_tickers: reactive[frozenset] = reactive(frozenset())
 
     def __init__(self, client=None, demo_mode: bool = False,
-                 demo_client=None, demo_scenarios=None, **kwargs):
+                 demo_client=None, demo_scenarios=None,
+                 held_only: bool = False, **kwargs):
         super().__init__(**kwargs)
         self._client = client
         self._demo_mode = demo_mode
@@ -735,6 +720,7 @@ class MonitorApp(App[None]):
         self._demo_goto_mode = False
         self._demo_goto_buf = ""
         self._demo_total = len(self._demo_scenarios)
+        self._held_only = held_only
 
         # 資料快取
         self._live_data: dict[str, dict] = {}   # ticker → {close, open, vol_ratio, pnl, trigger…}
@@ -744,15 +730,16 @@ class MonitorApp(App[None]):
 
         # Normalize lists (重用 v1 normalizers)
         self._held   = _normalize_held(HELD[:])
-        self._watch  = _normalize_watch(WATCH[:])
+        self._watch  = _normalize_watch(WATCH[:]) if not held_only else []
         self._plan   = _normalize_plan(PLAN_PRIMARY[:])
 
-        # merge scanner watchlist
-        try:
-            _merge_scanner_watchlist()
-            self._watch = _normalize_watch(_v1.WATCH[:])
-        except Exception:
-            pass
+        # merge scanner watchlist (held_only 模式跳過、減 API 量)
+        if not held_only:
+            try:
+                _merge_scanner_watchlist()
+                self._watch = _normalize_watch(_v1.WATCH[:])
+            except Exception:
+                pass
 
         # ── 真分頁 state ────────────────────────────────────────────────────
         self._current_page: dict[str, int] = {}   # tab_id → page (1-indexed)
@@ -910,8 +897,8 @@ class MonitorApp(App[None]):
                 src_parts.append(sector)
             source_line = f"來源:    {' | '.join(src_parts)}" if src_parts else "來源:    —"
 
-            # 🎯 老師族群對齊度 (v1 helper)
-            tier_n, tier_label = _v1.get_teacher_tier(tk)
+            # 🎯 老師族群對齊度 (本地 helper、取代已不存在的 _v1.get_teacher_tier)
+            tier_label = _teacher_tier_label(tk)
             tier_line = f"族群:    {tier_label}"
 
             # ⛔ 不該追警示 (v1 helper、用 snap + DB prev_close)
@@ -925,6 +912,44 @@ class MonitorApp(App[None]):
                 pursuit_line = f"警示:    {' | '.join(warns)}" if warns else "警示:    —"
             except Exception:
                 pursuit_line = "警示:    —"
+
+            # 🛡 日線均線發散 (純資訊、當沖提醒「均線太亂不做」、無門檻不過濾)
+            try:
+                _div = _v1.daily_ma_divergence(tk)
+                diverge_line = f"均線:    🛡 {_div}" if _div else ""
+            except Exception:
+                diverge_line = ""
+
+            # 🔼🔽 WS 旗標 (富邦 doc): 漲停/跌停/試撮 — 即時警示
+            flag_line = ""
+            try:
+                ld_tk = self._live_data.get(tk, {})
+                flags = []
+                if ld_tk.get('limit_up'):
+                    flags.append("🔼 漲停")
+                if ld_tk.get('limit_down'):
+                    flags.append("🔽 跌停")
+                if ld_tk.get('is_trial'):
+                    flags.append("⚠️ 試撮(非真實、勿追)")
+                if flags:
+                    flag_line = "狀態:    " + " | ".join(flags)
+            except Exception:
+                flag_line = ""
+
+            # ⚡ WS-4: 當沖 2分/3分 K 最新棒 (WS 推播累積、無 WS 則略)
+            dosox_line = ""
+            try:
+                bars = getattr(self._client, 'bars', None)
+                if bars is not None:
+                    arr = bars.get_bars(tk, self.dosox_tf)
+                    if arr:
+                        b = arr[-1]
+                        body = (b['close'] - b['open']) / b['open'] * 100 if b['open'] else 0
+                        dosox_line = (f"當沖:    ⚡{self.dosox_tf}分K {b['ts']} "
+                                      f"O{b['open']:.1f} H{b['high']:.1f} L{b['low']:.1f} "
+                                      f"C{b['close']:.1f} ({body:+.1f}%) 量{b['volume']//1000}張 [k切換]")
+            except Exception:
+                dosox_line = ""
 
             # 🗓 Plan 條件 check (只對 PLAN_PRIMARY 內的 ticker)
             plan_line = ""
@@ -950,9 +975,12 @@ class MonitorApp(App[None]):
             except Exception:
                 pass
 
-            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}\n{pursuit_line}{plan_line}\n{source_line}"
+            _div_block = f"\n{diverge_line}" if diverge_line else ""
+            _dosox_block = f"\n{dosox_line}" if dosox_line else ""
+            _flag_block = f"\n{flag_line}" if flag_line else ""
+            panel.detail_text = f"[{tk} {name}]\n{trig_line}\n{dump_line}\n{tier_line}{_flag_block}\n{pursuit_line}{_div_block}{_dosox_block}{plan_line}\n{source_line}"
         except Exception:
-            pass
+            _log_once("detail_panel")
 
     def _setup_tables(self) -> None:
         """初始化所有 DataTable 的 columns。"""
@@ -975,13 +1003,38 @@ class MonitorApp(App[None]):
 
     # ── data refresh ─────────────────────────────────────────────────────────
     def _start_data_refresh(self) -> None:
-        """啟動背景 thread 定期抓報價 + 計算 trigger / vol_ratio。"""
+        """啟動背景 thread 定期抓報價 + 計算 trigger / vol_ratio。
+
+        🔴 on_mount 呼叫此函式。**絕對不可在此同步做 blocking I/O**
+        (WSPriceCache.__init__ → _warm 會逐檔打 ~120 REST、開盤前卡幾分鐘),
+        否則 event loop 被卡 → 黑屏 + Ctrl-C 失效。WS 建構移進 thread 內。
+        """
         self._refresh_thread = threading.Thread(
             target=self._refresh_loop, daemon=True
         )
         self._refresh_thread.start()
 
+    def _ensure_ws_cache(self) -> None:
+        """WS-1: 在背景 thread 內把 client 包成 WSPriceCache (含 _warm 120 檔、
+        慢)。放 thread 不放 on_mount → UI 立刻可渲染 + 可 Ctrl-C。"""
+        if (not self._demo_mode and self._client is not None
+                and not isinstance(self._client, _v1.WSPriceCache)):
+            all_tk = {str(i.get('ticker', ''))
+                      for src in (self._held, self._watch, self._plan)
+                      for i in src if i.get('ticker')}
+            try:
+                self._client = _v1.WSPriceCache(self._client, list(all_tk))
+                _logging.getLogger("zhuli.monitor").info("WS-1: WSPriceCache 啟用、訂閱 %d 檔 (ws_ok=%s)",
+                         len(all_tk), getattr(self._client, 'ws_ok', '?'))
+            except Exception as e:
+                _logging.getLogger("zhuli.monitor").warning("WSPriceCache 建立失敗、退回 REST 輪詢: %s", e)
+
     def _refresh_loop(self) -> None:
+        # WS 建構放這裡 (thread 內、不卡 event loop)。只跑一次。
+        try:
+            self._ensure_ws_cache()
+        except Exception:
+            pass
         while not self._quit:
             try:
                 self._check_data_version()
@@ -1219,6 +1272,10 @@ class MonitorApp(App[None]):
                         'dump_warn':  dump_warn,
                         'dump_warn_full': dump_warn_full,
                         'prev_close': prev_close,
+                        # WS 旗標 (富邦 doc): 漲停/跌停/試撮
+                        'limit_up':   bool(snap.get('limit_up')),
+                        'limit_down': bool(snap.get('limit_down')),
+                        'is_trial':   bool(snap.get('is_trial')),
                     }
             except Exception:
                 pass
@@ -1235,9 +1292,21 @@ class MonitorApp(App[None]):
 
     # ── tick (1s 更新 UI) ────────────────────────────────────────────────────
     def _tick(self) -> None:
-        self._update_status_bar()
-        self._update_all_tables()
-        self._update_detail_panel()
+        # 三段各自 try/except — 任一 table refresh 丟例外不可拖垮 detail panel
+        # (之前線性呼叫: _update_all_tables 中途爆 → _update_detail_panel 永不執行
+        #  → detail 卡在佔位字「(↑↓ 選 row 看詳情)」)
+        try:
+            self._update_status_bar()
+        except Exception:
+            pass
+        try:
+            self._update_all_tables()
+        except Exception:
+            pass
+        try:
+            self._update_detail_panel()
+        except Exception:
+            pass
 
     def _update_status_bar(self) -> None:
         now = datetime.now()
@@ -1385,13 +1454,20 @@ class MonitorApp(App[None]):
         with self._data_lock:
             ld = dict(self._live_data)
 
-        self._refresh_held_table(ld)
-        self._refresh_confirmed_table(ld)
-        self._refresh_watching_table(ld)
-        self._refresh_pinned_table(ld)
-        self._refresh_overnight_table()
-        self._refresh_scanner_table(ld)
-        self._refresh_setups_table(ld)  # bug fix: 之前漏呼叫、Setups tab 永遠停在「載入中」
+        # 各 table 獨立 try/except — 單一 table refresh 爆不可拖垮其他 table + detail
+        for _name, _fn in (
+            ("held", lambda: self._refresh_held_table(ld)),
+            ("confirmed", lambda: self._refresh_confirmed_table(ld)),
+            ("watching", lambda: self._refresh_watching_table(ld)),
+            ("pinned", lambda: self._refresh_pinned_table(ld)),
+            ("overnight", lambda: self._refresh_overnight_table()),
+            ("scanner", lambda: self._refresh_scanner_table(ld)),
+            ("setups", lambda: self._refresh_setups_table(ld)),
+        ):
+            try:
+                _fn()
+            except Exception:
+                _log_once(f"table:{_name}")
 
     def _fmt_otn(self, otn_pct: float | None) -> str:
         if otn_pct is None:
@@ -1505,12 +1581,90 @@ class MonitorApp(App[None]):
     def _classify_watch(self, item: dict, d: dict) -> str:
         """分類 WATCH item: confirmed / watching / excluded。
 
-        ⚠️ 不再 delegate 給 v1 _classify_watch_item (該函式 trigger 識別
-        set 沒跟新的中文命名 + 尾盤_confirmed/Closing_confirmed、會把已觸發
-        進場訊號的 watch 標的誤分到 watching、導致可進場 tab 永遠空)。
-        統一用 v2 _CONFIRMED_TRIGGERS / _EXCLUDED_TRIGGERS / _WATCHING_TRIGGERS set。
+        ⚠️ 紀律 layer (2026-06-16 修): 即使 trigger=confirmed、若踩老師紅線
+        (紅 K 大漲 / 跳空 +3%+ / 距 MA10 > +15%) → 降級 watching、防誤 fire。
         """
         trig = d.get('trigger', 'none')
+
+        # ⏰ 時段 gate (2026-06-16 修): 09:00-12:59 強制 watching
+        # (per memory feedback_close_session_only_entry: User 6/5 痛定思痛紀律
+        #  「09:00-12:59 純觀察、13:00-13:25 才進」)
+        # 例外: 尾盤/Closing trigger 本身就只在 13:00+ 生成、不擋
+        try:
+            from datetime import datetime as _dt
+            _now = _dt.now()
+            _in_market = (_now.weekday() < 5) and (
+                (_now.hour, _now.minute) >= (9, 0) and
+                (_now.hour, _now.minute) < (13, 0)
+            )
+            _is_closing_trig = ('尾盤' in str(trig)) or ('Closing' in str(trig))
+            if _in_market and not _is_closing_trig:
+                return 'watching'
+        except Exception:
+            pass
+
+        # ⏰ R1 trigger 超時 + 走弱 dual condition 降級
+        # (2026-06-17 spec: 老師 6/16 復盤分K「10 分鐘 rule」)
+        # (2026-06-18 校正: backtest 18% 命中、改 dual 提高 specificity)
+        #
+        # 規則: confirmed trigger 10 分內未進場 AND 股價距日高 ≤ -2% → 降 watching
+        # 純超時 (但仍接近 H) = 不降、保留訊號
+        # 例外: 尾盤_confirmed / Closing_confirmed 本身有 13:05-13:25 時段限制、不適用
+        try:
+            from datetime import datetime as _dt2
+            _is_closing_t = ('尾盤' in str(trig)) or ('Closing' in str(trig))
+            if trig in _CONFIRMED_TRIGGERS and not _is_closing_t:
+                fire_t = _v1._trigger_fired_at.get(
+                    (str(item.get('ticker', '')), trig))
+                if fire_t:
+                    age_sec = (_dt2.now() - fire_t).total_seconds()
+                    if age_sec > 600:  # 10 分鐘
+                        # dual condition: 必須同時走弱才降級
+                        try:
+                            close_r1 = float(d.get('close') or 0)
+                            high_r1 = float(d.get('high') or 0)
+                            if high_r1 > 0 and close_r1 > 0:
+                                from_high = (close_r1 - high_r1) / high_r1 * 100
+                                if from_high <= -2.0:
+                                    return 'watching'  # R1 dual fired
+                        except (TypeError, ValueError):
+                            pass
+        except Exception:
+            pass
+
+        # 🚨 紀律降級 layer — 不論 trigger 為何、踩紀律就降 watching
+        # (per memory feedback_close_session_only_entry「09-13 純觀察」+
+        #  feedback_rather_miss_than_chase「寧錯過」+
+        #  老師 6/14「買綠不買紅」)
+        try:
+            open_ = float(d.get('open') or 0)
+            close_ = float(d.get('close') or 0)
+            prev_close = float(d.get('prev_close') or 0)
+            ma10 = d.get('dist_ma10')  # already as percent
+            # R11: 昨漲停 + 今開低 = 紅線 (亞翔案例「非常恐怖直接丟」、老師 6/16 line 692-703)
+            # 昨漲停 ≈ 昨日漲幅 ≥ +9.5%、今 open < prev_close = 開低
+            # 🚨 Regime gate (2026-06-18 audit): 6/17 全市場 backtest 20 檔
+            # 60% 反指標 → R11 強市時反指標、僅弱市/整理盤 active。
+            tk_ = str(item.get('ticker', ''))
+            prev_change_pct = self._yesterday_change_pct(tk_)
+            if (prev_change_pct >= 9.5 and open_ and prev_close
+                    and open_ < prev_close):
+                if self._is_weak_regime():
+                    return 'watching'  # R11 紅線降級 (弱市 active)
+                # 強市: R11 不 fire、不降級 (避免誤殺)
+            # 跳空 +3%+ (紅線 #1)
+            if open_ and prev_close and (open_ - prev_close) / prev_close * 100 >= 3:
+                return 'watching'
+            # 大紅 K 漲幅 +5%+ (老師 6/16「尾盤不大紅就可以」、+3% 不算大紅)
+            if close_ and prev_close and \
+               (close_ - prev_close) / prev_close * 100 >= 5:
+                return 'watching'
+            # 距 MA10 > +15% (per feedback_ma10_distance_conditional「嚴重」段)
+            if ma10 is not None and float(ma10) > 15:
+                return 'watching'
+        except Exception:
+            pass
+
         if trig in _CONFIRMED_TRIGGERS:
             return 'confirmed'
         if trig in _EXCLUDED_TRIGGERS:
@@ -1520,12 +1674,212 @@ class MonitorApp(App[None]):
         # 無訊號 / 未識別 trigger → 依 priority 分 (priority>=2 watch、否則 excluded)
         return 'watching' if int(item.get('priority', 1) or 1) >= 2 else 'excluded'
 
+    _yesterday_green_cache: dict[str, bool] | None = None
+    _yesterday_change_cache: dict[str, float] | None = None
+
+    def _yesterday_change_pct(self, ticker: str) -> float:
+        """昨日漲幅 % (vs 前一交易日 close)、用於 R11 紅線判讀。"""
+        try:
+            if self._yesterday_change_cache is None:
+                import sqlite3
+                from pathlib import Path
+                db = Path.home() / ".four_seasons" / "data.sqlite"
+                con = sqlite3.connect(str(db))
+                # 抓每檔最新 2 筆、算 close vs prev_close
+                rows = con.execute("""
+                    SELECT ticker, trade_date, close FROM standard_daily_bar
+                    WHERE trade_date >= (
+                        SELECT MIN(d) FROM (
+                            SELECT DISTINCT trade_date AS d FROM standard_daily_bar
+                            ORDER BY trade_date DESC LIMIT 2
+                        )
+                    )
+                    ORDER BY ticker, trade_date DESC
+                """).fetchall()
+                con.close()
+                # group by ticker、計算最新 vs 前一日
+                latest: dict[str, list] = {}
+                for tk, d, c in rows:
+                    latest.setdefault(str(tk), []).append((d, c))
+                cache = {}
+                for tk, lst in latest.items():
+                    if len(lst) >= 2:
+                        try:
+                            today_c = float(lst[0][1])
+                            prev_c = float(lst[1][1])
+                            if prev_c:
+                                cache[tk] = (today_c - prev_c) / prev_c * 100
+                        except (TypeError, ValueError):
+                            pass
+                self._yesterday_change_cache = cache
+            return self._yesterday_change_cache.get(str(ticker), 0.0)
+        except Exception:
+            return 0.0
+
+    _weak_regime_cache: tuple[str, bool] | None = None  # (date_iso, is_weak)
+
+    def _is_weak_regime(self) -> bool:
+        """判斷今日大盤是否「弱市/整理盤」。R11 gate 用。
+
+        弱市 = 三條件 OR (任一成立即 weak):
+          1. TAIEX 5d change ≤ -1%
+          2. TAIEX 距 MA20 < +1%
+          3. 最近一根 TAIEX 收綠 K (close < open)
+
+        Cache 一天、避免每 row 都查 DB。
+        強市 (三條件全否) → R11 disable、不降級。
+        """
+        try:
+            from datetime import date as _date
+            today_iso = _date.today().isoformat()
+            if (self._weak_regime_cache and
+                    self._weak_regime_cache[0] == today_iso):
+                return self._weak_regime_cache[1]
+
+            import sqlite3
+            import logging as _lg
+            from pathlib import Path
+            db = Path.home() / ".four_seasons" / "data.sqlite"
+            con = sqlite3.connect(str(db))
+            # 抓 TAIEX 最新 21 根
+            rows = con.execute(
+                "SELECT trade_date, open, close FROM standard_daily_bar "
+                "WHERE ticker='TAIEX' ORDER BY trade_date DESC LIMIT 21"
+            ).fetchall()
+            con.close()
+
+            is_weak = False
+            reasons: list[str] = []
+            if rows and len(rows) >= 1:
+                latest_open = float(rows[0][1])
+                latest_close = float(rows[0][2])
+                # cond 3: 最近一根綠 K
+                if latest_close < latest_open:
+                    is_weak = True
+                    reasons.append("最新綠K")
+                # cond 1: 5d change
+                if len(rows) >= 6:
+                    c5_ago = float(rows[5][2])
+                    if c5_ago > 0:
+                        ret5 = (latest_close / c5_ago - 1) * 100
+                        if ret5 <= -1.0:
+                            is_weak = True
+                            reasons.append(f"5d={ret5:.2f}%")
+                # cond 2: 距 MA20 < +1%
+                if len(rows) >= 20:
+                    closes20 = [float(r[2]) for r in rows[:20]]
+                    ma20 = sum(closes20) / 20
+                    if ma20 > 0:
+                        dist_ma20 = (latest_close / ma20 - 1) * 100
+                        if dist_ma20 < 1.0:
+                            is_weak = True
+                            reasons.append(f"距MA20={dist_ma20:.2f}%")
+
+            self._weak_regime_cache = (today_iso, is_weak)
+            try:
+                _lg.getLogger('zhuli.monitor').info(
+                    "[R11 regime gate] weak=%s reasons=%s",
+                    is_weak, reasons or ['(強市、R11 disable)']
+                )
+            except Exception:
+                pass
+            return is_weak
+        except Exception:
+            # DB 失敗 → 保守 default weak (R11 active、不放鬆)
+            return True
+
+    def _yesterday_green(self, ticker: str) -> str:
+        """昨日 K 線是否收綠 (台灣慣例: close < open = 綠/黑 K = 下跌)、回 ✅/❌/—。
+
+        ⚠️ 台灣 K 線:
+          - close > open → 紅 K (上漲)
+          - close < open → 綠/黑 K (下跌)
+        老師 6/16「買綠不買紅」universe = 昨日收綠 K (回測 / 守住的)、
+        不買昨日拉噴的紅 K。
+        Cache 一輪、避免每次 row 都查 DB。
+        """
+        try:
+            if self._yesterday_green_cache is None:
+                import sqlite3
+                from pathlib import Path
+                db = Path.home() / ".four_seasons" / "data.sqlite"
+                con = sqlite3.connect(str(db))
+                # 每檔抓最新一筆 (trade_date < today)
+                rows = con.execute("""
+                    SELECT stock_id, open, close FROM standard_daily_bar
+                    WHERE trade_date = (SELECT MAX(trade_date) FROM standard_daily_bar)
+                """).fetchall()
+                con.close()
+                # 台灣慣例: close < open = 綠/黑 K (下跌、老師「買綠」目標)
+                self._yesterday_green_cache = {
+                    str(r[0]): (float(r[2]) < float(r[1])) for r in rows
+                    if r[1] is not None and r[2] is not None
+                }
+            v = self._yesterday_green_cache.get(str(ticker))
+            if v is None:
+                return "—"
+            return "✅" if v else "❌"
+        except Exception:
+            return "—"
+
+    def _suggest_stage(self, ticker: str, close_: float) -> str:
+        """根據是否在 HELD 推薦 Stage。
+
+        新邏輯 (2026-06-16 校正): 老師原意是「不要盲目加碼」、不是「必須 +10%」。
+        漏斗篩選通過 = 任何盤、任何浮虧/浮盈狀態都可加。
+
+        - 未持有 → Stage 1 (1 張試水)
+        - 持有 → Stage 2 (可加、但前提是漏斗過 = trigger confirmed / 老師明示 / 三軸 OK)
+          顯示浮盈% 供 user 拍板、不再用 +10% 卡死
+        """
+        try:
+            import live_position_monitor as _v1
+            held = _v1.HELD if hasattr(_v1, 'HELD') else []
+            held_item = next((h for h in held if str(h.get('ticker')) == ticker), None)
+            if held_item is None:
+                return "1️⃣ 試水"
+            cost = float(held_item.get('cost') or 0)
+            if not cost or not close_:
+                return "2️⃣ 加碼"
+            pnl_pct = (float(close_) - cost) / cost * 100
+            return f"2️⃣ 加碼 ({pnl_pct:+.0f}%)"
+        except Exception:
+            return "—"
+
+    def _watch_sort_key(self, item: dict) -> tuple:
+        """排序 key: 老師明示族群 + 條件符合 → 前面、自選 → 後面。
+
+        老師 6/16 line: 「都是去看昨天綠的」「尾盤判斷不要是大紅就可以」
+        → 優先級依序:
+          1. source 含「老師明示」/「雙重背書」/「三重」/「戰略級」→ 0 (top)
+          2. priority >= 3 ⭐⭐⭐ → 1
+          3. priority == 2 ⭐⭐ → 2
+          4. 其他 (scanner-merged / 自選 / priority < 2) → 3 (bottom)
+        次序: 同 group 內按 ticker
+        """
+        src = str(item.get('source', ''))
+        is_teacher = any(kw in src for kw in (
+            '老師明示', '雙重背書', '三重', '戰略級', '本週錢', '本週融資'
+        ))
+        pri = int(item.get('priority', 1) or 1)
+        if is_teacher:
+            grp = 0
+        elif pri >= 3:
+            grp = 1
+        elif pri == 2:
+            grp = 2
+        else:
+            grp = 3
+        return (grp, str(item.get('ticker', '')))
+
     def _refresh_watch_table(self, table_id: str, items: list[dict], ld: dict,
                               tab_id: str | None = None) -> None:
         dt: DataTable = self.query_one(f"#{table_id}", DataTable)
         saved_cursor, saved_scroll = self._save_table_state(dt)
         if self.search_term:
             items = [i for i in items if self._match_search(i)]
+        # 排序: 老師明示族群在前、自選/scanner-merged 在後
+        items = sorted(items, key=self._watch_sort_key)
         if tab_id:
             items = self._paginate(items, tab_id)
         dt.clear()
@@ -1548,7 +1902,9 @@ class MonitorApp(App[None]):
             prev_close = d.get('prev_close', 0)
             gap_str  = self._fmt_gap(open_, prev_close)
             price_str = self._fmt_price(close_, prev_close)
-            row = (tk, stars, name, tactic, gap_str, price_str, vol,
+            stage_str = self._suggest_stage(tk, close_)
+            y_green = self._yesterday_green(tk)
+            row = (tk, stars, name, tactic, stage_str, y_green, gap_str, price_str, vol,
                    dist_str, sector, source, trig)
             dt.add_row(*row, key=tk)
         self._restore_table_state(dt, saved_cursor, saved_scroll)
@@ -1912,6 +2268,12 @@ class MonitorApp(App[None]):
         state = "ON" if self.show_failed else "OFF"
         self.notify(f"[f:{state}] 顯示失敗 {'開啟' if self.show_failed else '關閉'}")
 
+    def action_toggle_dosox_tf(self) -> None:
+        """WS-4: 當沖 K 顆粒 2分 ↔ 3分 切換 (細看盤中)。"""
+        self.dosox_tf = 2 if self.dosox_tf == 3 else 3
+        self._update_detail_panel()
+        self.notify(f"[k] 當沖 K 顆粒 → {self.dosox_tf} 分 K")
+
     def action_pin_add(self) -> None:
         self.push_screen(PinDialog("Pin 標的 (加入)"),
                          callback=self._on_pin_add_result)
@@ -2180,7 +2542,15 @@ def main():
                    help="Demo 模式 (mock client + 36 scenarios)")
     p.add_argument("--interval", type=float, default=5.0,
                    help="Demo auto-cycle 秒 (預設 5)")
+    p.add_argument("--held-only", action="store_true",
+                   help="只跑 HELD (~6 檔) 不跑 WATCH/scanner (~120 檔)。"
+                        "home 跑此模式減 API 量、讓 office 跑完整 monitor "
+                        "(共用 Fugle key、避免 429)")
     args = p.parse_args()
+    # held-only via env (兼容)
+    if not args.held_only and __import__("os").environ.get(
+            "MONITOR_HELD_ONLY") == "1":
+        args.held_only = True
 
     # spec R-MON 護欄：非 demo 模式必須有今日 DB（防 6/12 office 6/8 殭屍）
     if not args.demo:
@@ -2222,7 +2592,7 @@ def main():
         app.run()
     else:
         client = _build_real_client()
-        app = MonitorApp(client=client)
+        app = MonitorApp(client=client, held_only=args.held_only)
         app.run()
 
 

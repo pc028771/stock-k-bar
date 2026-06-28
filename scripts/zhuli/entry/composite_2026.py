@@ -10,6 +10,8 @@
   2. **籌碼共識** — foreign_lead 任一 (v06/v07/v08/v15) 或 institutional_swing 命中
   3. **大盤 regime gate** — TAIEX 20d return ≥ -10%（排除殺盤期）
   4. **位階不過熱** — 距 MA60 < +30%（避免追飆股末端）
+     ⚠️ 課程外條件、**預設 OFF**（overheat_ma60_gate=False）：實證誤殺低基期綠 K
+     （2026-06 大毅/智寶/聯電/大立光 被擋卻噴 +20~58%）。老師位階用 MA10/MA20、非 MA60。
   5. **last-mile 外資不轉空** — 近 2 天外資累計 ≥ -500 張（per memory
      feedback_chip_trend_not_aggregate「last-mile 比 aggregate 重要」、
      避免「籌碼累積但 last-mile 主力撤」假訊號）
@@ -122,10 +124,19 @@ def check_inst_swing_hit(
 def detect(
     target_date: str,
     db_path: Path = MAIN_DB,
+    overheat_ma60_gate: bool = False,
 ) -> list[dict]:
     """掃指定日期、回傳 composite_2026 命中清單.
 
     每個命中 = 4 條 stack 全過 + 標 metadata.
+
+    overheat_ma60_gate: 距 MA60 > +30% 過熱 hard exclude。**預設 OFF (課程外條件)。**
+      此 gate 無課程依據 (老師位階用 MA10/MA20、不是 MA60)、且實證會誤殺低基期綠 K：
+      2026-06 老師明示標的 2478 大毅(+58.6%)/2375 智寶(+46%)/2303 聯電(+20.7%)/
+      3008 大立光(+50.2%) 在點名當週距 MA60 全 > 30% 被擋、卻正是漲最多的。
+      低基期股剛突破長期盤整 → close 遠離仍貼低檔的慢均線 MA60 → 距 MA60 爆衝、
+      被誤判成「飆股末端」。dist_ma60 仍會算出來放進 metadata、只是預設不拿來剔除。
+      來源: docs/主力大課程/stop_review/2026-06_skip對帳.md、feedback_reflex_skip_pattern Pattern 4。
     """
     teacher_universe = load_teacher_universe()
     if not teacher_universe:
@@ -171,8 +182,8 @@ def detect(
                 continue
             close_, ma60 = bar
             dist_ma60 = (close_ - ma60) / ma60 * 100
-            if dist_ma60 > 30:
-                continue  # 距 MA60 > +30%、過熱
+            if overheat_ma60_gate and dist_ma60 > 30:
+                continue  # 課程外 gate、預設 OFF (誤殺低基期綠 K、見 docstring)
 
             # ⭐ Condition 5: last-mile 外資不轉空 (近 2 個 trading 日累計 ≥ -500)
             # per memory feedback_chip_trend_not_aggregate
