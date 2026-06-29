@@ -15,14 +15,15 @@ sys.path.insert(0, "scripts")
 from zhuli.db import MAIN_DB  # noqa: E402
 
 # 老師講課/文章提過的重要分點 (reference_broker_aliases)
+# nature: 短沖=見開高分批停利不抱波段 / 波段=收貨守均線抱 / 自營=性質介紹非訊號
 TEACHER_BROKERS = {
-    "920F": "凱基站前 站前哥🥇",
-    "984K": "元大館前 館前哥🥈",
-    "982C": "元大六合",
-    "962A": "富邦南港",
-    "9A9q": "永豐潮州 戰隊",
-    "9A69": "永豐屏東 戰隊",
-    "7030": "致和(自營/性質介紹非訊號)",
+    "920F": ("凱基站前 站前哥🥇", "🔴短沖→分批停利、別抱波段"),
+    "984K": ("元大館前 館前哥🥈", "🟢波段收貨→守均線抱"),
+    "982C": ("元大六合", "🟢波段收貨"),
+    "962A": ("富邦南港", "🟢波段收貨"),
+    "9A9q": ("永豐潮州 戰隊", "🟡戰隊"),
+    "9A69": ("永豐屏東 戰隊", "🟡戰隊"),
+    "7030": ("致和", "⚪自營/性質介紹非訊號"),
 }
 
 
@@ -38,7 +39,7 @@ def run(date: str, min_lots: int = 80, topn: int = 8):
     if tok:
         api.login_by_token(api_token=tok)
     c = sqlite3.connect(str(MAIN_DB))
-    for bid, name in TEACHER_BROKERS.items():
+    for bid, (name, nature) in TEACHER_BROKERS.items():
         try:
             df = api.taiwan_stock_trading_daily_report(securities_trader_id=bid, date=date)
         except Exception as e:
@@ -53,6 +54,7 @@ def run(date: str, min_lots: int = 80, topn: int = 8):
         g = g[~g["stock_id"].astype(str).apply(_is_etf)]  # 排 ETF
         top = g[g["net"] >= min_lots].nlargest(topn, "net")
         print(f"\n=== {name} ({bid}) {date} 淨買超個股 top{topn} (≥{min_lots}張、排ETF) ===")
+        print(f"    性質: {nature}")
         if not len(top):
             print("  (無明顯個股買超)")
         for row in top.itertuples():

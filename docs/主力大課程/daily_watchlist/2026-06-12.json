@@ -1,8 +1,8 @@
 {
   "date": "2026-06-12",
-  "generated_at": "2026-06-13T13:51:17",
-  "taiex_pct": -1.68,
-  "market_5d_ret": 4.68,
+  "generated_at": "2026-06-18T23:52:09",
+  "taiex_pct": 2.36,
+  "market_5d_ret": -2.0,
   "regime": "bull",
   "candidates": [
     {
@@ -17,6 +17,19 @@
       "ref_close": 4180.0,
       "dist_ma10_pct": -3.5,
       "note": "⭐ Tier-B + 小結構"
+    },
+    {
+      "ticker": "3042",
+      "name": "晶技",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 3,
+      "sector": "被動元件/石英",
+      "tactic": "短打",
+      "ref_close": 224.5,
+      "dist_ma10_pct": 3.8,
+      "note": "⭐ Tier-B"
     },
     {
       "ticker": "3105",
@@ -243,20 +256,6 @@
       "note": "W底"
     },
     {
-      "ticker": "2382",
-      "name": "廣達",
-      "sources": [
-        "post_attack_watchlist",
-        "small_structure"
-      ],
-      "priority": 2,
-      "sector": "ABF載板/PCB/散熱",
-      "tactic": "觀察",
-      "ref_close": 372.0,
-      "dist_ma10_pct": -3.6,
-      "note": "小結構 + 攻擊後盤整"
-    },
-    {
       "ticker": "2383",
       "name": "台光電",
       "sources": [
@@ -283,6 +282,19 @@
       "note": "MA5 Pivot"
     },
     {
+      "ticker": "2406",
+      "name": "國碩",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "光電業",
+      "tactic": "短打",
+      "ref_close": 39.0,
+      "dist_ma10_pct": 7.1,
+      "note": ""
+    },
+    {
       "ticker": "2467",
       "name": "志聖",
       "sources": [
@@ -294,6 +306,19 @@
       "ref_close": 552.0,
       "dist_ma10_pct": -5.2,
       "note": "小結構"
+    },
+    {
+      "ticker": "2484",
+      "name": "希華",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "石英",
+      "tactic": "短打",
+      "ref_close": 66.7,
+      "dist_ma10_pct": 18.1,
+      "note": ""
     },
     {
       "ticker": "2885",
@@ -343,7 +368,7 @@
         "uniform_ma_above"
       ],
       "priority": 2,
-      "sector": "低軌衛星/光通訊/CPO",
+      "sector": "低軌衛星/光通訊/CPO/光學",
       "tactic": "觀察",
       "ref_close": 4020.0,
       "dist_ma10_pct": 3.3,
@@ -379,6 +404,7 @@
       "ticker": "3090",
       "name": "日電貿",
       "sources": [
+        "intraday",
         "w_bottom_launch"
       ],
       "priority": 2,
@@ -400,19 +426,6 @@
       "ref_close": 221.0,
       "dist_ma10_pct": 15.7,
       "note": "W底"
-    },
-    {
-      "ticker": "3231",
-      "name": "緯創",
-      "sources": [
-        "small_structure"
-      ],
-      "priority": 2,
-      "sector": "PCB/散熱",
-      "tactic": "短打",
-      "ref_close": 156.0,
-      "dist_ma10_pct": -8.3,
-      "note": "小結構"
     },
     {
       "ticker": "3322",
@@ -439,6 +452,19 @@
       "ref_close": 22.6,
       "dist_ma10_pct": -3.2,
       "note": "W底"
+    },
+    {
+      "ticker": "3624",
+      "name": "光頡",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "被動元件",
+      "tactic": "短打",
+      "ref_close": 118.0,
+      "dist_ma10_pct": 5.5,
+      "note": ""
     },
     {
       "ticker": "3711",
@@ -481,6 +507,32 @@
       "note": "W底"
     },
     {
+      "ticker": "5328",
+      "name": "華容",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子零組件業",
+      "tactic": "短打",
+      "ref_close": 42.35,
+      "dist_ma10_pct": 3.7,
+      "note": ""
+    },
+    {
+      "ticker": "5351",
+      "name": "鈺創",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "半導體業",
+      "tactic": "短打",
+      "ref_close": 88.7,
+      "dist_ma10_pct": 1.0,
+      "note": ""
+    },
+    {
       "ticker": "6121",
       "name": "新普",
       "sources": [
@@ -494,6 +546,32 @@
       "note": "均線全順向"
     },
     {
+      "ticker": "6155",
+      "name": "鈞寶",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子工業",
+      "tactic": "短打",
+      "ref_close": 82.0,
+      "dist_ma10_pct": 6.7,
+      "note": ""
+    },
+    {
+      "ticker": "6173",
+      "name": "信昌電",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "被動元件",
+      "tactic": "短打",
+      "ref_close": 276.5,
+      "dist_ma10_pct": 18.4,
+      "note": "🔥 Tier-A"
+    },
+    {
       "ticker": "6202",
       "name": "盛群",
       "sources": [
@@ -505,6 +583,19 @@
       "ref_close": 59.4,
       "dist_ma10_pct": 7.0,
       "note": "W底"
+    },
+    {
+      "ticker": "6244",
+      "name": "茂迪",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "光電業",
+      "tactic": "短打",
+      "ref_close": 31.1,
+      "dist_ma10_pct": 4.3,
+      "note": ""
     },
     {
       "ticker": "6465",
@@ -664,6 +755,32 @@
       "note": "W底"
     },
     {
+      "ticker": "8112",
+      "name": "至上",
+      "sources": [
+        "intraday"
+      ],
+      "priority": 2,
+      "sector": "電子工業",
+      "tactic": "短打",
+      "ref_close": 98.8,
+      "dist_ma10_pct": 6.1,
+      "note": ""
+    },
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "sources": [
+        "foreign_lead_v12_skip"
+      ],
+      "priority": 2,
+      "sector": "運動休閒",
+      "tactic": "短打",
+      "ref_close": 75.4,
+      "dist_ma10_pct": null,
+      "note": ""
+    },
+    {
       "ticker": "2883",
       "name": "凱基金",
       "sources": [
@@ -674,6 +791,19 @@
       "tactic": "觀察",
       "ref_close": 27.45,
       "dist_ma10_pct": 3.2148900169204757,
+      "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "4938",
+      "name": "和碩",
+      "sources": [
+        "post_attack_watchlist"
+      ],
+      "priority": 1,
+      "sector": "光學",
+      "tactic": "觀察",
+      "ref_close": 93.1,
+      "dist_ma10_pct": -2.195608782435133,
       "note": "攻擊後盤整"
     },
     {
@@ -740,6 +870,39 @@
       "ref_close": 26.85,
       "dist_ma10_pct": -0.24150102173509666,
       "note": "攻擊後盤整"
+    },
+    {
+      "ticker": "2382",
+      "name": "廣達",
+      "sources": [
+        "post_attack_watchlist",
+        "small_structure"
+      ],
+      "priority": 0,
+      "sector": "ABF載板/PCB/散熱",
+      "tactic": "觀察",
+      "ref_close": 372.0,
+      "dist_ma10_pct": -3.6,
+      "note": "⛔ 老師 6/14 明說「晚了」、小結構 + 攻擊後盤整",
+      "teacher_skip": true,
+      "teacher_skip_reason": "晚了",
+      "teacher_skip_quote": "同族群、早一根進會更舒服"
+    },
+    {
+      "ticker": "3231",
+      "name": "緯創",
+      "sources": [
+        "small_structure"
+      ],
+      "priority": 0,
+      "sector": "PCB/散熱",
+      "tactic": "短打",
+      "ref_close": 156.0,
+      "dist_ma10_pct": -8.3,
+      "note": "⛔ 老師 6/14 明說「晚了」、小結構",
+      "teacher_skip": true,
+      "teacher_skip_reason": "晚了",
+      "teacher_skip_quote": "「2317 拉完、不追；同族群 3231 緯創若早一根進會更舒服」"
     }
   ],
   "leaders": [
@@ -851,7 +1014,7 @@
       "dif_60m": 2.923,
       "dif_60m_chg_1d": 0.98,
       "dif_60m_trend": "up",
-      "sector": "電子零組件業"
+      "sector": "石英"
     },
     {
       "ticker": "6173",
@@ -939,7 +1102,7 @@
       "dif_60m": 4.194,
       "dif_60m_chg_1d": 2.742,
       "dif_60m_trend": "up",
-      "sector": "電子零組件業"
+      "sector": "被動元件"
     },
     {
       "ticker": "4556",
@@ -1115,7 +1278,7 @@
       "dif_60m": 101.016,
       "dif_60m_chg_1d": 38.982,
       "dif_60m_trend": "up",
-      "sector": "半導體業"
+      "sector": "玻璃設備"
     },
     {
       "ticker": "6870",
@@ -1467,7 +1630,7 @@
       "dif_60m": 0.798,
       "dif_60m_chg_1d": 3.248,
       "dif_60m_trend": "up",
-      "sector": "電子通路業"
+      "sector": "記憶體"
     },
     {
       "ticker": "6821",
@@ -7626,6 +7789,2353 @@
       "dif_60m_chg_1d": 3.029,
       "dif_60m_trend": "up",
       "sector": "電子零組件業"
+    }
+  ],
+  "setups": [
+    {
+      "ticker": "1201",
+      "name": "味全",
+      "sector": "食品工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1307",
+      "name": "三芳",
+      "sector": "塑膠工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1434",
+      "name": "福懋",
+      "sector": "紡織纖維",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1446",
+      "name": "宏和",
+      "sector": "紡織纖維",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1455",
+      "name": "集盛",
+      "sector": "紡織纖維",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1466",
+      "name": "聚隆",
+      "sector": "紡織纖維",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1529",
+      "name": "樂事綠能",
+      "sector": "電機機械",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "1529",
+      "name": "樂事綠能",
+      "sector": "電機機械",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "1537",
+      "name": "廣隆",
+      "sector": "電機機械",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "1626",
+      "name": "艾美特-KY",
+      "sector": "電器電纜",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1707",
+      "name": "葡萄王",
+      "sector": "生技醫療業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1713",
+      "name": "國化",
+      "sector": "化學生技醫療",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "1714",
+      "name": "和桐",
+      "sector": "化學生技醫療",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "1722",
+      "name": "台肥",
+      "sector": "化學生技醫療",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "1723",
+      "name": "中碳",
+      "sector": "化學生技醫療",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "1773",
+      "name": "勝一",
+      "sector": "特化",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "1907",
+      "name": "永豐餘",
+      "sector": "造紙工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "1909",
+      "name": "榮成",
+      "sector": "造紙工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "1909",
+      "name": "榮成",
+      "sector": "造紙工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2006",
+      "name": "東和鋼鐵",
+      "sector": "鋼鐵工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2010",
+      "name": "春源",
+      "sector": "鋼鐵工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2010",
+      "name": "春源",
+      "sector": "鋼鐵工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2015",
+      "name": "豐興",
+      "sector": "鋼鐵工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2027",
+      "name": "大成鋼",
+      "sector": "鋼鐵工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2034",
+      "name": "允強",
+      "sector": "鋼鐵工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2062",
+      "name": "橋椿",
+      "sector": "居家生活",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2062",
+      "name": "橋椿",
+      "sector": "居家生活",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2101",
+      "name": "南港",
+      "sector": "橡膠工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2107",
+      "name": "厚生",
+      "sector": "橡膠工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2243",
+      "name": "宏旭-KY",
+      "sector": "汽車工業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "2247",
+      "name": "汎德永業",
+      "sector": "汽車工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2247",
+      "name": "汎德永業",
+      "sector": "汽車工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2248",
+      "name": "華勝-KY",
+      "sector": "汽車工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2302",
+      "name": "麗正",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2303",
+      "name": "聯電",
+      "sector": "IC設計/成熟製程",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2303",
+      "name": "聯電",
+      "sector": "IC設計/成熟製程",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2305",
+      "name": "全友",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2344",
+      "name": "華邦電",
+      "sector": "記憶體",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2355",
+      "name": "敬鵬",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2355",
+      "name": "敬鵬",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2375",
+      "name": "凱美",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2375",
+      "name": "凱美",
+      "sector": "被動元件",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2401",
+      "name": "凌陽",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2401",
+      "name": "凌陽",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2404",
+      "name": "漢唐",
+      "sector": "主流設備/廠務設備",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2406",
+      "name": "國碩",
+      "sector": "光電業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "2406",
+      "name": "國碩",
+      "sector": "光電業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2413",
+      "name": "環科",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2476",
+      "name": "鉅祥",
+      "sector": "連接器",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2491",
+      "name": "吉祥全",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2616",
+      "name": "山隆",
+      "sector": "油電燃氣業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2618",
+      "name": "長榮航",
+      "sector": "航運業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2634",
+      "name": "漢翔",
+      "sector": "航太國防",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2636",
+      "name": "台驊控股",
+      "sector": "航運業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2637",
+      "name": "慧洋-KY",
+      "sector": "航運業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2705",
+      "name": "六福",
+      "sector": "觀光餐旅",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2705",
+      "name": "六福",
+      "sector": "觀光餐旅",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2707",
+      "name": "晶華",
+      "sector": "觀光餐旅",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2723",
+      "name": "美食-KY",
+      "sector": "觀光餐旅",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2723",
+      "name": "美食-KY",
+      "sector": "觀光餐旅",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2727",
+      "name": "王品",
+      "sector": "觀光餐旅",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "2727",
+      "name": "王品",
+      "sector": "觀光餐旅",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2753",
+      "name": "八方雲集",
+      "sector": "觀光餐旅",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "2753",
+      "name": "八方雲集",
+      "sector": "觀光餐旅",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2801",
+      "name": "彰銀",
+      "sector": "金融保險",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2832",
+      "name": "台產",
+      "sector": "金融保險",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2851",
+      "name": "中再保",
+      "sector": "金融保險",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "2852",
+      "name": "第一保",
+      "sector": "金融保險",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2867",
+      "name": "三商壽",
+      "sector": "金融保險",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2882",
+      "name": "國泰金",
+      "sector": "金融保險",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2887",
+      "name": "台新新光金",
+      "sector": "金融保險",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2890",
+      "name": "永豐金",
+      "sector": "金融保險",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "2890",
+      "name": "永豐金",
+      "sector": "金融保險",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "2915",
+      "name": "潤泰全",
+      "sector": "貿易百貨",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "3004",
+      "name": "豐達科",
+      "sector": "鋼鐵工業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "3022",
+      "name": "威強電",
+      "sector": "工業電腦",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "3026",
+      "name": "禾伸堂",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3060",
+      "name": "銘異",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3071",
+      "name": "協禧",
+      "sector": "電腦及週邊設備業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3105",
+      "name": "穩懋",
+      "sector": "低軌衛星/光通訊/CPO",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3105",
+      "name": "穩懋",
+      "sector": "低軌衛星/光通訊/CPO",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3213",
+      "name": "茂訊",
+      "sector": "電腦及週邊設備業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3236",
+      "name": "千如",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3264",
+      "name": "欣銓",
+      "sector": "封測",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3264",
+      "name": "欣銓",
+      "sector": "封測",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3322",
+      "name": "建舜電",
+      "sector": "連接器",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "3357",
+      "name": "臺慶科",
+      "sector": "被動元件",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3390",
+      "name": "旭軟",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3402",
+      "name": "漢科",
+      "sector": "廠務設備",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3479",
+      "name": "安勤",
+      "sector": "工業電腦",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3527",
+      "name": "聚積",
+      "sector": "面板",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3550",
+      "name": "聯穎",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3558",
+      "name": "神準",
+      "sector": "通信網路業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3617",
+      "name": "碩天",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3617",
+      "name": "碩天",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3624",
+      "name": "光頡",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3652",
+      "name": "精聯",
+      "sector": "電腦及週邊設備業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "3672",
+      "name": "康聯訊",
+      "sector": "通信網路業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "3684",
+      "name": "榮昌",
+      "sector": "通信網路業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4127",
+      "name": "天良",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4162",
+      "name": "智擎",
+      "sector": "生技醫療業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4164",
+      "name": "承業醫",
+      "sector": "生技醫療業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "4175",
+      "name": "杏一",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4205",
+      "name": "中華食",
+      "sector": "食品工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "4306",
+      "name": "炎洲",
+      "sector": "塑膠工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "4536",
+      "name": "拓凱",
+      "sector": "運動休閒",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4541",
+      "name": "晟田",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "4551",
+      "name": "智伸科",
+      "sector": "汽車工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4556",
+      "name": "旭然",
+      "sector": "其他",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "4735",
+      "name": "豪展",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4741",
+      "name": "泓瀚",
+      "sector": "化學工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4763",
+      "name": "材料*-KY",
+      "sector": "化學工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4766",
+      "name": "南寶",
+      "sector": "特化",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4766",
+      "name": "南寶",
+      "sector": "特化",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4923",
+      "name": "力士",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4934",
+      "name": "太極",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4934",
+      "name": "太極",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4952",
+      "name": "凌通",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4952",
+      "name": "凌通",
+      "sector": "半導體業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4958",
+      "name": "臻鼎-KY",
+      "sector": "ABF載板/CCL材料/PCB",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "4958",
+      "name": "臻鼎-KY",
+      "sector": "ABF載板/CCL材料/PCB",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "4973",
+      "name": "廣穎",
+      "sector": "半導體業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5009",
+      "name": "榮剛",
+      "sector": "鋼鐵工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5203",
+      "name": "訊連",
+      "sector": "資訊服務業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5209",
+      "name": "新鼎",
+      "sector": "其他",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5274",
+      "name": "信驊",
+      "sector": "BMC/IC設計",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5278",
+      "name": "尚凡*",
+      "sector": "數位雲端類",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5288",
+      "name": "豐祥-KY",
+      "sector": "電機機械",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "5288",
+      "name": "豐祥-KY",
+      "sector": "電機機械",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5345",
+      "name": "馥鴻",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "5347",
+      "name": "世界",
+      "sector": "功率元件/成熟製程",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5351",
+      "name": "鈺創",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5356",
+      "name": "協益",
+      "sector": "電腦及週邊設備業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5403",
+      "name": "中菲",
+      "sector": "資訊服務業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "5410",
+      "name": "國眾",
+      "sector": "資訊服務業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "5410",
+      "name": "國眾",
+      "sector": "資訊服務業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5425",
+      "name": "台半",
+      "sector": "功率元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5434",
+      "name": "崇越",
+      "sector": "CCL材料/特化/矽晶圓",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5434",
+      "name": "崇越",
+      "sector": "CCL材料/特化/矽晶圓",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5469",
+      "name": "瀚宇博",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5469",
+      "name": "瀚宇博",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5471",
+      "name": "松翰",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5483",
+      "name": "中美晶",
+      "sector": "功率元件/矽晶圓",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "5608",
+      "name": "四維航",
+      "sector": "航運業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "5608",
+      "name": "四維航",
+      "sector": "航運業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5706",
+      "name": "鳳凰",
+      "sector": "觀光餐旅",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "5904",
+      "name": "寶雅",
+      "sector": "居家生活類",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "5904",
+      "name": "寶雅",
+      "sector": "居家生活類",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6121",
+      "name": "新普",
+      "sector": "BBU",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6121",
+      "name": "新普",
+      "sector": "BBU",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6133",
+      "name": "金橋",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6133",
+      "name": "金橋",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6173",
+      "name": "信昌電",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6174",
+      "name": "安碁",
+      "sector": "電子零組件業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "6174",
+      "name": "安碁",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6182",
+      "name": "合晶",
+      "sector": "功率元件/矽晶圓",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6196",
+      "name": "帆宣",
+      "sector": "主流設備/廠務設備",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6204",
+      "name": "艾華",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6244",
+      "name": "茂迪",
+      "sector": "光電業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6257",
+      "name": "矽格",
+      "sector": "封測",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6257",
+      "name": "矽格",
+      "sector": "封測",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6265",
+      "name": "方土昶",
+      "sector": "電子通路業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6265",
+      "name": "方土昶",
+      "sector": "電子通路業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6269",
+      "name": "台郡",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6281",
+      "name": "全國電",
+      "sector": "電子通路業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6411",
+      "name": "晶焱",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6443",
+      "name": "元晶",
+      "sector": "低軌衛星",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6443",
+      "name": "元晶",
+      "sector": "低軌衛星",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6449",
+      "name": "鈺邦",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6488",
+      "name": "環球晶",
+      "sector": "功率元件/矽晶圓",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6494",
+      "name": "九齊",
+      "sector": "半導體業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6548",
+      "name": "長科*",
+      "sector": "功率元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6576",
+      "name": "逸達",
+      "sector": "生技醫療業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6585",
+      "name": "鼎基",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6589",
+      "name": "台康生技",
+      "sector": "生技醫療業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6589",
+      "name": "台康生技",
+      "sector": "生技醫療業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6612",
+      "name": "奈米醫材",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6613",
+      "name": "朋億*",
+      "sector": "主流設備/廠務設備",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "6613",
+      "name": "朋億*",
+      "sector": "主流設備/廠務設備",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6617",
+      "name": "共信-KY",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6625",
+      "name": "必應",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6654",
+      "name": "天正國際",
+      "sector": "其他電子類",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6670",
+      "name": "復盛應用",
+      "sector": "運動休閒",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "6672",
+      "name": "騰輝電子-KY",
+      "sector": "低軌衛星",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6672",
+      "name": "騰輝電子-KY",
+      "sector": "低軌衛星",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6757",
+      "name": "台灣虎航",
+      "sector": "航運業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6804",
+      "name": "明係",
+      "sector": "運動休閒類",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6821",
+      "name": "聯寶",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6821",
+      "name": "聯寶",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6834",
+      "name": "天二科技",
+      "sector": "被動元件",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "6931",
+      "name": "青松健康",
+      "sector": "生技醫療業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "6944",
+      "name": "兆聯實業",
+      "sector": "主流設備/廠務設備",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6968",
+      "name": "萬達寵物",
+      "sector": "居家生活類",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "6996",
+      "name": "力領科技",
+      "sector": "半導體業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "7744",
+      "name": "崴寶",
+      "sector": "電子零組件業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "7744",
+      "name": "崴寶",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "7749",
+      "name": "意騰-KY",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "7777",
+      "name": "能率亞洲",
+      "sector": "其他",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "7777",
+      "name": "能率亞洲",
+      "sector": "其他",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "7780",
+      "name": "大研生醫*",
+      "sector": "食品工業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "7788",
+      "name": "松川精密",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8039",
+      "name": "台虹",
+      "sector": "電子零組件業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8096",
+      "name": "擎亞",
+      "sector": "記憶體",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8097",
+      "name": "常珵",
+      "sector": "通信網路業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8112",
+      "name": "至上",
+      "sector": "電子工業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "8112",
+      "name": "至上",
+      "sector": "電子工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8121",
+      "name": "越峰",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8131",
+      "name": "福懋科",
+      "sector": "電子工業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8150",
+      "name": "南茂",
+      "sector": "封測/記憶體",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8150",
+      "name": "南茂",
+      "sector": "封測/記憶體",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8163",
+      "name": "達方",
+      "sector": "電腦及週邊設備業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8182",
+      "name": "加高",
+      "sector": "電子零組件業",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "8182",
+      "name": "加高",
+      "sector": "電子零組件業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8404",
+      "name": "百和興業-KY",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "8404",
+      "name": "百和興業-KY",
+      "sector": "其他",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8415",
+      "name": "大國鋼",
+      "sector": "鋼鐵工業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8436",
+      "name": "大江",
+      "sector": "生技醫療業",
+      "setup_id": "F3",
+      "setup_name": "F+ 殺盤+反轉型",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+9.75%/n=36/持3.3d"
+    },
+    {
+      "ticker": "8462",
+      "name": "柏文",
+      "sector": "運動休閒",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "8462",
+      "name": "柏文",
+      "sector": "運動休閒",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8464",
+      "name": "億豐",
+      "sector": "居家生活",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "8926",
+      "name": "台汽電",
+      "sector": "油電燃氣業",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "8927",
+      "name": "北基",
+      "sector": "油電燃氣業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "9914",
+      "name": "美利達",
+      "sector": "運動休閒",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "9917",
+      "name": "中保科",
+      "sector": "其他",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "sector": "運動休閒",
+      "setup_id": "F1",
+      "setup_name": "F+ 殺盤+健康回檔",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "81%/+19.48%/n=21/持5.4d"
+    },
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "sector": "運動休閒",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "sector": "運動休閒",
+      "setup_id": "F4",
+      "setup_name": "F+ 殺盤+5mK<30",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "80%/+12.16%/n=25/持4.7d"
+    },
+    {
+      "ticker": "9943",
+      "name": "好樂迪",
+      "sector": "觀光餐旅",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    },
+    {
+      "ticker": "9949",
+      "name": "琉園",
+      "sector": "文化創意業",
+      "setup_id": "F2",
+      "setup_name": "F+ 殺盤+streak11+",
+      "regime": "strong_bull",
+      "exit": "kline_playbook",
+      "perf": "82%/+18.44%/n=33/持4.5d"
+    }
+  ],
+  "regime_info": {
+    "anchor_date": "2026-06-12",
+    "target_date": "2026-06-12",
+    "stale_days": 0,
+    "taiex_ret5": -2.0,
+    "taiex_ret20": 7.28,
+    "taiex_ret60": 30.54,
+    "taiex_range60_pct": 37.91,
+    "stale_warning": false,
+    "regime_class": "strong_bull"
+  },
+  "skip_warnings": [
+    {
+      "ticker": "9921",
+      "name": "巨大",
+      "reason": "v12 外資+投信背離",
+      "note": "外資買但投信背離大賣 = 訊號模糊、不進場 (背離反向訊號)",
+      "evidence": "2024 backtest WR 24.9% (n=197 / 102 ticker / 10 month) = 三維達標反向訊號"
+    },
+    {
+      "ticker": "2317",
+      "name": "",
+      "reason": "老師 6/14: 拉完、不追",
+      "note": "「盤整啊、這就拉完了。」(Q7 直播 01:11:00)",
+      "evidence": "老師直播明說、teacher_skip_20260614.json"
+    },
+    {
+      "ticker": "3231",
+      "name": "",
+      "reason": "老師 6/14: 晚了",
+      "note": "「2317 拉完、不追；同族群 3231 緯創若早一根進會更舒服」",
+      "evidence": "老師直播明說、teacher_skip_20260614.json"
+    },
+    {
+      "ticker": "2382",
+      "name": "",
+      "reason": "老師 6/14: 晚了",
+      "note": "同族群、早一根進會更舒服",
+      "evidence": "老師直播明說、teacher_skip_20260614.json"
+    },
+    {
+      "ticker": "4956",
+      "name": "",
+      "reason": "老師 6/14: ticker 可能誤、應為 2382 廣達",
+      "note": "",
+      "evidence": "老師直播明說、teacher_skip_20260614.json"
+    },
+    {
+      "ticker": "3706",
+      "name": "",
+      "reason": "老師 6/14: 拉完了",
+      "note": "「神達」（拉完了）",
+      "evidence": "老師直播明說、teacher_skip_20260614.json"
     }
   ]
 }
