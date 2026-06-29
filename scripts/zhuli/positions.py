@@ -105,8 +105,7 @@ HELD = [
         'tactic': '黃大消息單', 'priority': 3,
         'source': '黃大直接消息 6/29 (65%權重)、黃大$62.5買、user$62.3×3張',
         'sector': '功率/被動 (黃大標的)',
-        'note': '⚠️外部消息單(feedback_external_news_trade_category): 不評entry紅線、只技術派exit。黃大thesis: 盤整完畢 + 60m DIF快轉正(-0.01往上)。盤整區$58.7-66(6/16-26兩週)、今開$60.7殺$58.8(插破盤整下緣)拉回$62.3。stop $58.7(收盤跌破盤整下緣/6/24低 = 盤整沒完畢往上、thesis破)。黃大法本質: DIF=他選好股後的進出timing扳機、真edge在他隱藏的產業分析選股(know-how沒公開)、跟的是他「選股+timing」整套非裸DIF→無法獨立驗證選股、守stop是保護。3張~$187k/5.8%。
-🔵管理階梯(user 6/29定、黃大通常抱波段=這是波段單非scalp): ①緩衝<+10%($<68.5): 守$58.7、情況不妙先「分批出/減碼」非全砍、且持續追蹤看能否追回(feedback_sell_and_buyback) ②緩衝≥+10%($68.5+): 轉老師detector(守末升低/結構底波段trail、給它空間跑波段) ③大賺後: 黃大法60m DIF轉負分批出(feedback_huangda_60m_dif_exit)'
+        'note': '⚠️外部消息單(feedback_external_news_trade_category): 不評entry紅線、只技術派exit。黃大thesis: 盤整完畢 + 60m DIF快轉正(-0.01往上)。盤整區$58.7-66(6/16-26兩週)、今開$60.7殺$58.8(插破盤整下緣)拉回$62.3。stop $58.7(收盤跌破盤整下緣/6/24低 = 盤整沒完畢往上、thesis破)。黃大法本質: DIF=他選好股後的進出timing扳機、真edge在他隱藏的產業分析選股(know-how沒公開)、跟的是他「選股+timing」整套非裸DIF→無法獨立驗證選股、守stop是保護。3張~$187k/5.8%。🔵管理階梯(user 6/29定、黃大通常抱波段=這是波段單非scalp): ①緩衝<+10%($<68.5): 守$58.7、情況不妙先「分批出/減碼」非全砍、且持續追蹤看能否追回(feedback_sell_and_buyback) ②緩衝≥+10%($68.5+): 轉老師detector(守末升低/結構底波段trail、給它空間跑波段) ③大賺後: 黃大法60m DIF轉負分批出(feedback_huangda_60m_dif_exit)'
     },
 ]
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
