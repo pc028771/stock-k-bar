@@ -98,6 +98,15 @@ HELD = [
         'sector': '晶圓代工/權值',
         'note': '6/29 零股100股@$2375 (~$237k/7.4%)。⚠️非追紅: 從6/22高$2510回測月線、今開$2330貼6/26結構低$2325拉到$2395=回測結構底守住+反彈進場(老師回測法)。位階: 現$2370≈月線MA20$2369、短線在MA5$2396/MA10$2406下(短線弱但守月線)。老師「布局在催化前低點」(7/6-7/7台積法說)正合。stop $2320(收盤跌破6/26結構底$2325略下才出)。⚠️7/1-7/3大盤痛苦帶可能再測低、守結構底別殺低、收破$2320才認。波段倉(老師明示+守月線)、非追紅短線'
     },
+    {
+        'ticker': '4939', 'name': '亞電',
+        'cost': 62.3, 'shares': 3000, 'stop': 58.7,
+        'strategy_mode': 'swing',
+        'tactic': '黃大消息單', 'priority': 3,
+        'source': '黃大直接消息 6/29 (65%權重)、黃大$62.5買、user$62.3×3張',
+        'sector': '功率/被動 (黃大標的)',
+        'note': '⚠️外部消息單(feedback_external_news_trade_category): 不評entry紅線、只技術派exit。黃大thesis: 盤整完畢 + 60m DIF快轉正(-0.01往上)。盤整區$58.7-66(6/16-26兩週)、今開$60.7殺$58.8(插破盤整下緣)拉回$62.3。stop $58.7(收盤跌破盤整下緣/6/24低 = 盤整沒完畢往上、thesis破)。exit: ①收破$58.7 ②黃大法60m DIF轉負分批出(feedback_huangda_60m_dif_exit、大賺後才用)。黃大法本質: DIF=他選好股後的進出timing扳機、真edge在他隱藏的產業分析選股(know-how沒公開)、跟的是他「選股+timing」整套非裸DIF→無法獨立驗證選股、守stop$58.7是唯一保護。3張~$187k/5.8%'
+    },
 ]
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
 # 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
