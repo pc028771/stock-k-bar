@@ -77,10 +77,80 @@ def get_institutional(ticker, start, end):
     return rows
 
 
+# ───────────────────────── 分點 (broker_daily) ─────────────────────────
+
+def _ensure_broker_tables(c):
+    c.execute("""CREATE TABLE IF NOT EXISTS broker_daily (
+        ticker TEXT, trade_date TEXT, trader_id TEXT, trader_name TEXT,
+        buy REAL, sell REAL, net REAL, price REAL,
+        UNIQUE(ticker, trade_date, trader_id))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS broker_fetch_log (
+        entity TEXT, trade_date TEXT, PRIMARY KEY(entity, trade_date))""")
+
+
+def _store_broker(c, df, date):
+    """df: securities_trader/_id, stock_id, price, buy, sell (股) → aggregate by trader、寫入 broker_daily (張)。"""
+    import pandas as pd
+    df = df.copy()
+    df['buy'] = df['buy'] / 1000
+    df['sell'] = df['sell'] / 1000
+    df['vol'] = df['buy'] + df['sell']
+    g = df.groupby(['stock_id', 'securities_trader_id', 'securities_trader'], as_index=False).agg(
+        buy=('buy', 'sum'), sell=('sell', 'sum'),
+        pv=('price', lambda s: 0), vol=('vol', 'sum'))
+    # 加權均價另算 (groupby apply 太慢、改用 sum(price*vol)/sum(vol))
+    df['pv'] = df['price'] * df['vol']
+    pv = df.groupby(['stock_id', 'securities_trader_id'], as_index=False).agg(pv=('pv', 'sum'), vsum=('vol', 'sum'))
+    pv['price'] = pv['pv'] / pv['vsum'].clip(lower=1e-9)
+    g = g.merge(pv[['stock_id', 'securities_trader_id', 'price']], on=['stock_id', 'securities_trader_id'], how='left')
+    for _, r in g.iterrows():
+        c.execute("INSERT OR REPLACE INTO broker_daily (ticker,trade_date,trader_id,trader_name,buy,sell,net,price) "
+                  "VALUES (?,?,?,?,?,?,?,?)",
+                  (str(r['stock_id']), date, str(r['securities_trader_id']), r['securities_trader'],
+                   float(r['buy']), float(r['sell']), float(r['buy'] - r['sell']), float(r['price'])))
+
+
+def get_broker_by_stock(ticker, date):
+    """某股某日分點 DB 先、缺補 FinMind+寫回。回傳 [(trader_name, net張, price)] 依淨買超排序。"""
+    c = sqlite3.connect(str(MAIN_DB))
+    _ensure_broker_tables(c)
+    ent = f'stock:{ticker}'
+    if not c.execute("SELECT 1 FROM broker_fetch_log WHERE entity=? AND trade_date=?", (ent, date)).fetchone():
+        df = _api().taiwan_stock_trading_daily_report(stock_id=ticker, date=date)
+        if df is not None and len(df):
+            _store_broker(c, df, date)
+            c.execute("INSERT OR REPLACE INTO broker_fetch_log VALUES (?,?)", (ent, date))
+            c.commit()
+    rows = c.execute("SELECT trader_name,net,price FROM broker_daily WHERE ticker=? AND trade_date=? ORDER BY net DESC",
+                     (ticker, date)).fetchall()
+    c.close()
+    return rows
+
+
+def get_broker_by_trader(trader_id, date):
+    """某分點某日買賣 DB 先、缺補 FinMind+寫回。回傳 [(ticker, net張, price)] 依淨買超排序。"""
+    c = sqlite3.connect(str(MAIN_DB))
+    _ensure_broker_tables(c)
+    ent = f'trader:{trader_id}'
+    if not c.execute("SELECT 1 FROM broker_fetch_log WHERE entity=? AND trade_date=?", (ent, date)).fetchone():
+        df = _api().taiwan_stock_trading_daily_report(securities_trader_id=trader_id, date=date)
+        if df is not None and len(df):
+            _store_broker(c, df, date)
+            c.execute("INSERT OR REPLACE INTO broker_fetch_log VALUES (?,?)", (ent, date))
+            c.commit()
+    rows = c.execute("SELECT ticker,net,price FROM broker_daily WHERE trader_id=? AND trade_date=? ORDER BY net DESC",
+                     (trader_id, date)).fetchall()
+    c.close()
+    return rows
+
+
 if __name__ == '__main__':
-    # CLI: python chip_data.py backfill 2026-06-30   /   python chip_data.py 2885 2026-06-23 2026-06-30
+    # CLI: backfill 2026-06-30 / inst 2885 start end / broker 2885 2026-06-29
     if len(sys.argv) >= 3 and sys.argv[1] == 'backfill':
         print('新增', backfill_institutional(sys.argv[2]), '檔')
+    elif len(sys.argv) >= 4 and sys.argv[1] == 'broker':
+        for nm, net, px in get_broker_by_stock(sys.argv[2], sys.argv[3])[:10]:
+            print(f'  {nm:<12} {net:+,.0f}張 @{px:.1f}')
     elif len(sys.argv) >= 4:
         for d, f, s in get_institutional(sys.argv[1], sys.argv[2], sys.argv[3]):
             print(f'{d} 外{f:+,.0f} 投{s:+,.0f}')

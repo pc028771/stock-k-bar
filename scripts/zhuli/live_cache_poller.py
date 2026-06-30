@@ -101,7 +101,27 @@ def in_market_hours():
     hm = lt.tm_hour * 60 + lt.tm_min
     return 9 * 60 <= hm <= 13 * 60 + 35
 
+def after_close_backfill(done):
+    """盤後 (>=13:40 weekday) 自動把今日三大法人 backfill 進 DB、一天一次。"""
+    lt = time.localtime()
+    today = time.strftime('%Y-%m-%d')
+    if lt.tm_wday >= 5 or lt.tm_hour * 60 + lt.tm_min < 13 * 60 + 40:
+        return done
+    if done.get('inst') == today:
+        return done
+    try:
+        from zhuli.chip_data import backfill_institutional
+        n = backfill_institutional(today)
+        print(f'{time.strftime("%H:%M:%S")} 盤後 backfill 今日法人: {n} 檔', flush=True)
+        if n > 0:
+            done['inst'] = today  # 有抓到才標記完成 (還沒公布回 0、下輪再試)
+    except Exception as e:
+        print(f'{time.strftime("%H:%M:%S")} backfill ERR {e}', flush=True)
+    return done
+
+
 if __name__ == '__main__':
+    done = {}
     while True:
         live = in_market_hours()
         try:
@@ -109,4 +129,6 @@ if __name__ == '__main__':
             print(f'{time.strftime("%H:%M:%S")} [{src}] {n}檔 持倉{tot:+,} {"盤中" if live else "盤後"}', flush=True)
         except Exception as e:
             print(f'{time.strftime("%H:%M:%S")} ERR {e}', flush=True)
+        if not live:
+            done = after_close_backfill(done)
         time.sleep(30 if live else 600)
