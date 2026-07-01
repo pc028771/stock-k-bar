@@ -116,6 +116,18 @@ def scan(universe: set[str] | None = None) -> list[dict]:
             score += 1
         if vol_std < 2:                          # 越無聊越好
             score += 1
+        # 波段趨勢向上 (user 2026-07-02: 2-4週穩穩向上、期望~8%、元大金型)
+        # = 近20日漲幅 +2~+20% (穩漲非暴衝非跌) + 低點墊高 (近10低 > 前10低)
+        seg_up = False
+        c20 = rows[19][4] if len(rows) >= 20 else None
+        if c20:
+            ret20 = (cl / c20 - 1) * 100
+            recent_low = min(r[3] for r in rows[:10])
+            prior_low = min(r[3] for r in rows[10:20])
+            if 2 <= ret20 <= 20 and recent_low > prior_low:
+                seg_up = True
+                score += 2
+                tags.append(f"波段向上{ret20:+.0f}%")
 
         out.append({
             "ticker": tk, "close": cl, "dist_ma5": dist5,
