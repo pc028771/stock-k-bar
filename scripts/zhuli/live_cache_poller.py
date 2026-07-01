@@ -102,19 +102,25 @@ def in_market_hours():
     return 9 * 60 <= hm <= 13 * 60 + 35
 
 def after_close_backfill(done):
-    """盤後 (>=13:40 weekday) 自動把今日三大法人 backfill 進 DB、一天一次。"""
+    """盤後 (>=13:40 weekday) 強制重抓「今天+昨天」三大法人。
+    三大法人 EOD 有「初步→確定」修正 (投信常被更正)、force 重抓覆蓋、每 ~30 分一次。"""
     lt = time.localtime()
-    today = time.strftime('%Y-%m-%d')
     if lt.tm_wday >= 5 or lt.tm_hour * 60 + lt.tm_min < 13 * 60 + 40:
         return done
-    if done.get('inst') == today:
+    if lt.tm_min % 30 >= 10:  # 每 ~30 分抓一次 (別每 10 分狂打 API)
         return done
+    stamp = time.strftime('%Y-%m-%d %H') + f':{lt.tm_min // 30}'
+    if done.get('inst_stamp') == stamp:
+        return done
+    done['inst_stamp'] = stamp
     try:
+        from datetime import date, timedelta
         from zhuli.chip_data import backfill_institutional
-        n = backfill_institutional(today)
-        print(f'{time.strftime("%H:%M:%S")} 盤後 backfill 今日法人: {n} 檔', flush=True)
-        if n > 0:
-            done['inst'] = today  # 有抓到才標記完成 (還沒公布回 0、下輪再試)
+        today = time.strftime('%Y-%m-%d')
+        y = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
+        n = backfill_institutional(today, force=True)  # 今天 (可能初步)
+        ny = backfill_institutional(y, force=True) if date.fromisoformat(y).weekday() < 5 else 0  # 昨天 (catch 確定修正)
+        print(f'{time.strftime("%H:%M:%S")} 盤後 force backfill 今{n}/昨{ny} 檔', flush=True)
     except Exception as e:
         print(f'{time.strftime("%H:%M:%S")} backfill ERR {e}', flush=True)
     return done

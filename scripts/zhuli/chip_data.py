@@ -22,12 +22,13 @@ def _api():
     return a
 
 
-def backfill_institutional(d, conn=None):
-    """確保某日(d)全市場三大法人在 DB；缺就抓 FinMind 寫入。回傳新增檔數。"""
+def backfill_institutional(d, conn=None, force=False):
+    """確保某日(d)全市場三大法人在 DB；缺就抓 FinMind 寫入。回傳新增檔數。
+    force=True: 強制重抓 (三大法人 EOD 有「初步→確定」修正、重抓覆蓋、修正投信等)。"""
     own = conn is None
     c = conn or sqlite3.connect(str(MAIN_DB))
     have = c.execute("SELECT COUNT(*) FROM institutional_investors WHERE trade_date=?", (d,)).fetchone()[0]
-    if have > 100:  # 已完整載入
+    if have > 100 and not force:  # 已完整載入 (force 時仍重抓、蓋掉初步版)
         if own:
             c.close()
         return 0
