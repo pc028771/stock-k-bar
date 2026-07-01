@@ -135,6 +135,5 @@ if __name__ == '__main__':
             print(f'{time.strftime("%H:%M:%S")} [{src}] {n}檔 持倉{tot:+,} {"盤中" if live else "盤後"}', flush=True)
         except Exception as e:
             print(f'{time.strftime("%H:%M:%S")} ERR {e}', flush=True)
-        if not live:
-            done = after_close_backfill(done)
+        # 盤後不自動抓法人 (user 2026-07-01)、法人改純 on-demand (chip_data.get_institutional force 重抓確定版)
         time.sleep(30 if live else 600)
