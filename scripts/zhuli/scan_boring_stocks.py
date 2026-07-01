@@ -129,7 +129,12 @@ def scan(universe: set[str] | None = None) -> list[dict]:
 
 
 if __name__ == "__main__":
-    uni = None if "--all" in sys.argv else _teacher_universe()
+    if "--all" in sys.argv:
+        _cc = sqlite3.connect(str(MAIN_DB))
+        uni = {r[0] for r in _cc.execute("SELECT DISTINCT ticker FROM stock_info")}
+        _cc.close()
+    else:
+        uni = _teacher_universe()
     res = scan(uni)
     nm = {}
     _c = sqlite3.connect(str(MAIN_DB))
