@@ -50,14 +50,24 @@ CACHE_DIR = Path("/tmp/zhuli_cache")
 CACHE_DIR.mkdir(exist_ok=True)
 ALERT_FILE = CACHE_DIR / "intraday_alerts.json"
 
-# 5日均量倍數門檻：第一根5分K被視為「大量」時
-LARGE_VOL_RATIO = 0.3   # 5分K成交量 >= 5日日均量 * 0.3 = 大量
+LARGE_VOL_RATIO = 0.3   # 5分K成交量 >= 5日日均量 * 0.3 = 大量；課程外自訂、可調
 # 昨漲停判斷門檻 (%)
 LIMIT_UP_THRESHOLD = 9.5
 # 開弱判斷：open/prev_close -1 <= 此值表示「開低或開平」
 WEAK_OPEN_PCT = 0.5     # ≤ +0.5% 為開弱
 # 做多漲幅門檻：前5分鐘漲幅 > 此值 → 一票否決
 LONG_MAX_CHG = 5.0      # %
+
+# 位階過濾門檻：距日線 20MA 最大距離 (CLAUDE.md 紅線「距 20ma > 30% 不進」)
+LONG_MAX_MA20_DIST = 0.30   # 30%；課程明示、不可自行調高
+
+# 5分K均線發散閾值 — 課程外自訂閾值、可調 (CLAUDE.md 課程外條件隔離)
+# 課程(§1.1 磐亞)說「均線沒有發散」是做多前提，但未給量化數值。
+# 定義：(max(MA5,MA10,MA20) - min(MA5,MA10,MA20)) / 現價 > 此值 = 發散 → 不做多
+FIVEM_DIVERGE_RATIO = 0.02  # 2%；課程外自訂、可依實盤觀察調整
+
+# 5日均量倍數：大量黑K判定 — 課程外自訂、可調
+# (課程說「大量」但未量化倍數；0.3 為經驗值)
 
 # 市場時間 (台灣標準時間、本機為 Asia/Taipei)
 MARKET_OPEN_HM  = (9, 0)
@@ -117,6 +127,7 @@ def load_static_for_ticker(ticker: str) -> dict:
         "prev_close": None,
         "prev_limit_up": False,
         "ma5": None, "ma10": None, "ma20": None, "ma60": None,
+        "ma60_3d_ago": None,    # 季線斜率用（約 D-4 交易日前、LIMIT 5 取 index 3）
         "avg5d_vol": None,
     }
     today = date.today().isoformat()
@@ -126,7 +137,7 @@ def load_static_for_ticker(ticker: str) -> dict:
         rows = con.execute(
             "SELECT close, ma5, ma10, ma20, ma60 FROM standard_daily_bar "
             "WHERE ticker=? AND trade_date < ? "
-            "ORDER BY trade_date DESC LIMIT 2",
+            "ORDER BY trade_date DESC LIMIT 5",
             (ticker, today)
         ).fetchall()
         # 5日均量
@@ -153,6 +164,10 @@ def load_static_for_ticker(ticker: str) -> dict:
                 if prev2_close > 0 and result["prev_close"]:
                     pct = (result["prev_close"] / prev2_close - 1) * 100
                     result["prev_limit_up"] = pct >= LIMIT_UP_THRESHOLD
+
+            # 季線斜率用：取 rows[3]（約 D-4 交易日）的 MA60
+            if len(rows) >= 4 and rows[3][4]:
+                result["ma60_3d_ago"] = float(rows[3][4])
 
         if vol_rows:
             vols = [r[0] / 1000.0 for r in vol_rows if r[0]]
@@ -188,6 +203,7 @@ class TickerState:
         # 靜態 (DB)
         "prev_close", "prev_limit_up",
         "ma5", "ma10", "ma20", "ma60",
+        "ma60_3d_ago",          # MA60 約三交易日前（季線斜率判斷用）
         "avg5d_vol",
         # 即時 (WS / REST)
         "last_price", "open_price", "change_rate", "total_volume",
@@ -195,6 +211,7 @@ class TickerState:
         # 5分K (REST 輪詢)
         "first_5m_open", "first_5m_close", "first_5m_low", "first_5m_vol",
         "first_5m_loaded",
+        "all_5m_candles",       # 今日全部5分K（5分K均線發散檢查用）
         # 訊號 (每輪偵測)
         "signals",
     )
@@ -208,6 +225,7 @@ class TickerState:
         self.ma10  = static["ma10"]
         self.ma20  = static["ma20"]
         self.ma60  = static["ma60"]
+        self.ma60_3d_ago = static.get("ma60_3d_ago")   # 季線斜率用；可能 None
         self.avg5d_vol = static["avg5d_vol"]
         # 即時
         self.last_price: float | None = None
@@ -221,6 +239,7 @@ class TickerState:
         self.first_5m_low:    float | None = None
         self.first_5m_vol:    float | None = None
         self.first_5m_loaded: bool = False
+        self.all_5m_candles: list = []   # 今日全部5分K
         # 訊號
         self.signals: list[str] = []
 
@@ -343,7 +362,10 @@ class MonitorState:
                     st.last_ts = time.monotonic()
 
     def update_5m_candle(self, ticker: str, candles: list[dict]) -> None:
-        """更新第一根5分K資料。candles 按時間升冪排列。"""
+        """更新5分K資料。candles 按時間升冪排列。
+        - first_5m_* 欄位存第一根 (09:00-09:05)，用於大量黑K判斷
+        - all_5m_candles 存全部今日5分K，用於均線發散檢查 (§1.1)
+        """
         if not candles:
             return
         c0 = candles[0]  # 第一根 (09:00-09:05)
@@ -358,6 +380,7 @@ class MonitorState:
                 # 與 avg5d_vol(張) 同單位、不可再 /1000。
                 st.first_5m_vol   = _sf(c0.get("volume"))
                 st.first_5m_loaded = True
+                st.all_5m_candles  = candles   # 全部今日5分K（均線發散用）
 
     def add_alert(self, alert: dict) -> None:
         with self._lock:
@@ -457,7 +480,8 @@ def detect_signals(
     #   2. 今開弱 (開低 or 開平, ≤ +0.5%)
     #   3. 第一根5分K 大量黑K
     #   4. 收破昨收
-    #   5. 標示「等第三根黑K確認 (50/50)」
+    #   5. 季線(日線MA60)走平或走下 (§2.2/§5.3: 「季線一不往上揚→土石流」= 扣板機)
+    #   6. 標示「等第三根黑K確認 (50/50)」
     if st.prev_limit_up and ticker not in held_meta:
         # 開弱
         weak_open = (open_price > 0 and prev_close > 0 and
@@ -467,17 +491,37 @@ def detect_signals(
         # 第一根5分K 大量黑K
         has_large_black = st.first_5m_loaded and _is_large_vol_black_k(st)
 
+        # 季線斜率 (§2.2/§5.3 老師明示扣板機: 季線不上揚→走平→土石流)
+        # st.ma60 = 昨日 MA60、st.ma60_3d_ago ≈ D-4 交易日的 MA60
+        if st.ma60 and st.ma60_3d_ago:
+            ma60_flat_or_down = st.ma60 <= st.ma60_3d_ago    # 走平或走下
+            ma60_note = (
+                f"季線走{'下' if st.ma60 < st.ma60_3d_ago else '平'}"
+                f"({st.ma60:.2f}≤{st.ma60_3d_ago:.2f}) ✓ 土石流條件符合"
+                if ma60_flat_or_down else
+                f"季線仍上揚({st.ma60:.2f}>{st.ma60_3d_ago:.2f}) ⚠️ 空方謹慎"
+            )
+        else:
+            ma60_flat_or_down = None   # 無法判斷 (DB 無足夠資料)
+            ma60_note = "季線斜率資料不足、肉眼確認MA60走向"
+
         # 雙錨停損 (做空 cover stop): min(今開, 昨收, 第一根5分K高)
         # 課程：「雙錨停損 = 開盤價 / 昨收 / 第一根5分K低、取最高」是做多的。
         # 做空的 cover stop = 第一根5分K的高點
         cover_stop = st.first_5m_open if st.first_5m_open else open_price
 
-        if weak_open:
+        # 季線上揚時不觸發SHORT_SETUP (課程 §5.3 逆市做空謹慎)
+        # 若季線資料不足則保留訊號但加注
+        ma60_blocks = ma60_flat_or_down is not None and not ma60_flat_or_down
+
+        if weak_open and not ma60_blocks:
             conds = []
             if broke_prev_close:
                 conds.append("破昨收")
             if has_large_black:
                 conds.append("第一根大量黑K")
+            if ma60_flat_or_down:
+                conds.append("季線走平/走下")
             if len(conds) >= 1:
                 open_pct = (open_price / prev_close - 1) * 100 if prev_close > 0 else 0
                 signals.append({
@@ -487,6 +531,7 @@ def detect_signals(
                         f"🔴 [{ticker}] 放空候選 ({'+'.join(conds)}) | "
                         f"昨漲停→今開{open_pct:+.1f}%({open_price:.1f}) "
                         f"現價{price:.1f} 昨收{prev_close:.1f} | "
+                        f"【{ma60_note}】 | "
                         f"⚠️  課程: 不搶第一根、等第三根黑K確認(50/50才大增) | "
                         f"空單 cover stop 參考 {cover_stop:.1f} (第一根高點附近)"
                     ),
@@ -494,12 +539,17 @@ def detect_signals(
                     "priority": 2,
                 })
 
-    # ── 🟢 做多候選 (日線均線多頭排列) ────────────────────────────────────
-    # 條件 (課程 §1.1):
-    #   1. 日線均線多頭排列: 現價 > MA5 > MA10 > MA20 > MA60 (季線)
-    #   2. 漲幅 < 5% (≤ 5%)
-    #   3. 前5分鐘漲幅 > 5% → 一票否決 (CLAUDE.md 紀律 §短線進場三鐵)
-    # 注意: 課程主判據是5分K均線順向、此處用日線MA多頭排列近似、標示「近似」
+    # ── 🟢 做多候選 (日線均線多頭排列 + 位階過濾 + 5分K不發散) ─────────────
+    # 課程依據:
+    #   §1.1 4707磐亞: 均線往上揚+不發散(含季線匯聚) = 做多姿態成立
+    #   CLAUDE.md 紅線: 距 20MA > 30% 不進 / change_rate > 0 = 當日紅盤
+    # 過濾條件:
+    #   1. 日線均線多頭排列: 現價 > MA5 > MA10 > MA20 > MA60 (日線近似)
+    #   2. 當日紅盤 (change_rate > 0) — Bug fix: 原條件允許負值 (如順德 -1.2%)
+    #   3. 漲幅 0% < change_rate < 5% (紅盤 + 未過熱)
+    #   4. 距日線 MA20 < 30% (位階過濾、CLAUDE.md 紅線)
+    #   5. 前5分鐘漲幅 > 5% → 一票否決 (CLAUDE.md 紀律)
+    #   6. 5分K均線不發散 (§1.1 核心條件)
     if (ticker not in held_meta              # 持倉另外看、不重複
         and st.ma5 and st.ma10 and st.ma20 and st.ma60
         and price > 0):
@@ -510,7 +560,44 @@ def detect_signals(
         open_chg_pct = ((price / open_price - 1) * 100) if open_price > 0 else 0.0
         first_5m_too_hot = open_chg_pct > 5.0  # 一票否決
 
-        if ma_bull and not first_5m_too_hot and change_rate < LONG_MAX_CHG:
+        # 位階過濾 (CLAUDE.md 紅線: 距 20MA > 30%)
+        # st.ma20 保證 > 0 by outer if guard
+        ma20_dist = (price / st.ma20 - 1)
+        level_ok = ma20_dist < LONG_MAX_MA20_DIST
+
+        # 5分K均線發散檢查 (§1.1: 「均線沒有發散」是做多前提)
+        # ⚠️ 課程指的是「5分K均線」不是日線 (user 2026-06-29 校正)
+        fivem_closes = [
+            _sf(c.get("close"))
+            for c in st.all_5m_candles
+            if _sf(c.get("close")) is not None
+        ]
+        n_bars = len(fivem_closes)
+        if n_bars >= 20:
+            ma5_5m  = sum(fivem_closes[-5:])  / 5
+            ma10_5m = sum(fivem_closes[-10:]) / 10
+            ma20_5m = sum(fivem_closes[-20:]) / 20
+            diverge_ratio = (max(ma5_5m, ma10_5m, ma20_5m)
+                             - min(ma5_5m, ma10_5m, ma20_5m)) / price
+            # FIVEM_DIVERGE_RATIO = 課程外自訂閾值
+            is_diverged = diverge_ratio > FIVEM_DIVERGE_RATIO
+            diverge_note = (
+                f"5mK均線發散={diverge_ratio*100:.1f}%>{FIVEM_DIVERGE_RATIO*100:.0f}% ⛔"
+                if is_diverged else
+                f"5mK均線收斂={diverge_ratio*100:.1f}% ✓"
+            )
+        else:
+            # 資料不足時不擋訊號、改標注提醒肉眼確認 (user 指示)
+            is_diverged = False
+            diverge_note = (
+                f"5分K不足({n_bars}根<20)、暫用日線MA近似 + 肉眼確認是否發散"
+            )
+
+        if (ma_bull
+                and not first_5m_too_hot
+                and 0 < change_rate < LONG_MAX_CHG  # 紅盤 (>0) + 未過熱 (<5%)
+                and level_ok                         # 距MA20 < 30%
+                and not is_diverged):                # 5分K均線不發散
             # 雙錨停損 (課程：取開盤/昨收/第一根5分K低 最高者)
             anchors = [a for a in [open_price, prev_close, st.first_5m_low] if a and a > 0]
             dual_anchor = max(anchors) if anchors else open_price
@@ -520,11 +607,11 @@ def detect_signals(
                 "msg": (
                     f"🟢 [{ticker}] 做多候選 | "
                     f"現={price:.1f} MA5={st.ma5:.1f} MA10={st.ma10:.1f} "
-                    f"MA20={st.ma20:.1f} MA60={st.ma60:.1f} "
+                    f"MA20={st.ma20:.1f}(距{ma20_dist*100:+.1f}%) MA60={st.ma60:.1f} "
                     f"漲{change_rate:+.2f}% | "
                     f"雙錨stop={dual_anchor:.1f} "
                     f"(開{open_price:.1f}/昨收{prev_close:.1f}/5mK低{st.first_5m_low or '—'}) | "
-                    f"⚠️  日線MA近似、務必肉眼確認5分K均線順向未發散"
+                    f"【{diverge_note}】"
                 ),
                 "ts": now_str,
                 "priority": 3,
