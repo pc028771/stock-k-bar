@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import sys
 import threading
@@ -65,6 +66,17 @@ LONG_MAX_MA20_DIST = 0.30   # 30%；課程明示、不可自行調高
 # 課程(§1.1 磐亞)說「均線沒有發散」是做多前提，但未給量化數值。
 # 定義：(max(MA5,MA10,MA20) - min(MA5,MA10,MA20)) / 現價 > 此值 = 發散 → 不做多
 FIVEM_DIVERGE_RATIO = 0.02  # 2%；課程外自訂、可依實盤觀察調整
+
+# SHORT_SETUP: 昨漲停+開小高仍算倒貨候選的最大開盤漲幅門檻
+# 課程 §2.2(加高): 「第一根開一個小高OK、但是收盤往下破昨收=隔日沖出貨完畢」
+# 課程 §2.1: 「開平盤也很恐怖」「開低完蛋了」
+# 課程外自訂門檻 (老師只說「小高」未給數字)、可調
+SHORT_WEAK_OPEN_MAX_PCT = 5.0   # ≤ +5% = 開低/開平/開小高、仍算倒貨候選；課程外參數
+
+# 吞噬判定: 黑K body 須覆蓋前紅K body 的此比例以上
+# 課程 §2.3: 「兩根大黑K就吞噬了前面的紅K、這個就是賣壓很大、準備要閃人了」(定性)
+# 課程外自訂閾值 (老師未量化)、可調
+ENGULF_RATIO = 0.8              # 80% 覆蓋；課程外參數
 
 # 5日均量倍數：大量黑K判定 — 課程外自訂、可調
 # (課程說「大量」但未量化倍數；0.3 為經驗值)
@@ -114,6 +126,14 @@ def build_universe() -> list[str]:
 
 # ── DB 靜態資料載入 ──────────────────────────────────────────────────────────
 
+def _limit_up_price(prev: float) -> float:
+    """台股漲停價 = 前收 × 1.1、floor 到該價位 tick。"""
+    raw = prev * 1.1
+    t = (0.01 if raw < 10 else 0.05 if raw < 50 else 0.1 if raw < 100
+         else 0.5 if raw < 500 else 1.0 if raw < 1000 else 5.0)
+    return math.floor(round(raw / t, 6)) * t
+
+
 def load_static_for_ticker(ticker: str) -> dict:
     """從 DB 載入單一 ticker 靜態資料 (昨收、均線、5日均量)。
 
@@ -157,13 +177,15 @@ def load_static_for_ticker(ticker: str) -> dict:
             result["ma20"] = float(r0[3]) if r0[3] else None
             result["ma60"] = float(r0[4]) if r0[4] else None
 
-            # 昨漲停 = 昨收 vs 前日收 漲幅 >= 9.5%
+            # 昨漲停 = 昨收 收在「實際漲停價」(前日收×1.1、floor 到 tick)
+            # 🔴 不用固定 9.5% 門檻：tick 進位後漲停漲幅可能 <9.5% (正達6/30=9.49%但真鎖漲停)
             if len(rows) >= 2:
                 r1 = rows[1]
                 prev2_close = float(r1[0]) if r1[0] else 0.0
                 if prev2_close > 0 and result["prev_close"]:
-                    pct = (result["prev_close"] / prev2_close - 1) * 100
-                    result["prev_limit_up"] = pct >= LIMIT_UP_THRESHOLD
+                    result["prev_limit_up"] = (
+                        result["prev_close"] >= _limit_up_price(prev2_close) - 1e-6
+                    )
 
             # 季線斜率用：取 rows[3]（約 D-4 交易日）的 MA60
             if len(rows) >= 4 and rows[3][4]:
@@ -474,155 +496,219 @@ def detect_signals(
                     "priority": 2,
                 })
 
-    # ── 🔴 放空候選 (純當沖、非持倉操作) ───────────────────────────────────
-    # 條件 (課程 §2.1 / §2.2 / §5.3):
-    #   1. 昨漲停 (≥9.5%)
-    #   2. 今開弱 (開低 or 開平, ≤ +0.5%)
-    #   3. 第一根5分K 大量黑K
-    #   4. 收破昨收
-    #   5. 季線(日線MA60)走平或走下 (§2.2/§5.3: 「季線一不往上揚→土石流」= 扣板機)
-    #   6. 標示「等第三根黑K確認 (50/50)」
+    # ── 共用: 倒貨型判別輔助變數 (SHORT / LONG 共用、避免重複計算) ─────────────
+    _broke_prev_close   = prev_close > 0 and price < prev_close
+    _engulfed_by_black  = _is_red_k_engulfed_by_black(st)
+
+    # ── 🔴 SHORT_SETUP: 隔日沖倒貨型空（本課主邏輯、課程 §2.1/§2.2/§2.3/§5.3）──
+    #
+    # 觸發條件:
+    #   prev_limit_up + 今開低/開平/開小高(≤SHORT_WEAK_OPEN_MAX_PCT=+5%) +
+    #   收破昨收 + (第一根大量黑K OR 紅K被黑K吞噬)
+    #
+    # 季線規則 (課程 §5.3 原意、非通用 hard gate):
+    #   ① 季線「強力上揚」→ 謹慎空 (怕被自救拉起) — 僅標 ⚠️、不擋訊號
+    #      「強力上揚」斜率數值化閾值 = 課程外 → extras/ma60_strong_rising_short_veto.py
+    #   ② 破季線 = 土石流加速、第二進場點 — bonus 標注
+    #
+    # 不搶第一根: 課程§2.2「等第三根黑K確認(50/50才大增)」→ 訊號上標示提醒、不硬擋
     if st.prev_limit_up and ticker not in held_meta:
-        # 開弱
-        weak_open = (open_price > 0 and prev_close > 0 and
-                     (open_price / prev_close - 1) * 100 <= WEAK_OPEN_PCT)
-        # 收破昨收
-        broke_prev_close = prev_close > 0 and price < prev_close
-        # 第一根5分K 大量黑K
+        open_pct_val = (
+            (open_price / prev_close - 1) * 100
+            if open_price > 0 and prev_close > 0
+            else None
+        )
+        # 開低/開平/開小高 (課程: 「開小高OK但收破昨收=倒貨完畢」「開平盤也很恐怖」「開低完蛋了」)
+        open_ok_for_short = (
+            open_pct_val is not None and open_pct_val <= SHORT_WEAK_OPEN_MAX_PCT
+        )
         has_large_black = st.first_5m_loaded and _is_large_vol_black_k(st)
 
-        # 季線斜率 (§2.2/§5.3 老師明示扣板機: 季線不上揚→走平→土石流)
-        # st.ma60 = 昨日 MA60、st.ma60_3d_ago ≈ D-4 交易日的 MA60
+        # 季線狀態 (informational — 不擋訊號、只加注)
         if st.ma60 and st.ma60_3d_ago:
-            ma60_flat_or_down = st.ma60 <= st.ma60_3d_ago    # 走平或走下
+            ma60_rising = st.ma60 > st.ma60_3d_ago
+            if ma60_rising:
+                ma60_note = (
+                    f"⚠️ 季線仍上揚({st.ma60:.2f}>{st.ma60_3d_ago:.2f}) "
+                    f"謹慎空、可能被自救拉起 "
+                    f"(extras.ma60_strong_rising_short_veto 可啟用擋訊號)"
+                )
+            else:
+                ma60_note = (
+                    f"季線走{'下' if st.ma60 < st.ma60_3d_ago else '平'}"
+                    f"({st.ma60:.2f}≤{st.ma60_3d_ago:.2f}) ✓ 土石流條件符合"
+                )
+        elif st.ma60:
+            below_ma60 = price < st.ma60
             ma60_note = (
-                f"季線走{'下' if st.ma60 < st.ma60_3d_ago else '平'}"
-                f"({st.ma60:.2f}≤{st.ma60_3d_ago:.2f}) ✓ 土石流條件符合"
-                if ma60_flat_or_down else
-                f"季線仍上揚({st.ma60:.2f}>{st.ma60_3d_ago:.2f}) ⚠️ 空方謹慎"
+                f"🔴 現價{price:.1f}破季線{st.ma60:.2f} 土石流加速、第二進場點(§5.3)"
+                if below_ma60 else
+                f"現價{price:.1f}在季線{st.ma60:.2f}上方"
             )
         else:
-            ma60_flat_or_down = None   # 無法判斷 (DB 無足夠資料)
-            ma60_note = "季線斜率資料不足、肉眼確認MA60走向"
+            ma60_note = "季線資料不足、肉眼確認MA60走向"
 
-        # 雙錨停損 (做空 cover stop): min(今開, 昨收, 第一根5分K高)
-        # 課程：「雙錨停損 = 開盤價 / 昨收 / 第一根5分K低、取最高」是做多的。
-        # 做空的 cover stop = 第一根5分K的高點
+        # cover stop (空單): 第一根5分K開盤高點附近
         cover_stop = st.first_5m_open if st.first_5m_open else open_price
 
-        # 季線上揚時不觸發SHORT_SETUP (課程 §5.3 逆市做空謹慎)
-        # 若季線資料不足則保留訊號但加注
-        ma60_blocks = ma60_flat_or_down is not None and not ma60_flat_or_down
-
-        if weak_open and not ma60_blocks:
-            conds = []
-            if broke_prev_close:
-                conds.append("破昨收")
+        # 核心觸發: 開弱/開平/開小高 + 收破昨收 + (大量黑K or 吞噬)
+        if open_ok_for_short and _broke_prev_close and (has_large_black or _engulfed_by_black):
+            open_tag = (
+                f"開低{open_pct_val:+.1f}%" if open_pct_val < -0.5
+                else (f"開平{open_pct_val:+.1f}%" if open_pct_val <= 0.5
+                      else f"開小高{open_pct_val:+.1f}%")
+            )
+            conds_label = ["收破昨收"]
             if has_large_black:
-                conds.append("第一根大量黑K")
-            if ma60_flat_or_down:
-                conds.append("季線走平/走下")
-            if len(conds) >= 1:
-                open_pct = (open_price / prev_close - 1) * 100 if prev_close > 0 else 0
-                signals.append({
-                    "type": "SHORT_SETUP",
-                    "ticker": ticker,
-                    "msg": (
-                        f"🔴 [{ticker}] 放空候選 ({'+'.join(conds)}) | "
-                        f"昨漲停→今開{open_pct:+.1f}%({open_price:.1f}) "
-                        f"現價{price:.1f} 昨收{prev_close:.1f} | "
-                        f"【{ma60_note}】 | "
-                        f"⚠️  課程: 不搶第一根、等第三根黑K確認(50/50才大增) | "
-                        f"空單 cover stop 參考 {cover_stop:.1f} (第一根高點附近)"
-                    ),
-                    "ts": now_str,
-                    "priority": 2,
-                })
-
-    # ── 🟢 做多候選 (日線均線多頭排列 + 位階過濾 + 5分K不發散) ─────────────
-    # 課程依據:
-    #   §1.1 4707磐亞: 均線往上揚+不發散(含季線匯聚) = 做多姿態成立
-    #   CLAUDE.md 紅線: 距 20MA > 30% 不進 / change_rate > 0 = 當日紅盤
-    # 過濾條件:
-    #   1. 日線均線多頭排列: 現價 > MA5 > MA10 > MA20 > MA60 (日線近似)
-    #   2. 當日紅盤 (change_rate > 0) — Bug fix: 原條件允許負值 (如順德 -1.2%)
-    #   3. 漲幅 0% < change_rate < 5% (紅盤 + 未過熱)
-    #   4. 距日線 MA20 < 30% (位階過濾、CLAUDE.md 紅線)
-    #   5. 前5分鐘漲幅 > 5% → 一票否決 (CLAUDE.md 紀律)
-    #   6. 5分K均線不發散 (§1.1 核心條件)
-    if (ticker not in held_meta              # 持倉另外看、不重複
-        and st.ma5 and st.ma10 and st.ma20 and st.ma60
-        and price > 0):
-
-        ma_bull = (price > st.ma5 > st.ma10 > st.ma20 > st.ma60)
-
-        # 老師短線三鐵 (CLAUDE.md 紅線 #8-9)、順德 7/1 復盤補:
-        # 前10分鐘 (前2根5分K) 只觀察不切入 → 避免開高走弱首根誤報 (順德教訓)
-        in_first_10min = len(st.all_5m_candles) < 3
-        # 首根5分K漲幅 (收 vs 昨收) > 5% → 一票否決 (老師原話「前5分鐘漲幅>5%=skip」)
-        if st.first_5m_close and prev_close > 0:
-            first_5m_chg = (st.first_5m_close / prev_close - 1) * 100
-        else:
-            first_5m_chg = ((price / open_price - 1) * 100) if open_price > 0 else 0.0
-        first_5m_too_hot = first_5m_chg > 5.0
-
-        # 位階過濾 (CLAUDE.md 紅線: 距 20MA > 30%)
-        # st.ma20 保證 > 0 by outer if guard
-        ma20_dist = (price / st.ma20 - 1)
-        level_ok = ma20_dist < LONG_MAX_MA20_DIST
-
-        # 5分K均線發散檢查 (§1.1: 「均線沒有發散」是做多前提)
-        # ⚠️ 課程指的是「5分K均線」不是日線 (user 2026-06-29 校正)
-        fivem_closes = [
-            _sf(c.get("close"))
-            for c in st.all_5m_candles
-            if _sf(c.get("close")) is not None
-        ]
-        n_bars = len(fivem_closes)
-        if n_bars >= 20:
-            ma5_5m  = sum(fivem_closes[-5:])  / 5
-            ma10_5m = sum(fivem_closes[-10:]) / 10
-            ma20_5m = sum(fivem_closes[-20:]) / 20
-            diverge_ratio = (max(ma5_5m, ma10_5m, ma20_5m)
-                             - min(ma5_5m, ma10_5m, ma20_5m)) / price
-            # FIVEM_DIVERGE_RATIO = 課程外自訂閾值
-            is_diverged = diverge_ratio > FIVEM_DIVERGE_RATIO
-            diverge_note = (
-                f"5mK均線發散={diverge_ratio*100:.1f}%>{FIVEM_DIVERGE_RATIO*100:.0f}% ⛔"
-                if is_diverged else
-                f"5mK均線收斂={diverge_ratio*100:.1f}% ✓"
-            )
-        else:
-            # 資料不足時不擋訊號、改標注提醒肉眼確認 (user 指示)
-            is_diverged = False
-            diverge_note = (
-                f"5分K不足({n_bars}根<20)、暫用日線MA近似 + 肉眼確認是否發散"
-            )
-
-        if (ma_bull
-                and not in_first_10min               # 前10分鐘只觀察 (順德教訓)
-                and not first_5m_too_hot
-                and 0 < change_rate < LONG_MAX_CHG  # 紅盤 (>0) + 未過熱 (<5%)
-                and level_ok                         # 距MA20 < 30%
-                and not is_diverged):                # 5分K均線不發散
-            # 雙錨停損 (課程：取開盤/昨收/第一根5分K低 最高者)
-            anchors = [a for a in [open_price, prev_close, st.first_5m_low] if a and a > 0]
-            dual_anchor = max(anchors) if anchors else open_price
+                conds_label.append("第一根大量黑K")
+            if _engulfed_by_black:
+                conds_label.append("紅K被黑K吞噬")
             signals.append({
-                "type": "LONG_SETUP",
+                "type": "SHORT_SETUP",
                 "ticker": ticker,
                 "msg": (
-                    f"🟢 [{ticker}] 做多候選 | "
-                    f"現={price:.1f} MA5={st.ma5:.1f} MA10={st.ma10:.1f} "
-                    f"MA20={st.ma20:.1f}(距{ma20_dist*100:+.1f}%) MA60={st.ma60:.1f} "
-                    f"漲{change_rate:+.2f}% | "
-                    f"雙錨stop={dual_anchor:.1f} "
-                    f"(開{open_price:.1f}/昨收{prev_close:.1f}/5mK低{st.first_5m_low or '—'}) | "
-                    f"【{diverge_note}】"
+                    f"🔴 [{ticker}] 放空候選 (隔日沖倒貨型) | "
+                    f"昨漲停→今{open_tag}({open_price:.1f}) "
+                    f"現價{price:.1f} 昨收{prev_close:.1f} "
+                    f"({'+'.join(conds_label)}) | "
+                    f"【{ma60_note}】 | "
+                    f"⚠️ 課程§2.2: 不搶第一根、等第三根黑K確認(50/50才大增) | "
+                    f"空單 cover stop 參考 {cover_stop:.1f} (第一根高點附近) | "
+                    f"反彈不追、彈上=下一個加空點(§2.2百榮案例)"
                 ),
                 "ts": now_str,
-                "priority": 3,
+                "priority": 2,
             })
+
+    # ── 🟢 做多候選 ───────────────────────────────────────────────────────────
+    # 課程依據:
+    #   §1.1 磐亞: 均線往上揚+不發散+含季線匯聚 + 紅→洗黑→再紅 = 做多姿態成立
+    #   §1.2: 開高拉下、在十日線與月線之間找多單 (停損=破月線)
+    #   CLAUDE.md 紅線: 距 20MA > 30% 不進
+    #
+    # ── Veto 優先 (任一觸發 → 不報做多) ─────────────────────────────────────
+    # 🔴 倒貨型: 昨漲停+收破昨收 → 空方候選、禁報做多
+    #    課程§2.1/§2.2: 「收破昨收=隔日沖出貨完畢」「昨漲停今開低很恐怖、連拉都不想拉=最弱」
+    # 🔴 陷阱型: 昨漲停+紅K連續被黑K吞噬 → 賣壓大、禁報做多
+    #    課程§2.3: 「兩根大黑K吞噬前面的紅K、賣壓很大、準備要閃人了」
+    # 🔴 破月線: 現價 < 日線 MA20 → 停損場景
+    #    課程§5.1: 「月線破就該閃人了」
+    if (ticker not in held_meta and st.ma20 and price > 0):
+        dump_veto       = st.prev_limit_up and _broke_prev_close
+        engulf_veto     = st.prev_limit_up and _engulfed_by_black
+        broke_ma20_veto = price < st.ma20
+
+        if not dump_veto and not engulf_veto and not broke_ma20_veto:
+            # ── 共用過濾 (短線三鐵 + 位階) ────────────────────────────────
+            # 前10分鐘 (前2根5分K) 只觀察 (CLAUDE.md 紅線 #8、順德教訓)
+            in_first_10min = len(st.all_5m_candles) < 3
+            if st.first_5m_close and prev_close > 0:
+                first_5m_chg = (st.first_5m_close / prev_close - 1) * 100
+            else:
+                first_5m_chg = ((price / open_price - 1) * 100) if open_price > 0 else 0.0
+            first_5m_too_hot = first_5m_chg > 5.0  # CLAUDE.md 紅線 #9
+
+            # 位階過濾 (CLAUDE.md 紅線: 距 20MA > 30%)
+            ma20_dist = (price / st.ma20 - 1)
+            level_ok = ma20_dist < LONG_MAX_MA20_DIST
+
+            # 5分K均線發散檢查 (§1.1: 「均線沒有發散」是做多前提)
+            fivem_closes = [
+                _sf(c.get("close"))
+                for c in st.all_5m_candles
+                if _sf(c.get("close")) is not None
+            ]
+            n_bars = len(fivem_closes)
+            if n_bars >= 20:
+                ma5_5m  = sum(fivem_closes[-5:])  / 5
+                ma10_5m = sum(fivem_closes[-10:]) / 10
+                ma20_5m = sum(fivem_closes[-20:]) / 20
+                diverge_ratio = (max(ma5_5m, ma10_5m, ma20_5m)
+                                 - min(ma5_5m, ma10_5m, ma20_5m)) / price
+                is_diverged = diverge_ratio > FIVEM_DIVERGE_RATIO
+                diverge_note = (
+                    f"5mK均線發散={diverge_ratio*100:.1f}%>{FIVEM_DIVERGE_RATIO*100:.0f}% ⛔"
+                    if is_diverged else
+                    f"5mK均線收斂={diverge_ratio*100:.1f}% ✓"
+                )
+            else:
+                is_diverged = False
+                diverge_note = f"5分K不足({n_bars}根<20)、肉眼確認是否發散"
+
+            # ── 進場型態 A: 均線多頭排列 + 紅→洗黑→再紅 (§1.1 磐亞) ──────
+            # 條件: price>MA5>MA10>MA20>MA60 + 紅→黑→紅序列 + 5分K不發散
+            # 若5分K不足3根 (n_bars<3) 暫不強制要求型態 (早期偵測保護)
+            cond_a_signal = False
+            cond_a_msg = ""
+            if (st.ma5 and st.ma10 and st.ma60
+                    and not in_first_10min and not first_5m_too_hot
+                    and 0 < change_rate < LONG_MAX_CHG
+                    and level_ok and not is_diverged):
+                ma_bull = (price > st.ma5 > st.ma10 > st.ma20 > st.ma60)
+                if ma_bull:
+                    has_rwr = _has_red_wash_red_pattern(st)
+                    pattern_ok_a = has_rwr or (n_bars < 3)
+                    if pattern_ok_a:
+                        cond_a_signal = True
+                        anchors = [
+                            a for a in [open_price, prev_close, st.first_5m_low]
+                            if a and a > 0
+                        ]
+                        dual_anchor = max(anchors) if anchors else open_price
+                        cond_a_msg = (
+                            f"🟢 [{ticker}] 做多候選 (型態A 均線多頭+洗盤再攻 §1.1) | "
+                            f"現={price:.1f} 漲{change_rate:+.2f}% | "
+                            f"MA5={st.ma5:.1f} MA10={st.ma10:.1f} "
+                            f"MA20={st.ma20:.1f}(距{ma20_dist*100:+.1f}%) MA60={st.ma60:.1f} | "
+                            + (
+                                "紅→洗黑→再紅 ✓(§1.1磐亞)"
+                                if has_rwr else
+                                f"5分K{n_bars}根、型態待確認(等紅→洗黑→再紅 §1.1磐亞)"
+                            ) + f" | 【{diverge_note}】 | "
+                            f"雙錨stop={dual_anchor:.1f} "
+                            f"(開{open_price:.1f}/昨收{prev_close:.1f}"
+                            f"/5mK低{st.first_5m_low or '—'})"
+                        )
+
+            # ── 進場型態 B: 開高拉下到月線-10日線之間 (§1.2) ──────────────
+            # 「開高拉下來、在十日跟月線之間你可以去找一個多單的機會」
+            # 停損 = 破月線(MA20) 閃人 (課程§1.2「在這一根破掉了月線了、月線破就該閃人了」)
+            # 注: price 在 MA20-MA10 之間 → 不要求 ma_bull (price 低於 MA10)
+            # 開高門檻 >+0.5% 為課程外自訂 (老師只說「開高拉下」未量化)
+            # change_rate > -3.0: 深度跌破昨收 (< -3%) = 倒貨/崩跌、非正常回踩 (課程外)
+            cond_b_signal = False
+            cond_b_msg = ""
+            if (st.ma10 and st.ma60
+                    and not in_first_10min and not first_5m_too_hot
+                    and level_ok):
+                open_pullback = (
+                    open_price > 0 and prev_close > 0
+                    and open_price > prev_close * 1.005  # 開高 >+0.5% (課程外門檻)
+                    and st.ma20 <= price <= st.ma10      # 現價在月線-10日線之間
+                    and price > st.ma60                  # 仍在季線上方
+                    and change_rate > -3.0               # 非深度負盤 (課程外: -3% 閾值可調)
+                )
+                if open_pullback:
+                    cond_b_signal = True
+                    open_b_pct = (open_price / prev_close - 1) * 100
+                    cond_b_msg = (
+                        f"🟢 [{ticker}] 做多候選 (型態B 開高拉下回踩MA §1.2) | "
+                        f"現={price:.1f} 漲{change_rate:+.2f}% | "
+                        f"開{open_b_pct:+.1f}%({open_price:.1f})→回踩{price:.1f} "
+                        f"在MA10={st.ma10:.1f}-MA20={st.ma20:.1f}之間 | "
+                        f"停損=破月線MA20={st.ma20:.1f}就閃(§1.2) | "
+                        f"【{diverge_note}】"
+                    )
+
+            # ── 發出訊號 (型態A優先、兩者同時取A) ──────────────────────────
+            if cond_a_signal or cond_b_signal:
+                signals.append({
+                    "type": "LONG_SETUP",
+                    "ticker": ticker,
+                    "msg": cond_a_msg if cond_a_signal else cond_b_msg,
+                    "ts": now_str,
+                    "priority": 3,
+                })
 
     return signals
 
@@ -645,6 +731,70 @@ def _is_large_vol_black_k(st: TickerState) -> bool:
     else:
         is_large = True  # 無均量資料 → 保守判定為大量 (避免漏警)
     return is_black and is_large
+
+
+def _is_red_k_engulfed_by_black(st: TickerState) -> bool:
+    """最近5分K是否出現「紅K被黑K吞噬」型態。
+
+    課程 §2.2/§2.3 (2026-06-29):
+        「早上的紅K一直被黑K吞噬、代表說就很可怕了」
+        「兩根大黑K就吞噬了前面的紅K、這個就是賣壓很大、準備要閃人了」
+
+    實作: 最近6根5分K中、找 (紅K, 黑K) 相鄰對、黑K body 覆蓋紅K body >= ENGULF_RATIO。
+    ⚠️ ENGULF_RATIO = 0.8 為課程外自訂閾值 (老師只說「吞噬」未量化)。
+    """
+    candles = st.all_5m_candles[-6:] if len(st.all_5m_candles) >= 6 else st.all_5m_candles
+    if len(candles) < 2:
+        return False
+    for i in range(len(candles) - 1):
+        o1 = _sf(candles[i].get("open"))
+        c1 = _sf(candles[i].get("close"))
+        o2 = _sf(candles[i + 1].get("open"))
+        c2 = _sf(candles[i + 1].get("close"))
+        if None in (o1, c1, o2, c2):
+            continue
+        is_red   = c1 > o1
+        is_black = c2 < o2
+        if not (is_red and is_black):
+            continue
+        red_body = c1 - o1
+        if red_body <= 0:
+            continue
+        # 黑K body 覆蓋紅K body 的程度
+        # 紅K: body = [o1, c1] (低→高)；黑K: body = [c2, o2] (低→高)
+        overlap_top = min(o2, c1)   # 兩者 body 上緣的較低者
+        overlap_bot = max(c2, o1)   # 兩者 body 下緣的較高者
+        if overlap_top <= overlap_bot:
+            continue
+        covered = overlap_top - overlap_bot
+        if covered / red_body >= ENGULF_RATIO:
+            return True
+    return False
+
+
+def _has_red_wash_red_pattern(st: TickerState) -> bool:
+    """最近5分K是否有「紅K → 洗一根黑K → 再紅K撐住」的做多型態。
+
+    課程 §1.1 磐亞 (2026-06-29):
+        「一個紅K下來洗一下黑K灌下去再紅K拉上去、基本上這個長相就已經成立做多的姿態了」
+
+    實作: 最近8根5分K中、找任意連續 (紅, 黑, 紅) 三根序列。
+    """
+    candles = st.all_5m_candles[-8:] if len(st.all_5m_candles) >= 8 else st.all_5m_candles
+    if len(candles) < 3:
+        return False
+    for i in range(len(candles) - 2):
+        o1 = _sf(candles[i].get("open"))
+        c1 = _sf(candles[i].get("close"))
+        o2 = _sf(candles[i + 1].get("open"))
+        c2 = _sf(candles[i + 1].get("close"))
+        o3 = _sf(candles[i + 2].get("open"))
+        c3 = _sf(candles[i + 2].get("close"))
+        if None in (o1, c1, o2, c2, o3, c3):
+            continue
+        if c1 > o1 and c2 < o2 and c3 > o3:   # 紅 → 黑 → 紅
+            return True
+    return False
 
 
 # ── Fubon Client 取得 ────────────────────────────────────────────────────────
