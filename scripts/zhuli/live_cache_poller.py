@@ -101,26 +101,23 @@ def in_market_hours():
     hm = lt.tm_hour * 60 + lt.tm_min
     return 9 * 60 <= hm <= 13 * 60 + 35
 
-def after_close_backfill(done):
-    """盤後 (>=13:40 weekday) 強制重抓「今天+昨天」三大法人。
-    三大法人 EOD 有「初步→確定」修正 (投信常被更正)、force 重抓覆蓋、每 ~30 分一次。"""
+def evening_backfill(done):
+    """晚上 (>=20:00 weekday) 資料齊全後、抓一次「確定版」三大法人 (今天+昨天)、每天一次。
+    🔴 不在剛收盤 (13:40) 抓 (那是初步值、投信常被更正)、等晚上資料齊全才更新 (user 2026-07-01)。"""
     lt = time.localtime()
-    if lt.tm_wday >= 5 or lt.tm_hour * 60 + lt.tm_min < 13 * 60 + 40:
+    if lt.tm_wday >= 5 or lt.tm_hour < 20:  # 只在晚上 20:00 後
         return done
-    if lt.tm_min % 30 >= 10:  # 每 ~30 分抓一次 (別每 10 分狂打 API)
+    today = time.strftime('%Y-%m-%d')
+    if done.get('inst_evening') == today:  # 每天一次
         return done
-    stamp = time.strftime('%Y-%m-%d %H') + f':{lt.tm_min // 30}'
-    if done.get('inst_stamp') == stamp:
-        return done
-    done['inst_stamp'] = stamp
     try:
         from datetime import date, timedelta
         from zhuli.chip_data import backfill_institutional
-        today = time.strftime('%Y-%m-%d')
         y = (date.fromisoformat(today) - timedelta(days=1)).isoformat()
-        n = backfill_institutional(today, force=True)  # 今天 (可能初步)
-        ny = backfill_institutional(y, force=True) if date.fromisoformat(y).weekday() < 5 else 0  # 昨天 (catch 確定修正)
-        print(f'{time.strftime("%H:%M:%S")} 盤後 force backfill 今{n}/昨{ny} 檔', flush=True)
+        n = backfill_institutional(today, force=True)
+        ny = backfill_institutional(y, force=True) if date.fromisoformat(y).weekday() < 5 else 0
+        done['inst_evening'] = today
+        print(f'{time.strftime("%H:%M:%S")} 晚間 backfill 確定版法人 今{n}/昨{ny} 檔', flush=True)
     except Exception as e:
         print(f'{time.strftime("%H:%M:%S")} backfill ERR {e}', flush=True)
     return done
@@ -135,5 +132,6 @@ if __name__ == '__main__':
             print(f'{time.strftime("%H:%M:%S")} [{src}] {n}檔 持倉{tot:+,} {"盤中" if live else "盤後"}', flush=True)
         except Exception as e:
             print(f'{time.strftime("%H:%M:%S")} ERR {e}', flush=True)
-        # 盤後不自動抓法人 (user 2026-07-01)、法人改純 on-demand (chip_data.get_institutional force 重抓確定版)
+        if not live:
+            done = evening_backfill(done)  # 晚上 20:00 後才抓確定版法人 (非收盤抓初步)
         time.sleep(30 if live else 600)

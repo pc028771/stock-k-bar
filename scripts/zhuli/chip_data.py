@@ -70,19 +70,7 @@ def get_institutional(ticker, start, end):
                 except Exception:
                     pass
             d += timedelta(days=1)
-    # 🔴 三大法人有「初步→確定」修正: end 若在最近 3 天內、每天 force 重抓一次確定版 (flag 檔防重複)
-    try:
-        import os as _os
-        end_d = _date.fromisoformat(end)
-        recent = (_date.today() - end_d).days <= 3 if _date.today() >= end_d else False
-        if recent:
-            flag = f'/tmp/zhuli_cache/instforce_{end}_{_date.today().isoformat()}.flag'
-            if not _os.path.exists(flag):
-                backfill_institutional(end, c, force=True)
-                _os.makedirs('/tmp/zhuli_cache', exist_ok=True)
-                open(flag, 'w').close()
-    except Exception:
-        pass
+    # 註: 三大法人「初步→確定」修正靠 poller 晚上 (>=20:00) 資料齊全後 force 重抓、非白天
     rows = c.execute(
         "SELECT trade_date,foreign_net,sitc_net FROM institutional_investors "
         "WHERE ticker=? AND trade_date BETWEEN ? AND ? ORDER BY trade_date",
