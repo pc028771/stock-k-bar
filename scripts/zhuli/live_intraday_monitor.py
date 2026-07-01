@@ -556,9 +556,15 @@ def detect_signals(
 
         ma_bull = (price > st.ma5 > st.ma10 > st.ma20 > st.ma60)
 
-        # 前5分鐘漲幅近似：開盤到現在漲幅
-        open_chg_pct = ((price / open_price - 1) * 100) if open_price > 0 else 0.0
-        first_5m_too_hot = open_chg_pct > 5.0  # 一票否決
+        # 老師短線三鐵 (CLAUDE.md 紅線 #8-9)、順德 7/1 復盤補:
+        # 前10分鐘 (前2根5分K) 只觀察不切入 → 避免開高走弱首根誤報 (順德教訓)
+        in_first_10min = len(st.all_5m_candles) < 3
+        # 首根5分K漲幅 (收 vs 昨收) > 5% → 一票否決 (老師原話「前5分鐘漲幅>5%=skip」)
+        if st.first_5m_close and prev_close > 0:
+            first_5m_chg = (st.first_5m_close / prev_close - 1) * 100
+        else:
+            first_5m_chg = ((price / open_price - 1) * 100) if open_price > 0 else 0.0
+        first_5m_too_hot = first_5m_chg > 5.0
 
         # 位階過濾 (CLAUDE.md 紅線: 距 20MA > 30%)
         # st.ma20 保證 > 0 by outer if guard
@@ -594,6 +600,7 @@ def detect_signals(
             )
 
         if (ma_bull
+                and not in_first_10min               # 前10分鐘只觀察 (順德教訓)
                 and not first_5m_too_hot
                 and 0 < change_rate < LONG_MAX_CHG  # 紅盤 (>0) + 未過熱 (<5%)
                 and level_ok                         # 距MA20 < 30%
