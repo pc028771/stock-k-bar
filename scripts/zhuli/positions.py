@@ -197,6 +197,14 @@ PLAN_PRIMARY: list = [
 # 觀察清單 (dict 格式、兼容舊 tuple)
 WATCH = [
     {
+        'ticker': '3624', 'name': '光頡',
+        'ref_close': 155.0, 'stop': None,
+        'tactic': '追蹤觀察', 'priority': 3,
+        'source': 'user 2026-07-05 指定追蹤 (脈絡待確認、可能7/5週報提及/被動元件)',
+        'sector': '被動元件/電子零組件',
+        'note': '⚠️距季+65%位階非常高(已噴很多)、被動元件=老師警示族群。user要追蹤但別追高。等大回檔/回測均線才看、追噴出=犯紅線。追蹤原因待user補(哪來的訊號)'
+    },
+    {
         'ticker': '2409', 'name': '友達',
         'ref_close': 30.6, 'stop': None,
         'tactic': '短沖(非波段)', 'priority': 3,
