@@ -25,7 +25,8 @@ _REPO = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_REPO / "scripts"))
 from zhuli.db import get_conn
 
-START, END = "2026-01-01", "2026-07-03"
+START = os.environ.get("SIM_START", "2026-01-01")
+END = os.environ.get("SIM_END", "2026-07-03")
 CAPITAL = 3_000_000
 MAX_SLOTS = 5
 FEE = 0.004
@@ -224,6 +225,12 @@ def main():
     lines.append("| — | — | — | — | — | — |")
     for t in sorted(closed, key=lambda x: x["pnl"])[:10]:
         lines.append(f"| {t['ticker']} | {t['entry_date']} @{t['entry_px']} | {t['exit_date']} @{t['exit_px']} | {t['ret']:+.1f}% | {t['score']} | ${t['pnl']:+,.0f} |")
+
+    lines += ["", "## 完整交易明細（依進場日）", "",
+              "| # | 標的 | 進場日 | 進價 | 出場日 | 出價 | 股數 | 報酬 | PnL | Score |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
+    for i, t in enumerate(sorted(closed, key=lambda x: x["entry_date"]), 1):
+        lines.append(f"| {i} | {t['ticker']} | {t['entry_date']} | {t['entry_px']} | {t['exit_date']} | {t['exit_px']} | {t['shares']:,} | {t['ret']:+.1f}% | ${t['pnl']:+,.0f} | {t['score']} |")
 
     out = _REPO / "docs" / "frank" / "backtest" / "portfolio_sim_v2_clean.md"
     out.write_text("\n".join(lines))
