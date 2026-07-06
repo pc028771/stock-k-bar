@@ -126,20 +126,33 @@ def frank_sunset_line(bars: list[dict]) -> dict:
 
 
 def frank_kd_divergence(closes: list[float], k_values: list[float], lookback: int = 40) -> dict:
-    """KD 背離（近2波）: 價創新低KD沒創低=低背；價創新高KD沒創高=高背."""
-    if len(closes) < lookback or len(k_values) < lookback:
-        return {"divergence": None, "reason": f"bars<{lookback}"}
-    c, k = closes[-lookback:], k_values[-lookback:]
-    half = lookback // 2
-    lo1, lo2 = min(c[:half]), min(c[half:])
-    klo1, klo2 = min(k[:half]), min(k[half:])
-    hi1, hi2 = max(c[:half]), max(c[half:])
-    khi1, khi2 = max(k[:half]), max(k[half:])
-    if lo2 < lo1 and klo2 > klo1:
-        return {"divergence": "low", "reason": "低檔背離：價創低KD墊高 → 留意日出+分歧"}
-    if hi2 > hi1 and khi2 < khi1:
-        return {"divergence": "high", "reason": "高檔背離：價創高KD下不去 → 留意日落"}
-    return {"divergence": None, "reason": "無背離"}
+    """KD 背離（近2波 pivot）: 取最近兩個局部低點/高點比較、非對半切。
+
+    Frank W18: 只比「近兩波」。pivot = 比左右鄰居都低(高)的 bar。
+    最近 pivot 必須在視窗尾端附近（近 1/3）才算「現在正在發生」的背離。
+    """
+    n = min(lookback, len(closes))
+    if n < 12 or len(k_values) < n:
+        return {"divergence": None, "reason": f"bars<{12}"}
+    c, k = closes[-n:], k_values[-n:]
+
+    def pivots(vals, cmp):
+        return [i for i in range(1, len(vals) - 1)
+                if cmp(vals[i], vals[i - 1]) and cmp(vals[i], vals[i + 1])]
+
+    lows = pivots(c, lambda a, b: a < b)
+    highs = pivots(c, lambda a, b: a > b)
+    if len(lows) >= 2 and lows[-1] >= n * 2 // 3:
+        i1, i2 = lows[-2], lows[-1]
+        if c[i2] < c[i1] and k[i2] > k[i1]:
+            return {"divergence": "low", "p1": c[i1], "p2": c[i2], "k1": k[i1], "k2": k[i2],
+                    "reason": f"低檔背離：價 {c[i2]}<{c[i1]}、K {k[i2]:.0f}>{k[i1]:.0f} → 留意日出+分歧"}
+    if len(highs) >= 2 and highs[-1] >= n * 2 // 3:
+        i1, i2 = highs[-2], highs[-1]
+        if c[i2] > c[i1] and k[i2] < k[i1]:
+            return {"divergence": "high", "p1": c[i1], "p2": c[i2], "k1": k[i1], "k2": k[i2],
+                    "reason": f"高檔背離：價 {c[i2]}>{c[i1]}、K {k[i2]:.0f}<{k[i1]:.0f} → 留意日落"}
+    return {"divergence": None, "reason": "近兩波 pivot 無背離"}
 
 
 def frank_daily_neckline(bars: list[dict], window: int = 60) -> dict:
@@ -314,10 +327,15 @@ def demo():
     b3 = [mk(high=100, vol_ratio_20=2.0), mk(high=103, vol_ratio_20=1.8),
           mk(close=105, vol_ratio_20=1.0)]
     assert frank_bottom_3_soldiers([mk()] + b3)["formed"] is True
-    # KD 背離: 價新低 KD 墊高
-    closes = [100 - i * 0.5 for i in range(20)] + [90 - i * 0.3 for i in range(20)]
-    kvals = [50 - i for i in range(20)] + [35 + i * 0.5 for i in range(20)]
-    assert frank_kd_divergence(closes, kvals)["divergence"] == "low"
+    # KD 背離 (pivot 型): 低點1 @90 K=20、反彈、低點2 @88 K=30 (價低K高) 在尾端
+    closes = [100, 96, 93, 90, 94, 97, 95, 92, 89, 88, 89.5, 90.5]
+    kvals =  [60, 45, 30, 20, 35, 50, 45, 38, 33, 30, 36, 40]
+    r = frank_kd_divergence(closes, kvals, lookback=12)
+    assert r["divergence"] == "low", r
+    # 對半切誤判情境不再觸發: 一路上漲的序列 (起點低) 不應報背離
+    up_c = [25 + i * 0.4 for i in range(24)]
+    up_k = [30 + i * 2 % 60 for i in range(24)]
+    assert frank_kd_divergence(up_c, up_k, lookback=24)["divergence"] is None
     print("all detector self-checks passed")
 
 
