@@ -134,4 +134,4 @@ if __name__ == '__main__':
             print(f'{time.strftime("%H:%M:%S")} ERR {e}', flush=True)
         if not live:
             done = evening_backfill(done)  # 晚上 20:00 後才抓確定版法人 (非收盤抓初步)
-        time.sleep(30 if live else 600)
+        time.sleep(5 if live else 600)
