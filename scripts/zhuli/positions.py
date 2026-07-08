@@ -99,6 +99,12 @@ HELD = [
 # 格式: dict (必填: ticker, name, shares, stop; 選填: tactic, priority, source, sector, note, reason)
 # 舊 tuple (ticker, name, shares, stop, reason) 自動 convert
 PLAN_PRIMARY: list = [
+    # 🔴 7/8 現行 plan (user 拍板):
+    #   聯電第二批深補: 觸發 A=洗回$149-152尾盤綠K盤中沒破148 / B=7/16出關後回測守住 / C=7/15後收盤突破$178
+    #     中間價位($153-177)一律不補。最多+1張到~20%封頂。
+    #   「貼結構停損(<2% from stop)可預掛限價單」例外已核准、但【等富邦帳戶開好】才執行
+    #     (富邦條件單有生效時間+觸價複合、貼合尾盤紀律; 開好前=尾盤手動+AI 13:00 ping 對表)
+    #   大咬: 7/15結算轉倉後看表態、最相信的三檔、別提前
     # 6/16 過期 plan 移除:
     #   - 1605 華新加碼: 6/16 沒執行、user 重新評估後仍未拍板
     #   - 2472 立隆電: 6/16 跌停 -9.97%、stop $361 必然破、plan 失效
