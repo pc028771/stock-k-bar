@@ -12,7 +12,8 @@ _REPO = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_REPO / "scripts"))
 from zhuli.db import get_conn
 
-TICKERS = {"2327": "國巨", "1409": "新纖"}
+import os
+TICKERS = dict(p.split(":") for p in os.environ.get("WATCH_TICKERS", "2327:國巨,1409:新纖").split(","))
 SNAP = "/tmp/zhuli_cache/snapshot.json"
 JQ_TRIG, JQ_HEAD = 329.8, 333.0   # 京鼎站回價 / 昨高
 
@@ -56,9 +57,39 @@ def check_divergence(bars, kds):
     return f"未背離 (價低 {lo2} vs {lo1}、K低 {k2:.0f} vs {k1:.0f})"
 
 
+def synth_fill(conn, tk, bars):
+    """分K資料落後於日K時、用日K OHLC 合成小時bar 補洞."""
+    last = bars[-1]["k"][:10] if bars else "2000-01-01"
+    rows = conn.execute("""SELECT trade_date, open, high, low, close FROM standard_daily_bar
+                           WHERE ticker=? AND trade_date>? AND close>0 ORDER BY trade_date""",
+                        (tk, last)).fetchall()
+    for d, o, h, l, c in rows:
+        seq = [o, (o+h)/2, h, l, c] if c >= o else [o, (o+l)/2, l, h, c]
+        for i, px in enumerate(seq):
+            bars.append({"k": f"{d} {9+i:02d}", "o": px, "h": max(px, seq[min(i+1, 4)]),
+                         "l": min(px, seq[min(i+1, 4)]), "c": px})
+    return bars
+
+
+def ema_state(bars):
+    cs = [b["c"] for b in bars]
+    if len(cs) < 15: return ""
+    k10, k60 = 2/11, 2/61
+    e10 = e60 = cs[0]
+    e60s = []
+    for v in cs:
+        e10 = v*k10 + e10*(1-k10); e60 = v*k60 + e60*(1-k60)
+        e60s.append(e60)
+    up = e10 > e60
+    slope = e60s[-1] - e60s[max(0, len(e60s)-7)]
+    if up and slope > 0: return "🟢小時戰法一守住"
+    if up: return "🟡上穿但60EMA未上揚"
+    return "🔴小時戰法一破(被壓)"
+
+
 def main():
     conn = get_conn()
-    hist = {tk: hourly_bars(conn, tk)[-40:] for tk in TICKERS}
+    hist = {tk: synth_fill(conn, tk, hourly_bars(conn, tk))[-60:] for tk in TICKERS}
     live = {tk: None for tk in TICKERS}   # 今日當前小時 bar
     done_hours = {tk: set() for tk in TICKERS}
     jq_done = False
@@ -84,7 +115,8 @@ def main():
                     kds = kd(hist[tk])
                     kv, dv = kds[-1]
                     div = check_divergence(hist[tk][-24:], kds[-24:])
-                    print(f"{b['k']}:00 收bar {tk} {nm} c={b['c']} K={kv:.0f} D={dv:.0f} | {div}", flush=True)
+                    st = ema_state(hist[tk])
+                    print(f"{b['k']}:00 收bar {tk} {nm} c={b['c']} K={kv:.0f} D={dv:.0f} | {st} | {div}", flush=True)
                 live[tk] = None
             if live[tk] is None:
                 live[tk] = {"k": hh, "o": c, "h": c, "l": c, "c": c}
@@ -92,8 +124,7 @@ def main():
                 live[tk]["h"] = max(live[tk]["h"], c)
                 live[tk]["l"] = min(live[tk]["l"], c)
                 live[tk]["c"] = c
-        # 京鼎 12:58 判定
-        if not jq_done and (now.hour, now.minute) >= (12, 58):
+        if False and not jq_done and (now.hour, now.minute) >= (12, 58):
             jq = d["data"].get("3413")
             if jq:
                 cl = jq["close"]
